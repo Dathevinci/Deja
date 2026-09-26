@@ -901,9 +901,9 @@ body {
    -------------------------------------------------------------------------- */
 .apple-lyrics-drawer {
   position: fixed;
-  top: 44px;
+  top: 42px;
   right: 0;
-  bottom: 76px;
+  bottom: 80px;
   width: 480px;
   background: rgba(18, 18, 20, 0.94);
   backdrop-filter: blur(50px) saturate(200%);

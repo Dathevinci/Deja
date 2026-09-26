@@ -172,14 +172,29 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
             const ytSearch = document.querySelector('ytmusic-search-box input') || document.querySelector('input.ytmusic-search-box') || document.querySelector('#search-input input');
             if (ytSearch) {
               ytSearch.value = query;
-              ytSearch.dispatchEvent?.(new Event('input', { bubbles: true }));
-              ytSearch.dispatchEvent?.(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+              ytSearch.dispatchEvent?.(new Event('input', { bubbles: true, composed: true }));
+              ytSearch.dispatchEvent?.(new Event('change', { bubbles: true, composed: true }));
+              ytSearch.dispatchEvent?.(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, composed: true }));
             }
             if (typeof window !== 'undefined' && window.location) {
-              if (window.location.pathname && window.location.pathname.includes('/search')) {
-                window.location.search = `?q=${encodeURIComponent(query)}`;
+              const targetPath = `/search?q=${encodeURIComponent(query)}`;
+              const ytApp = document.querySelector('ytmusic-app');
+              if (ytApp && typeof ytApp.navigate === 'function') {
+                ytApp.navigate(targetPath);
+              } else if (window.history && typeof window.history.pushState === 'function') {
+                const currentSearch = window.location.search;
+                const newSearch = `?q=${encodeURIComponent(query)}`;
+                if (window.location.pathname && window.location.pathname.includes('/search')) {
+                  if (currentSearch !== newSearch) {
+                    window.history.pushState({}, '', targetPath);
+                    window.dispatchEvent(new CustomEvent('location-changed'));
+                  }
+                } else {
+                  window.history.pushState({}, '', targetPath);
+                  window.dispatchEvent(new CustomEvent('location-changed'));
+                }
               } else {
-                window.location.href = `https://music.youtube.com/search?q=${encodeURIComponent(query)}`;
+                window.location.href = targetPath;
               }
             }
           }
@@ -203,15 +218,23 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
     const accountBtn = getEl('deja-account-btn', 'sonora-account-btn');
     if (accountBtn) {
       accountBtn.onclick = () => {
-        const nativeAvatar = document.querySelector('ytmusic-nav-bar #avatar-btn, ytmusic-nav-bar ytmusic-settings-button, ytmusic-nav-bar button#avatar-btn, #avatar-btn, ytmusic-settings-button');
-        const nativeSignIn = document.querySelector('ytmusic-nav-bar ytmusic-sign-in-button-renderer a, ytmusic-nav-bar a[href*="accounts.google.com"], ytmusic-sign-in-button-renderer a');
-        if (nativeAvatar) {
-          nativeAvatar.click();
-        } else if (nativeSignIn) {
-          nativeSignIn.click();
-        } else if (typeof window !== 'undefined' && window.location) {
-          window.location.href = 'https://accounts.google.com/ServiceLogin?service=youtube&uivews=1&passive=true&continue=https://music.youtube.com';
+        const nativeSignIn = document.querySelector('ytmusic-nav-bar ytmusic-sign-in-button-renderer a, a[href*="accounts.google.com"], ytmusic-sign-in-button-renderer a');
+        if (nativeSignIn && nativeSignIn.href) {
+          window.location.href = nativeSignIn.href;
+          return;
         }
+        const nativeAvatar = document.querySelector('ytmusic-nav-bar #avatar-btn, ytmusic-nav-bar ytmusic-settings-button, ytmusic-nav-bar button#avatar-btn, #avatar-btn, ytmusic-settings-button');
+        if (nativeAvatar) {
+          try {
+            nativeAvatar.click();
+            const popupContainer = document.querySelector('ytmusic-popup-container, tp-yt-iron-dropdown');
+            if (popupContainer && popupContainer.style) {
+              popupContainer.style.zIndex = '10002';
+              return;
+            }
+          } catch (e) {}
+        }
+        openAccountModal();
       };
     }
   }
@@ -290,13 +313,20 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
     if (!avatarCircle) return;
 
     const nativeAvatarImg = document.querySelector('ytmusic-nav-bar #avatar-btn img, ytmusic-nav-bar ytmusic-settings-button img, #avatar-btn img, ytmusic-settings-button img, ytmusic-avatar img');
-    if (nativeAvatarImg && nativeAvatarImg.src && !avatarCircle.querySelector('img')) {
-      const img = document.createElement('img');
-      img.src = nativeAvatarImg.src;
-      img.alt = 'Account';
-      img.className = 'deja-avatar-img sonora-avatar-img';
-      avatarCircle.textContent = '';
-      avatarCircle.appendChild(img);
+    if (nativeAvatarImg && nativeAvatarImg.src) {
+      const existingImg = avatarCircle.querySelector('img');
+      if (existingImg) {
+        if (existingImg.src !== nativeAvatarImg.src) {
+          existingImg.src = nativeAvatarImg.src;
+        }
+      } else {
+        const img = document.createElement('img');
+        img.src = nativeAvatarImg.src;
+        img.alt = 'Account';
+        img.className = 'deja-avatar-img sonora-avatar-img';
+        avatarCircle.textContent = '';
+        avatarCircle.appendChild(img);
+      }
     }
   }
 
@@ -494,6 +524,18 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
   /* -------------------------------------------------------------
      5. Apple Frosted Modal Dialog (Settings & About)
      ------------------------------------------------------------- */
+  function openAccountModal() {
+    const isConnected = !!document.querySelector('ytmusic-nav-bar #avatar-btn, #avatar-btn, ytmusic-avatar');
+    renderAppleModal({
+      title: 'Google & Deja Account',
+      rows: [
+        { label: 'Status', desc: isConnected ? 'Connected to Google & YouTube Music' : 'Guest mode (not signed in)', badge: isConnected ? 'Signed In' : 'Guest' },
+        { label: 'Platform', desc: 'YouTube Music Desktop Integration', badge: 'Connected' },
+        { label: 'Account Switch', desc: 'Manage your active Google account in Deja', badge: 'Google Auth' }
+      ]
+    });
+  }
+
   function openSettingsModal() {
     renderAppleModal({
       title: 'Deja Preferences',

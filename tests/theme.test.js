@@ -26,6 +26,11 @@ function runThemeTests() {
   assert.ok(css.includes('.deja-account-btn'), 'Must define Apple account avatar button (.deja-account-btn)');
   assert.ok(css.includes('.deja-search-input'), 'Must define Apple search input (.deja-search-input)');
   assert.ok(css.includes('.deja-ad-badge'), 'Must define Apple-styled advertisement badge (.deja-ad-badge)');
+  assert.ok(css.includes('#player-bar-background') && css.includes('#nav-bar-background'), 'Must eliminate opaque background layers for player-bar and nav-bar');
+  assert.ok(css.includes('--ytmusic-player-bar-height: 80px !important'), 'Must define --ytmusic-player-bar-height: 80px');
+  assert.ok(css.includes('ytmusic-mini-guide-renderer'), 'Must style and offset mini-sidebar');
+  assert.ok(css.includes('ITEM_SHAPE_CIRCLE'), 'Must preserve 50% circle border radius for artist avatars');
+  assert.ok(css.includes('.subtitle') && css.includes('.content-info-wrapper a'), 'Must style track subtitles and links cleanly');
   assert.ok(css.includes('#sonora-titlebar'), 'Must retain backwards-compatible #sonora-titlebar');
   assert.ok(css.includes('.sonora-traffic-lights'), 'Must retain backwards-compatible .sonora-traffic-lights');
   assert.ok(css.includes('.sonora-ad-badge'), 'Must retain backwards-compatible .sonora-ad-badge');

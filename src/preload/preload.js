@@ -39,7 +39,7 @@ const LYRICS_STYLES = `
     position: fixed;
     top: 42px;
     right: 0;
-    bottom: 72px;
+    bottom: 80px;
     width: 480px;
     background: rgba(18, 18, 20, 0.92);
     backdrop-filter: blur(50px) saturate(200%);
