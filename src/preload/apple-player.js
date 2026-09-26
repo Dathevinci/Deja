@@ -92,12 +92,13 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
       </div>
 
       <div class="deja-top-center sonora-top-center">
-        <div class="deja-search-pill sonora-search-pill" id="deja-search-bar" title="Search (Ctrl+K)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="deja-search-pill sonora-search-pill" id="deja-search-bar" title="Search songs, artists, albums (Ctrl+K)">
+          <svg class="deja-search-icon sonora-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <span id="deja-search-placeholder">Search songs, artists, albums...</span>
+          <input type="text" id="deja-search-input" class="deja-search-input sonora-search-input" placeholder="Search songs, artists, albums..." autocomplete="off" spellcheck="false" />
+          <span class="deja-search-shortcut sonora-search-shortcut">⌘K</span>
         </div>
       </div>
 
@@ -121,6 +122,11 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
         </button>
+        <button class="deja-icon-btn sonora-icon-btn deja-account-btn sonora-account-btn" id="deja-account-btn" title="Google Account / Sign In">
+          <div class="deja-avatar-circle sonora-avatar-circle" id="deja-avatar-circle">
+            <span id="deja-account-initial">D</span>
+          </div>
+        </button>
       </div>
     `);
 
@@ -139,17 +145,52 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
     if (forwardBtn) forwardBtn.onclick = () => window.history.forward();
 
     const searchBar = getEl('deja-search-bar', 'sonora-search-bar');
+    const searchInput = getEl('deja-search-input', 'sonora-search-input');
     if (searchBar) {
-      searchBar.onclick = () => {
-        const ytSearch = document.querySelector('ytmusic-search-box input') || document.querySelector('input.ytmusic-search-box') || document.querySelector('#search-input input');
-        if (ytSearch) {
-          ytSearch.focus();
-          ytSearch.select();
-        } else {
-          const searchBtn = document.querySelector('ytmusic-nav-bar [aria-label*="Search"], ytmusic-search-box');
-          if (searchBtn) searchBtn.click();
+      searchBar.onclick = (e) => {
+        if (searchInput && e.target !== searchInput) {
+          searchInput.focus();
+        } else if (!searchInput) {
+          const ytSearch = document.querySelector('ytmusic-search-box input') || document.querySelector('input.ytmusic-search-box') || document.querySelector('#search-input input');
+          if (ytSearch) {
+            ytSearch.focus();
+            ytSearch.select();
+          } else {
+            const searchBtn = document.querySelector('ytmusic-nav-bar [aria-label*="Search"], ytmusic-search-box');
+            if (searchBtn) searchBtn.click();
+          }
         }
       };
+    }
+
+    if (searchInput) {
+      const onSearchKeyDown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const query = (searchInput.value || '').trim();
+          if (query) {
+            const ytSearch = document.querySelector('ytmusic-search-box input') || document.querySelector('input.ytmusic-search-box') || document.querySelector('#search-input input');
+            if (ytSearch) {
+              ytSearch.value = query;
+              ytSearch.dispatchEvent?.(new Event('input', { bubbles: true }));
+              ytSearch.dispatchEvent?.(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+            }
+            if (typeof window !== 'undefined' && window.location) {
+              if (window.location.pathname && window.location.pathname.includes('/search')) {
+                window.location.search = `?q=${encodeURIComponent(query)}`;
+              } else {
+                window.location.href = `https://music.youtube.com/search?q=${encodeURIComponent(query)}`;
+              }
+            }
+          }
+        }
+      };
+
+      if (typeof searchInput.addEventListener === 'function') {
+        searchInput.addEventListener('keydown', onSearchKeyDown);
+      } else {
+        searchInput.onkeydown = onSearchKeyDown;
+      }
     }
 
     const lyricsBtn = getEl('deja-lyrics-btn', 'sonora-lyrics-btn');
@@ -158,6 +199,21 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
     if (miniBtn) miniBtn.onclick = () => api?.windowAction('toggle-miniplayer');
     const settingsBtn = getEl('deja-settings-btn', 'sonora-settings-btn');
     if (settingsBtn) settingsBtn.onclick = () => openSettingsModal();
+
+    const accountBtn = getEl('deja-account-btn', 'sonora-account-btn');
+    if (accountBtn) {
+      accountBtn.onclick = () => {
+        const nativeAvatar = document.querySelector('ytmusic-nav-bar #avatar-btn, ytmusic-nav-bar ytmusic-settings-button, ytmusic-nav-bar button#avatar-btn, #avatar-btn, ytmusic-settings-button');
+        const nativeSignIn = document.querySelector('ytmusic-nav-bar ytmusic-sign-in-button-renderer a, ytmusic-nav-bar a[href*="accounts.google.com"], ytmusic-sign-in-button-renderer a');
+        if (nativeAvatar) {
+          nativeAvatar.click();
+        } else if (nativeSignIn) {
+          nativeSignIn.click();
+        } else if (typeof window !== 'undefined' && window.location) {
+          window.location.href = 'https://accounts.google.com/ServiceLogin?service=youtube&uivews=1&passive=true&continue=https://music.youtube.com';
+        }
+      };
+    }
   }
 
   /* -------------------------------------------------------------
@@ -223,6 +279,24 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
       if (api?.sendTrackChanged) {
         api.sendTrackChanged(trackData);
       }
+    }
+
+    // Synchronize account avatar from native DOM if present
+    updateAccountAvatar();
+  }
+
+  function updateAccountAvatar() {
+    const avatarCircle = getEl('deja-avatar-circle', 'sonora-avatar-circle');
+    if (!avatarCircle) return;
+
+    const nativeAvatarImg = document.querySelector('ytmusic-nav-bar #avatar-btn img, ytmusic-nav-bar ytmusic-settings-button img, #avatar-btn img, ytmusic-settings-button img, ytmusic-avatar img');
+    if (nativeAvatarImg && nativeAvatarImg.src && !avatarCircle.querySelector('img')) {
+      const img = document.createElement('img');
+      img.src = nativeAvatarImg.src;
+      img.alt = 'Account';
+      img.className = 'deja-avatar-img sonora-avatar-img';
+      avatarCircle.textContent = '';
+      avatarCircle.appendChild(img);
     }
   }
 
@@ -336,11 +410,20 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
   function setupKeyboardShortcuts() {
     window.addEventListener('keydown', (e) => {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+        if (e.target.id === 'deja-search-input' && e.key === 'Escape') {
+          e.target.blur();
+        }
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        getEl('deja-search-bar', 'sonora-search-bar')?.click();
+        const searchInput = getEl('deja-search-input', 'sonora-search-input');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        } else {
+          getEl('deja-search-bar', 'sonora-search-bar')?.click();
+        }
       }
     });
   }

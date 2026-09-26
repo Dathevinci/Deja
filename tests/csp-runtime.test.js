@@ -63,6 +63,9 @@ function runCspRuntimeTests() {
             hasLyricsBtn: !!(document.getElementById('deja-lyrics-btn') || document.getElementById('sonora-lyrics-btn')),
             hasMiniBtn: !!(document.getElementById('deja-mini-btn') || document.getElementById('sonora-mini-btn')),
             hasSettingsBtn: !!(document.getElementById('deja-settings-btn') || document.getElementById('sonora-settings-btn')),
+            hasAccountBtn: !!(document.getElementById('deja-account-btn') || document.getElementById('sonora-account-btn')),
+            hasSearchInput: !!(document.getElementById('deja-search-input') || document.getElementById('sonora-search-input')),
+            navBarHidden: window.getComputedStyle(document.querySelector('ytmusic-nav-bar')).display === 'none',
             titlebarHeight: (document.getElementById('deja-titlebar') || document.getElementById('sonora-titlebar')) ? window.getComputedStyle(document.getElementById('deja-titlebar') || document.getElementById('sonora-titlebar')).height : '0px'
           })
         `);
@@ -73,9 +76,12 @@ function runCspRuntimeTests() {
         assert.strictEqual(domState.hasMinBtn, true, 'Minimize button must exist');
         assert.strictEqual(domState.hasMaxBtn, true, 'Maximize button must exist');
         assert.strictEqual(domState.hasSearchBar, true, 'Search bar must exist');
+        assert.strictEqual(domState.hasSearchInput, true, 'Search input field must exist');
         assert.strictEqual(domState.hasLyricsBtn, true, 'Lyrics button must exist');
         assert.strictEqual(domState.hasMiniBtn, true, 'Mini player button must exist');
         assert.strictEqual(domState.hasSettingsBtn, true, 'Settings button must exist');
+        assert.strictEqual(domState.hasAccountBtn, true, 'Account avatar button must exist');
+        assert.strictEqual(domState.navBarHidden, true, 'Raw ytmusic-nav-bar must be hidden');
         assert.strictEqual(domState.titlebarHeight, '42px', 'Titlebar must have 42px height via injected CSS');
         assert.strictEqual(cspViolations.length, 0, `Must have 0 CSP violations, got: ${JSON.stringify(cspViolations)}`);
 

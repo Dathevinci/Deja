@@ -187,6 +187,10 @@ function runPlayerControllerTests() {
   assert.ok(maxBtn, 'Maximize button must be present in Titlebar');
   const searchBar = elements['deja-search-bar'] || elements['sonora-search-bar'];
   assert.ok(searchBar, 'Search pill must be present in Titlebar');
+  const searchInput = elements['deja-search-input'] || elements['sonora-search-input'];
+  assert.ok(searchInput, 'Search input field must be present in Titlebar search pill');
+  const accountBtn = elements['deja-account-btn'] || elements['sonora-account-btn'];
+  assert.ok(accountBtn, 'Account avatar button must be present in Titlebar');
 
   // 2. Verify traffic light click actions
   closeBtn.click();

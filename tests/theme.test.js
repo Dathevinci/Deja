@@ -15,11 +15,16 @@ function runThemeTests() {
   assert.ok(css.includes('--apple-blur:'), 'Must include Apple blur variable');
   assert.ok(css.includes('backdrop-filter'), 'Must use backdrop-filter for frosted glass UI');
 
-  // Verify YouTube Music Specific Components are Restyled
+  // Verify Clean Desktop Layout & Components
   assert.ok(css.includes('ytmusic-player-bar'), 'Must restyle ytmusic-player-bar');
+  assert.ok(css.includes('height: 80px !important'), 'Player bar must have 80px height');
   assert.ok(css.includes('ytmusic-guide-renderer'), 'Must restyle sidebar navigation');
+  assert.ok(css.includes('calc(100vh - 42px - 80px)'), 'Sidebar must cleanly offset below 42px titlebar and above 80px player bar');
+  assert.ok(css.includes('display: none !important') && css.includes('ytmusic-nav-bar'), 'Must hide raw YouTube Music top nav bar');
   assert.ok(css.includes('#deja-titlebar'), 'Must define custom Apple titlebar (#deja-titlebar)');
   assert.ok(css.includes('.deja-traffic-lights'), 'Must define macOS traffic light buttons (.deja-traffic-lights)');
+  assert.ok(css.includes('.deja-account-btn'), 'Must define Apple account avatar button (.deja-account-btn)');
+  assert.ok(css.includes('.deja-search-input'), 'Must define Apple search input (.deja-search-input)');
   assert.ok(css.includes('.deja-ad-badge'), 'Must define Apple-styled advertisement badge (.deja-ad-badge)');
   assert.ok(css.includes('#sonora-titlebar'), 'Must retain backwards-compatible #sonora-titlebar');
   assert.ok(css.includes('.sonora-traffic-lights'), 'Must retain backwards-compatible .sonora-traffic-lights');

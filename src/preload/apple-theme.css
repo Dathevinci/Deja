@@ -149,16 +149,17 @@ body, ytmusic-app {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--apple-border);
   border-radius: var(--apple-radius-pill);
-  padding: 4px 16px;
-  width: 320px;
+  padding: 0 14px;
+  width: 340px;
   height: 28px;
   color: var(--apple-text-secondary);
   font-size: 13px;
   transition: all 0.25s ease;
   cursor: text;
+  box-sizing: border-box;
 }
 
 .deja-search-pill:hover,
@@ -171,11 +172,42 @@ body, ytmusic-app {
   color: var(--apple-text-primary);
 }
 
+.deja-search-input,
+.sonora-search-input {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  color: #FFFFFF !important;
+  font-family: var(--apple-font) !important;
+  font-size: 12.5px !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+}
+
+.deja-search-input::placeholder,
+.sonora-search-input::placeholder {
+  color: var(--apple-text-tertiary) !important;
+}
+
+.deja-search-shortcut,
+.sonora-search-shortcut {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--apple-text-tertiary) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  padding: 1px 6px !important;
+  border-radius: 4px !important;
+  letter-spacing: 0.04em !important;
+  pointer-events: none !important;
+  flex-shrink: 0 !important;
+}
+
 .deja-top-right,
 .sonora-top-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   -webkit-app-region: no-drag;
 }
 
@@ -205,58 +237,245 @@ body, ytmusic-app {
   color: var(--apple-accent);
 }
 
-/* Push YouTube Music Content below titlebar */
-ytmusic-app-layout {
-  --ytmusic-nav-bar-height: 106px !important;
+.deja-account-btn,
+.sonora-account-btn {
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-left: 2px !important;
 }
 
-ytmusic-nav-bar {
-  top: 42px !important;
+.deja-avatar-circle,
+.sonora-avatar-circle {
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #FA2D48, #FF6B8B) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.deja-account-btn:hover .deja-avatar-circle,
+.sonora-account-btn:hover .sonora-avatar-circle {
+  transform: scale(1.08) !important;
+  box-shadow: 0 0 10px var(--apple-accent-glow) !important;
+}
+
+.deja-avatar-img,
+.sonora-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
+}
+
+/* ==========================================================================
+   1. Top Navigation & Layout Offsets
+   Hide raw YouTube Music top bar completely. The single clean top navigation
+   is the Deja Apple titlebar at top: 0 with 42px height.
+   ========================================================================== */
+ytmusic-nav-bar,
+ytmusic-app-layout [slot="nav-bar"] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+/* Push YouTube Music Layout Content below titlebar */
+ytmusic-app-layout {
+  --ytmusic-nav-bar-height: 42px !important;
+}
+
+#content.ytmusic-app-layout,
+ytmusic-app-layout [slot="content"],
+#browse-page,
+ytmusic-browse-response {
   margin-top: 0 !important;
-  background: var(--apple-bg-header) !important;
+  padding-top: 42px !important;
+  box-sizing: border-box !important;
+}
+
+/* Main scrollable view padding so bottom items aren't obscured by player */
+ytmusic-browse-response {
+  padding-bottom: 96px !important;
+}
+
+/* Chip Cloud (Podcasts, Relax, Workout, Energize, Commute) */
+ytmusic-chip-cloud-renderer,
+#chips.ytmusic-chip-cloud-renderer {
+  top: 42px !important;
+  position: sticky !important;
+  z-index: 99 !important;
+  background: rgba(20, 20, 22, 0.88) !important;
   backdrop-filter: var(--apple-blur) !important;
   -webkit-backdrop-filter: var(--apple-blur) !important;
   border-bottom: 1px solid var(--apple-border) !important;
+  padding: 10px 24px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
 }
 
-/* Apple Sidebar Navigation Styling */
-ytmusic-guide-renderer, #guide-content.ytmusic-guide-renderer {
-  top: 106px !important;
-  height: calc(100vh - 106px - var(--ytmusic-player-bar-height, 72px)) !important;
+ytmusic-chip-cloud-chip-renderer {
+  border-radius: var(--apple-radius-pill) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid var(--apple-border) !important;
+  color: var(--apple-text-secondary) !important;
+  font-family: var(--apple-font) !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  padding: 6px 16px !important;
+  margin-right: 8px !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+ytmusic-chip-cloud-chip-renderer:hover:not([is-selected]) {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #FFFFFF !important;
+  transform: translateY(-1px);
+}
+
+ytmusic-chip-cloud-chip-renderer[is-selected] {
+  background: var(--apple-accent) !important;
+  border-color: var(--apple-accent) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 10px var(--apple-accent-glow) !important;
+}
+
+/* ==========================================================================
+   2. Clean Sidebar Navigation (ytmusic-guide-renderer)
+   Offset cleanly below Deja titlebar (top: 42px, height: calc(100vh - 42px - 80px))
+   Styled with translucent Apple Music frosted glass, refined typography,
+   ruby red active item pill backgrounds, and clean section headers.
+   ========================================================================== */
+ytmusic-guide-renderer,
+#guide-content.ytmusic-guide-renderer,
+tp-yt-app-drawer#drawer,
+#guide-wrapper.ytmusic-app-layout,
+ytmusic-app-layout [slot="guide"] {
+  top: 42px !important;
+  height: calc(100vh - 42px - 80px) !important;
+  max-height: calc(100vh - 42px - 80px) !important;
   background: var(--apple-bg-sidebar) !important;
   backdrop-filter: var(--apple-blur) !important;
   -webkit-backdrop-filter: var(--apple-blur) !important;
   border-right: 1px solid var(--apple-border) !important;
+  border-top: none !important;
+  box-shadow: none !important;
 }
 
+#guide-content.ytmusic-guide-renderer {
+  background: transparent !important;
+  padding-top: 12px !important;
+}
+
+/* Sidebar Section Headers (Listen Now, Explore, Library) */
+ytmusic-guide-section-renderer #header,
+ytmusic-guide-section-renderer yt-formatted-string#guide-section-title,
+.guide-section-title {
+  font-family: var(--apple-font) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: var(--apple-text-tertiary) !important;
+  margin: 16px 16px 6px 16px !important;
+  padding: 0 !important;
+}
+
+/* Sidebar Entry Items */
 ytmusic-guide-entry-renderer {
   border-radius: var(--apple-radius-btn) !important;
-  margin: 2px 10px !important;
+  margin: 3px 12px !important;
+  padding: 0 12px !important;
+  height: 38px !important;
   transition: background 0.15s ease, color 0.15s ease !important;
+  font-family: var(--apple-font) !important;
 }
 
 ytmusic-guide-entry-renderer:hover {
   background: var(--apple-card-hover) !important;
 }
 
+ytmusic-guide-entry-renderer yt-formatted-string {
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--apple-text-secondary) !important;
+}
+
+ytmusic-guide-entry-renderer yt-icon,
+ytmusic-guide-entry-renderer tp-yt-iron-icon {
+  color: var(--apple-text-secondary) !important;
+  fill: var(--apple-text-secondary) !important;
+}
+
+/* Ruby red active item pill backgrounds */
+ytmusic-guide-entry-renderer[is-primary],
+ytmusic-guide-entry-renderer[aria-selected="true"],
+ytmusic-guide-entry-renderer[selected],
+ytmusic-guide-entry-renderer.active {
+  background: rgba(250, 45, 72, 0.18) !important;
+}
+
 ytmusic-guide-entry-renderer[is-primary] yt-formatted-string,
-ytmusic-guide-entry-renderer[aria-selected="true"] yt-formatted-string {
+ytmusic-guide-entry-renderer[aria-selected="true"] yt-formatted-string,
+ytmusic-guide-entry-renderer[selected] yt-formatted-string,
+ytmusic-guide-entry-renderer.active yt-formatted-string {
   color: var(--apple-accent) !important;
   font-weight: 600 !important;
 }
 
-ytmusic-guide-entry-renderer[aria-selected="true"] {
-  background: var(--apple-accent-subtle) !important;
+ytmusic-guide-entry-renderer[is-primary] yt-icon,
+ytmusic-guide-entry-renderer[aria-selected="true"] yt-icon,
+ytmusic-guide-entry-renderer[selected] yt-icon,
+ytmusic-guide-entry-renderer.active yt-icon {
+  color: var(--apple-accent) !important;
+  fill: var(--apple-accent) !important;
 }
 
-/* Card Grids & Artwork - Apple Squircle Look */
-ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-renderer {
+/* Sidebar Section Dividers */
+#sections.ytmusic-guide-renderer > ytmusic-guide-section-renderer:not(:first-child) {
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  padding-top: 8px !important;
+  margin-top: 8px !important;
+}
+
+/* ==========================================================================
+   3. Main Content Cards & Squircle Corners
+   ========================================================================== */
+ytmusic-two-row-item-renderer,
+ytmusic-responsive-list-item-renderer {
   border-radius: var(--apple-radius-card) !important;
   transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.22s ease !important;
 }
 
+ytmusic-two-row-item-renderer {
+  padding: 8px !important;
+  background: transparent !important;
+}
+
 ytmusic-two-row-item-renderer:hover {
-  transform: translateY(-3px) scale(1.01) !important;
+  transform: translateY(-4px) !important;
 }
 
 ytmusic-two-row-item-renderer #image,
@@ -265,11 +484,12 @@ ytmusic-responsive-list-item-renderer #image,
 ytmusic-responsive-list-item-renderer img {
   border-radius: var(--apple-radius-card) !important;
   box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45) !important;
-  transition: box-shadow 0.22s ease !important;
+  transition: box-shadow 0.22s ease, transform 0.22s ease !important;
 }
 
+ytmusic-two-row-item-renderer:hover #image,
 ytmusic-two-row-item-renderer:hover img {
-  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.65) !important;
+  box-shadow: 0 14px 34px -4px rgba(0, 0, 0, 0.65) !important;
 }
 
 /* Apple Music Signature Play Button Overlay */
@@ -284,101 +504,254 @@ ytmusic-play-button-renderer:hover {
   box-shadow: 0 6px 20px var(--apple-accent-glow) !important;
 }
 
-/* Chips / Categories (Relax, Workout, Energize) */
-ytmusic-chip-cloud-chip-renderer {
-  border-radius: var(--apple-radius-pill) !important;
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid var(--apple-border) !important;
-  font-weight: 500 !important;
-  transition: all 0.2s ease !important;
-}
-
-ytmusic-chip-cloud-chip-renderer[is-selected] {
-  background: var(--apple-accent) !important;
-  border-color: var(--apple-accent) !important;
+/* Header & Section titles */
+ytmusic-carousel-shelf-basic-header-renderer .title,
+ytmusic-shelf-renderer .title,
+.header.ytmusic-carousel-shelf-basic-header-renderer {
+  font-family: var(--apple-font) !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
   color: #FFFFFF !important;
 }
 
-ytmusic-chip-cloud-chip-renderer:hover:not([is-selected]) {
-  background: rgba(255, 255, 255, 0.12) !important;
+/* Responsive list items (tracks inside albums/playlists) */
+ytmusic-responsive-list-item-renderer {
+  border-radius: 10px !important;
+  margin: 2px 0 !important;
+  padding: 4px 12px !important;
+  transition: background 0.15s ease !important;
 }
 
-/* Bottom Player Bar - Apple Frosted Glass Capsule */
+ytmusic-responsive-list-item-renderer:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ==========================================================================
+   4. Player Bar (ytmusic-player-bar)
+   Frosted glass capsule, ruby accent scrub bar, left album art with rounded
+   squircle and clean track/artist title, centered Apple-style Play/Pause/Skip
+   controls, and clean volume/lyrics/shuffle/repeat buttons on the right.
+   ========================================================================== */
 ytmusic-player-bar {
-  background: var(--apple-bg-player) !important;
-  backdrop-filter: blur(40px) saturate(200%) !important;
-  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 80px !important;
+  min-height: 80px !important;
+  max-height: 80px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  background: rgba(28, 28, 30, 0.85) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
   border-top: 1px solid var(--apple-border) !important;
-  padding: 0 20px !important;
+  padding: 0 24px !important;
+  box-sizing: border-box !important;
+  z-index: 1000 !important;
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35) !important;
 }
 
-/* Player Bar Album Art */
-ytmusic-player-bar .image.ytmusic-player-bar {
-  border-radius: 8px !important;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+/* Eliminate opaque black internal sublayer backgrounds */
+ytmusic-player-bar #player-bar-background,
+ytmusic-player-bar .left-controls,
+ytmusic-player-bar .middle-controls,
+ytmusic-player-bar .right-controls,
+ytmusic-player-bar .middle-controls-buttons,
+ytmusic-player-bar #thumbnail-container,
+ytmusic-player-bar .thumbnail-container-ytmusic-player-bar {
+  background: transparent !important;
 }
 
-/* Player Track Title & Artist */
-ytmusic-player-bar .title.ytmusic-player-bar {
-  font-weight: 600 !important;
-  font-size: 14px !important;
-  color: var(--apple-text-primary) !important;
-}
-
-ytmusic-player-bar .byline.ytmusic-player-bar {
-  font-weight: 400 !important;
-  font-size: 12px !important;
-  color: var(--apple-text-secondary) !important;
-}
-
-/* Apple Player Progress Scrubber Bar */
+/* Apple Ruby Accent Progress Scrubber Bar */
 #progress-bar.ytmusic-player-bar {
   --paper-slider-active-color: var(--apple-accent) !important;
   --paper-slider-knob-color: #FFFFFF !important;
-  --paper-slider-secondary-color: rgba(255, 255, 255, 0.15) !important;
-  --paper-slider-container-color: rgba(255, 255, 255, 0.1) !important;
+  --paper-slider-secondary-color: rgba(250, 45, 72, 0.3) !important;
+  --paper-slider-container-color: rgba(255, 255, 255, 0.12) !important;
   height: 4px !important;
-  transition: height 0.15s ease !important;
+  position: absolute !important;
+  top: -2px !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transition: height 0.15s ease, top 0.15s ease !important;
+  z-index: 1001 !important;
 }
 
 #progress-bar.ytmusic-player-bar:hover {
   height: 6px !important;
+  top: -3px !important;
 }
 
-/* Apple Volume Slider */
-#volume-slider.ytmusic-player-bar {
-  --paper-slider-active-color: var(--apple-text-primary) !important;
-  --paper-slider-knob-color: #FFFFFF !important;
-  --paper-slider-container-color: rgba(255, 255, 255, 0.15) !important;
+/* Left Section: Album Art & Clean Track/Artist Title */
+ytmusic-player-bar .left-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  flex: 1 1 30% !important;
+  min-width: 0 !important;
+  max-width: 33% !important;
+  overflow: hidden !important;
 }
 
-/* Like / Dislike / Menu buttons in Player Bar */
-ytmusic-player-bar tp-yt-paper-icon-button {
-  color: var(--apple-text-secondary) !important;
-  transition: color 0.15s ease, transform 0.15s ease !important;
+/* Album Art - Squircle */
+ytmusic-player-bar .thumbnail-image-wrapper,
+ytmusic-player-bar .image.ytmusic-player-bar,
+ytmusic-player-bar img.image {
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  min-height: 52px !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45) !important;
+  object-fit: cover !important;
+  flex-shrink: 0 !important;
 }
 
-ytmusic-player-bar tp-yt-paper-icon-button:hover {
+/* Clean Track / Artist Byline (eliminates overlapping floating labels) */
+ytmusic-player-bar .content-info-wrapper {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  gap: 3px !important;
+}
+
+ytmusic-player-bar .title.ytmusic-player-bar,
+ytmusic-player-bar .content-info-wrapper .title {
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  line-height: 1.3 !important;
   color: var(--apple-text-primary) !important;
-  transform: scale(1.08) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
 }
 
-ytmusic-player-bar tp-yt-paper-icon-button[aria-pressed="true"] {
-  color: var(--apple-accent) !important;
+ytmusic-player-bar .byline.ytmusic-player-bar,
+ytmusic-player-bar .content-info-wrapper .byline {
+  font-weight: 400 !important;
+  font-size: 12px !important;
+  line-height: 1.3 !important;
+  color: var(--apple-text-secondary) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
+}
+
+/* Middle Section: Centered Transport Controls */
+ytmusic-player-bar .middle-controls {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 1 1 38% !important;
+  min-width: 0 !important;
+  max-width: 44% !important;
+}
+
+ytmusic-player-bar .middle-controls-buttons {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 16px !important;
 }
 
 /* Play/Pause Button - Apple Circle */
 #play-pause-button.ytmusic-player-bar {
+  width: 42px !important;
+  height: 42px !important;
   border-radius: 50% !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-  padding: 6px !important;
-  transition: all 0.2s ease !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #FFFFFF !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
 
 #play-pause-button.ytmusic-player-bar:hover {
-  background: rgba(255, 255, 255, 0.22) !important;
-  transform: scale(1.06) !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  transform: scale(1.08) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Skip / Previous Buttons */
+ytmusic-player-bar .previous-button,
+ytmusic-player-bar .next-button {
+  width: 34px !important;
+  height: 34px !important;
+  color: var(--apple-text-secondary) !important;
+  transition: all 0.15s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+ytmusic-player-bar .previous-button:hover,
+ytmusic-player-bar .next-button:hover {
+  color: #FFFFFF !important;
+  transform: scale(1.1) !important;
+}
+
+/* Time display under middle controls */
+ytmusic-player-bar .time-info.ytmusic-player-bar {
+  font-size: 11px !important;
+  color: var(--apple-text-tertiary) !important;
+  font-variant-numeric: tabular-nums !important;
+  margin-top: 2px !important;
+}
+
+/* Right Section: Volume, Lyrics, Repeat, Shuffle */
+ytmusic-player-bar .right-controls {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  flex: 1 1 30% !important;
+  min-width: 0 !important;
+  max-width: 33% !important;
+}
+
+ytmusic-player-bar .right-controls tp-yt-paper-icon-button,
+ytmusic-player-bar .right-controls button,
+ytmusic-player-bar tp-yt-paper-icon-button.repeat,
+ytmusic-player-bar tp-yt-paper-icon-button.shuffle {
+  color: var(--apple-text-secondary) !important;
+  transition: all 0.15s ease !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+ytmusic-player-bar .right-controls tp-yt-paper-icon-button:hover,
+ytmusic-player-bar tp-yt-paper-icon-button.repeat:hover,
+ytmusic-player-bar tp-yt-paper-icon-button.shuffle:hover {
+  color: #FFFFFF !important;
+  transform: scale(1.08) !important;
+}
+
+ytmusic-player-bar tp-yt-paper-icon-button[aria-pressed="true"],
+ytmusic-player-bar tp-yt-paper-icon-button[active] {
+  color: var(--apple-accent) !important;
+}
+
+/* Apple Volume Slider */
+#volume-slider.ytmusic-player-bar {
+  --paper-slider-active-color: #FFFFFF !important;
+  --paper-slider-knob-color: #FFFFFF !important;
+  --paper-slider-container-color: rgba(255, 255, 255, 0.15) !important;
+  width: 90px !important;
 }
 
 /* ADVERTISEMENT COMPLIANCE BADGE */
