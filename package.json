@@ -1,15 +1,16 @@
 {
-  "name": "yt-music-apple",
+  "name": "deja",
   "version": "1.0.0",
   "description": "A clean, modern Apple Music-styled desktop client for YouTube Music.",
   "main": "src/main/main.js",
-  "author": "Sonora Contributors",
+  "author": "Deja Contributors",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/yt-music-apple.git"
+    "url": "https://github.com/Dathevinci/Deja.git"
   },
   "keywords": [
+    "deja",
     "youtube-music",
     "apple-music",
     "desktop-client",
@@ -28,8 +29,8 @@
     "dist": "electron-builder --win"
   },
   "build": {
-    "appId": "com.sonora.ytmusic.desktop",
-    "productName": "Sonora Music",
+    "appId": "com.deja.ytmusic.desktop",
+    "productName": "Deja",
     "directories": {
       "output": "dist"
     },
@@ -45,7 +46,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Sonora Music"
+      "shortcutName": "Deja"
     },
     "files": [
       "src/**/*",

@@ -7,7 +7,7 @@ class TrayManager {
     this.iconPath = iconPath;
     this.tray = null;
     this.currentTrack = {
-      title: 'Sonora Music',
+      title: 'Deja',
       artist: 'No track playing',
       isPlaying: false
     };
@@ -23,7 +23,7 @@ class TrayManager {
       }
 
       this.tray = new Tray(icon);
-      this.tray.setToolTip('Sonora - YouTube Music (Apple Edition)');
+      this.tray.setToolTip('Deja - YouTube Music (Apple Edition)');
 
       this.tray.on('double-click', () => {
         this.toggleWindow();
@@ -81,9 +81,9 @@ class TrayManager {
     if (this.currentTrack.isAd) {
       trackLabel = '📢 Advertisement (Google / Free Tier)';
     } else {
-      trackLabel = this.currentTrack.title !== 'Sonora Music'
+      trackLabel = (this.currentTrack.title !== 'Deja' && this.currentTrack.title !== 'Deja Music')
         ? `${this.currentTrack.title} • ${this.currentTrack.artist}`
-        : 'Sonora YouTube Music';
+        : 'Deja YouTube Music';
     }
 
     const contextMenu = Menu.buildFromTemplate([
@@ -116,7 +116,7 @@ class TrayManager {
       },
       { type: 'separator' },
       {
-        label: this.mainWindow && this.mainWindow.isVisible() ? 'Hide Window' : 'Show Sonora',
+        label: this.mainWindow && this.mainWindow.isVisible() ? 'Hide Window' : 'Show Deja',
         click: () => this.toggleWindow()
       },
       {
@@ -125,7 +125,7 @@ class TrayManager {
       },
       { type: 'separator' },
       {
-        label: 'Quit Sonora',
+        label: 'Quit Deja',
         click: () => {
           app.isQuitting = true;
           app.quit();

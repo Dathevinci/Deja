@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const initSonoraApplePlayer = require('./apple-player');
 
-// Define Sonora safe API bridge
-const sonoraAPI = {
+// Define Deja safe API bridge
+const dejaAPI = {
   windowAction: (action) => ipcRenderer.invoke('window-action', action),
   sendTrackChanged: (track) => ipcRenderer.send('track-changed', track),
   getConfig: (key) => ipcRenderer.invoke('get-config', key),
@@ -17,15 +17,19 @@ const sonoraAPI = {
     ipcRenderer.on('miniplayer-state-changed', (event, isMini) => callback(isMini));
   }
 };
+const sonoraAPI = dejaAPI;
 
 // Make available in the preload execution context
+window.dejaAPI = dejaAPI;
 window.sonoraAPI = sonoraAPI;
 
-// Expose safe Sonora API to the webpage main world context
+// Expose safe Deja and Sonora APIs to the webpage main world context
 try {
+  contextBridge.exposeInMainWorld('dejaAPI', dejaAPI);
   contextBridge.exposeInMainWorld('sonoraAPI', sonoraAPI);
 } catch (e) {
   // If context isolation is disabled or in testing environment
+  window.dejaAPI = dejaAPI;
   window.sonoraAPI = sonoraAPI;
 }
 

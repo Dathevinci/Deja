@@ -1,11 +1,12 @@
 /**
- * Sonora - Apple Music Client Controller
+ * Deja - Apple Music Client Controller
  * Manages UI injection, player hooks, lyrics, and YouTube Music synchronization.
  * Runs inside the Electron preload execution context to guarantee immunity against web page CSP.
  */
 
-function initSonoraApplePlayer(api = window.sonoraAPI) {
-  if (window.__SONORA_INITIALIZED__) return;
+function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
+  if (window.__DEJA_INITIALIZED__ || window.__SONORA_INITIALIZED__) return;
+  window.__DEJA_INITIALIZED__ = true;
   window.__SONORA_INITIALIZED__ = true;
 
   let lastTrackId = '';
@@ -40,7 +41,7 @@ function initSonoraApplePlayer(api = window.sonoraAPI) {
     titlebar.id = 'sonora-titlebar';
     titlebar.innerHTML = `
       <div class="sonora-traffic-lights">
-        <button class="sonora-btn-traffic sonora-btn-close" id="sonora-close-btn" title="Close Sonora"></button>
+        <button class="sonora-btn-traffic sonora-btn-close" id="sonora-close-btn" title="Close Deja"></button>
         <button class="sonora-btn-traffic sonora-btn-min" id="sonora-min-btn" title="Minimize"></button>
         <button class="sonora-btn-traffic sonora-btn-max" id="sonora-max-btn" title="Maximize"></button>
         <div class="sonora-nav-controls">
@@ -73,7 +74,7 @@ function initSonoraApplePlayer(api = window.sonoraAPI) {
             <rect x="12" y="9" width="8" height="6" rx="1" ry="1"></rect>
           </svg>
         </button>
-        <button class="sonora-icon-btn" id="sonora-settings-btn" title="Sonora Settings">
+        <button class="sonora-icon-btn" id="sonora-settings-btn" title="Deja Settings">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -138,7 +139,7 @@ function initSonoraApplePlayer(api = window.sonoraAPI) {
     const bylineEl = playerBar?.querySelector('.byline.ytmusic-player-bar') || playerBar?.querySelector('.content-info-wrapper .byline');
     const imageEl = playerBar?.querySelector('img.image.ytmusic-player-bar') || playerBar?.querySelector('ytmusic-player-bar img');
 
-    const title = titleEl ? titleEl.textContent.trim() : (isAdPlaying ? 'Advertisement' : 'Sonora Music');
+    const title = titleEl ? titleEl.textContent.trim() : (isAdPlaying ? 'Advertisement' : 'Deja');
     const byline = bylineEl ? bylineEl.textContent.trim() : (isAdPlaying ? 'Google Ad' : 'YouTube Music');
     const coverUrl = imageEl ? imageEl.src : '';
 
@@ -164,6 +165,7 @@ function initSonoraApplePlayer(api = window.sonoraAPI) {
       lastTrackId = trackId;
       lastIsPlaying = isPlaying;
       lastIsAd = isAdPlaying;
+      window.__DEJA_CURRENT_TRACK__ = trackData;
       window.__SONORA_CURRENT_TRACK__ = trackData;
 
       if (api?.sendTrackChanged) {
@@ -356,7 +358,7 @@ function initSonoraApplePlayer(api = window.sonoraAPI) {
      ------------------------------------------------------------- */
   function openSettingsModal() {
     renderAppleModal({
-      title: 'Sonora Preferences',
+      title: 'Deja Preferences',
       rows: [
         { label: 'Theme Styling', desc: 'macOS Sonoma / Apple Music Acrylic Dark', badge: 'Active' },
         { label: 'Ad Monetization Policy', desc: 'Non-harming: Free users receive Google ads; Premium users enjoy native ad-free playback', badge: 'Compliant' },
@@ -369,9 +371,9 @@ function initSonoraApplePlayer(api = window.sonoraAPI) {
 
   function openAboutDialog() {
     renderAppleModal({
-      title: 'About Sonora Music',
+      title: 'About Deja',
       rows: [
-        { label: 'Version', desc: 'Sonora Desktop Client v1.0.0', badge: 'v1.0.0' },
+        { label: 'Version', desc: 'Deja Desktop Client v1.0.0', badge: 'v1.0.0' },
         { label: 'Architecture', desc: 'Clean Apple Music-styled interface layered over YouTube Music base', badge: 'Electron' },
         { label: 'Google TOS Disclosure', desc: 'Not affiliated with Google LLC. Respects all YouTube content licensing and advertisement rules.', badge: 'Verified' },
         { label: 'License', desc: 'MIT Open Source License - Ready for GitHub community publication', badge: 'MIT' }
@@ -436,6 +438,7 @@ function initSonoraApplePlayer(api = window.sonoraAPI) {
         clearInterval(pollInterval);
         pollInterval = null;
       }
+      window.__DEJA_INITIALIZED__ = false;
       window.__SONORA_INITIALIZED__ = false;
     }
   };
@@ -443,8 +446,11 @@ function initSonoraApplePlayer(api = window.sonoraAPI) {
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = initSonoraApplePlayer;
+  module.exports.initSonoraApplePlayer = initSonoraApplePlayer;
+  module.exports.initDejaApplePlayer = initSonoraApplePlayer;
 }
 
 if (typeof window !== 'undefined') {
   window.initSonoraApplePlayer = initSonoraApplePlayer;
+  window.initDejaApplePlayer = initSonoraApplePlayer;
 }

@@ -41,7 +41,7 @@ function createWindow() {
     minWidth: 320,
     minHeight: 120,
     frame: false,
-    title: 'Sonora - YouTube Music',
+    title: 'Deja - YouTube Music',
     backgroundColor: '#141416',
     icon: path.join(__dirname, '../../assets/icon.png'),
     webPreferences: {

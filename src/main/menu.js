@@ -9,10 +9,10 @@ function buildAppMenu(mainWindow) {
 
   const template = [
     {
-      label: 'Sonora',
+      label: 'Deja',
       submenu: [
         {
-          label: 'About Sonora Music',
+          label: 'About Deja',
           click: () => dispatch('openAbout')
         },
         {
@@ -38,14 +38,14 @@ function buildAppMenu(mainWindow) {
         },
         { type: 'separator' },
         {
-          label: 'Hide Sonora',
+          label: 'Hide Deja',
           accelerator: 'CommandOrControl+H',
           click: () => {
             if (mainWindow) mainWindow.hide();
           }
         },
         {
-          label: 'Quit Sonora',
+          label: 'Quit Deja',
           accelerator: 'CommandOrControl+Q',
           click: () => {
             app.isQuitting = true;
@@ -158,8 +158,8 @@ function buildAppMenu(mainWindow) {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'YouTube Music Policy & TOS Compliance',
-              message: 'Sonora is a desktop client for YouTube Music.',
-              detail: '• Sonora acts strictly as an Apple Music-styled user interface for YouTube Music.\n• Standard Google Ads are displayed for free-tier users per Google Rules.\n• YouTube Premium subscribers receive their native ad-free playback.\n• We do not alter, inject, or block advertisements or bypass paywalls.\n• YouTube and YouTube Music are registered trademarks of Google LLC.',
+              message: 'Deja is a desktop client for YouTube Music.',
+              detail: '• Deja acts strictly as an Apple Music-styled user interface for YouTube Music.\n• Standard Google Ads are displayed for free-tier users per Google Rules.\n• YouTube Premium subscribers receive their native ad-free playback.\n• We do not alter, inject, or block advertisements or bypass paywalls.\n• YouTube and YouTube Music are registered trademarks of Google LLC.',
               buttons: ['Understood', 'View Google Terms']
             }).then((res) => {
               if (res.response === 1) {
@@ -171,13 +171,13 @@ function buildAppMenu(mainWindow) {
         {
           label: 'GitHub Repository',
           click: () => {
-            shell.openExternal('https://github.com/your-username/yt-music-apple');
+            shell.openExternal('https://github.com/Dathevinci/Deja');
           }
         },
         {
           label: 'Report an Issue',
           click: () => {
-            shell.openExternal('https://github.com/your-username/yt-music-apple/issues');
+            shell.openExternal('https://github.com/Dathevinci/Deja/issues');
           }
         }
       ]

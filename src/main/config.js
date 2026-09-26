@@ -44,9 +44,16 @@ class ConfigManager {
       if (!fs.existsSync(userDataPath)) {
         fs.mkdirSync(userDataPath, { recursive: true });
       }
-      return path.join(userDataPath, 'sonora-config.json');
+      const dejaPath = path.join(userDataPath, 'deja-config.json');
+      const legacyPath = path.join(userDataPath, 'sonora-config.json');
+      if (!fs.existsSync(dejaPath) && fs.existsSync(legacyPath)) {
+        try {
+          fs.copyFileSync(legacyPath, dejaPath);
+        } catch {}
+      }
+      return dejaPath;
     } catch {
-      return path.join(process.cwd(), 'sonora-config.json');
+      return path.join(process.cwd(), 'deja-config.json');
     }
   }
 

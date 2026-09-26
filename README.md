@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="assets/logo.png" alt="Sonora Logo" width="128" height="128" style="border-radius: 28px; box-shadow: 0 10px 30px rgba(250, 45, 72, 0.4);" />
-  <h1>Sonora Music</h1>
+  <img src="assets/logo.png" alt="Deja Logo" width="128" height="128" style="border-radius: 28px; box-shadow: 0 10px 30px rgba(250, 45, 72, 0.4);" />
+  <h1>Deja</h1>
   <p><strong>A clean, modern Apple Music-styled desktop client for YouTube Music on PC.</strong></p>
 
   <p>
@@ -17,19 +17,19 @@
 
 ## 🌟 Overview
 
-**Sonora** is a refined desktop client that pairs the massive catalog and recommendation algorithms of **YouTube Music** with the clean, elegant glassmorphism of **Apple Music**.
+**Deja** is a refined desktop client that pairs the massive catalog and recommendation algorithms of **YouTube Music** with the clean, elegant glassmorphism of **Apple Music**.
 
-Designed from the ground up for desktop PC users, Sonora eliminates the clutter of a standard browser tab while preserving all official YouTube Music functionality, including Google account library synchronization, high-fidelity audio playback, and official monetization compliance.
+Designed from the ground up for desktop PC users, Deja eliminates the clutter of a standard browser tab while preserving all official YouTube Music functionality, including Google account library synchronization, high-fidelity audio playback, and official monetization compliance.
 
 ---
 
 ## ⚖️ Google Terms of Service & Advertising Policy
 
-Sonora is strictly an independent **user interface shell** and **desktop wrapper** for YouTube Music. We believe in supporting music creators and respecting platform guidelines:
+Deja is strictly an independent **user interface shell** and **desktop wrapper** for YouTube Music. We believe in supporting music creators and respecting platform guidelines:
 
-- **Free Users**: In accordance with Google's platform policies, standard advertisements served by YouTube Music **are displayed normally**. Sonora does not block, skip, or modify ads.
+- **Free Users**: In accordance with Google's platform policies, standard advertisements served by YouTube Music **are displayed normally**. Deja does not block, skip, or modify ads.
 - **YouTube Premium Subscribers**: Users with a valid YouTube Premium subscription can securely log into their Google account and enjoy their native **ad-free listening**, background playback, and high-bitrate streaming.
-- **No Paywall Circumvention**: Sonora contains zero adblockers or subscription bypass algorithms. It is built to offer a visually superior interface while remaining 100% compliant with Google's Terms of Service.
+- **No Paywall Circumvention**: Deja contains zero adblockers or subscription bypass algorithms. It is built to offer a visually superior interface while remaining 100% compliant with Google's Terms of Service.
 
 ---
 
@@ -88,8 +88,8 @@ Sonora is strictly an independent **user interface shell** and **desktop wrapper
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/yt-music-apple.git
-   cd yt-music-apple
+   git clone https://github.com/Dathevinci/Deja.git
+   cd Deja
    ```
 
 2. **Install dependencies**:
@@ -97,7 +97,7 @@ Sonora is strictly an independent **user interface shell** and **desktop wrapper
    npm install
    ```
 
-3. **Run the Sonora Desktop Client**:
+3. **Run the Deja Desktop Client**:
    ```bash
    npm start
    ```
@@ -111,7 +111,7 @@ Sonora is strictly an independent **user interface shell** and **desktop wrapper
 
 ## 🧪 Testing
 
-Sonora includes an automated test suite verifying configuration persistence, CSS selector validity, IPC protocols, and Google TOS compliance:
+Deja includes an automated test suite verifying configuration persistence, CSS selector validity, IPC protocols, and Google TOS compliance:
 
 ```bash
 npm test
@@ -132,15 +132,15 @@ npm run dist
 ```
 
 Generated binaries will be available inside the `dist/` directory:
-- `Sonora Music Setup 1.0.0.exe` (Full NSIS Installer with desktop/start menu shortcuts)
-- `Sonora Music 1.0.0.exe` (Portable edition)
+- `Deja Setup 1.0.0.exe` (Full NSIS Installer with desktop/start menu shortcuts)
+- `Deja 1.0.0.exe` (Portable edition)
 
 ---
 
 ## 📁 Project Structure
 
 ```
-yt-music-apple/
+Deja/
 ├── .github/
 │   └── workflows/
 │       └── build.yml             # Automated CI build & GitHub releases
@@ -184,7 +184,7 @@ yt-music-apple/
 
 - **YouTube Music** and the YouTube logo are trademarks of **Google LLC**.
 - **Apple Music**, **macOS**, and **SF Pro** are trademarks of **Apple Inc.**
-- Sonora is an independent open-source project and is **not affiliated with, endorsed by, or sponsored by Google LLC or Apple Inc.**
+- Deja is an independent open-source project and is **not affiliated with, endorsed by, or sponsored by Google LLC or Apple Inc.**
 - All content and audio streams originate directly from YouTube Music servers according to Google's standard web delivery.
 
 ---

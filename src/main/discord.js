@@ -2,7 +2,7 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 
-const CLIENT_ID = '1288594238914560000'; // Registered Sonora / YTM Apple client application id
+const CLIENT_ID = '1288594238914560000'; // Registered Deja / YTM Apple client application id
 
 class DiscordPresence {
   constructor() {
@@ -109,7 +109,7 @@ class DiscordPresence {
       details: title.length > 128 ? title.slice(0, 125) + '...' : title,
       state: isAd ? artist : `by ${artist}`.slice(0, 128),
       assets: {
-        large_image: isAd ? 'sonora_logo' : (track.coverUrl || 'sonora_logo'),
+        large_image: isAd ? 'deja_logo' : (track.coverUrl || 'deja_logo'),
         large_text: album.slice(0, 128),
         small_image: isPlaying ? 'play_icon' : 'pause_icon',
         small_text: isAd ? 'Ad Playing' : (isPlaying ? 'Playing' : 'Paused')

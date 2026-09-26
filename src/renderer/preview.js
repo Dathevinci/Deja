@@ -1,5 +1,5 @@
 /**
- * Sonora - Apple Music Desktop Client Interface Logic
+ * Deja - Apple Music Desktop Client Interface Logic
  */
 
 const SAMPLE_TRACKS = [
@@ -7,7 +7,7 @@ const SAMPLE_TRACKS = [
     id: 'track-1',
     title: 'Midnight Reverie',
     artist: 'Aura Soundscapes',
-    album: 'Sonora Originals',
+    album: 'Deja Originals',
     duration: 215, // seconds
     cover: '../../assets/logo.png',
     lyrics: [
@@ -137,8 +137,9 @@ function loadTrack(idx) {
   renderLyrics(track.lyrics);
 
   // Notify Electron Main process
-  if (window.sonoraAPI?.sendTrackChanged) {
-    window.sonoraAPI.sendTrackChanged({
+  const api = window.dejaAPI || window.sonoraAPI;
+  if (api?.sendTrackChanged) {
+    api.sendTrackChanged({
       title: track.title,
       artist: track.artist,
       album: track.album,
@@ -203,10 +204,11 @@ function setupEvents() {
   heartBtn.onclick = () => heartBtn.classList.toggle('loved');
 
   // Window titlebar buttons
-  document.getElementById('btn-close').onclick = () => window.sonoraAPI?.windowAction('close');
-  document.getElementById('btn-minimize').onclick = () => window.sonoraAPI?.windowAction('minimize');
-  document.getElementById('btn-maximize').onclick = () => window.sonoraAPI?.windowAction('maximize');
-  document.getElementById('btn-toggle-miniplayer').onclick = () => window.sonoraAPI?.windowAction('toggle-miniplayer');
+  const api = window.dejaAPI || window.sonoraAPI;
+  document.getElementById('btn-close').onclick = () => api?.windowAction('close');
+  document.getElementById('btn-minimize').onclick = () => api?.windowAction('minimize');
+  document.getElementById('btn-maximize').onclick = () => api?.windowAction('maximize');
+  document.getElementById('btn-toggle-miniplayer').onclick = () => api?.windowAction('toggle-miniplayer');
 
   // Search filter
   document.getElementById('apple-search-input').addEventListener('input', (e) => {
@@ -228,9 +230,10 @@ function setupEvents() {
 }
 
 function setupIPC() {
-  if (!window.sonoraAPI) return;
+  const api = window.dejaAPI || window.sonoraAPI;
+  if (!api) return;
 
-  window.sonoraAPI.onPlayerAction(({ action }) => {
+  api.onPlayerAction(({ action }) => {
     switch (action) {
       case 'togglePlay': togglePlay(); break;
       case 'nextTrack': nextTrack(); break;
@@ -376,8 +379,9 @@ function adjustVolume(delta) {
 
 function notifyTrackState() {
   const track = SAMPLE_TRACKS[currentIndex];
-  if (window.sonoraAPI?.sendTrackChanged) {
-    window.sonoraAPI.sendTrackChanged({
+  const api = window.dejaAPI || window.sonoraAPI;
+  if (api?.sendTrackChanged) {
+    api.sendTrackChanged({
       title: track.title,
       artist: track.artist,
       album: track.album,

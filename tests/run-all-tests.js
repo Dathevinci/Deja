@@ -8,7 +8,7 @@ const runIpcTests = require('./ipc.test');
 const runPlayerControllerTests = require('./player-controller.test');
 
 console.log('====================================================');
-console.log('  Sonora - YouTube Music Apple Client Test Suite    ');
+console.log('  Deja - YouTube Music Apple Client Test Suite      ');
 console.log('====================================================\n');
 
 try {
