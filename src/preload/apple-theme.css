@@ -1,0 +1,425 @@
+/* ==========================================================================
+   Sonora - Apple Music UI Design System for YouTube Music
+   ========================================================================== */
+
+:root {
+  --apple-accent: #FA2D48;
+  --apple-accent-hover: #FC3C44;
+  --apple-accent-subtle: rgba(250, 45, 72, 0.15);
+  --apple-accent-glow: rgba(250, 45, 72, 0.35);
+  --apple-bg-base: #141416;
+  --apple-bg-sidebar: rgba(24, 24, 26, 0.85);
+  --apple-bg-header: rgba(20, 20, 22, 0.78);
+  --apple-bg-player: rgba(28, 28, 30, 0.88);
+  --apple-card-bg: rgba(255, 255, 255, 0.04);
+  --apple-card-hover: rgba(255, 255, 255, 0.08);
+  --apple-border: rgba(255, 255, 255, 0.08);
+  --apple-border-strong: rgba(255, 255, 255, 0.16);
+  --apple-text-primary: #FFFFFF;
+  --apple-text-secondary: rgba(255, 255, 255, 0.65);
+  --apple-text-tertiary: rgba(255, 255, 255, 0.4);
+  --apple-blur: blur(35px) saturate(190%);
+  --apple-radius-card: 14px;
+  --apple-radius-btn: 10px;
+  --apple-radius-pill: 9999px;
+  --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --ytmusic-color-primary1: #FA2D48 !important;
+}
+
+/* Global Font & Smoothness */
+body, ytmusic-app {
+  font-family: var(--apple-font) !important;
+  background-color: var(--apple-bg-base) !important;
+  letter-spacing: -0.012em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Apple Custom Window Top Bar */
+#sonora-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  background: var(--apple-bg-header);
+  backdrop-filter: var(--apple-blur);
+  -webkit-backdrop-filter: var(--apple-blur);
+  border-bottom: 1px solid var(--apple-border);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  -webkit-app-region: drag;
+  user-select: none;
+  padding: 0 16px;
+}
+
+/* Traffic Light Buttons */
+.sonora-traffic-lights {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.sonora-btn-traffic {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  padding: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sonora-btn-traffic:hover {
+  transform: scale(1.1);
+}
+
+.sonora-btn-close {
+  background-color: #FF5F56;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.2) inset;
+}
+
+.sonora-btn-min {
+  background-color: #FFBD2E;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.2) inset;
+}
+
+.sonora-btn-max {
+  background-color: #27C93F;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.2) inset;
+}
+
+.sonora-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.sonora-nav-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: var(--apple-text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.sonora-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--apple-text-primary);
+}
+
+.sonora-top-center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  -webkit-app-region: no-drag;
+}
+
+.sonora-search-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--apple-border);
+  border-radius: var(--apple-radius-pill);
+  padding: 4px 16px;
+  width: 320px;
+  height: 28px;
+  color: var(--apple-text-secondary);
+  font-size: 13px;
+  transition: all 0.25s ease;
+  cursor: text;
+}
+
+.sonora-search-pill:hover, .sonora-search-pill:focus-within {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(250, 45, 72, 0.5);
+  box-shadow: 0 0 12px var(--apple-accent-glow);
+  color: var(--apple-text-primary);
+}
+
+.sonora-top-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  -webkit-app-region: no-drag;
+}
+
+.sonora-icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--apple-text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sonora-icon-btn:hover {
+  color: var(--apple-text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sonora-icon-btn.active {
+  color: var(--apple-accent);
+}
+
+/* Push YouTube Music Content below titlebar */
+ytmusic-nav-bar {
+  margin-top: 42px !important;
+  background: var(--apple-bg-header) !important;
+  backdrop-filter: var(--apple-blur) !important;
+  -webkit-backdrop-filter: var(--apple-blur) !important;
+  border-bottom: 1px solid var(--apple-border) !important;
+}
+
+/* Apple Sidebar Navigation Styling */
+ytmusic-guide-renderer, #guide-content.ytmusic-guide-renderer {
+  background: var(--apple-bg-sidebar) !important;
+  backdrop-filter: var(--apple-blur) !important;
+  -webkit-backdrop-filter: var(--apple-blur) !important;
+  border-right: 1px solid var(--apple-border) !important;
+}
+
+ytmusic-guide-entry-renderer {
+  border-radius: var(--apple-radius-btn) !important;
+  margin: 2px 10px !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+ytmusic-guide-entry-renderer:hover {
+  background: var(--apple-card-hover) !important;
+}
+
+ytmusic-guide-entry-renderer[is-primary] yt-formatted-string,
+ytmusic-guide-entry-renderer[aria-selected="true"] yt-formatted-string {
+  color: var(--apple-accent) !important;
+  font-weight: 600 !important;
+}
+
+ytmusic-guide-entry-renderer[aria-selected="true"] {
+  background: var(--apple-accent-subtle) !important;
+}
+
+/* Card Grids & Artwork - Apple Squircle Look */
+ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-renderer {
+  border-radius: var(--apple-radius-card) !important;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.22s ease !important;
+}
+
+ytmusic-two-row-item-renderer:hover {
+  transform: translateY(-3px) scale(1.01) !important;
+}
+
+ytmusic-two-row-item-renderer #image,
+ytmusic-two-row-item-renderer img,
+ytmusic-responsive-list-item-renderer #image,
+ytmusic-responsive-list-item-renderer img {
+  border-radius: var(--apple-radius-card) !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45) !important;
+  transition: box-shadow 0.22s ease !important;
+}
+
+ytmusic-two-row-item-renderer:hover img {
+  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.65) !important;
+}
+
+/* Apple Music Signature Play Button Overlay */
+ytmusic-play-button-renderer {
+  --ytmusic-play-button-icon-color: #FFFFFF !important;
+  --ytmusic-play-button-background-color: var(--apple-accent) !important;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+ytmusic-play-button-renderer:hover {
+  transform: scale(1.1) !important;
+  box-shadow: 0 6px 20px var(--apple-accent-glow) !important;
+}
+
+/* Chips / Categories (Relax, Workout, Energize) */
+ytmusic-chip-cloud-chip-renderer {
+  border-radius: var(--apple-radius-pill) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid var(--apple-border) !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+}
+
+ytmusic-chip-cloud-chip-renderer[is-selected] {
+  background: var(--apple-accent) !important;
+  border-color: var(--apple-accent) !important;
+  color: #FFFFFF !important;
+}
+
+ytmusic-chip-cloud-chip-renderer:hover:not([is-selected]) {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Bottom Player Bar - Apple Frosted Glass Capsule */
+ytmusic-player-bar {
+  background: var(--apple-bg-player) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  border-top: 1px solid var(--apple-border) !important;
+  padding: 0 20px !important;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Player Bar Album Art */
+ytmusic-player-bar .image.ytmusic-player-bar {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Player Track Title & Artist */
+ytmusic-player-bar .title.ytmusic-player-bar {
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  color: var(--apple-text-primary) !important;
+}
+
+ytmusic-player-bar .byline.ytmusic-player-bar {
+  font-weight: 400 !important;
+  font-size: 12px !important;
+  color: var(--apple-text-secondary) !important;
+}
+
+/* Apple Player Progress Scrubber Bar */
+#progress-bar.ytmusic-player-bar {
+  --paper-slider-active-color: var(--apple-accent) !important;
+  --paper-slider-knob-color: #FFFFFF !important;
+  --paper-slider-secondary-color: rgba(255, 255, 255, 0.15) !important;
+  --paper-slider-container-color: rgba(255, 255, 255, 0.1) !important;
+  height: 4px !important;
+  transition: height 0.15s ease !important;
+}
+
+#progress-bar.ytmusic-player-bar:hover {
+  height: 6px !important;
+}
+
+/* Apple Volume Slider */
+#volume-slider.ytmusic-player-bar {
+  --paper-slider-active-color: var(--apple-text-primary) !important;
+  --paper-slider-knob-color: #FFFFFF !important;
+  --paper-slider-container-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Like / Dislike / Menu buttons in Player Bar */
+ytmusic-player-bar tp-yt-paper-icon-button {
+  color: var(--apple-text-secondary) !important;
+  transition: color 0.15s ease, transform 0.15s ease !important;
+}
+
+ytmusic-player-bar tp-yt-paper-icon-button:hover {
+  color: var(--apple-text-primary) !important;
+  transform: scale(1.08) !important;
+}
+
+ytmusic-player-bar tp-yt-paper-icon-button[aria-pressed="true"] {
+  color: var(--apple-accent) !important;
+}
+
+/* Play/Pause Button - Apple Circle */
+#play-pause-button.ytmusic-player-bar {
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  padding: 6px !important;
+  transition: all 0.2s ease !important;
+}
+
+#play-pause-button.ytmusic-player-bar:hover {
+  background: rgba(255, 255, 255, 0.22) !important;
+  transform: scale(1.06) !important;
+}
+
+/* ADVERTISEMENT COMPLIANCE BADGE */
+/* Shows a sleek Apple-styled badge during ads without blocking or breaking ads */
+.sonora-ad-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 189, 46, 0.18);
+  border: 1px solid rgba(255, 189, 46, 0.4);
+  color: #FFBD2E;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-left: 8px;
+}
+
+/* macOS / Apple Style Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Menus & Dialogs */
+tp-yt-paper-listbox, ytmusic-menu-popup-renderer {
+  background: rgba(30, 30, 34, 0.95) !important;
+  backdrop-filter: var(--apple-blur) !important;
+  border: 1px solid var(--apple-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+tp-yt-paper-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 6px !important;
+}
+
+/* Mini Player Mode Styles */
+body.mini-player-mode #sonora-titlebar {
+  height: 32px;
+}
+
+body.mini-player-mode ytmusic-nav-bar,
+body.mini-player-mode ytmusic-guide-renderer,
+body.mini-player-mode #browse-page {
+  display: none !important;
+}
+
+body.mini-player-mode ytmusic-player-bar {
+  position: fixed !important;
+  top: 32px !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: calc(100vh - 32px) !important;
+  padding: 4px 12px !important;
+}

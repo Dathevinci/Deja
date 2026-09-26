@@ -1,0 +1,163 @@
+const { contextBridge, ipcRenderer } = require('electron');
+const fs = require('fs');
+const path = require('path');
+
+// Expose safe Sonora API to the web context
+contextBridge.exposeInMainWorld('sonoraAPI', {
+  windowAction: (action) => ipcRenderer.invoke('window-action', action),
+  sendTrackChanged: (track) => ipcRenderer.send('track-changed', track),
+  getConfig: (key) => ipcRenderer.invoke('get-config', key),
+  setConfig: (payload) => ipcRenderer.invoke('set-config', payload),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  onPlayerAction: (callback) => {
+    ipcRenderer.on('player-action', (event, data) => callback(data));
+  },
+  onMiniPlayerChanged: (callback) => {
+    ipcRenderer.on('miniplayer-state-changed', (event, isMini) => callback(isMini));
+  }
+});
+
+// Inject CSS and Scripts when DOM starts loading
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    // 1. Inject Apple Theme CSS
+    const themeCssPath = path.join(__dirname, 'apple-theme.css');
+    if (fs.existsSync(themeCssPath)) {
+      const cssContent = fs.readFileSync(themeCssPath, 'utf8');
+      const styleEl = document.createElement('style');
+      styleEl.id = 'sonora-theme-styles';
+      styleEl.textContent = cssContent;
+      document.head.appendChild(styleEl);
+    }
+
+    // 2. Inject Lyrics & Animation styles
+    const lyricsStyle = document.createElement('style');
+    lyricsStyle.id = 'sonora-lyrics-styles';
+    lyricsStyle.textContent = `
+      .sonora-lyrics-drawer {
+        position: fixed;
+        top: 42px;
+        right: 0;
+        bottom: 72px;
+        width: 480px;
+        background: rgba(18, 18, 20, 0.92);
+        backdrop-filter: blur(50px) saturate(200%);
+        -webkit-backdrop-filter: blur(50px) saturate(200%);
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        transform: translateX(100%);
+        transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        overflow: hidden;
+      }
+      .sonora-lyrics-drawer.visible {
+        transform: translateX(0);
+      }
+      .sonora-lyrics-aura {
+        position: absolute;
+        inset: -20%;
+        background-size: cover;
+        background-position: center;
+        filter: blur(80px) brightness(0.4) saturate(250%);
+        opacity: 0.65;
+        z-index: 0;
+        animation: sonoraAuraPulse 12s infinite alternate ease-in-out;
+      }
+      @keyframes sonoraAuraPulse {
+        0% { transform: scale(1) rotate(0deg); }
+        50% { transform: scale(1.15) rotate(4deg); }
+        100% { transform: scale(1.05) rotate(-3deg); }
+      }
+      .sonora-lyrics-header {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .sonora-lyrics-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-width: 80%;
+      }
+      .sonora-lyrics-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #FFFFFF;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin: 0;
+      }
+      .sonora-lyrics-artist {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.65);
+        margin: 0;
+      }
+      .sonora-lyrics-close {
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #FFFFFF;
+        font-size: 20px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease;
+      }
+      .sonora-lyrics-close:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+      .sonora-lyrics-body {
+        position: relative;
+        z-index: 1;
+        flex: 1;
+        overflow-y: auto;
+        padding: 32px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .sonora-lyric-line {
+        font-size: 22px;
+        font-weight: 600;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.35);
+        transition: color 0.3s ease, transform 0.3s ease, filter 0.3s ease;
+        cursor: pointer;
+        filter: blur(0.4px);
+      }
+      .sonora-lyric-line:hover {
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .sonora-lyric-line.active {
+        color: #FFFFFF;
+        font-size: 26px;
+        font-weight: 700;
+        transform: scale(1.02);
+        filter: none;
+        text-shadow: 0 4px 20px rgba(255, 255, 255, 0.35);
+      }
+    `;
+    document.head.appendChild(lyricsStyle);
+
+    // 3. Inject Apple Player Controller Script
+    const scriptPath = path.join(__dirname, 'apple-player.js');
+    if (fs.existsSync(scriptPath)) {
+      const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+      const scriptEl = document.createElement('script');
+      scriptEl.id = 'sonora-player-script';
+      scriptEl.textContent = scriptContent;
+      document.body.appendChild(scriptEl);
+    }
+  } catch (err) {
+    console.error('[Preload] Failed to inject Sonora Apple UI assets:', err);
+  }
+});

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sonora - Offline</title>
+  <style>
+    body {
+      background-color: #141416;
+      color: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+    .offline-box {
+      text-align: center;
+      max-width: 440px;
+      padding: 40px;
+      background: rgba(28, 28, 32, 0.8);
+      backdrop-filter: blur(40px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      -webkit-app-region: no-drag;
+    }
+    .logo-img {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(250, 45, 72, 0.4);
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      letter-spacing: -0.01em;
+    }
+    p {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.65);
+      margin-bottom: 24px;
+    }
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    button {
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+    .btn-retry {
+      background: #FA2D48;
+      color: white;
+    }
+    .btn-retry:hover {
+      background: #FC3C44;
+      transform: translateY(-2px);
+    }
+    .btn-offline {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .btn-offline:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-box">
+    <img src="../../assets/logo.png" class="logo-img" alt="Sonora Logo">
+    <h1>Unable to Reach YouTube Music</h1>
+    <p>Sonora requires an internet connection to stream from YouTube Music. Please check your network connection and retry.</p>
+    <div class="btn-row">
+      <button class="btn-retry" onclick="window.location.href='https://music.youtube.com'">Retry Connection</button>
+      <button class="btn-offline" onclick="window.location.href='preview.html'">Open Sonora Preview</button>
+    </div>
+  </div>
+</body>
+</html>

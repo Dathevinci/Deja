@@ -1,0 +1,60 @@
+{
+  "name": "yt-music-apple",
+  "version": "1.0.0",
+  "description": "A clean, modern Apple Music-styled desktop client for YouTube Music.",
+  "main": "src/main/main.js",
+  "author": "Sonora Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/yt-music-apple.git"
+  },
+  "keywords": [
+    "youtube-music",
+    "apple-music",
+    "desktop-client",
+    "electron",
+    "windows",
+    "music-player",
+    "lyrics",
+    "discord-rpc"
+  ],
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "preview": "electron . --preview",
+    "test": "node tests/run-all-tests.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.sonora.ytmusic.desktop",
+    "productName": "Sonora Music",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Sonora Music"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  }
+}

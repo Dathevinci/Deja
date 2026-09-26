@@ -1,0 +1,23 @@
+# Node dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+build/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+
+# Logs and environment
+*.log
+.env
+.DS_Store
+Thumbs.db
+
+# User data
+.config/
+userData/
+*.local
