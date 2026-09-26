@@ -27,10 +27,19 @@ function runWindowLifecycleTests() {
   assert.ok(mainCode.includes('offline-fallback.html'), 'Must route network failures to offline-fallback.html');
   assert.ok(mainCode.includes('did-fail-load'), 'Must handle did-fail-load event');
 
-  // 4. Display bounds validation
+  // 4. Display bounds validation & safety
   assert.ok(mainCode.includes('getAllDisplays'), 'Must validate saved window coordinates against displays');
+  assert.ok(mainCode.includes('setAppUserModelId'), 'Must set AppUserModelId on Windows');
+  assert.ok(mainCode.includes('dom-ready'), 'Must handle early dom-ready for rapid window display');
+  assert.ok(mainCode.includes('uncaughtException'), 'Must register uncaughtException handler to prevent silent crash');
 
-  // 5. Preload Trusted Types compatibility
+  // 5. Config startMinimized autostart protection
+  const configPath = path.join(__dirname, '../src/main/config.js');
+  const configCode = fs.readFileSync(configPath, 'utf8');
+  assert.ok(configCode.includes('startMinimized'), 'Config must manage startMinimized');
+  assert.ok(configCode.includes('--autostart') || configCode.includes('--hidden'), 'startMinimized must require explicit autostart flag');
+
+  // 6. Preload Trusted Types compatibility
   const playerPath = path.join(__dirname, '../src/preload/apple-player.js');
   const playerCode = fs.readFileSync(playerPath, 'utf8');
   assert.ok(playerCode.includes('setSafeHTML'), 'Apple player must include safe HTML injection for Trusted Types');

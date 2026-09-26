@@ -36,6 +36,9 @@ class ConfigManager {
   constructor() {
     this.configPath = this._resolvePath();
     this.data = this._load();
+    if (!fs.existsSync(this.configPath)) {
+      this.save();
+    }
   }
 
   _resolvePath() {
@@ -62,7 +65,17 @@ class ConfigManager {
       if (fs.existsSync(this.configPath)) {
         const raw = fs.readFileSync(this.configPath, 'utf8');
         const parsed = JSON.parse(raw);
-        return Object.assign({}, DEFAULT_CONFIG, parsed);
+        const merged = Object.assign({}, DEFAULT_CONFIG, parsed);
+        // Requirement 4: Prevent startMinimized from accidentally hiding the window on normal manual launches
+        const isExplicitAutostart = process.argv && (
+          process.argv.includes('--hidden') ||
+          process.argv.includes('--minimized') ||
+          process.argv.includes('--autostart')
+        );
+        if (merged.startMinimized && !isExplicitAutostart) {
+          merged.startMinimized = false;
+        }
+        return merged;
       }
     } catch (err) {
       console.warn('[Config] Failed to load config, falling back to defaults:', err.message);

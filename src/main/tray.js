@@ -15,10 +15,17 @@ class TrayManager {
 
   init() {
     try {
-      let icon;
+      let icon = null;
       if (this.iconPath && require('fs').existsSync(this.iconPath)) {
         icon = nativeImage.createFromPath(this.iconPath);
-      } else {
+      }
+      if (!icon || icon.isEmpty()) {
+        const pngFallback = path.join(__dirname, '../../assets/icon.png');
+        if (require('fs').existsSync(pngFallback)) {
+          icon = nativeImage.createFromPath(pngFallback);
+        }
+      }
+      if (!icon || icon.isEmpty()) {
         icon = nativeImage.createEmpty();
       }
 
@@ -32,6 +39,7 @@ class TrayManager {
       this.updateMenu();
     } catch (err) {
       console.warn('[Tray] Failed to initialize system tray:', err.message);
+      this.tray = null;
     }
   }
 

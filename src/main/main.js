@@ -1,10 +1,23 @@
-const { app, BrowserWindow, ipcMain, shell, session, Notification, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session, Notification, screen, dialog } = require('electron');
 const path = require('path');
 const config = require('./config');
 const ShortcutManager = require('./shortcuts');
 const TrayManager = require('./tray');
 const discord = require('./discord');
 const { buildAppMenu } = require('./menu');
+
+// Set Windows App User Model ID for notifications and taskbar
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.deja.ytmusic.desktop');
+}
+
+// Global exception safety to prevent silent crashes
+process.on('uncaughtException', (err) => {
+  console.error('[Deja] Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[Deja] Unhandled Promise Rejection:', reason);
+});
 
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock();
@@ -20,11 +33,64 @@ app.userAgentFallback = CHROME_UA;
 
 let mainWindow = null;
 let forceShowTimeout = null;
+let isWindowDisplayed = false;
 let shortcutManager = null;
 let trayManager = null;
 let isMiniPlayer = false;
 let normalBounds = null;
 let wasMaximizedBeforeMini = false;
+
+/**
+ * Display the main application window safely and bring it to the foreground.
+ */
+function showMainWindow(reason) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  if (isWindowDisplayed && mainWindow.isVisible() && !mainWindow.isMinimized()) {
+    try {
+      mainWindow.focus();
+    } catch {}
+    return;
+  }
+
+  const startMinimized = config.get('startMinimized');
+  const isExplicitAutostart = process.argv && (
+    process.argv.includes('--hidden') ||
+    process.argv.includes('--minimized') ||
+    process.argv.includes('--autostart')
+  );
+
+  // Only stay hidden in tray if explicitly autostarted AND tray exists
+  if (startMinimized && isExplicitAutostart && reason !== 'fallback-timeout' && reason !== 'user-forced' && reason !== 'second-instance') {
+    if (trayManager && trayManager.tray && !trayManager.tray.isDestroyed()) {
+      console.log(`[Window] startMinimized is enabled and launched via autostart; staying in tray (trigger: ${reason})`);
+      return;
+    }
+  }
+
+  if (forceShowTimeout) {
+    clearTimeout(forceShowTimeout);
+    forceShowTimeout = null;
+  }
+
+  console.log(`[Window] Showing main window (trigger: ${reason})`);
+  try {
+    const savedBounds = config.get('windowBounds') || {};
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    if (savedBounds.isMaximized) {
+      mainWindow.maximize();
+    }
+    mainWindow.show();
+    mainWindow.setAlwaysOnTop(true);
+    mainWindow.focus();
+    mainWindow.setAlwaysOnTop(false);
+    isWindowDisplayed = true;
+  } catch (err) {
+    console.error('[Window] Error showing main window:', err);
+  }
+}
 
 // Second instance handler: bring window to front when user launches app again
 app.on('second-instance', (event, commandLine, workingDirectory) => {
@@ -39,7 +105,8 @@ app.on('second-instance', (event, commandLine, workingDirectory) => {
     mainWindow.setAlwaysOnTop(true);
     mainWindow.focus();
     mainWindow.setAlwaysOnTop(false);
-  } else {
+    showMainWindow('second-instance');
+  } else if (app.isReady()) {
     createWindow();
   }
 });
@@ -74,6 +141,10 @@ function createWindow() {
       }
     }
 
+    const iconPath = process.platform === 'win32'
+      ? path.join(__dirname, '../../assets/icon.ico')
+      : path.join(__dirname, '../../assets/icon.png');
+
     mainWindow = new BrowserWindow({
       width: savedBounds.width || 1300,
       height: savedBounds.height || 860,
@@ -84,7 +155,7 @@ function createWindow() {
       frame: false,
       title: 'Deja - YouTube Music',
       backgroundColor: '#141416',
-      icon: path.join(__dirname, '../../assets/icon.png'),
+      icon: iconPath,
       webPreferences: {
         preload: path.join(__dirname, '../preload/preload.js'),
         nodeIntegration: false,
@@ -98,6 +169,7 @@ function createWindow() {
     });
 
     normalBounds = mainWindow.getBounds();
+    isWindowDisplayed = false;
 
     // Custom UserAgent to allow standard Google Authentication
     mainWindow.webContents.setUserAgent(CHROME_UA);
@@ -125,7 +197,6 @@ function createWindow() {
     }
 
     try {
-      const iconPath = path.join(__dirname, '../../assets/icon.ico');
       trayManager = new TrayManager(mainWindow, iconPath);
       trayManager.init();
     } catch (err) {
@@ -140,49 +211,25 @@ function createWindow() {
       console.warn('[Discord] Failed to init Discord RPC:', err.message);
     }
 
-    // Window display management with 3-second fallback
-    let isWindowDisplayed = false;
-
-    const showMainWindow = (reason) => {
-      if (isWindowDisplayed || !mainWindow || mainWindow.isDestroyed()) return;
-
-      if (forceShowTimeout) {
-        clearTimeout(forceShowTimeout);
-        forceShowTimeout = null;
-      }
-
-      const startMinimized = config.get('startMinimized');
-      if (startMinimized && reason !== 'fallback-timeout' && reason !== 'user-forced') {
-        console.log(`[Window] startMinimized is enabled; staying hidden in tray (trigger: ${reason})`);
-        return;
-      }
-
-      console.log(`[Window] Showing main window (trigger: ${reason})`);
-      try {
-        if (savedBounds.isMaximized) {
-          mainWindow.maximize();
-        }
-        mainWindow.show();
-        mainWindow.focus();
-        isWindowDisplayed = true;
-      } catch (err) {
-        console.error('[Window] Error showing main window:', err);
-      }
-    };
-
     // 1. Primary event: ready-to-show
     mainWindow.once('ready-to-show', () => {
       console.log('[Window] Event: ready-to-show');
       showMainWindow('ready-to-show');
     });
 
-    // 2. Secondary event: did-finish-load
+    // 2. Early event: dom-ready (fast paint before heavy external network assets)
+    mainWindow.webContents.once('dom-ready', () => {
+      console.log('[Window] Event: dom-ready');
+      showMainWindow('dom-ready');
+    });
+
+    // 3. Secondary event: did-finish-load
     mainWindow.webContents.once('did-finish-load', () => {
       console.log('[Window] Event: did-finish-load');
       showMainWindow('did-finish-load');
     });
 
-    // 3. Fallback: Force show if ready-to-show takes longer than 3 seconds (3000ms)
+    // 4. Fallback: Force show if ready-to-show takes longer than 3 seconds (3000ms)
     forceShowTimeout = setTimeout(() => {
       if (!isWindowDisplayed && mainWindow && !mainWindow.isDestroyed()) {
         console.warn('[Window] ready-to-show took longer than 3000ms; force-showing window now.');
@@ -196,6 +243,7 @@ function createWindow() {
         clearTimeout(forceShowTimeout);
         forceShowTimeout = null;
       }
+      isWindowDisplayed = false;
       mainWindow = null;
     });
 
@@ -219,7 +267,7 @@ function createWindow() {
 
     // Handle network failure gracefully with fallback option
     mainWindow.webContents.on('did-fail-load', (e, errorCode, errorDescription, validatedURL) => {
-      if (errorCode !== -3 && (!validatedURL || !validatedURL.includes('preview.html'))) { // -3 is ABORTED
+      if (errorCode !== -3 && (!validatedURL || (!validatedURL.includes('preview.html') && !validatedURL.includes('offline-fallback.html')))) { // -3 is ABORTED
         console.warn(`[Network] Failed to load ${validatedURL}: ${errorDescription} (${errorCode})`);
         const fallbackPath = path.join(__dirname, '../renderer/offline-fallback.html');
         mainWindow.loadFile(fallbackPath).finally(() => {
@@ -241,29 +289,38 @@ function createWindow() {
     });
 
     mainWindow.on('close', (e) => {
-      if (config.get('closeToTray') && !app.isQuitting) {
+      const hasTray = trayManager && trayManager.tray && !trayManager.tray.isDestroyed();
+      if (config.get('closeToTray') && !app.isQuitting && hasTray) {
         e.preventDefault();
         mainWindow.hide();
         return false;
       }
 
-      if (!isMiniPlayer && mainWindow) {
+      if (!isMiniPlayer && mainWindow && !mainWindow.isMinimized() && !mainWindow.isMaximized()) {
         const bounds = mainWindow.getBounds();
-        bounds.isMaximized = mainWindow.isMaximized();
+        bounds.isMaximized = false;
         config.set('windowBounds', bounds);
+      } else if (mainWindow && mainWindow.isMaximized()) {
+        config.set('windowBounds', Object.assign({}, config.get('windowBounds') || {}, { isMaximized: true }));
       }
     });
 
     mainWindow.on('minimize', (e) => {
-      if (config.get('minimizeToTray')) {
+      const hasTray = trayManager && trayManager.tray && !trayManager.tray.isDestroyed();
+      if (config.get('minimizeToTray') && hasTray) {
         e.preventDefault();
         mainWindow.hide();
       }
     });
 
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-      // Open external links in default system browser except Google auth URLs
-      if (url.includes('accounts.google.com') || url.includes('music.youtube.com')) {
+      // Open external links in default system browser except Google auth URLs and consent UI
+      if (
+        url.includes('accounts.google.com') ||
+        url.includes('music.youtube.com') ||
+        url.includes('consent.youtube.com') ||
+        url.includes('youtube.com')
+      ) {
         return {
           action: 'allow',
           overrideBrowserWindowOptions: {
@@ -278,6 +335,9 @@ function createWindow() {
 
   } catch (err) {
     console.error('[Window] Fatal exception in createWindow:', err);
+    try {
+      dialog.showErrorBox('Deja Startup Error', `A fatal error occurred while starting Deja:\n\n${err.stack || err.message}`);
+    } catch {}
     if (mainWindow && !mainWindow.isDestroyed()) {
       try {
         mainWindow.show();
@@ -399,6 +459,10 @@ ipcMain.handle('open-external', (event, url) => {
 app.whenReady().then(() => {
   // Clean request headers to avoid Google security prompt issues
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    if (!details.requestHeaders) {
+      callback({ cancel: false });
+      return;
+    }
     delete details.requestHeaders['Sec-Ch-Ua-Platform'];
     delete details.requestHeaders['sec-ch-ua-platform'];
     details.requestHeaders['Sec-Ch-Ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
@@ -412,9 +476,14 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     } else if (mainWindow) {
-      mainWindow.show();
+      showMainWindow('app-activate');
     }
   });
+}).catch((err) => {
+  console.error('[App] Failed during whenReady initialization:', err);
+  try {
+    dialog.showErrorBox('Deja Initialization Error', `Failed to start Deja:\n\n${err.stack || err.message}`);
+  } catch {}
 });
 
 app.on('will-quit', () => {
