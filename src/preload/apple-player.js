@@ -33,6 +33,44 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
     setupKeyboardShortcuts();
   }
 
+  function setSafeHTML(element, html) {
+    if (!element) return;
+    try {
+      if (typeof window !== 'undefined' && window.trustedTypes && typeof window.trustedTypes.createPolicy === 'function') {
+        try {
+          if (!window.__dejaPolicy) {
+            window.__dejaPolicy = window.trustedTypes.createPolicy('deja-policy', {
+              createHTML: (s) => s
+            });
+          }
+          element.innerHTML = window.__dejaPolicy.createHTML(html);
+          return;
+        } catch (e) {
+          if (window.trustedTypes.defaultPolicy) {
+            try {
+              element.innerHTML = window.trustedTypes.defaultPolicy.createHTML(html);
+              return;
+            } catch (e2) {}
+          }
+        }
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof DOMParser !== 'undefined') {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        element.textContent = '';
+        while (doc.body.firstChild) {
+          element.appendChild(doc.body.firstChild);
+        }
+        return;
+      }
+    } catch (e) {}
+
+    element.innerHTML = html;
+  }
+
   /* -------------------------------------------------------------
      1. Apple Music Custom Titlebar Injection
      ------------------------------------------------------------- */
@@ -42,7 +80,7 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
     const titlebar = document.createElement('header');
     titlebar.id = 'deja-titlebar';
     titlebar.className = 'deja-titlebar sonora-titlebar';
-    titlebar.innerHTML = `
+    setSafeHTML(titlebar, `
       <div class="deja-traffic-lights sonora-traffic-lights">
         <button class="deja-btn-traffic sonora-btn-traffic deja-btn-close sonora-btn-close" id="deja-close-btn" title="Close Deja"></button>
         <button class="deja-btn-traffic sonora-btn-traffic deja-btn-min sonora-btn-min" id="deja-min-btn" title="Minimize"></button>
@@ -84,7 +122,7 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
           </svg>
         </button>
       </div>
-    `;
+    `);
 
     document.body.prepend(titlebar);
 
@@ -331,7 +369,7 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
     overlay = document.createElement('div');
     overlay.id = 'deja-lyrics-overlay';
     overlay.className = 'deja-lyrics-drawer sonora-lyrics-drawer visible';
-    overlay.innerHTML = `
+    setSafeHTML(overlay, `
       <div class="deja-lyrics-aura sonora-lyrics-aura" style="background-image: url('${track.coverUrl}');"></div>
       <div class="deja-lyrics-header sonora-lyrics-header">
         <div class="deja-lyrics-meta sonora-lyrics-meta">
@@ -345,7 +383,7 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
         <div class="deja-lyric-line sonora-lyric-line">Real-time lyrics rendered with Apple Music dynamic mesh backdrop</div>
         <div class="deja-lyric-line sonora-lyric-line">Enjoy your music in high fidelity</div>
       </div>
-    `;
+    `);
 
     document.body.appendChild(overlay);
     const lyricsCloseBtn = getEl('deja-lyrics-close-btn', 'sonora-lyrics-close-btn');
@@ -364,7 +402,7 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
         const lines = desc.textContent.trim().split('\n').filter(l => l.trim().length > 0);
         const container = getEl('deja-lyrics-content', 'sonora-lyrics-content');
         if (container && lines.length > 0) {
-          container.innerHTML = lines.map((l, i) => `<div class="deja-lyric-line sonora-lyric-line ${i === 0 ? 'active' : ''}">${escapeHtml(l)}</div>`).join('');
+          setSafeHTML(container, lines.map((l, i) => `<div class="deja-lyric-line sonora-lyric-line ${i === 0 ? 'active' : ''}">${escapeHtml(l)}</div>`).join(''));
         }
       }
     }
@@ -405,7 +443,7 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
     const overlay = document.createElement('div');
     overlay.id = 'deja-apple-modal';
     overlay.className = 'deja-modal-overlay sonora-modal-overlay';
-    overlay.innerHTML = `
+    setSafeHTML(overlay, `
       <div class="deja-modal-card sonora-modal-card">
         <div class="deja-modal-header sonora-modal-header">
           <h3 class="deja-modal-title sonora-modal-title">${escapeHtml(title)}</h3>
@@ -426,7 +464,7 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
           <button class="deja-modal-btn-primary sonora-modal-btn-primary" id="deja-modal-ok">Done</button>
         </div>
       </div>
-    `;
+    `);
 
     document.body.appendChild(overlay);
 
