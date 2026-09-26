@@ -17,7 +17,7 @@ class TrayManager {
     try {
       let icon;
       if (this.iconPath && require('fs').existsSync(this.iconPath)) {
-        icon = nativeImage.createFromPath(this.iconPath).resize({ width: 16, height: 16 });
+        icon = nativeImage.createFromPath(this.iconPath);
       } else {
         icon = nativeImage.createEmpty();
       }
@@ -54,9 +54,14 @@ class TrayManager {
     this.currentTrack = Object.assign(this.currentTrack, trackInfo);
 
     if (this.tray && !this.tray.isDestroyed()) {
-      const tooltip = this.currentTrack.isPlaying
-        ? `▶ ${this.currentTrack.title} — ${this.currentTrack.artist}`
-        : `⏸ ${this.currentTrack.title} — ${this.currentTrack.artist}`;
+      let tooltip;
+      if (this.currentTrack.isAd) {
+        tooltip = '📢 Advertisement (Google / Free Tier)';
+      } else {
+        tooltip = this.currentTrack.isPlaying
+          ? `▶ ${this.currentTrack.title} — ${this.currentTrack.artist}`
+          : `⏸ ${this.currentTrack.title} — ${this.currentTrack.artist}`;
+      }
       this.tray.setToolTip(tooltip.slice(0, 127));
       this.updateMenu();
     }
@@ -72,9 +77,14 @@ class TrayManager {
     };
 
     const isPlaying = this.currentTrack.isPlaying;
-    const trackLabel = this.currentTrack.title !== 'Sonora Music'
-      ? `${this.currentTrack.title} • ${this.currentTrack.artist}`
-      : 'Sonora YouTube Music';
+    let trackLabel;
+    if (this.currentTrack.isAd) {
+      trackLabel = '📢 Advertisement (Google / Free Tier)';
+    } else {
+      trackLabel = this.currentTrack.title !== 'Sonora Music'
+        ? `${this.currentTrack.title} • ${this.currentTrack.artist}`
+        : 'Sonora YouTube Music';
+    }
 
     const contextMenu = Menu.buildFromTemplate([
       {

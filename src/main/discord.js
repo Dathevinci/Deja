@@ -99,21 +99,22 @@ class DiscordPresence {
   updateTrack(track) {
     if (!this.enabled || !track) return;
 
+    const isAd = !!track.isAd;
     const isPlaying = track.isPlaying;
-    const title = track.title || 'Unknown Title';
-    const artist = track.artist || 'Unknown Artist';
-    const album = track.album || 'YouTube Music';
+    const title = isAd ? 'Advertisement (Google)' : (track.title || 'Unknown Title');
+    const artist = isAd ? 'Free Tier • Sponsored' : (track.artist || 'Unknown Artist');
+    const album = isAd ? 'YouTube Music Ads' : (track.album || 'YouTube Music');
 
     const activity = {
       details: title.length > 128 ? title.slice(0, 125) + '...' : title,
-      state: `by ${artist}`.slice(0, 128),
+      state: isAd ? artist : `by ${artist}`.slice(0, 128),
       assets: {
-        large_image: track.coverUrl || 'sonora_logo',
+        large_image: isAd ? 'sonora_logo' : (track.coverUrl || 'sonora_logo'),
         large_text: album.slice(0, 128),
         small_image: isPlaying ? 'play_icon' : 'pause_icon',
-        small_text: isPlaying ? 'Playing' : 'Paused'
+        small_text: isAd ? 'Ad Playing' : (isPlaying ? 'Playing' : 'Paused')
       },
-      timestamps: isPlaying && track.duration
+      timestamps: isPlaying && track.duration && !isAd
         ? {
             start: Math.floor((Date.now() - (track.currentTime || 0) * 1000) / 1000),
             end: Math.floor((Date.now() + ((track.duration || 0) - (track.currentTime || 0)) * 1000) / 1000)

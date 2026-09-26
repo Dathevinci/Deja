@@ -1,0 +1,96 @@
+const http = require('http');
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+const assert = require('assert');
+
+function runCspRuntimeTests() {
+  console.log('--- Testing Preload & Apple UI Runtime under Strict CSP ---');
+
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, {
+      'Content-Type': 'text/html',
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'nonce-secure123'; style-src 'self' 'nonce-secure456';"
+    });
+    res.end(`
+      <!DOCTYPE html>
+      <html>
+        <head><title>Strict CSP YouTube Music Simulation</title></head>
+        <body>
+          <ytmusic-nav-bar></ytmusic-nav-bar>
+          <ytmusic-player-bar>
+            <div class="content-info-wrapper">
+              <span class="title">Starboy</span>
+              <span class="byline">The Weeknd • Starboy</span>
+            </div>
+            <button id="play-pause-button">Play</button>
+          </ytmusic-player-bar>
+          <video class="html5-main-video"></video>
+        </body>
+      </html>
+    `);
+  });
+
+  server.listen(48999, () => {
+    app.whenReady().then(async () => {
+      try {
+        const win = new BrowserWindow({
+          show: false,
+          webPreferences: {
+            preload: path.join(__dirname, '../src/preload/preload.js'),
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: false
+          }
+        });
+
+        const cspViolations = [];
+        win.webContents.on('console-message', (e, level, msg) => {
+          if (msg && msg.toLowerCase().includes('violates the following content security policy directive')) {
+            cspViolations.push(msg);
+          }
+        });
+
+        await win.loadURL('http://localhost:48999');
+
+        const domState = await win.webContents.executeJavaScript(`
+          ({
+            hasTitlebar: !!document.getElementById('sonora-titlebar'),
+            hasTrafficLights: !!document.querySelector('.sonora-traffic-lights'),
+            hasCloseBtn: !!document.getElementById('sonora-close-btn'),
+            hasMinBtn: !!document.getElementById('sonora-min-btn'),
+            hasMaxBtn: !!document.getElementById('sonora-max-btn'),
+            hasSearchBar: !!document.getElementById('sonora-search-bar'),
+            hasLyricsBtn: !!document.getElementById('sonora-lyrics-btn'),
+            hasMiniBtn: !!document.getElementById('sonora-mini-btn'),
+            hasSettingsBtn: !!document.getElementById('sonora-settings-btn'),
+            titlebarHeight: document.getElementById('sonora-titlebar') ? window.getComputedStyle(document.getElementById('sonora-titlebar')).height : '0px'
+          })
+        `);
+
+        assert.strictEqual(domState.hasTitlebar, true, 'Apple titlebar must be injected');
+        assert.strictEqual(domState.hasTrafficLights, true, 'Traffic lights must be present');
+        assert.strictEqual(domState.hasCloseBtn, true, 'Close button must exist');
+        assert.strictEqual(domState.hasMinBtn, true, 'Minimize button must exist');
+        assert.strictEqual(domState.hasMaxBtn, true, 'Maximize button must exist');
+        assert.strictEqual(domState.hasSearchBar, true, 'Search bar must exist');
+        assert.strictEqual(domState.hasLyricsBtn, true, 'Lyrics button must exist');
+        assert.strictEqual(domState.hasMiniBtn, true, 'Mini player button must exist');
+        assert.strictEqual(domState.hasSettingsBtn, true, 'Settings button must exist');
+        assert.strictEqual(domState.titlebarHeight, '42px', 'Titlebar must have 42px height via injected CSS');
+        assert.strictEqual(cspViolations.length, 0, `Must have 0 CSP violations, got: ${JSON.stringify(cspViolations)}`);
+
+        console.log('✓ Preload & Apple UI Runtime under Strict CSP tests passed successfully.');
+        try { server.close(); } catch {}
+        app.exit(0);
+      } catch (err) {
+        console.error('❌ CSP Runtime test failed:', err);
+        try { server.close(); } catch {}
+        app.exit(1);
+      }
+    });
+  });
+}
+
+module.exports = runCspRuntimeTests;
+
+runCspRuntimeTests();

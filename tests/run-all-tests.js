@@ -1,7 +1,11 @@
+const path = require('path');
+const { spawnSync } = require('child_process');
+const electron = require('electron');
 const runConfigTests = require('./config.test');
 const runThemeTests = require('./theme.test');
 const runComplianceTests = require('./compliance.test');
 const runIpcTests = require('./ipc.test');
+const runPlayerControllerTests = require('./player-controller.test');
 
 console.log('====================================================');
 console.log('  Sonora - YouTube Music Apple Client Test Suite    ');
@@ -16,8 +20,23 @@ try {
   console.log('');
   runIpcTests();
   console.log('');
+  runPlayerControllerTests();
+  console.log('');
+
+  // Run live Electron CSP integration test
+  const res = spawnSync(electron, [path.join(__dirname, 'csp-runtime.test.js')], {
+    encoding: 'utf8',
+    env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' }
+  });
+
+  if (res.status !== 0) {
+    throw new Error(`CSP Runtime test failed with exit code ${res.status}: ${res.stderr || res.stdout}`);
+  }
+  console.log(res.stdout.trim());
+  console.log('');
+
   console.log('====================================================');
-  console.log('  ALL TESTS PASSED SUCCESSFULLY! (4/4 test suites)  ');
+  console.log('  ALL TESTS PASSED SUCCESSFULLY! (6/6 test suites)  ');
   console.log('====================================================');
   process.exit(0);
 } catch (err) {

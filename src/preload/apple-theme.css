@@ -100,6 +100,7 @@ body, ytmusic-app {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: 12px;
   -webkit-app-region: no-drag;
 }
 
@@ -184,8 +185,13 @@ body, ytmusic-app {
 }
 
 /* Push YouTube Music Content below titlebar */
+ytmusic-app-layout {
+  --ytmusic-nav-bar-height: 106px !important;
+}
+
 ytmusic-nav-bar {
-  margin-top: 42px !important;
+  top: 42px !important;
+  margin-top: 0 !important;
   background: var(--apple-bg-header) !important;
   backdrop-filter: var(--apple-blur) !important;
   -webkit-backdrop-filter: var(--apple-blur) !important;
@@ -194,6 +200,8 @@ ytmusic-nav-bar {
 
 /* Apple Sidebar Navigation Styling */
 ytmusic-guide-renderer, #guide-content.ytmusic-guide-renderer {
+  top: 106px !important;
+  height: calc(100vh - 106px - var(--ytmusic-player-bar-height, 72px)) !important;
   background: var(--apple-bg-sidebar) !important;
   backdrop-filter: var(--apple-blur) !important;
   -webkit-backdrop-filter: var(--apple-blur) !important;
@@ -423,3 +431,148 @@ body.mini-player-mode ytmusic-player-bar {
   height: calc(100vh - 32px) !important;
   padding: 4px 12px !important;
 }
+
+/* Explicit Google Ad Monetization Preservation */
+/* Guarantees full compliance with Google rules: free users receive standard video/banner ads */
+.video-ads,
+.ytp-ad-player-overlay,
+.ytp-ad-skip-button-slot,
+.ytp-ad-text,
+.ytp-ad-preview-text,
+.ytp-ad-skip-button-modern,
+.ytp-ad-module {
+  z-index: 9000 !important;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.ytp-ad-skip-button-modern,
+.ytp-ad-skip-button {
+  border-radius: var(--apple-radius-btn) !important;
+  backdrop-filter: var(--apple-blur) !important;
+  background: rgba(30, 30, 34, 0.85) !important;
+  border: 1px solid var(--apple-border) !important;
+}
+
+/* Apple Frosted Modal Dialog */
+.sonora-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: sonoraFadeIn 0.2s ease-out;
+}
+
+@keyframes sonoraFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sonora-modal-card {
+  background: rgba(28, 28, 32, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  width: 480px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  padding: 24px 28px;
+  color: var(--apple-text-primary);
+  font-family: var(--apple-font);
+  animation: sonoraModalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sonoraModalPop {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.sonora-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--apple-border);
+}
+
+.sonora-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.sonora-modal-close-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: var(--apple-text-primary);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: background 0.2s ease;
+}
+
+.sonora-modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.sonora-modal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sonora-modal-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.sonora-modal-desc {
+  font-size: 12px;
+  color: var(--apple-text-secondary);
+  margin-top: 2px;
+}
+
+.sonora-modal-badge {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--apple-accent-subtle);
+  color: var(--apple-accent);
+  font-weight: 600;
+}
+
+.sonora-modal-footer {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sonora-modal-btn-primary {
+  background: var(--apple-accent);
+  color: #FFFFFF;
+  border: none;
+  padding: 8px 18px;
+  border-radius: var(--apple-radius-btn);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.sonora-modal-btn-primary:hover {
+  opacity: 0.9;
+}
+

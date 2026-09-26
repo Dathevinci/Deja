@@ -11,6 +11,10 @@ class ShortcutManager {
     if (this.registered) return;
 
     const dispatch = (action, payload = null) => {
+      if (typeof this.ipcCallback === 'function') {
+        const handled = this.ipcCallback(action, payload);
+        if (handled) return;
+      }
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
         this.mainWindow.webContents.send('player-action', { action, payload });
       }

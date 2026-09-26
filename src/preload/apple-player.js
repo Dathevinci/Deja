@@ -1,16 +1,19 @@
 /**
  * Sonora - Apple Music Client Controller
  * Manages UI injection, player hooks, lyrics, and YouTube Music synchronization.
+ * Runs inside the Electron preload execution context to guarantee immunity against web page CSP.
  */
 
-(function initSonoraController() {
+function initSonoraApplePlayer(api = window.sonoraAPI) {
   if (window.__SONORA_INITIALIZED__) return;
   window.__SONORA_INITIALIZED__ = true;
 
   let lastTrackId = '';
+  let lastIsPlaying = null;
+  let lastIsAd = null;
   let pollInterval = null;
 
-  // Wait for DOM
+  // Wait for DOM ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', bootstrap);
   } else {
@@ -18,7 +21,10 @@
   }
 
   function bootstrap() {
-    injectTitlebar();
+    // Avoid double injection if preview.html already rendered its own header
+    if (!document.getElementById('sonora-titlebar')) {
+      injectTitlebar();
+    }
     setupPlayerHooks();
     setupIpcListeners();
     setupKeyboardShortcuts();
@@ -37,7 +43,7 @@
         <button class="sonora-btn-traffic sonora-btn-close" id="sonora-close-btn" title="Close Sonora"></button>
         <button class="sonora-btn-traffic sonora-btn-min" id="sonora-min-btn" title="Minimize"></button>
         <button class="sonora-btn-traffic sonora-btn-max" id="sonora-max-btn" title="Maximize"></button>
-        <div class="sonora-nav-controls" style="margin-left: 12px;">
+        <div class="sonora-nav-controls">
           <button class="sonora-nav-btn" id="sonora-back-btn" title="Back">‹</button>
           <button class="sonora-nav-btn" id="sonora-forward-btn" title="Forward">›</button>
         </div>
@@ -79,15 +85,14 @@
     document.body.prepend(titlebar);
 
     // Titlebar Button Actions
-    document.getElementById('sonora-close-btn').onclick = () => window.sonoraAPI?.windowAction('close');
-    document.getElementById('sonora-min-btn').onclick = () => window.sonoraAPI?.windowAction('minimize');
-    document.getElementById('sonora-max-btn').onclick = () => window.sonoraAPI?.windowAction('maximize');
+    document.getElementById('sonora-close-btn').onclick = () => api?.windowAction('close');
+    document.getElementById('sonora-min-btn').onclick = () => api?.windowAction('minimize');
+    document.getElementById('sonora-max-btn').onclick = () => api?.windowAction('maximize');
     document.getElementById('sonora-back-btn').onclick = () => window.history.back();
     document.getElementById('sonora-forward-btn').onclick = () => window.history.forward();
 
     document.getElementById('sonora-search-bar').onclick = () => {
-      // Focus YouTube Music native search
-      const ytSearch = document.querySelector('ytmusic-search-box input') || document.querySelector('input.ytmusic-search-box');
+      const ytSearch = document.querySelector('ytmusic-search-box input') || document.querySelector('input.ytmusic-search-box') || document.querySelector('#search-input input');
       if (ytSearch) {
         ytSearch.focus();
         ytSearch.select();
@@ -98,7 +103,7 @@
     };
 
     document.getElementById('sonora-lyrics-btn').onclick = () => toggleLyricsDrawer();
-    document.getElementById('sonora-mini-btn').onclick = () => window.sonoraAPI?.windowAction('toggle-miniplayer');
+    document.getElementById('sonora-mini-btn').onclick = () => api?.windowAction('toggle-miniplayer');
     document.getElementById('sonora-settings-btn').onclick = () => openSettingsModal();
   }
 
@@ -106,31 +111,35 @@
      2. YouTube Music Audio & Ad Observer
      ------------------------------------------------------------- */
   function setupPlayerHooks() {
-    pollInterval = setInterval(extractPlayerState, 1000);
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(extractPlayerState, 800);
     extractPlayerState();
   }
 
   function extractPlayerState() {
+    if (typeof document === 'undefined') return;
     const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
     const playerBar = document.querySelector('ytmusic-player-bar');
 
-    if (!playerBar) return;
+    if (!playerBar && !video) return;
 
     // Detect Advertisement
     const isAdPlaying = !!(
       document.querySelector('.ad-showing') ||
       document.querySelector('.video-ads')?.children.length > 0 ||
-      playerBar.hasAttribute('is-ad')
+      playerBar?.hasAttribute('is-ad') ||
+      document.querySelector('.ytp-ad-player-overlay') ||
+      document.querySelector('.ytp-ad-module')?.childElementCount > 0
     );
 
     updateAdBadge(isAdPlaying);
 
-    const titleEl = playerBar.querySelector('.title.ytmusic-player-bar') || playerBar.querySelector('.content-info-wrapper .title');
-    const bylineEl = playerBar.querySelector('.byline.ytmusic-player-bar') || playerBar.querySelector('.content-info-wrapper .byline');
-    const imageEl = playerBar.querySelector('img.image.ytmusic-player-bar') || playerBar.querySelector('ytmusic-player-bar img');
+    const titleEl = playerBar?.querySelector('.title.ytmusic-player-bar') || playerBar?.querySelector('.content-info-wrapper .title');
+    const bylineEl = playerBar?.querySelector('.byline.ytmusic-player-bar') || playerBar?.querySelector('.content-info-wrapper .byline');
+    const imageEl = playerBar?.querySelector('img.image.ytmusic-player-bar') || playerBar?.querySelector('ytmusic-player-bar img');
 
-    const title = titleEl ? titleEl.textContent.trim() : 'Sonora Music';
-    const byline = bylineEl ? bylineEl.textContent.trim() : 'YouTube Music';
+    const title = titleEl ? titleEl.textContent.trim() : (isAdPlaying ? 'Advertisement' : 'Sonora Music');
+    const byline = bylineEl ? bylineEl.textContent.trim() : (isAdPlaying ? 'Google Ad' : 'YouTube Music');
     const coverUrl = imageEl ? imageEl.src : '';
 
     const isPlaying = video ? !video.paused : false;
@@ -151,13 +160,14 @@
       isAd: isAdPlaying
     };
 
-    if (trackId !== lastTrackId || isPlaying !== window.__LAST_IS_PLAYING__) {
+    if (trackId !== lastTrackId || isPlaying !== lastIsPlaying || isAdPlaying !== lastIsAd) {
       lastTrackId = trackId;
-      window.__LAST_IS_PLAYING__ = isPlaying;
+      lastIsPlaying = isPlaying;
+      lastIsAd = isAdPlaying;
       window.__SONORA_CURRENT_TRACK__ = trackData;
 
-      if (window.sonoraAPI?.sendTrackChanged) {
-        window.sonoraAPI.sendTrackChanged(trackData);
+      if (api?.sendTrackChanged) {
+        api.sendTrackChanged(trackData);
       }
     }
   }
@@ -172,7 +182,7 @@
         adBadge.id = 'sonora-ad-badge';
         adBadge.className = 'sonora-ad-badge';
         adBadge.innerText = 'ADVERTISEMENT';
-        const titleWrapper = playerBar.querySelector('.title.ytmusic-player-bar')?.parentElement;
+        const titleWrapper = playerBar.querySelector('.title.ytmusic-player-bar')?.parentElement || playerBar.querySelector('.middle-controls');
         if (titleWrapper) {
           titleWrapper.appendChild(adBadge);
         }
@@ -187,13 +197,13 @@
      3. Incoming IPC & Action Dispatcher
      ------------------------------------------------------------- */
   function setupIpcListeners() {
-    if (!window.sonoraAPI?.onPlayerAction) return;
+    if (!api?.onPlayerAction) return;
 
-    window.sonoraAPI.onPlayerAction(({ action, payload }) => {
+    api.onPlayerAction(({ action, payload }) => {
       handlePlayerAction(action, payload);
     });
 
-    window.sonoraAPI.onMiniPlayerChanged?.((isMini) => {
+    api.onMiniPlayerChanged?.((isMini) => {
       if (isMini) {
         document.body.classList.add('mini-player-mode');
       } else {
@@ -256,7 +266,7 @@
         break;
 
       case 'toggleMiniPlayer':
-        window.sonoraAPI?.windowAction('toggle-miniplayer');
+        api?.windowAction('toggle-miniplayer');
         break;
 
       case 'openSettings':
@@ -341,12 +351,72 @@
     }
   }
 
+  /* -------------------------------------------------------------
+     5. Apple Frosted Modal Dialog (Settings & About)
+     ------------------------------------------------------------- */
   function openSettingsModal() {
-    alert('Sonora Preferences:\n• Theme: Apple Dark (Active)\n• Ad Policy: Standard Google Ads compliant\n• Discord RPC: Enabled\n• Media Keys: Enabled\n• Hardware Acceleration: Enabled');
+    renderAppleModal({
+      title: 'Sonora Preferences',
+      rows: [
+        { label: 'Theme Styling', desc: 'macOS Sonoma / Apple Music Acrylic Dark', badge: 'Active' },
+        { label: 'Ad Monetization Policy', desc: 'Non-harming: Free users receive Google ads; Premium users enjoy native ad-free playback', badge: 'Compliant' },
+        { label: 'Discord Rich Presence', desc: 'Real-time song & artist status display on Discord', badge: 'Enabled' },
+        { label: 'Global Media Keys', desc: 'Hardware Play/Pause, Next, Previous, and Volume hotkeys', badge: 'Active' },
+        { label: 'Hardware Acceleration', desc: 'Chromium GPU compositor for high performance', badge: 'Enabled' }
+      ]
+    });
   }
 
   function openAboutDialog() {
-    alert('Sonora Music v1.0.0\nAn Apple Music-styled desktop client for YouTube Music.\n\nCompliant with Google & YouTube Terms of Service: Free users receive ads; YouTube Premium subscribers enjoy native ad-free listening.');
+    renderAppleModal({
+      title: 'About Sonora Music',
+      rows: [
+        { label: 'Version', desc: 'Sonora Desktop Client v1.0.0', badge: 'v1.0.0' },
+        { label: 'Architecture', desc: 'Clean Apple Music-styled interface layered over YouTube Music base', badge: 'Electron' },
+        { label: 'Google TOS Disclosure', desc: 'Not affiliated with Google LLC. Respects all YouTube content licensing and advertisement rules.', badge: 'Verified' },
+        { label: 'License', desc: 'MIT Open Source License - Ready for GitHub community publication', badge: 'MIT' }
+      ]
+    });
+  }
+
+  function renderAppleModal({ title, rows }) {
+    const existing = document.getElementById('sonora-apple-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'sonora-apple-modal';
+    overlay.className = 'sonora-modal-overlay';
+    overlay.innerHTML = `
+      <div class="sonora-modal-card">
+        <div class="sonora-modal-header">
+          <h3 class="sonora-modal-title">${escapeHtml(title)}</h3>
+          <button class="sonora-modal-close-btn" id="sonora-modal-close">&times;</button>
+        </div>
+        <div class="sonora-modal-body">
+          ${rows.map(r => `
+            <div class="sonora-modal-row">
+              <div>
+                <div class="sonora-modal-label">${escapeHtml(r.label)}</div>
+                <div class="sonora-modal-desc">${escapeHtml(r.desc)}</div>
+              </div>
+              <span class="sonora-modal-badge">${escapeHtml(r.badge)}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="sonora-modal-footer">
+          <button class="sonora-modal-btn-primary" id="sonora-modal-ok">Done</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeModal = () => overlay.remove();
+    document.getElementById('sonora-modal-close').onclick = closeModal;
+    document.getElementById('sonora-modal-ok').onclick = closeModal;
+    overlay.onclick = (e) => {
+      if (e.target === overlay) closeModal();
+    };
   }
 
   function escapeHtml(str) {
@@ -359,4 +429,22 @@
       '"': '&quot;'
     }[tag] || tag));
   }
-})();
+
+  return {
+    destroy: () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+      window.__SONORA_INITIALIZED__ = false;
+    }
+  };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = initSonoraApplePlayer;
+}
+
+if (typeof window !== 'undefined') {
+  window.initSonoraApplePlayer = initSonoraApplePlayer;
+}

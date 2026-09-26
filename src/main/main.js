@@ -15,12 +15,14 @@ if (!gotTheLock) {
 
 // User Agent spoofing for Google Login compatibility
 const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+app.userAgentFallback = CHROME_UA;
 
 let mainWindow = null;
 let shortcutManager = null;
 let trayManager = null;
 let isMiniPlayer = false;
 let normalBounds = null;
+let wasMaximizedBeforeMini = false;
 
 // Hardware acceleration option
 if (!config.get('hardwareAcceleration')) {
@@ -64,7 +66,13 @@ function createWindow() {
   mainWindow.setMenu(menu);
 
   // Initialize helper managers
-  shortcutManager = new ShortcutManager(mainWindow);
+  shortcutManager = new ShortcutManager(mainWindow, (action) => {
+    if (action === 'toggleMiniPlayer') {
+      toggleMiniPlayer();
+      return true;
+    }
+    return false;
+  });
   shortcutManager.registerAll();
 
   const iconPath = path.join(__dirname, '../../assets/icon.ico');
@@ -130,7 +138,13 @@ function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     // Open external links in default system browser except Google auth URLs
     if (url.includes('accounts.google.com') || url.includes('music.youtube.com')) {
-      return { action: 'allow' };
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          userAgent: CHROME_UA,
+          autoHideMenuBar: true
+        }
+      };
     }
     shell.openExternal(url);
     return { action: 'deny' };
@@ -175,6 +189,10 @@ function toggleMiniPlayer() {
   isMiniPlayer = !isMiniPlayer;
 
   if (isMiniPlayer) {
+    wasMaximizedBeforeMini = mainWindow.isMaximized();
+    if (wasMaximizedBeforeMini) {
+      mainWindow.unmaximize();
+    }
     normalBounds = mainWindow.getBounds();
     mainWindow.setAlwaysOnTop(true, 'floating');
     mainWindow.setMinimumSize(320, 110);
@@ -192,6 +210,9 @@ function toggleMiniPlayer() {
     } else {
       mainWindow.setSize(1300, 860);
       mainWindow.center();
+    }
+    if (wasMaximizedBeforeMini) {
+      mainWindow.maximize();
     }
   }
 
@@ -212,7 +233,8 @@ ipcMain.on('track-changed', (event, track) => {
   }
 
   // Desktop notification on song change if enabled
-  if (config.get('notifications') && track.isPlaying && Notification.isSupported()) {
+  // Ad compliance: Do not send OS notifications during advertisements
+  if (!track.isAd && config.get('notifications') && track.isPlaying && Notification.isSupported()) {
     try {
       const notif = new Notification({
         title: track.title || 'Now Playing',
@@ -251,6 +273,8 @@ app.whenReady().then(() => {
   // Clean request headers to avoid Google security prompt issues
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
     delete details.requestHeaders['Sec-Ch-Ua-Platform'];
+    delete details.requestHeaders['sec-ch-ua-platform'];
+    details.requestHeaders['Sec-Ch-Ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
     details.requestHeaders['User-Agent'] = CHROME_UA;
     callback({ cancel: false, requestHeaders: details.requestHeaders });
   });
