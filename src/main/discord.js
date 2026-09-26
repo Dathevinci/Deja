@@ -105,11 +105,12 @@ class DiscordPresence {
     const artist = isAd ? 'Free Tier • Sponsored' : (track.artist || 'Unknown Artist');
     const album = isAd ? 'YouTube Music Ads' : (track.album || 'YouTube Music');
 
+    const hasValidCoverUrl = typeof track.coverUrl === 'string' && (track.coverUrl.startsWith('https://') || track.coverUrl.startsWith('http://'));
     const activity = {
       details: title.length > 128 ? title.slice(0, 125) + '...' : title,
       state: isAd ? artist : `by ${artist}`.slice(0, 128),
       assets: {
-        large_image: isAd ? 'deja_logo' : (track.coverUrl || 'deja_logo'),
+        large_image: isAd ? 'deja_logo' : (hasValidCoverUrl ? track.coverUrl : 'deja_logo'),
         large_text: album.slice(0, 128),
         small_image: isPlaying ? 'play_icon' : 'pause_icon',
         small_text: isAd ? 'Ad Playing' : (isPlaying ? 'Playing' : 'Paused')

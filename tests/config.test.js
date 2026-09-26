@@ -37,6 +37,9 @@ function runConfigTests() {
   assert.strictEqual(restored.theme, 'dark');
   assert.strictEqual(restored.discordRPC, true);
 
+  // 5. Config persistence path
+  assert.ok(config.configPath.includes('deja-config.json'), 'Config storage must be named deja-config.json');
+
   console.log('✓ ConfigManager tests passed successfully.');
 }
 

@@ -36,7 +36,10 @@ body, ytmusic-app {
 }
 
 /* Apple Custom Window Top Bar */
-#sonora-titlebar {
+#deja-titlebar,
+#sonora-titlebar,
+.deja-titlebar,
+.sonora-titlebar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -56,6 +59,7 @@ body, ytmusic-app {
 }
 
 /* Traffic Light Buttons */
+.deja-traffic-lights,
 .sonora-traffic-lights {
   display: flex;
   align-items: center;
@@ -63,6 +67,7 @@ body, ytmusic-app {
   -webkit-app-region: no-drag;
 }
 
+.deja-btn-traffic,
 .sonora-btn-traffic {
   width: 12px;
   height: 12px;
@@ -77,25 +82,30 @@ body, ytmusic-app {
   justify-content: center;
 }
 
+.deja-btn-traffic:hover,
 .sonora-btn-traffic:hover {
   transform: scale(1.1);
 }
 
+.deja-btn-close,
 .sonora-btn-close {
   background-color: #FF5F56;
   box-shadow: 0 0 0 0.5px rgba(0,0,0,0.2) inset;
 }
 
+.deja-btn-min,
 .sonora-btn-min {
   background-color: #FFBD2E;
   box-shadow: 0 0 0 0.5px rgba(0,0,0,0.2) inset;
 }
 
+.deja-btn-max,
 .sonora-btn-max {
   background-color: #27C93F;
   box-shadow: 0 0 0 0.5px rgba(0,0,0,0.2) inset;
 }
 
+.deja-nav-controls,
 .sonora-nav-controls {
   display: flex;
   align-items: center;
@@ -104,6 +114,7 @@ body, ytmusic-app {
   -webkit-app-region: no-drag;
 }
 
+.deja-nav-btn,
 .sonora-nav-btn {
   background: rgba(255, 255, 255, 0.08);
   border: none;
@@ -119,11 +130,13 @@ body, ytmusic-app {
   transition: all 0.2s ease;
 }
 
+.deja-nav-btn:hover,
 .sonora-nav-btn:hover {
   background: rgba(255, 255, 255, 0.16);
   color: var(--apple-text-primary);
 }
 
+.deja-top-center,
 .sonora-top-center {
   display: flex;
   align-items: center;
@@ -131,6 +144,7 @@ body, ytmusic-app {
   -webkit-app-region: no-drag;
 }
 
+.deja-search-pill,
 .sonora-search-pill {
   display: flex;
   align-items: center;
@@ -147,13 +161,17 @@ body, ytmusic-app {
   cursor: text;
 }
 
-.sonora-search-pill:hover, .sonora-search-pill:focus-within {
+.deja-search-pill:hover,
+.deja-search-pill:focus-within,
+.sonora-search-pill:hover,
+.sonora-search-pill:focus-within {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(250, 45, 72, 0.5);
   box-shadow: 0 0 12px var(--apple-accent-glow);
   color: var(--apple-text-primary);
 }
 
+.deja-top-right,
 .sonora-top-right {
   display: flex;
   align-items: center;
@@ -161,6 +179,7 @@ body, ytmusic-app {
   -webkit-app-region: no-drag;
 }
 
+.deja-icon-btn,
 .sonora-icon-btn {
   background: transparent;
   border: none;
@@ -175,11 +194,13 @@ body, ytmusic-app {
   justify-content: center;
 }
 
+.deja-icon-btn:hover,
 .sonora-icon-btn:hover {
   color: var(--apple-text-primary);
   background: rgba(255, 255, 255, 0.08);
 }
 
+.deja-icon-btn.active,
 .sonora-icon-btn.active {
   color: var(--apple-accent);
 }
@@ -362,6 +383,7 @@ ytmusic-player-bar tp-yt-paper-icon-button[aria-pressed="true"] {
 
 /* ADVERTISEMENT COMPLIANCE BADGE */
 /* Shows a sleek Apple-styled badge during ads without blocking or breaking ads */
+.deja-ad-badge,
 .sonora-ad-badge {
   display: inline-flex;
   align-items: center;
@@ -412,6 +434,7 @@ tp-yt-paper-item:hover {
 }
 
 /* Mini Player Mode Styles */
+body.mini-player-mode #deja-titlebar,
 body.mini-player-mode #sonora-titlebar {
   height: 32px;
 }
@@ -456,6 +479,7 @@ body.mini-player-mode ytmusic-player-bar {
 }
 
 /* Apple Frosted Modal Dialog */
+.deja-modal-overlay,
 .sonora-modal-overlay {
   position: fixed;
   inset: 0;
@@ -466,7 +490,12 @@ body.mini-player-mode ytmusic-player-bar {
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: sonoraFadeIn 0.2s ease-out;
+  animation: dejaFadeIn 0.2s ease-out;
+}
+
+@keyframes dejaFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes sonoraFadeIn {
@@ -474,6 +503,7 @@ body.mini-player-mode ytmusic-player-bar {
   to { opacity: 1; }
 }
 
+.deja-modal-card,
 .sonora-modal-card {
   background: rgba(28, 28, 32, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -484,7 +514,12 @@ body.mini-player-mode ytmusic-player-bar {
   padding: 24px 28px;
   color: var(--apple-text-primary);
   font-family: var(--apple-font);
-  animation: sonoraModalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: dejaModalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dejaModalPop {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 @keyframes sonoraModalPop {
@@ -492,6 +527,7 @@ body.mini-player-mode ytmusic-player-bar {
   to { transform: scale(1); opacity: 1; }
 }
 
+.deja-modal-header,
 .sonora-modal-header {
   display: flex;
   align-items: center;
@@ -501,12 +537,14 @@ body.mini-player-mode ytmusic-player-bar {
   border-bottom: 1px solid var(--apple-border);
 }
 
+.deja-modal-title,
 .sonora-modal-title {
   font-size: 18px;
   font-weight: 700;
   margin: 0;
 }
 
+.deja-modal-close-btn,
 .sonora-modal-close-btn {
   background: rgba(255, 255, 255, 0.1);
   border: none;
@@ -522,10 +560,12 @@ body.mini-player-mode ytmusic-player-bar {
   transition: background 0.2s ease;
 }
 
+.deja-modal-close-btn:hover,
 .sonora-modal-close-btn:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 
+.deja-modal-row,
 .sonora-modal-row {
   display: flex;
   align-items: center;
@@ -534,17 +574,20 @@ body.mini-player-mode ytmusic-player-bar {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.deja-modal-label,
 .sonora-modal-label {
   font-size: 14px;
   font-weight: 500;
 }
 
+.deja-modal-desc,
 .sonora-modal-desc {
   font-size: 12px;
   color: var(--apple-text-secondary);
   margin-top: 2px;
 }
 
+.deja-modal-badge,
 .sonora-modal-badge {
   font-size: 12px;
   padding: 4px 10px;
@@ -554,12 +597,14 @@ body.mini-player-mode ytmusic-player-bar {
   font-weight: 600;
 }
 
+.deja-modal-footer,
 .sonora-modal-footer {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
 }
 
+.deja-modal-btn-primary,
 .sonora-modal-btn-primary {
   background: var(--apple-accent);
   color: #FFFFFF;
@@ -572,6 +617,7 @@ body.mini-player-mode ytmusic-player-bar {
   transition: opacity 0.2s ease;
 }
 
+.deja-modal-btn-primary:hover,
 .sonora-modal-btn-primary:hover {
   opacity: 0.9;
 }

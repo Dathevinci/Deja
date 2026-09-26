@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer, webFrame } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const initSonoraApplePlayer = require('./apple-player');
+const { initDejaApplePlayer, initSonoraApplePlayer } = require('./apple-player');
 
 // Define Deja safe API bridge
 const dejaAPI = {
@@ -34,6 +34,7 @@ try {
 }
 
 const LYRICS_STYLES = `
+  .deja-lyrics-drawer,
   .sonora-lyrics-drawer {
     position: fixed;
     top: 42px;
@@ -51,9 +52,11 @@ const LYRICS_STYLES = `
     transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
   }
+  .deja-lyrics-drawer.visible,
   .sonora-lyrics-drawer.visible {
     transform: translateX(0);
   }
+  .deja-lyrics-aura,
   .sonora-lyrics-aura {
     position: absolute;
     inset: -20%;
@@ -62,13 +65,19 @@ const LYRICS_STYLES = `
     filter: blur(80px) brightness(0.4) saturate(250%);
     opacity: 0.65;
     z-index: 0;
-    animation: sonoraAuraPulse 12s infinite alternate ease-in-out;
+    animation: dejaAuraPulse 12s infinite alternate ease-in-out;
+  }
+  @keyframes dejaAuraPulse {
+    0% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(1.15) rotate(4deg); }
+    100% { transform: scale(1.05) rotate(-3deg); }
   }
   @keyframes sonoraAuraPulse {
     0% { transform: scale(1) rotate(0deg); }
     50% { transform: scale(1.15) rotate(4deg); }
     100% { transform: scale(1.05) rotate(-3deg); }
   }
+  .deja-lyrics-header,
   .sonora-lyrics-header {
     position: relative;
     z-index: 1;
@@ -78,12 +87,14 @@ const LYRICS_STYLES = `
     padding: 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
+  .deja-lyrics-meta,
   .sonora-lyrics-meta {
     display: flex;
     flex-direction: column;
     gap: 4px;
     max-width: 80%;
   }
+  .deja-lyrics-title,
   .sonora-lyrics-title {
     font-size: 18px;
     font-weight: 700;
@@ -93,11 +104,13 @@ const LYRICS_STYLES = `
     text-overflow: ellipsis;
     margin: 0;
   }
+  .deja-lyrics-artist,
   .sonora-lyrics-artist {
     font-size: 14px;
     color: rgba(255, 255, 255, 0.65);
     margin: 0;
   }
+  .deja-lyrics-close,
   .sonora-lyrics-close {
     background: rgba(255, 255, 255, 0.1);
     border: none;
@@ -112,9 +125,11 @@ const LYRICS_STYLES = `
     justify-content: center;
     transition: background 0.2s ease;
   }
+  .deja-lyrics-close:hover,
   .sonora-lyrics-close:hover {
     background: rgba(255, 255, 255, 0.2);
   }
+  .deja-lyrics-body,
   .sonora-lyrics-body {
     position: relative;
     z-index: 1;
@@ -125,6 +140,7 @@ const LYRICS_STYLES = `
     flex-direction: column;
     gap: 24px;
   }
+  .deja-lyric-line,
   .sonora-lyric-line {
     font-size: 22px;
     font-weight: 600;
@@ -134,9 +150,11 @@ const LYRICS_STYLES = `
     cursor: pointer;
     filter: blur(0.4px);
   }
+  .deja-lyric-line:hover,
   .sonora-lyric-line:hover {
     color: rgba(255, 255, 255, 0.7);
   }
+  .deja-lyric-line.active,
   .sonora-lyric-line.active {
     color: #FFFFFF;
     font-size: 26px;
@@ -167,11 +185,12 @@ try {
 // DOM-ready initialization
 function onDOMReady() {
   try {
-    // Initialize Sonora Apple UI & Player observer directly in preload context
+    // Initialize Deja Apple UI & Player observer directly in preload context
     // This executes safely without being blocked by website Content-Security-Policy (CSP)
-    initSonoraApplePlayer(sonoraAPI);
+    const initPlayer = initDejaApplePlayer || initSonoraApplePlayer || require('./apple-player');
+    initPlayer(dejaAPI);
   } catch (err) {
-    console.error('[Preload] Failed to initialize Sonora Apple controller:', err);
+    console.error('[Preload] Failed to initialize Deja Apple controller:', err);
   }
 }
 

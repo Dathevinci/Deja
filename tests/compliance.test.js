@@ -20,7 +20,8 @@ function runComplianceTests() {
   const controllerPath = path.join(__dirname, '../src/preload/apple-player.js');
   const controllerCode = fs.readFileSync(controllerPath, 'utf8');
   assert.ok(controllerCode.includes('isAdPlaying'), 'Must detect and monitor ad status');
-  assert.ok(controllerCode.includes('sonora-ad-badge'), 'Must support Apple-style advertisement badge');
+  assert.ok(controllerCode.includes('deja-ad-badge'), 'Must support Apple-style advertisement badge for Deja');
+  assert.ok(controllerCode.includes('sonora-ad-badge'), 'Must retain backwards-compatible sonora-ad-badge');
 
   console.log('✓ Google TOS & Ad Compliance tests passed successfully.');
 }

@@ -18,9 +18,12 @@ function runThemeTests() {
   // Verify YouTube Music Specific Components are Restyled
   assert.ok(css.includes('ytmusic-player-bar'), 'Must restyle ytmusic-player-bar');
   assert.ok(css.includes('ytmusic-guide-renderer'), 'Must restyle sidebar navigation');
-  assert.ok(css.includes('#sonora-titlebar'), 'Must define custom Apple titlebar');
-  assert.ok(css.includes('.sonora-traffic-lights'), 'Must define macOS traffic light buttons');
-  assert.ok(css.includes('.sonora-ad-badge'), 'Must define Apple-styled advertisement badge');
+  assert.ok(css.includes('#deja-titlebar'), 'Must define custom Apple titlebar (#deja-titlebar)');
+  assert.ok(css.includes('.deja-traffic-lights'), 'Must define macOS traffic light buttons (.deja-traffic-lights)');
+  assert.ok(css.includes('.deja-ad-badge'), 'Must define Apple-styled advertisement badge (.deja-ad-badge)');
+  assert.ok(css.includes('#sonora-titlebar'), 'Must retain backwards-compatible #sonora-titlebar');
+  assert.ok(css.includes('.sonora-traffic-lights'), 'Must retain backwards-compatible .sonora-traffic-lights');
+  assert.ok(css.includes('.sonora-ad-badge'), 'Must retain backwards-compatible .sonora-ad-badge');
 
   console.log('✓ Apple Theme CSS tests passed successfully.');
 }

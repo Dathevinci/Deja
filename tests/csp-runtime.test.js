@@ -54,16 +54,16 @@ function runCspRuntimeTests() {
 
         const domState = await win.webContents.executeJavaScript(`
           ({
-            hasTitlebar: !!document.getElementById('sonora-titlebar'),
-            hasTrafficLights: !!document.querySelector('.sonora-traffic-lights'),
-            hasCloseBtn: !!document.getElementById('sonora-close-btn'),
-            hasMinBtn: !!document.getElementById('sonora-min-btn'),
-            hasMaxBtn: !!document.getElementById('sonora-max-btn'),
-            hasSearchBar: !!document.getElementById('sonora-search-bar'),
-            hasLyricsBtn: !!document.getElementById('sonora-lyrics-btn'),
-            hasMiniBtn: !!document.getElementById('sonora-mini-btn'),
-            hasSettingsBtn: !!document.getElementById('sonora-settings-btn'),
-            titlebarHeight: document.getElementById('sonora-titlebar') ? window.getComputedStyle(document.getElementById('sonora-titlebar')).height : '0px'
+            hasTitlebar: !!(document.getElementById('deja-titlebar') || document.getElementById('sonora-titlebar')),
+            hasTrafficLights: !!(document.querySelector('.deja-traffic-lights') || document.querySelector('.sonora-traffic-lights')),
+            hasCloseBtn: !!(document.getElementById('deja-close-btn') || document.getElementById('sonora-close-btn')),
+            hasMinBtn: !!(document.getElementById('deja-min-btn') || document.getElementById('sonora-min-btn')),
+            hasMaxBtn: !!(document.getElementById('deja-max-btn') || document.getElementById('sonora-max-btn')),
+            hasSearchBar: !!(document.getElementById('deja-search-bar') || document.getElementById('sonora-search-bar')),
+            hasLyricsBtn: !!(document.getElementById('deja-lyrics-btn') || document.getElementById('sonora-lyrics-btn')),
+            hasMiniBtn: !!(document.getElementById('deja-mini-btn') || document.getElementById('sonora-mini-btn')),
+            hasSettingsBtn: !!(document.getElementById('deja-settings-btn') || document.getElementById('sonora-settings-btn')),
+            titlebarHeight: (document.getElementById('deja-titlebar') || document.getElementById('sonora-titlebar')) ? window.getComputedStyle(document.getElementById('deja-titlebar') || document.getElementById('sonora-titlebar')).height : '0px'
           })
         `);
 

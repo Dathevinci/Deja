@@ -152,7 +152,7 @@ function createWindow() {
 
   // Handle network failure gracefully with fallback option
   mainWindow.webContents.on('did-fail-load', (e, errorCode, errorDescription, validatedURL) => {
-    if (errorCode !== -3 && !validatedURL.includes('preview.html')) { // -3 is ABORTED
+    if (errorCode !== -3 && (!validatedURL || !validatedURL.includes('preview.html'))) { // -3 is ABORTED
       console.warn(`[Network] Failed to load ${validatedURL}: ${errorDescription} (${errorCode})`);
       mainWindow.loadFile(path.join(__dirname, '../renderer/offline-fallback.html'));
     }

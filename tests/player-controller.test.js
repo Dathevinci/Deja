@@ -1,8 +1,13 @@
 const assert = require('assert');
-const initSonoraApplePlayer = require('../src/preload/apple-player');
+const playerModule = require('../src/preload/apple-player');
+const initDejaApplePlayer = playerModule.initDejaApplePlayer || playerModule;
+const initSonoraApplePlayer = playerModule.initSonoraApplePlayer || playerModule;
 
 function runPlayerControllerTests() {
   console.log('--- Testing Apple Player Controller Functional Logic ---');
+
+  assert.strictEqual(typeof initDejaApplePlayer, 'function', 'initDejaApplePlayer must be a function');
+  assert.strictEqual(typeof initSonoraApplePlayer, 'function', 'initSonoraApplePlayer must be a function');
 
   // Set up mock DOM environment
   const listeners = {};
@@ -169,26 +174,31 @@ function runPlayerControllerTests() {
   global.window = windowMock;
   global.document = documentMock;
 
-  const controller = initSonoraApplePlayer(mockApi);
+  const controller = initDejaApplePlayer(mockApi);
 
   // 1. Verify Titlebar injection
-  assert.ok(elements['sonora-titlebar'], 'Apple Titlebar must be injected into DOM');
-  assert.ok(elements['sonora-close-btn'], 'Close button must be present in Titlebar');
-  assert.ok(elements['sonora-min-btn'], 'Minimize button must be present in Titlebar');
-  assert.ok(elements['sonora-max-btn'], 'Maximize button must be present in Titlebar');
-  assert.ok(elements['sonora-search-bar'], 'Search pill must be present in Titlebar');
+  const titlebar = elements['deja-titlebar'] || elements['sonora-titlebar'];
+  assert.ok(titlebar, 'Deja Apple Titlebar must be injected into DOM');
+  const closeBtn = elements['deja-close-btn'] || elements['sonora-close-btn'];
+  assert.ok(closeBtn, 'Close button must be present in Titlebar');
+  const minBtn = elements['deja-min-btn'] || elements['sonora-min-btn'];
+  assert.ok(minBtn, 'Minimize button must be present in Titlebar');
+  const maxBtn = elements['deja-max-btn'] || elements['sonora-max-btn'];
+  assert.ok(maxBtn, 'Maximize button must be present in Titlebar');
+  const searchBar = elements['deja-search-bar'] || elements['sonora-search-bar'];
+  assert.ok(searchBar, 'Search pill must be present in Titlebar');
 
   // 2. Verify traffic light click actions
-  elements['sonora-close-btn'].click();
+  closeBtn.click();
   assert.strictEqual(apiCalls.some(c => c.type === 'windowAction' && c.act === 'close'), true, 'Close button must invoke windowAction close');
 
-  elements['sonora-min-btn'].click();
+  minBtn.click();
   assert.strictEqual(apiCalls.some(c => c.type === 'windowAction' && c.act === 'minimize'), true, 'Min button must invoke windowAction minimize');
 
-  elements['sonora-max-btn'].click();
+  maxBtn.click();
   assert.strictEqual(apiCalls.some(c => c.type === 'windowAction' && c.act === 'maximize'), true, 'Max button must invoke windowAction maximize');
 
-  // 3. Verify track state extraction
+  // 3. Verify track state extraction & synchronization
   const trackUpdate = apiCalls.find(c => c.type === 'sendTrackChanged');
   assert.ok(trackUpdate, 'Track state must be dispatched to API');
   assert.strictEqual(trackUpdate.track.title, 'Blinding Lights');
@@ -196,6 +206,8 @@ function runPlayerControllerTests() {
   assert.strictEqual(trackUpdate.track.album, 'After Hours');
   assert.strictEqual(trackUpdate.track.isPlaying, true);
   assert.strictEqual(trackUpdate.track.isAd, false);
+  assert.ok(windowMock.__DEJA_CURRENT_TRACK__, 'window.__DEJA_CURRENT_TRACK__ must be set');
+  assert.ok(windowMock.__SONORA_CURRENT_TRACK__, 'window.__SONORA_CURRENT_TRACK__ must be set for backwards compatibility');
 
   // 4. Verify player action handling via IPC
   assert.strictEqual(actionListeners.length > 0, true, 'Player action listener must be registered');
@@ -214,11 +226,15 @@ function runPlayerControllerTests() {
   assert.strictEqual(mockVideo.volume <= 0.55, true, 'volumeDown action must decrease volume');
 
   // 5. Verify Settings modal renders Apple Card (replacing blocking alert)
-  elements['sonora-settings-btn'].click();
-  assert.ok(elements['sonora-apple-modal'], 'Apple modal overlay must be rendered on settings click');
-  assert.ok(elements['sonora-modal-close'], 'Modal close button must exist');
-  elements['sonora-modal-close'].click();
-  assert.strictEqual(elements['sonora-apple-modal'], undefined, 'Modal must close on button click');
+  const settingsBtn = elements['deja-settings-btn'] || elements['sonora-settings-btn'];
+  assert.ok(settingsBtn, 'Settings button must be present');
+  settingsBtn.click();
+  const modal = elements['deja-apple-modal'] || elements['sonora-apple-modal'];
+  assert.ok(modal, 'Apple modal overlay must be rendered on settings click');
+  const modalClose = elements['deja-modal-close'] || elements['sonora-modal-close'];
+  assert.ok(modalClose, 'Modal close button must exist');
+  modalClose.click();
+  assert.strictEqual(elements['deja-apple-modal'] || elements['sonora-apple-modal'], undefined, 'Modal must close on button click');
 
   // 6. Verify Ad Badge detection
   const adElement = new MockElement('DIV', 'mock-ad', 'ad-showing');

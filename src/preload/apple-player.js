@@ -4,10 +4,12 @@
  * Runs inside the Electron preload execution context to guarantee immunity against web page CSP.
  */
 
-function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
+function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
   if (window.__DEJA_INITIALIZED__ || window.__SONORA_INITIALIZED__) return;
   window.__DEJA_INITIALIZED__ = true;
   window.__SONORA_INITIALIZED__ = true;
+
+  const getEl = (dejaId, sonoraId) => document.getElementById(dejaId) || document.getElementById(sonoraId);
 
   let lastTrackId = '';
   let lastIsPlaying = null;
@@ -23,7 +25,7 @@ function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
 
   function bootstrap() {
     // Avoid double injection if preview.html already rendered its own header
-    if (!document.getElementById('sonora-titlebar')) {
+    if (!getEl('deja-titlebar', 'sonora-titlebar')) {
       injectTitlebar();
     }
     setupPlayerHooks();
@@ -35,46 +37,47 @@ function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
      1. Apple Music Custom Titlebar Injection
      ------------------------------------------------------------- */
   function injectTitlebar() {
-    if (document.getElementById('sonora-titlebar')) return;
+    if (getEl('deja-titlebar', 'sonora-titlebar')) return;
 
     const titlebar = document.createElement('header');
-    titlebar.id = 'sonora-titlebar';
+    titlebar.id = 'deja-titlebar';
+    titlebar.className = 'deja-titlebar sonora-titlebar';
     titlebar.innerHTML = `
-      <div class="sonora-traffic-lights">
-        <button class="sonora-btn-traffic sonora-btn-close" id="sonora-close-btn" title="Close Deja"></button>
-        <button class="sonora-btn-traffic sonora-btn-min" id="sonora-min-btn" title="Minimize"></button>
-        <button class="sonora-btn-traffic sonora-btn-max" id="sonora-max-btn" title="Maximize"></button>
-        <div class="sonora-nav-controls">
-          <button class="sonora-nav-btn" id="sonora-back-btn" title="Back">‹</button>
-          <button class="sonora-nav-btn" id="sonora-forward-btn" title="Forward">›</button>
+      <div class="deja-traffic-lights sonora-traffic-lights">
+        <button class="deja-btn-traffic sonora-btn-traffic deja-btn-close sonora-btn-close" id="deja-close-btn" title="Close Deja"></button>
+        <button class="deja-btn-traffic sonora-btn-traffic deja-btn-min sonora-btn-min" id="deja-min-btn" title="Minimize"></button>
+        <button class="deja-btn-traffic sonora-btn-traffic deja-btn-max sonora-btn-max" id="deja-max-btn" title="Maximize"></button>
+        <div class="deja-nav-controls sonora-nav-controls">
+          <button class="deja-nav-btn sonora-nav-btn" id="deja-back-btn" title="Back">‹</button>
+          <button class="deja-nav-btn sonora-nav-btn" id="deja-forward-btn" title="Forward">›</button>
         </div>
       </div>
 
-      <div class="sonora-top-center">
-        <div class="sonora-search-pill" id="sonora-search-bar" title="Search (Ctrl+K)">
+      <div class="deja-top-center sonora-top-center">
+        <div class="deja-search-pill sonora-search-pill" id="deja-search-bar" title="Search (Ctrl+K)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <span id="sonora-search-placeholder">Search songs, artists, albums...</span>
+          <span id="deja-search-placeholder">Search songs, artists, albums...</span>
         </div>
       </div>
 
-      <div class="sonora-top-right">
-        <button class="sonora-icon-btn" id="sonora-lyrics-btn" title="Live Synced Lyrics">
+      <div class="deja-top-right sonora-top-right">
+        <button class="deja-icon-btn sonora-icon-btn" id="deja-lyrics-btn" title="Live Synced Lyrics">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             <path d="M8 9h8"></path>
             <path d="M8 13h6"></path>
           </svg>
         </button>
-        <button class="sonora-icon-btn" id="sonora-mini-btn" title="Mini Player">
+        <button class="deja-icon-btn sonora-icon-btn" id="deja-mini-btn" title="Mini Player">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
             <rect x="12" y="9" width="8" height="6" rx="1" ry="1"></rect>
           </svg>
         </button>
-        <button class="sonora-icon-btn" id="sonora-settings-btn" title="Deja Settings">
+        <button class="deja-icon-btn sonora-icon-btn" id="deja-settings-btn" title="Deja Settings">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -86,26 +89,37 @@ function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
     document.body.prepend(titlebar);
 
     // Titlebar Button Actions
-    document.getElementById('sonora-close-btn').onclick = () => api?.windowAction('close');
-    document.getElementById('sonora-min-btn').onclick = () => api?.windowAction('minimize');
-    document.getElementById('sonora-max-btn').onclick = () => api?.windowAction('maximize');
-    document.getElementById('sonora-back-btn').onclick = () => window.history.back();
-    document.getElementById('sonora-forward-btn').onclick = () => window.history.forward();
+    const closeBtn = getEl('deja-close-btn', 'sonora-close-btn');
+    if (closeBtn) closeBtn.onclick = () => api?.windowAction('close');
+    const minBtn = getEl('deja-min-btn', 'sonora-min-btn');
+    if (minBtn) minBtn.onclick = () => api?.windowAction('minimize');
+    const maxBtn = getEl('deja-max-btn', 'sonora-max-btn');
+    if (maxBtn) maxBtn.onclick = () => api?.windowAction('maximize');
+    const backBtn = getEl('deja-back-btn', 'sonora-back-btn');
+    if (backBtn) backBtn.onclick = () => window.history.back();
+    const forwardBtn = getEl('deja-forward-btn', 'sonora-forward-btn');
+    if (forwardBtn) forwardBtn.onclick = () => window.history.forward();
 
-    document.getElementById('sonora-search-bar').onclick = () => {
-      const ytSearch = document.querySelector('ytmusic-search-box input') || document.querySelector('input.ytmusic-search-box') || document.querySelector('#search-input input');
-      if (ytSearch) {
-        ytSearch.focus();
-        ytSearch.select();
-      } else {
-        const searchBtn = document.querySelector('ytmusic-nav-bar [aria-label*="Search"], ytmusic-search-box');
-        if (searchBtn) searchBtn.click();
-      }
-    };
+    const searchBar = getEl('deja-search-bar', 'sonora-search-bar');
+    if (searchBar) {
+      searchBar.onclick = () => {
+        const ytSearch = document.querySelector('ytmusic-search-box input') || document.querySelector('input.ytmusic-search-box') || document.querySelector('#search-input input');
+        if (ytSearch) {
+          ytSearch.focus();
+          ytSearch.select();
+        } else {
+          const searchBtn = document.querySelector('ytmusic-nav-bar [aria-label*="Search"], ytmusic-search-box');
+          if (searchBtn) searchBtn.click();
+        }
+      };
+    }
 
-    document.getElementById('sonora-lyrics-btn').onclick = () => toggleLyricsDrawer();
-    document.getElementById('sonora-mini-btn').onclick = () => api?.windowAction('toggle-miniplayer');
-    document.getElementById('sonora-settings-btn').onclick = () => openSettingsModal();
+    const lyricsBtn = getEl('deja-lyrics-btn', 'sonora-lyrics-btn');
+    if (lyricsBtn) lyricsBtn.onclick = () => toggleLyricsDrawer();
+    const miniBtn = getEl('deja-mini-btn', 'sonora-mini-btn');
+    if (miniBtn) miniBtn.onclick = () => api?.windowAction('toggle-miniplayer');
+    const settingsBtn = getEl('deja-settings-btn', 'sonora-settings-btn');
+    if (settingsBtn) settingsBtn.onclick = () => openSettingsModal();
   }
 
   /* -------------------------------------------------------------
@@ -175,14 +189,14 @@ function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
   }
 
   function updateAdBadge(isAd) {
-    let adBadge = document.getElementById('sonora-ad-badge');
+    let adBadge = getEl('deja-ad-badge', 'sonora-ad-badge');
     const playerBar = document.querySelector('ytmusic-player-bar');
 
     if (isAd) {
       if (!adBadge && playerBar) {
         adBadge = document.createElement('span');
-        adBadge.id = 'sonora-ad-badge';
-        adBadge.className = 'sonora-ad-badge';
+        adBadge.id = 'deja-ad-badge';
+        adBadge.className = 'deja-ad-badge sonora-ad-badge';
         adBadge.innerText = 'ADVERTISEMENT';
         const titleWrapper = playerBar.querySelector('.title.ytmusic-player-bar')?.parentElement || playerBar.querySelector('.middle-controls');
         if (titleWrapper) {
@@ -288,7 +302,7 @@ function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        document.getElementById('sonora-search-bar')?.click();
+        getEl('deja-search-bar', 'sonora-search-bar')?.click();
       }
     });
   }
@@ -297,7 +311,7 @@ function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
      4. Apple Music Live Synced Lyrics Overlay
      ------------------------------------------------------------- */
   function toggleLyricsDrawer() {
-    let overlay = document.getElementById('sonora-lyrics-overlay');
+    let overlay = getEl('deja-lyrics-overlay', 'sonora-lyrics-overlay');
     if (overlay) {
       if (overlay.classList.contains('visible')) {
         overlay.classList.remove('visible');
@@ -308,36 +322,39 @@ function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
       return;
     }
 
-    const track = window.__SONORA_CURRENT_TRACK__ || {
+    const track = window.__DEJA_CURRENT_TRACK__ || window.__SONORA_CURRENT_TRACK__ || {
       title: 'Current Song',
       artist: 'Artist',
       coverUrl: ''
     };
 
     overlay = document.createElement('div');
-    overlay.id = 'sonora-lyrics-overlay';
-    overlay.className = 'sonora-lyrics-drawer visible';
+    overlay.id = 'deja-lyrics-overlay';
+    overlay.className = 'deja-lyrics-drawer sonora-lyrics-drawer visible';
     overlay.innerHTML = `
-      <div class="sonora-lyrics-aura" style="background-image: url('${track.coverUrl}');"></div>
-      <div class="sonora-lyrics-header">
-        <div class="sonora-lyrics-meta">
-          <h2 class="sonora-lyrics-title">${escapeHtml(track.title)}</h2>
-          <p class="sonora-lyrics-artist">${escapeHtml(track.artist)}</p>
+      <div class="deja-lyrics-aura sonora-lyrics-aura" style="background-image: url('${track.coverUrl}');"></div>
+      <div class="deja-lyrics-header sonora-lyrics-header">
+        <div class="deja-lyrics-meta sonora-lyrics-meta">
+          <h2 class="deja-lyrics-title sonora-lyrics-title">${escapeHtml(track.title)}</h2>
+          <p class="deja-lyrics-artist sonora-lyrics-artist">${escapeHtml(track.artist)}</p>
         </div>
-        <button class="sonora-lyrics-close" id="sonora-lyrics-close-btn">&times;</button>
+        <button class="deja-lyrics-close sonora-lyrics-close" id="deja-lyrics-close-btn">&times;</button>
       </div>
-      <div class="sonora-lyrics-body" id="sonora-lyrics-content">
-        <div class="sonora-lyric-line active">♪ Synchronized with YouTube Music playback</div>
-        <div class="sonora-lyric-line">Real-time lyrics rendered with Apple Music dynamic mesh backdrop</div>
-        <div class="sonora-lyric-line">Enjoy your music in high fidelity</div>
+      <div class="deja-lyrics-body sonora-lyrics-body" id="deja-lyrics-content">
+        <div class="deja-lyric-line sonora-lyric-line active">♪ Synchronized with YouTube Music playback</div>
+        <div class="deja-lyric-line sonora-lyric-line">Real-time lyrics rendered with Apple Music dynamic mesh backdrop</div>
+        <div class="deja-lyric-line sonora-lyric-line">Enjoy your music in high fidelity</div>
       </div>
     `;
 
     document.body.appendChild(overlay);
-    document.getElementById('sonora-lyrics-close-btn').onclick = () => {
-      overlay.classList.remove('visible');
-      setTimeout(() => overlay.remove(), 300);
-    };
+    const lyricsCloseBtn = getEl('deja-lyrics-close-btn', 'sonora-lyrics-close-btn');
+    if (lyricsCloseBtn) {
+      lyricsCloseBtn.onclick = () => {
+        overlay.classList.remove('visible');
+        setTimeout(() => overlay.remove(), 300);
+      };
+    }
 
     // Try extracting native YTM lyrics if available in tab
     const nativeLyricsTab = document.querySelector('ytmusic-tab-renderer[tab-id="LYRICS"]');
@@ -345,9 +362,9 @@ function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
       const desc = nativeLyricsTab.querySelector('.description');
       if (desc && desc.textContent.trim()) {
         const lines = desc.textContent.trim().split('\n').filter(l => l.trim().length > 0);
-        const container = document.getElementById('sonora-lyrics-content');
+        const container = getEl('deja-lyrics-content', 'sonora-lyrics-content');
         if (container && lines.length > 0) {
-          container.innerHTML = lines.map((l, i) => `<div class="sonora-lyric-line ${i === 0 ? 'active' : ''}">${escapeHtml(l)}</div>`).join('');
+          container.innerHTML = lines.map((l, i) => `<div class="deja-lyric-line sonora-lyric-line ${i === 0 ? 'active' : ''}">${escapeHtml(l)}</div>`).join('');
         }
       }
     }
@@ -382,31 +399,31 @@ function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
   }
 
   function renderAppleModal({ title, rows }) {
-    const existing = document.getElementById('sonora-apple-modal');
+    const existing = getEl('deja-apple-modal', 'sonora-apple-modal');
     if (existing) existing.remove();
 
     const overlay = document.createElement('div');
-    overlay.id = 'sonora-apple-modal';
-    overlay.className = 'sonora-modal-overlay';
+    overlay.id = 'deja-apple-modal';
+    overlay.className = 'deja-modal-overlay sonora-modal-overlay';
     overlay.innerHTML = `
-      <div class="sonora-modal-card">
-        <div class="sonora-modal-header">
-          <h3 class="sonora-modal-title">${escapeHtml(title)}</h3>
-          <button class="sonora-modal-close-btn" id="sonora-modal-close">&times;</button>
+      <div class="deja-modal-card sonora-modal-card">
+        <div class="deja-modal-header sonora-modal-header">
+          <h3 class="deja-modal-title sonora-modal-title">${escapeHtml(title)}</h3>
+          <button class="deja-modal-close-btn sonora-modal-close-btn" id="deja-modal-close">&times;</button>
         </div>
-        <div class="sonora-modal-body">
+        <div class="deja-modal-body sonora-modal-body">
           ${rows.map(r => `
-            <div class="sonora-modal-row">
+            <div class="deja-modal-row sonora-modal-row">
               <div>
-                <div class="sonora-modal-label">${escapeHtml(r.label)}</div>
-                <div class="sonora-modal-desc">${escapeHtml(r.desc)}</div>
+                <div class="deja-modal-label sonora-modal-label">${escapeHtml(r.label)}</div>
+                <div class="deja-modal-desc sonora-modal-desc">${escapeHtml(r.desc)}</div>
               </div>
-              <span class="sonora-modal-badge">${escapeHtml(r.badge)}</span>
+              <span class="deja-modal-badge sonora-modal-badge">${escapeHtml(r.badge)}</span>
             </div>
           `).join('')}
         </div>
-        <div class="sonora-modal-footer">
-          <button class="sonora-modal-btn-primary" id="sonora-modal-ok">Done</button>
+        <div class="deja-modal-footer sonora-modal-footer">
+          <button class="deja-modal-btn-primary sonora-modal-btn-primary" id="deja-modal-ok">Done</button>
         </div>
       </div>
     `;
@@ -414,8 +431,10 @@ function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
     document.body.appendChild(overlay);
 
     const closeModal = () => overlay.remove();
-    document.getElementById('sonora-modal-close').onclick = closeModal;
-    document.getElementById('sonora-modal-ok').onclick = closeModal;
+    const closeBtn = getEl('deja-modal-close', 'sonora-modal-close');
+    const okBtn = getEl('deja-modal-ok', 'sonora-modal-ok');
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (okBtn) okBtn.onclick = closeModal;
     overlay.onclick = (e) => {
       if (e.target === overlay) closeModal();
     };
@@ -440,17 +459,21 @@ function initSonoraApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
       }
       window.__DEJA_INITIALIZED__ = false;
       window.__SONORA_INITIALIZED__ = false;
+      delete window.__DEJA_CURRENT_TRACK__;
+      delete window.__SONORA_CURRENT_TRACK__;
     }
   };
 }
 
+const initSonoraApplePlayer = initDejaApplePlayer;
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = initSonoraApplePlayer;
+  module.exports = initDejaApplePlayer;
+  module.exports.initDejaApplePlayer = initDejaApplePlayer;
   module.exports.initSonoraApplePlayer = initSonoraApplePlayer;
-  module.exports.initDejaApplePlayer = initSonoraApplePlayer;
 }
 
 if (typeof window !== 'undefined') {
+  window.initDejaApplePlayer = initDejaApplePlayer;
   window.initSonoraApplePlayer = initSonoraApplePlayer;
-  window.initDejaApplePlayer = initSonoraApplePlayer;
 }

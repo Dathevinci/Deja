@@ -47,7 +47,7 @@ jobs:
         run: npm ci
 
       - name: Package Windows Installer & Portable (.exe)
-        run: npm run pack
+        run: npm run dist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -55,4 +55,18 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Deja-Windows-Build
-          path: dist/
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

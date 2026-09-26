@@ -21,6 +21,13 @@ function runIpcTests() {
   assert.ok(trayCode.includes('updateTrack'), 'Tray must support track updates');
   assert.ok(trayCode.includes('updateMenu'), 'Tray must update context menu dynamically');
 
+  // Verify Preload API Bridge
+  const preloadPath = path.join(__dirname, '../src/preload/preload.js');
+  const preloadCode = fs.readFileSync(preloadPath, 'utf8');
+  assert.ok(preloadCode.includes("exposeInMainWorld('dejaAPI'"), 'Preload must expose dejaAPI in main world');
+  assert.ok(preloadCode.includes('window.dejaAPI'), 'Preload must set window.dejaAPI');
+  assert.ok(preloadCode.includes("exposeInMainWorld('sonoraAPI'"), 'Preload must retain backwards-compatible sonoraAPI');
+
   console.log('✓ IPC & Player Action Protocol tests passed successfully.');
 }
 
