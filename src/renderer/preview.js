@@ -1126,6 +1126,25 @@ if (typeof document !== 'undefined') {
     setupEvents();
     setupIPC();
     loadTrack(0);
+
+    // Instant restoration from local storage cache before network returns
+    try {
+      const cachedAcc = localStorage.getItem('deja_cached_account');
+      if (cachedAcc) {
+        const parsedAcc = JSON.parse(cachedAcc);
+        if (parsedAcc && parsedAcc.isLoggedIn) {
+          updateAccountUI(parsedAcc);
+        }
+      }
+      const cachedPls = localStorage.getItem('deja_cached_playlists');
+      if (cachedPls) {
+        const parsedPls = JSON.parse(cachedPls);
+        if (Array.isArray(parsedPls) && parsedPls.length > 0) {
+          liveUserPlaylists = parsedPls;
+        }
+      }
+    } catch {}
+
     updateSidebarPlaylistsUI(liveUserPlaylists);
     pushNavigation('listen-now', false);
     renderCurrentView();
@@ -1352,6 +1371,9 @@ async function _fetchLiveYouTubeMusicInternal() {
         const userPls = await api.getLibraryPlaylists();
         if (Array.isArray(userPls)) {
           liveUserPlaylists = userPls;
+          try {
+            localStorage.setItem('deja_cached_playlists', JSON.stringify(liveUserPlaylists));
+          } catch {}
           updateSidebarPlaylistsUI(liveUserPlaylists);
           if (currentView === 'library' || currentView === 'playlists') {
             renderCurrentView();
@@ -1521,10 +1543,13 @@ function updateSidebarPlaylistsUI(userPls) {
   if (typeof document === 'undefined') return;
 
   const customContainer = document.getElementById('sidebar-custom-playlists-container');
-  const ytContainer = document.getElementById('sidebar-yt-playlists-container');
+  const ytContainers = [
+    document.getElementById('sidebar-playlists'),
+    document.getElementById('sidebar-yt-playlists-container')
+  ].filter(Boolean);
   const pls = userPls || liveUserPlaylists || [];
 
-  if (customContainer && ytContainer) {
+  if (customContainer && ytContainers.length > 0) {
     // 1. Render Custom Playlists
     if (customPlaylists && customPlaylists.length > 0) {
       customContainer.innerHTML = customPlaylists.map(pl => `
@@ -1552,31 +1577,33 @@ function updateSidebarPlaylistsUI(userPls) {
     }
 
     // 2. Render Live YouTube Playlists
-    if (pls && pls.length > 0) {
-      ytContainer.innerHTML = `
-        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px 4px 14px;">YouTube Music</div>
-        <div class="sidebar-yt-playlists-scroll" style="display: flex; flex-direction: column; gap: 2px;">
-          ${pls.map(p => `
-            <button class="sidebar-link live-user-playlist-link" data-browse-id="${escapeHTML(p.browseId || '')}" data-cover="${escapeHTML(p.cover || '')}" data-subtitle="${escapeHTML(p.subtitle || 'YouTube Music Playlist')}" title="${escapeHTML(p.title || '')}">
-              <span class="sidebar-pl-icon" style="display:inline-flex; align-items:center; opacity:0.7;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg></span>
-              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(p.title || 'Playlist')}</span>
-            </button>
-          `).join('')}
-        </div>
-      `;
+    ytContainers.forEach(ytContainer => {
+      if (pls && pls.length > 0) {
+        ytContainer.innerHTML = `
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px 4px 14px;">YouTube Music</div>
+          <div class="sidebar-yt-playlists-scroll" style="display: flex; flex-direction: column; gap: 2px;">
+            ${pls.map(p => `
+              <button class="sidebar-link live-user-playlist-link" data-browse-id="${escapeHTML(p.browseId || '')}" data-cover="${escapeHTML(p.cover || '')}" data-subtitle="${escapeHTML(p.subtitle || 'YouTube Music Playlist')}" title="${escapeHTML(p.title || '')}">
+                <span class="sidebar-pl-icon" style="display:inline-flex; align-items:center; opacity:0.7;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg></span>
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(p.title || 'Playlist')}</span>
+              </button>
+            `).join('')}
+          </div>
+        `;
 
-      ytContainer.querySelectorAll('.live-user-playlist-link').forEach(btn => {
-        btn.onclick = () => {
-          const bId = btn.getAttribute('data-browse-id');
-          const cover = btn.getAttribute('data-cover') || '';
-          const subtitle = btn.getAttribute('data-subtitle') || 'YouTube Music Playlist';
-          const title = btn.getAttribute('title') || (btn.querySelector('span:last-child') ? btn.querySelector('span:last-child').innerText.trim() : btn.innerText.trim());
-          if (bId) openBrowseDetail(bId, title, cover, subtitle);
-        };
-      });
-    } else {
-      ytContainer.innerHTML = '';
-    }
+        ytContainer.querySelectorAll('.live-user-playlist-link').forEach(btn => {
+          btn.onclick = () => {
+            const bId = btn.getAttribute('data-browse-id');
+            const cover = btn.getAttribute('data-cover') || '';
+            const subtitle = btn.getAttribute('data-subtitle') || 'YouTube Music Playlist';
+            const title = btn.getAttribute('title') || (btn.querySelector('span:last-child') ? btn.querySelector('span:last-child').innerText.trim() : btn.innerText.trim());
+            if (bId) openBrowseDetail(bId, title, cover, subtitle);
+          };
+        });
+      } else {
+        ytContainer.innerHTML = '';
+      }
+    });
     return;
   }
 
@@ -1739,6 +1766,27 @@ function updateAccountUI(acc) {
     if (sidebarName) sidebarName.innerText = 'Sign In';
     if (sidebarSub) sidebarSub.innerText = 'YouTube Music';
     if (sidebarBadge) sidebarBadge.title = 'Sign in to YouTube Music';
+  }
+
+  // Persist / clear localStorage account cache
+  try {
+    if (acc.isLoggedIn) {
+      localStorage.setItem('deja_cached_account', JSON.stringify(acc));
+    } else {
+      localStorage.removeItem('deja_cached_account');
+      localStorage.removeItem('deja_cached_playlists');
+    }
+  } catch {}
+
+  // Update sync status indicator in 1-Click Sync tab
+  const syncStatusText = document.getElementById('sync-server-status-text');
+  if (syncStatusText) {
+    if (acc.isLoggedIn) {
+      const displayName = acc.channelTitle || acc.name || 'Account';
+      syncStatusText.innerHTML = `<span style="color:#34C759;font-weight:600;">✓ Connected to ${escapeHTML(displayName)} successfully!</span>`;
+    } else {
+      syncStatusText.innerText = 'Deja local sync listener is ready on localhost:3728';
+    }
   }
 
   // If account login modal is currently open, refresh its content
@@ -5130,8 +5178,17 @@ function setupEvents() {
       if (api?.logoutGoogle) {
         await api.logoutGoogle();
       }
+      liveUserPlaylists = [];
+      try {
+        localStorage.removeItem('deja_cached_account');
+        localStorage.removeItem('deja_cached_playlists');
+      } catch {}
       updateAccountUI({ isLoggedIn: false });
+      updateSidebarPlaylistsUI([]);
       renderAccountModalContent(true);
+      if (currentView === 'library' || currentView === 'playlists') {
+        renderCurrentView();
+      }
     };
   }
 
@@ -5310,8 +5367,10 @@ function setupIPC() {
     api.onAuthChanged(async (acc) => {
       updateAccountUI(acc);
       await fetchLiveYouTubeMusic(true);
-      updateSidebarPlaylistsUI();
-      renderCurrentView();
+      updateSidebarPlaylistsUI(liveUserPlaylists);
+      if (currentView === 'library' || currentView === 'playlists') {
+        renderCurrentView();
+      }
     });
   }
 

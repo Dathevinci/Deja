@@ -225,6 +225,7 @@ function runEdgeCaseTests() {
   const fs = require('fs');
   const srcFiles = [
     '../src/main/main.js',
+    '../src/main/auth-store.js',
     '../src/main/cookie-utils.js',
     '../src/main/config.js',
     '../src/main/discord.js',

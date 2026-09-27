@@ -6,6 +6,7 @@ const TrayManager = require('./tray');
 const discord = require('./discord');
 const { buildAppMenu } = require('./menu');
 const innertube = require('./innertube');
+const authStore = require('./auth-store');
 const { parseCookiePairs, hasApiSid, normalizeDataSyncId } = require('./cookie-utils');
 
 // Set Windows App User Model ID for notifications and taskbar
@@ -676,57 +677,17 @@ async function applySessionCookies(rawCookieInput, ses) {
     return { success: false, error: 'No valid cookies found in input.' };
   }
 
-  // Set cookies across YouTube and Google domains
-  const urls = ['https://music.youtube.com', 'https://youtube.com'];
-  for (const { name, value } of cookiePairs) {
-    for (const targetUrl of urls) {
-      try {
-        const details = {
-          url: targetUrl,
-          name,
-          value,
-          path: '/',
-          secure: true,
-          httpOnly: false,
-          sameSite: 'no_restriction'
-        };
-        if (!name.startsWith('__Host-')) {
-          details.domain = '.youtube.com';
-        }
-        await ses.cookies.set(details);
-      } catch {
-        try {
-          await ses.cookies.set({
-            url: targetUrl,
-            name,
-            value,
-            path: '/',
-            secure: true
-          });
-        } catch {}
-      }
-    }
-
-    if (name.includes('SID') || name.includes('APISID') || name === 'LOGIN_INFO') {
-      try {
-        await ses.cookies.set({
-          url: 'https://google.com',
-          domain: '.google.com',
-          name,
-          value,
-          path: '/',
-          secure: true,
-          httpOnly: false,
-          sameSite: 'no_restriction'
-        });
-      } catch {}
-    }
-  }
+  // Set cookies with future expiration dates (2 years) and flush to disk
+  await authStore.applyCookiesToSession(ses, cookiePairs);
 
   try {
     await innertube.ensureSessionScope(ses, true).catch(() => {});
     const info = await innertube.getAccountInfo(ses);
     if (info && info.isLoggedIn) {
+      const scope = innertube.getSessionScope();
+      await authStore.persistCurrentSession(ses, info, scope, rawCookieInput);
+      await ses.cookies.flushStore().catch(() => {});
+
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('auth-changed', info);
         mainWindow.webContents.send('auth-state-changed', info);
@@ -1032,6 +993,10 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
               clearInterval(pollInterval);
               pollInterval = null;
             }
+            const scope = innertube.getSessionScope();
+            await authStore.persistCurrentSession(ses, info, scope);
+            await ses.cookies.flushStore().catch(() => {});
+
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('auth-changed', info);
               mainWindow.webContents.send('auth-state-changed', info);
@@ -1040,7 +1005,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
               if (loginWin && !loginWin.isDestroyed()) {
                 loginWin.close();
               }
-            }, 300);
+            }, 500);
             return true;
           }
         } catch (err) {
@@ -1059,8 +1024,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       });
 
       // Navigation handler:
-      // When reaching music.youtube.com, probe ytcfg and inject confirmation bar.
-      // NEVER prematurely dismiss: user chooses channel and clicks "Use This Profile" or closes window.
+      // When reaching music.youtube.com, probe ytcfg and auto-capture session.
       const handleNavigation = async (navUrl) => {
         try {
           if (!loginWin || loginWin.isDestroyed()) return;
@@ -1075,6 +1039,11 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
             if (probe && (probe.loggedIn === 'true' || probe.loggedIn === true)) {
               latestProbe = probe;
               await injectProfileConfirmationBar(loginWin);
+              if (!isSwitchChannel && !authResolved) {
+                setTimeout(() => {
+                  if (!authResolved) captureSessionAndResolve();
+                }, 600);
+              }
             }
           }
 
@@ -1106,7 +1075,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       });
 
       // Active polling every 1000ms:
-      // Keeps confirmation bar attached and monitors readiness
+      // Keeps confirmation bar attached and auto-captures session when ready
       pollInterval = setInterval(async () => {
         if (authResolved) {
           if (pollInterval) clearInterval(pollInterval);
@@ -1119,6 +1088,9 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           if (probe && (probe.loggedIn === 'true' || probe.loggedIn === true)) {
             latestProbe = probe;
             await injectProfileConfirmationBar(loginWin);
+            if (!isSwitchChannel && !authResolved) {
+              await captureSessionAndResolve();
+            }
           }
         }
       }, 1000);
@@ -1164,6 +1136,9 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
             const info = await innertube.getAccountInfo(ses);
             if (info && info.isLoggedIn) {
               authResolved = true;
+              const scope = innertube.getSessionScope();
+              await authStore.persistCurrentSession(ses, info, scope);
+              await ses.cookies.flushStore().catch(() => {});
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('auth-changed', info);
                 mainWindow.webContents.send('auth-state-changed', info);
@@ -1209,6 +1184,10 @@ ipcMain.handle('logout-google', async () => {
     await ses.clearStorageData({
       storages: ['cookies', 'localstorage', 'cache']
     });
+    authStore.clearAuthSession();
+    if (typeof ses.cookies.flushStore === 'function') {
+      await ses.cookies.flushStore().catch(() => {});
+    }
     innertube.adoptSessionScope(null);
     const info = { isLoggedIn: false };
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1423,10 +1402,22 @@ ipcMain.handle('yt-get-lyrics', handleGetLyrics);
 ipcMain.handle('innertube-get-lyrics', handleGetLyrics);
 
 // App Lifecycle
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   startSyncServer();
   const ytSession = session.fromPartition('persist:ytmusic');
   const activeSessions = [session.defaultSession, ytSession];
+
+  // Restore persistent authentication session from deja-auth.json
+  try {
+    const restoreRes = await authStore.restoreSessionOnStartup(ytSession);
+    if (restoreRes && restoreRes.restored) {
+      if (restoreRes.sessionScope) {
+        innertube.adoptSessionScope(restoreRes.sessionScope);
+      }
+    }
+  } catch (err) {
+    console.warn('[Auth] Startup session restoration notice:', err.message);
+  }
 
   activeSessions.forEach(ses => {
     const isGoogleAuthRequest = (url, initiator) => {
@@ -1610,6 +1601,28 @@ app.whenReady().then(() => {
 
   createWindow();
 
+  // Validate session with InnerTube and push auth state to renderer
+  const pushStartupAuth = async () => {
+    try {
+      const info = await innertube.getAccountInfo(ytSession);
+      if (info && info.isLoggedIn) {
+        authStore.updateSavedAccount(info);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('auth-changed', info);
+          mainWindow.webContents.send('auth-state-changed', info);
+        }
+      }
+    } catch (err) {
+      console.warn('[Auth] Startup session validation notice:', err.message);
+    }
+  };
+
+  if (mainWindow) {
+    mainWindow.webContents.once('dom-ready', () => {
+      pushStartupAuth();
+    });
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -1624,7 +1637,22 @@ app.whenReady().then(() => {
   } catch {}
 });
 
+app.on('before-quit', async () => {
+  try {
+    const ytSession = session.fromPartition('persist:ytmusic');
+    if (typeof ytSession.cookies.flushStore === 'function') {
+      await ytSession.cookies.flushStore().catch(() => {});
+    }
+  } catch {}
+});
+
 app.on('will-quit', () => {
+  try {
+    const ytSession = session.fromPartition('persist:ytmusic');
+    if (typeof ytSession.cookies.flushStore === 'function') {
+      ytSession.cookies.flushStore().catch(() => {});
+    }
+  } catch {}
   if (syncServer) {
     try { syncServer.close(); } catch {}
     syncServer = null;
@@ -1650,6 +1678,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     startSyncServer,
     applySessionCookies,
-    parseCookiePairs
+    parseCookiePairs,
+    authStore
   };
 }

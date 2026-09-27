@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { normalizeDataSyncId } = require('./cookie-utils');
+const { normalizeDataSyncId, hasApiSid } = require('./cookie-utils');
 
 const MUSIC_BASE = 'https://music.youtube.com/youtubei/v1';
 const MUSIC_ORIGIN = 'https://music.youtube.com';
@@ -151,17 +151,6 @@ async function fetchSessionScope(cookieStr, sapisid = null) {
     const clientVerMatch = html.match(CONFIG_CLIENT_VERSION);
     const clientVersion = clientVerMatch ? clientVerMatch[1] : null;
 
-    if (!loggedIn) {
-      return {
-        pageId: null,
-        dataSyncId: null,
-        authUser: '0',
-        visitorData: null,
-        clientVersion: clientVersion || WEB_REMIX_CLIENT_VERSION,
-        loggedIn: false
-      };
-    }
-
     const pageIdMatch = html.match(CONFIG_PAGE_ID);
     const pageId = (pageIdMatch && pageIdMatch[1].trim()) ? pageIdMatch[1].trim() : null;
 
@@ -174,6 +163,21 @@ async function fetchSessionScope(cookieStr, sapisid = null) {
 
     const visitorMatch = html.match(CONFIG_VISITOR_DATA);
     const visitorData = (visitorMatch && visitorMatch[1].trim()) ? visitorMatch[1].trim() : null;
+
+    // A session is validly authenticated if either the HTML shell confirmed LOGGED_IN,
+    // or if the session carries an API SID (SAPISID) or a dataSyncId was extracted.
+    const isAuthentic = loggedIn || hasApiSid(cookieStr);
+
+    if (!isAuthentic) {
+      return {
+        pageId: null,
+        dataSyncId: null,
+        authUser: '0',
+        visitorData: null,
+        clientVersion: clientVersion || WEB_REMIX_CLIENT_VERSION,
+        loggedIn: false
+      };
+    }
 
     return {
       pageId,
@@ -1244,6 +1248,199 @@ function parseNewReleasesResponse(data) {
   return { shelves, tracks: allTracks };
 }
 
+function parseBrowsePlaylistItem(node) {
+  if (!node || typeof node !== 'object') return null;
+
+  // 1. musicTwoRowItemRenderer
+  if (node.musicTwoRowItemRenderer) {
+    const r = node.musicTwoRowItemRenderer;
+    const title = (Array.isArray(r.title?.runs) ? r.title.runs.map(x => x.text).join('') : (r.title?.simpleText || r.title?.runs?.[0]?.text)) || '';
+    if (!title) return null;
+    const subtitle = (Array.isArray(r.subtitle?.runs) ? r.subtitle.runs.map(x => x.text).join('') : (r.subtitle?.simpleText || 'Playlist')) || 'Playlist';
+
+    const endpoint = r.navigationEndpoint ||
+                     r.defaultNavigationEndpoint ||
+                     r.title?.runs?.[0]?.navigationEndpoint ||
+                     r.title?.navigationEndpoint ||
+                     r.thumbnailRenderer?.musicThumbnailRenderer?.navigationEndpoint ||
+                     {};
+
+    let browseId = endpoint.browseEndpoint?.browseId ||
+                   r.navigationEndpoint?.browseEndpoint?.browseId ||
+                   r.defaultNavigationEndpoint?.browseEndpoint?.browseId ||
+                   r.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId ||
+                   r.thumbnailRenderer?.musicThumbnailRenderer?.navigationEndpoint?.browseEndpoint?.browseId;
+
+    const watchPlaylist = endpoint.watchPlaylistEndpoint?.playlistId ||
+                          endpoint.watchEndpoint?.playlistId ||
+                          r.navigationEndpoint?.watchPlaylistEndpoint?.playlistId ||
+                          r.navigationEndpoint?.watchEndpoint?.playlistId ||
+                          r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnailOverlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchPlaylistEndpoint?.playlistId;
+    if (!browseId && watchPlaylist) {
+      browseId = watchPlaylist.startsWith('VL') ? watchPlaylist : `VL${watchPlaylist}`;
+    }
+
+    if (!browseId && r.playlistId) {
+      browseId = r.playlistId.startsWith('VL') ? r.playlistId : `VL${r.playlistId}`;
+    }
+
+    const thumbs = r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+                   r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+                   r.thumbnailRenderer?.thumbnail?.thumbnails ||
+                   r.thumbnail?.thumbnails ||
+                   r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.sources || [];
+    const cover = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
+
+    return {
+      title,
+      subtitle,
+      browseId,
+      cover
+    };
+  }
+
+  // 2. musicResponsiveListItemRenderer
+  if (node.musicResponsiveListItemRenderer) {
+    const r = node.musicResponsiveListItemRenderer;
+    const flexCols = r.flexColumns || [];
+    const titleCol = flexCols[0]?.musicResponsiveListItemFlexColumnRenderer?.text;
+    const title = (Array.isArray(titleCol?.runs) ? titleCol.runs.map(x => x.text).join('') : (titleCol?.simpleText || titleCol?.runs?.[0]?.text)) || '';
+    if (!title) return null;
+
+    const col1 = flexCols[1]?.musicResponsiveListItemFlexColumnRenderer?.text;
+    const subtitle = (Array.isArray(col1?.runs) ? col1.runs.map(x => x.text).join('') : (col1?.simpleText || 'Playlist')) || 'Playlist';
+
+    let browseId = r.navigationEndpoint?.browseEndpoint?.browseId ||
+                   r.defaultNavigationEndpoint?.browseEndpoint?.browseId ||
+                   titleCol?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId ||
+                   titleCol?.navigationEndpoint?.browseEndpoint?.browseId ||
+                   col1?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId;
+
+    if (!browseId && Array.isArray(titleCol?.runs)) {
+      for (const run of titleCol.runs) {
+        if (run.navigationEndpoint?.browseEndpoint?.browseId) {
+          browseId = run.navigationEndpoint.browseEndpoint.browseId;
+          break;
+        }
+      }
+    }
+
+    const watchPlaylist = r.navigationEndpoint?.watchPlaylistEndpoint?.playlistId ||
+                          r.navigationEndpoint?.watchEndpoint?.playlistId ||
+                          r.defaultNavigationEndpoint?.watchPlaylistEndpoint?.playlistId ||
+                          titleCol?.runs?.[0]?.navigationEndpoint?.watchPlaylistEndpoint?.playlistId ||
+                          r.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchPlaylistEndpoint?.playlistId;
+    if (!browseId && watchPlaylist) {
+      browseId = watchPlaylist.startsWith('VL') ? watchPlaylist : `VL${watchPlaylist}`;
+    }
+
+    if (!browseId && r.playlistId) {
+      browseId = r.playlistId.startsWith('VL') ? r.playlistId : `VL${r.playlistId}`;
+    }
+
+    const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+                   r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+                   r.thumbnail?.thumbnails || [];
+    const cover = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
+
+    return {
+      title,
+      subtitle,
+      browseId,
+      cover
+    };
+  }
+
+  // 3. gridPlaylistRenderer
+  if (node.gridPlaylistRenderer) {
+    const g = node.gridPlaylistRenderer;
+    const title = (Array.isArray(g.title?.runs) ? g.title.runs.map(x => x.text).join('') : g.title?.simpleText) || '';
+    const subtitle = (Array.isArray(g.shortBylineText?.runs) ? g.shortBylineText.runs.map(x => x.text).join('') : g.shortBylineText?.simpleText) || 'Playlist';
+    const bId = g.navigationEndpoint?.browseEndpoint?.browseId || (g.playlistId ? (g.playlistId.startsWith('VL') ? g.playlistId : `VL${g.playlistId}`) : null);
+    const thumbs = g.thumbnail?.thumbnails || [];
+    return {
+      title,
+      subtitle,
+      browseId: bId,
+      cover: thumbs.length > 0 ? thumbs[thumbs.length - 1].url : ''
+    };
+  }
+
+  // 4. playlistRenderer
+  if (node.playlistRenderer) {
+    const p = node.playlistRenderer;
+    const title = (Array.isArray(p.title?.runs) ? p.title.runs.map(x => x.text).join('') : p.title?.simpleText) || '';
+    const subtitle = (Array.isArray(p.shortBylineText?.runs) ? p.shortBylineText.runs.map(x => x.text).join('') : p.shortBylineText?.simpleText) || 'Playlist';
+    const bId = p.navigationEndpoint?.browseEndpoint?.browseId || (p.playlistId ? (p.playlistId.startsWith('VL') ? p.playlistId : `VL${p.playlistId}`) : null);
+    const thumbs = p.thumbnails?.[0]?.thumbnails || p.thumbnail?.thumbnails || [];
+    return {
+      title,
+      subtitle,
+      browseId: bId,
+      cover: thumbs.length > 0 ? thumbs[thumbs.length - 1].url : ''
+    };
+  }
+
+  // 5. compactPlaylistRenderer
+  if (node.compactPlaylistRenderer) {
+    const cp = node.compactPlaylistRenderer;
+    const title = (Array.isArray(cp.title?.runs) ? cp.title.runs.map(x => x.text).join('') : cp.title?.simpleText) || '';
+    const subtitle = (Array.isArray(cp.shortBylineText?.runs) ? cp.shortBylineText.runs.map(x => x.text).join('') : cp.shortBylineText?.simpleText) || 'Playlist';
+    const bId = cp.navigationEndpoint?.browseEndpoint?.browseId || (cp.playlistId ? (cp.playlistId.startsWith('VL') ? cp.playlistId : `VL${cp.playlistId}`) : null);
+    const thumbs = cp.thumbnails?.[0]?.thumbnails || cp.thumbnail?.thumbnails || [];
+    return {
+      title,
+      subtitle,
+      browseId: bId,
+      cover: thumbs.length > 0 ? thumbs[thumbs.length - 1].url : ''
+    };
+  }
+
+  // 6. lockupViewModel
+  if (node.lockupViewModel) {
+    const vm = node.lockupViewModel;
+    const meta = vm.metadata?.lockupMetadataViewModel || vm.metadata || {};
+    const title = meta.title?.content ||
+                  (Array.isArray(meta.title?.runs) ? meta.title.runs.map(x => x.text).join('') : '') ||
+                  meta.title?.simpleText || '';
+
+    let subtitle = meta.subtitle?.content ||
+                   (Array.isArray(meta.subtitle?.runs) ? meta.subtitle.runs.map(x => x.text).join('') : '') || '';
+
+    if (!subtitle && meta.metadata?.contentMetadataViewModel?.metadataRows) {
+      subtitle = meta.metadata.contentMetadataViewModel.metadataRows
+        .map(r => (r.elements || []).map(e => e.text?.content || '').join(''))
+        .filter(Boolean)
+        .join(' • ');
+    }
+    if (!subtitle) subtitle = 'Playlist';
+
+    const bId = vm.rendererContext?.commandContext?.onTap?.innertubeCommand?.browseEndpoint?.browseId ||
+                vm.onTap?.innertubeCommand?.browseEndpoint?.browseId ||
+                vm.onTap?.browseEndpoint?.browseId ||
+                (vm.rendererContext?.commandContext?.onTap?.innertubeCommand?.watchPlaylistEndpoint?.playlistId ? `VL${vm.rendererContext.commandContext.onTap.innertubeCommand.watchPlaylistEndpoint.playlistId}` : null) ||
+                (vm.onTap?.innertubeCommand?.watchPlaylistEndpoint?.playlistId ? `VL${vm.onTap.innertubeCommand.watchPlaylistEndpoint.playlistId}` : null) ||
+                (vm.contentId ? (vm.contentId.startsWith('VL') ? vm.contentId : `VL${vm.contentId}`) : null);
+
+    const thumbs = vm.image?.imageViewModel?.sources ||
+                   vm.image?.sources ||
+                   vm.image?.thumbnail?.thumbnails ||
+                   vm.thumbnail?.sources ||
+                   vm.thumbnail?.thumbnails ||
+                   vm.thumbnailRenderer?.thumbnail?.thumbnails || [];
+    const cover = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
+
+    return {
+      title,
+      subtitle,
+      browseId: bId,
+      cover
+    };
+  }
+
+  return null;
+}
+
 function parseLibraryPlaylistsResponse(data) {
   const playlists = [];
   const seen = new Set();
@@ -1255,14 +1452,16 @@ function parseLibraryPlaylistsResponse(data) {
       bId = item.playlistId.startsWith('VL') ? item.playlistId : `VL${item.playlistId}`;
     }
     if (!bId) return;
-    // Filter out "New playlist" action tile and Liked Songs playlist (handled separately)
-    const lowTitle = (item.title || '').toLowerCase();
+
+    // Filter out "New playlist" action tile and Liked Songs playlist
+    const lowTitle = (item.title || '').trim().toLowerCase();
     const lowBId = bId.toLowerCase();
     if (lowBId.includes('create') || lowBId === 'feplaylist_add' || lowTitle === 'new playlist' || lowTitle === '+ new playlist') return;
     if (bId === 'VLLM' || bId === 'LM' || bId === 'FEmusic_liked_videos' || lowBId === 'vllm' || lowBId === 'lm') return;
+    if (bId.startsWith('UC')) return; // Artist channel
 
     let normalizedBrowseId = bId;
-    if (!bId.startsWith('VL') && !bId.startsWith('FE') && !bId.startsWith('MPRE') && !bId.startsWith('UC')) {
+    if (!bId.startsWith('VL') && !bId.startsWith('FE') && !bId.startsWith('MPRE')) {
       normalizedBrowseId = `VL${bId}`;
     }
     const key = normalizedBrowseId.replace(/^VL/, '');
@@ -1270,90 +1469,44 @@ function parseLibraryPlaylistsResponse(data) {
       seen.add(key);
       seen.add(normalizedBrowseId);
       playlists.push({
-        ...item,
         id: item.id || `browse-${normalizedBrowseId}`,
+        type: 'browse',
+        title: item.title,
+        subtitle: item.subtitle || 'Playlist',
         browseId: normalizedBrowseId,
-        playlistId: normalizedBrowseId.replace(/^VL/, '')
+        playlistId: key,
+        cover: item.cover || ''
       });
     }
   }
 
   function walk(node) {
     if (!node || typeof node !== 'object') return;
-    if (Array.isArray(node)) { node.forEach(walk); return; }
-    if (node.musicTwoRowItemRenderer) {
-      const card = parseTwoRowItem(node.musicTwoRowItemRenderer);
-      if (card) addItem(card);
-    } else if (node.musicResponsiveListItemRenderer) {
-      const item = parseResponsiveItem(node.musicResponsiveListItemRenderer);
-      if (item) addItem(item);
-    } else if (node.gridPlaylistRenderer) {
-      const g = node.gridPlaylistRenderer;
-      const title = (Array.isArray(g.title?.runs) ? g.title.runs.map(x => x.text).join('') : g.title?.simpleText) || '';
-      const bId = g.navigationEndpoint?.browseEndpoint?.browseId || (g.playlistId ? `VL${g.playlistId}` : null);
-      const thumbs = g.thumbnail?.thumbnails || [];
-      if (title && bId) {
-        addItem({
-          id: `browse-${bId}`,
-          type: 'browse',
-          title,
-          subtitle: (Array.isArray(g.shortBylineText?.runs) ? g.shortBylineText.runs.map(x => x.text).join('') : g.shortBylineText?.simpleText) || 'Playlist',
-          browseId: bId,
-          cover: thumbs.length > 0 ? thumbs[thumbs.length - 1].url : ''
-        });
-      }
-    } else if (node.playlistRenderer) {
-      const p = node.playlistRenderer;
-      const title = (Array.isArray(p.title?.runs) ? p.title.runs.map(x => x.text).join('') : p.title?.simpleText) || '';
-      const bId = p.navigationEndpoint?.browseEndpoint?.browseId || (p.playlistId ? `VL${p.playlistId}` : null);
-      const thumbs = p.thumbnails?.[0]?.thumbnails || [];
-      if (title && bId) {
-        addItem({
-          id: `browse-${bId}`,
-          type: 'browse',
-          title,
-          subtitle: 'Playlist',
-          browseId: bId,
-          cover: thumbs.length > 0 ? thumbs[thumbs.length - 1].url : ''
-        });
-      }
-    } else if (node.compactPlaylistRenderer) {
-      const cp = node.compactPlaylistRenderer;
-      const title = (Array.isArray(cp.title?.runs) ? cp.title.runs.map(x => x.text).join('') : cp.title?.simpleText) || '';
-      const bId = cp.navigationEndpoint?.browseEndpoint?.browseId || (cp.playlistId ? `VL${cp.playlistId}` : null);
-      const thumbs = cp.thumbnails?.[0]?.thumbnails || cp.thumbnail?.thumbnails || [];
-      if (title && bId) {
-        addItem({
-          id: `browse-${bId}`,
-          type: 'browse',
-          title,
-          subtitle: (Array.isArray(cp.shortBylineText?.runs) ? cp.shortBylineText.runs.map(x => x.text).join('') : cp.shortBylineText?.simpleText) || 'Playlist',
-          browseId: bId,
-          cover: thumbs.length > 0 ? thumbs[thumbs.length - 1].url : ''
-        });
-      }
-    } else if (node.lockupViewModel) {
-      const vm = node.lockupViewModel;
-      const title = vm.metadata?.title?.content || (Array.isArray(vm.metadata?.title?.runs) ? vm.metadata.title.runs.map(x => x.text).join('') : '');
-      const subtitle = vm.metadata?.subtitle?.content || (Array.isArray(vm.metadata?.subtitle?.runs) ? vm.metadata.subtitle.runs.map(x => x.text).join('') : 'Playlist');
-      const bId = vm.rendererContext?.commandContext?.onTap?.innertubeCommand?.browseEndpoint?.browseId ||
-                  (vm.contentId ? (vm.contentId.startsWith('VL') ? vm.contentId : `VL${vm.contentId}`) : null);
-      const thumbs = vm.image?.sources || [];
-      if (title && bId) {
-        addItem({
-          id: `browse-${bId}`,
-          type: 'browse',
-          title,
-          subtitle,
-          browseId: bId,
-          cover: thumbs.length > 0 ? thumbs[thumbs.length - 1].url : ''
-        });
-      }
+    if (Array.isArray(node)) {
+      for (const el of node) walk(el);
+      return;
     }
-    Object.values(node).forEach(walk);
+
+    const item = parseBrowsePlaylistItem(node);
+    if (item && item.title && (item.browseId || node.playlistId)) {
+      addItem(item);
+    }
+
+    for (const val of Object.values(node)) {
+      walk(val);
+    }
   }
+
   walk(data);
   return playlists;
+}
+
+/**
+ * Parses sectionListRenderer or array of section contents into library playlists.
+ */
+function parseSectionList(sectionList) {
+  if (!sectionList) return [];
+  return parseLibraryPlaylistsResponse(sectionList);
 }
 
 function parseResponsiveItem(r) {
@@ -1960,6 +2113,7 @@ module.exports = {
   rate,
   sapisidHash,
   parseLibraryPlaylistsResponse,
+  parseSectionList,
   adoptSessionScope,
   getSessionScope,
   selectChannel,
