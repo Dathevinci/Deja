@@ -10,6 +10,8 @@ const dejaAPI = {
   getConfig: (key) => ipcRenderer.invoke('get-config', key),
   setConfig: (payload) => ipcRenderer.invoke('set-config', payload),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  openGoogleLogin: () => ipcRenderer.invoke('open-google-login'),
+  toggleWebMode: () => ipcRenderer.invoke('toggle-web-mode'),
   onPlayerAction: (callback) => {
     ipcRenderer.on('player-action', (event, data) => callback(data));
   },

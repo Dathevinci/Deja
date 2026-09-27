@@ -1279,3 +1279,652 @@ body.deja-playing .expanded-artwork-container,
   font-weight: 400;
   color: var(--text-secondary);
 }
+
+/* --------------------------------------------------------------------------
+   BitChord Complete Suite: Audio Pipeline, Sleep Timer, EQ, Queue Drawer
+   -------------------------------------------------------------------------- */
+
+.app-ambient-backdrop {
+  position: fixed;
+  inset: -15%;
+  width: 130%;
+  height: 130%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.38;
+  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  background: radial-gradient(circle at 15% 20%, var(--deja-aura-c1, rgba(250, 45, 72, 0.25)) 0%, transparent 55%),
+              radial-gradient(circle at 85% 15%, var(--deja-aura-c2, rgba(140, 40, 220, 0.22)) 0%, transparent 60%),
+              radial-gradient(circle at 20% 85%, var(--deja-aura-c3, rgba(40, 160, 220, 0.18)) 0%, transparent 55%),
+              radial-gradient(circle at 80% 80%, var(--deja-aura-c4, rgba(250, 140, 45, 0.18)) 0%, transparent 60%);
+  animation: appMeshFloat 28s infinite alternate ease-in-out;
+}
+
+@keyframes appMeshFloat {
+  0% { transform: scale(1) translate(0, 0); }
+  50% { transform: scale(1.08) translate(-1%, 2%); }
+  100% { transform: scale(1.04) translate(1%, -1%); }
+}
+
+.deja-audio-pipeline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.deja-audio-pipeline-badge:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.24);
+  transform: scale(1.04);
+}
+
+.deja-audio-pipeline-badge .badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34C759;
+  box-shadow: 0 0 8px rgba(52, 199, 89, 0.6);
+  animation: dejaDotPulse 2s infinite ease-in-out;
+}
+
+@keyframes dejaDotPulse {
+  0%, 100% { opacity: 0.6; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.deja-sleep-timer-btn,
+.deja-eq-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.deja-sleep-timer-btn:hover,
+.deja-eq-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  transform: scale(1.08);
+}
+
+.deja-sleep-timer-btn.active,
+.deja-eq-btn.active {
+  background: rgba(250, 45, 72, 0.18);
+  color: var(--apple-accent);
+  border-color: rgba(250, 45, 72, 0.4);
+}
+
+.deja-sleep-timer-btn.active {
+  width: auto;
+  padding: 0 10px;
+  border-radius: 9999px;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Up Next Queue Drawer (PlayerQueue.kt) */
+.deja-queue-drawer {
+  position: fixed;
+  top: 42px;
+  right: 0;
+  bottom: 80px;
+  width: 440px;
+  background: rgba(20, 20, 24, 0.94);
+  backdrop-filter: blur(50px) saturate(200%);
+  -webkit-backdrop-filter: blur(50px) saturate(200%);
+  border-left: 1px solid var(--border-subtle);
+  z-index: 99;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
+}
+
+.deja-queue-drawer.visible {
+  transform: translateX(0);
+}
+
+.deja-queue-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.deja-queue-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+.deja-queue-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.deja-queue-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: none;
+}
+
+.deja-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.deja-queue-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.deja-queue-item.active-playing {
+  background: rgba(250, 45, 72, 0.14);
+}
+
+.deja-queue-item-index {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 20px;
+  text-align: center;
+}
+
+.deja-queue-item.active-playing .deja-queue-item-index {
+  color: var(--apple-accent);
+}
+
+.deja-queue-thumb {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.deja-queue-item-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.deja-queue-item-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #FFFFFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deja-queue-item-artist {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.deja-queue-item-duration {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Audio Pipeline Modal Sheet (NerdStats.kt) */
+.deja-pipeline-card {
+  max-width: 560px;
+  width: 90%;
+}
+
+.deja-pipeline-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.deja-pipeline-cell {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.deja-pipeline-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.deja-pipeline-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.deja-picker-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.deja-picker-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.deja-picker-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.deja-picker-btn.selected {
+  background: rgba(250, 45, 72, 0.15);
+  border-color: rgba(250, 45, 72, 0.4);
+  color: var(--apple-accent);
+  font-weight: 600;
+}
+
+/* Expanded Player View Transport Controls */
+.expanded-transport-wrap {
+  width: 480px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.expanded-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.expanded-time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  width: 36px;
+}
+
+.expanded-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+.play-circle-btn.large {
+  width: 52px;
+  height: 52px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+}
+
+.expanded-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+/* Songs List Table */
+.songs-table-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.songs-table-header {
+  display: grid;
+  grid-template-columns: 44px 3fr 2fr 2fr 70px 40px;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+  align-items: center;
+}
+
+.song-row {
+  display: grid;
+  grid-template-columns: 44px 3fr 2fr 2fr 70px 40px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  align-items: center;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.song-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.song-row.active {
+  background: rgba(250, 45, 72, 0.12);
+}
+
+.song-row.active .song-title {
+  color: var(--apple-accent);
+}
+
+.song-number {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.song-title-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.song-cell-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.song-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-artist-cell {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-album-cell {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-duration-cell {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Artists Grid */
+.artists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 24px;
+}
+
+.artist-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.artist-card:hover {
+  transform: translateY(-4px);
+}
+
+.artist-avatar-wrap {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.artist-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.artist-card:hover .artist-avatar-img {
+  transform: scale(1.08);
+}
+
+.artist-card-name {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.artist-card-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Radio Stations Grid */
+.radio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.radio-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.radio-card:hover {
+  background: var(--card-hover);
+  transform: translateY(-4px);
+  border-color: var(--border-strong);
+}
+
+.radio-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.radio-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: rgba(250, 45, 72, 0.2);
+  border: 1px solid rgba(250, 45, 72, 0.4);
+  color: var(--apple-accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.radio-live-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--apple-accent);
+  animation: liveDotBlink 1.5s infinite;
+}
+
+@keyframes liveDotBlink {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.radio-card-cover {
+  width: 100%;
+  aspect-ratio: 1/1;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.radio-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.radio-card-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Genre Chips */
+.genre-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.genre-chip {
+  padding: 8px 18px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.genre-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.genre-chip.active {
+  background: var(--apple-accent);
+  border-color: var(--apple-accent);
+  color: #FFFFFF;
+}
+
+/* Category Hero Header */
+.category-hero {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 24px 0 32px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 24px;
+}
+
+.category-hero-cover {
+  width: 180px;
+  height: 180px;
+  border-radius: 18px;
+  object-fit: cover;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+  flex-shrink: 0;
+}
+
+.category-hero-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-hero-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--apple-accent);
+}
+
+.category-hero-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.category-hero-desc {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  max-width: 600px;
+  line-height: 1.5;
+}
+
+.category-hero-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}

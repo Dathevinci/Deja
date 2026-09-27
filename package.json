@@ -23,6 +23,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "web": "electron . --web",
     "preview": "electron . --preview",
     "test": "node tests/run-all-tests.js",
     "pack": "electron-builder --dir",

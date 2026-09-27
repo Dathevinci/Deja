@@ -119,7 +119,8 @@ if (!config.get('hardwareAcceleration')) {
 function createWindow() {
   try {
     const savedBounds = config.get('windowBounds') || {};
-    const isPreview = process.argv.includes('--preview');
+    const isWebMode = process.argv.includes('--web');
+    const isPreview = !isWebMode;
 
     let x = savedBounds.x;
     let y = savedBounds.y;
@@ -452,6 +453,48 @@ ipcMain.handle('set-config', (event, payload) => {
 ipcMain.handle('open-external', (event, url) => {
   if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
     shell.openExternal(url);
+  }
+});
+
+// Google Account & YouTube Music Authentication Dialog
+ipcMain.handle('open-google-login', async () => {
+  try {
+    const loginWin = new BrowserWindow({
+      width: 580,
+      height: 720,
+      title: 'Sign in to YouTube Music - Deja',
+      parent: mainWindow,
+      modal: true,
+      autoHideMenuBar: true,
+      webPreferences: {
+        partition: 'persist:ytmusic',
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    loginWin.webContents.setUserAgent(CHROME_UA);
+    loginWin.loadURL('https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F');
+    return true;
+  } catch (err) {
+    console.error('[Auth] Failed to open Google login dialog:', err);
+    return false;
+  }
+});
+
+// Toggle between native BitChord Apple UI and raw YouTube Music web mode
+ipcMain.handle('toggle-web-mode', async () => {
+  if (!mainWindow) return false;
+  try {
+    const currentURL = mainWindow.webContents.getURL() || '';
+    if (currentURL.includes('music.youtube.com')) {
+      await mainWindow.loadFile(path.join(__dirname, '../renderer/preview.html'));
+    } else {
+      await mainWindow.loadURL('https://music.youtube.com', { userAgent: CHROME_UA });
+    }
+    return true;
+  } catch (err) {
+    console.error('[Mode] Failed to toggle web mode:', err);
+    return false;
   }
 });
 
