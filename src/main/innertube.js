@@ -1,10 +1,20 @@
 const crypto = require('crypto');
+const { normalizeDataSyncId } = require('./cookie-utils');
 
 const MUSIC_BASE = 'https://music.youtube.com/youtubei/v1';
 const MUSIC_ORIGIN = 'https://music.youtube.com';
 const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const WEB_REMIX_CLIENT_VERSION = '1.20250101.01.00';
 const WEB_REMIX_CLIENT_ID = '67';
+
+// BitChord Innertube shell regex extractors
+const CONFIG_LOGGED_IN = /"LOGGED_IN"\s*:\s*(true|false)/i;
+const CONFIG_DATASYNC_ID = /"DATASYNC_ID"\s*:\s*"([^"]+)"/;
+const CONFIG_PAGE_ID = /"DELEGATED_SESSION_ID"\s*:\s*"([^"]+)"/;
+const CONFIG_SESSION_INDEX = /"SESSION_INDEX"\s*:\s*"?(\d+)"?/;
+const CONFIG_VISITOR_DATA = /"VISITOR_DATA"\s*:\s*"([^"]+)"/;
+const CONFIG_CLIENT_VERSION = /"INNERTUBE_CLIENT_VERSION"\s*:\s*"([^"]+)"/;
+const SW_VISITOR_DATA_REGEX = /Cg[A-Za-z0-9_%-]{40,}/;
 
 /**
  * Derives SAPISIDHASH authentication authorization header from Google cookie jar
@@ -61,6 +71,157 @@ function selectChannel(pageId, dataSyncId, authUser) {
   if (authUser !== undefined && authUser !== null) {
     currentSessionScope.authUser = String(authUser);
   }
+}
+
+/**
+ * Mints an anonymous YouTube visitor ID token via sw.js_data if none is currently held.
+ * Directly matches BitChord Innertube.kt fetchVisitorData.
+ */
+async function fetchVisitorData() {
+  try {
+    const res = await fetch('https://www.youtube.com/sw.js_data', {
+      headers: {
+        'User-Agent': CHROME_UA,
+        'Accept': '*/*'
+      }
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const match = text.match(SW_VISITOR_DATA_REGEX);
+    return match ? match[0] : null;
+  } catch {
+    return null;
+  }
+}
+
+async function ensureVisitorData(refresh = false) {
+  if (!refresh && currentSessionScope.visitorData) {
+    return currentSessionScope.visitorData;
+  }
+  const minted = await fetchVisitorData();
+  if (minted) {
+    currentSessionScope.visitorData = minted;
+  }
+  return currentSessionScope.visitorData;
+}
+
+/**
+ * Reads ytcfg identity parameters from the live music.youtube.com shell.
+ * Exactly matches BitChord Innertube.kt fetchSessionScope.
+ */
+async function fetchSessionScope(cookieStr, sapisid = null) {
+  if (!cookieStr || typeof cookieStr !== 'string') return null;
+  try {
+    let resolvedSapisid = sapisid;
+    if (!resolvedSapisid) {
+      const parts = cookieStr.split(';');
+      for (const part of parts) {
+        const eq = part.indexOf('=');
+        if (eq > 0) {
+          const k = part.slice(0, eq).trim();
+          const v = part.slice(eq + 1).trim();
+          if (k === 'SAPISID' || k === '__Secure-3PAPISID' || k === '__Secure-1PAPISID') {
+            resolvedSapisid = v;
+            break;
+          }
+        }
+      }
+    }
+
+    const fetchHeaders = {
+      'User-Agent': CHROME_UA,
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Cookie': cookieStr,
+      'Origin': MUSIC_ORIGIN,
+      'Referer': `${MUSIC_ORIGIN}/`
+    };
+    if (resolvedSapisid) {
+      fetchHeaders['Authorization'] = sapisidHash(resolvedSapisid);
+    }
+
+    const res = await fetch(`${MUSIC_ORIGIN}/`, {
+      method: 'GET',
+      headers: fetchHeaders
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    const loggedInMatch = html.match(CONFIG_LOGGED_IN);
+    const loggedIn = loggedInMatch ? loggedInMatch[1].toLowerCase() === 'true' : false;
+    const clientVerMatch = html.match(CONFIG_CLIENT_VERSION);
+    const clientVersion = clientVerMatch ? clientVerMatch[1] : null;
+
+    if (!loggedIn) {
+      return {
+        pageId: null,
+        dataSyncId: null,
+        authUser: '0',
+        visitorData: null,
+        clientVersion: clientVersion || WEB_REMIX_CLIENT_VERSION,
+        loggedIn: false
+      };
+    }
+
+    const pageIdMatch = html.match(CONFIG_PAGE_ID);
+    const pageId = (pageIdMatch && pageIdMatch[1].trim()) ? pageIdMatch[1].trim() : null;
+
+    const dataSyncMatch = html.match(CONFIG_DATASYNC_ID);
+    const rawDataSyncId = (dataSyncMatch && dataSyncMatch[1].trim()) ? dataSyncMatch[1].trim() : null;
+    const dataSyncId = pageId || normalizeDataSyncId(rawDataSyncId);
+
+    const authUserMatch = html.match(CONFIG_SESSION_INDEX);
+    const authUser = (authUserMatch && authUserMatch[1]) ? authUserMatch[1] : '0';
+
+    const visitorMatch = html.match(CONFIG_VISITOR_DATA);
+    const visitorData = (visitorMatch && visitorMatch[1].trim()) ? visitorMatch[1].trim() : null;
+
+    return {
+      pageId,
+      dataSyncId,
+      authUser,
+      visitorData,
+      clientVersion: clientVersion || WEB_REMIX_CLIENT_VERSION,
+      loggedIn: true
+    };
+  } catch (err) {
+    console.warn('[InnerTube] fetchSessionScope notice:', err.message);
+    return null;
+  }
+}
+
+let isScopingInProgress = false;
+
+/**
+ * Ensures the session is scoped to the authentic identity and channel in the session partition.
+ * Matches BitChord Innertube.kt ensureSessionScope.
+ */
+async function ensureSessionScope(ses, forceRefresh = false) {
+  if (!ses) return currentSessionScope;
+  if (!forceRefresh && currentSessionScope.loggedIn && currentSessionScope.dataSyncId) {
+    return currentSessionScope;
+  }
+  if (isScopingInProgress) return currentSessionScope;
+  isScopingInProgress = true;
+  try {
+    const { isLoggedIn, cookieStr } = await getAuthContext(ses);
+    if (!isLoggedIn || !cookieStr) {
+      if (!currentSessionScope.visitorData) {
+        await ensureVisitorData();
+      }
+      return currentSessionScope;
+    }
+    const freshScope = await fetchSessionScope(cookieStr);
+    if (freshScope && freshScope.loggedIn) {
+      adoptSessionScope(freshScope);
+    } else if (!currentSessionScope.visitorData) {
+      await ensureVisitorData();
+    }
+  } catch (err) {
+    console.warn('[InnerTube] ensureSessionScope notice:', err.message);
+  } finally {
+    isScopingInProgress = false;
+  }
+  return currentSessionScope;
 }
 
 /**
@@ -131,6 +292,9 @@ function getDefaultHeaders() {
  * Makes an authenticated request to YouTube Music InnerTube endpoint.
  */
 async function postMusic(endpoint, body, ses) {
+  if (ses && (!currentSessionScope.loggedIn || !currentSessionScope.dataSyncId)) {
+    await ensureSessionScope(ses).catch(() => {});
+  }
   const { headers } = await getAuthContext(ses);
   const clientVersion = currentSessionScope.clientVersion || WEB_REMIX_CLIENT_VERSION;
   const payload = {
@@ -171,6 +335,9 @@ async function postMusic(endpoint, body, ses) {
  */
 async function getAccountInfo(ses) {
   try {
+    if (ses && (!currentSessionScope.loggedIn || !currentSessionScope.dataSyncId)) {
+      await ensureSessionScope(ses).catch(() => {});
+    }
     const { isLoggedIn } = await getAuthContext(ses);
     if (!isLoggedIn) {
       return { isLoggedIn: false };
@@ -1333,5 +1500,9 @@ module.exports = {
   parseLibraryPlaylistsResponse,
   adoptSessionScope,
   getSessionScope,
-  selectChannel
+  selectChannel,
+  fetchSessionScope,
+  ensureSessionScope,
+  fetchVisitorData,
+  ensureVisitorData
 };

@@ -526,6 +526,10 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(typeof innertube.adoptSessionScope, 'function', 'innertube must export adoptSessionScope');
   assert.strictEqual(typeof innertube.getSessionScope, 'function', 'innertube must export getSessionScope');
   assert.strictEqual(typeof innertube.selectChannel, 'function', 'innertube must export selectChannel');
+  assert.strictEqual(typeof innertube.fetchSessionScope, 'function', 'innertube must export fetchSessionScope');
+  assert.strictEqual(typeof innertube.ensureSessionScope, 'function', 'innertube must export ensureSessionScope');
+  assert.strictEqual(typeof innertube.fetchVisitorData, 'function', 'innertube must export fetchVisitorData');
+  assert.strictEqual(typeof innertube.ensureVisitorData, 'function', 'innertube must export ensureVisitorData');
 
   innertube.adoptSessionScope({
     pageId: 'brand_page_123',

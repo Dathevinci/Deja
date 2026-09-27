@@ -653,6 +653,7 @@ async function applySessionCookies(rawCookieInput, ses) {
   }
 
   try {
+    await innertube.ensureSessionScope(ses, true).catch(() => {});
     const info = await innertube.getAccountInfo(ses);
     if (info && info.isLoggedIn) {
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -676,13 +677,19 @@ const BITCHORD_GOOGLE_SIGNIN_URL = 'https://accounts.google.com/ServiceLogin?ltm
 const YTCFG_PROBE_SCRIPT = `
 (function () {
   try {
-    if (!window.ytcfg || !window.ytcfg.get) return null;
+    if (!window.ytcfg) return null;
     var get = function (key) {
-      var value = window.ytcfg.get(key);
+      var value = (window.ytcfg.get ? window.ytcfg.get(key) : null);
+      if (value === undefined || value === null || value === '') {
+        if (window.ytcfg.data_ && window.ytcfg.data_[key] !== undefined) {
+          value = window.ytcfg.data_[key];
+        }
+      }
       return (value === undefined || value === null || value === '') ? null : String(value);
     };
+    var loggedInVal = (window.ytcfg.get ? window.ytcfg.get('LOGGED_IN') : (window.ytcfg.data_ && window.ytcfg.data_['LOGGED_IN']));
     return {
-      loggedIn: String(!!window.ytcfg.get('LOGGED_IN')),
+      loggedIn: String(!!loggedInVal),
       pageId: get('DELEGATED_SESSION_ID'),
       dataSyncId: get('DATASYNC_ID'),
       authUser: get('SESSION_INDEX'),
@@ -788,8 +795,20 @@ async function injectProfileConfirmationBar(win) {
         console.log('__DEJA_CONFIRM_PROFILE__');
       };
 
+      var closeBtn = document.createElement('button');
+      closeBtn.innerText = '✕';
+      closeBtn.style.background = 'none';
+      closeBtn.style.border = 'none';
+      closeBtn.style.color = 'rgba(255, 255, 255, 0.5)';
+      closeBtn.style.fontSize = '14px';
+      closeBtn.style.cursor = 'pointer';
+      closeBtn.style.padding = '0 4px';
+      closeBtn.title = 'Dismiss confirmation bar';
+      closeBtn.onclick = function() { bar.remove(); };
+
       bar.appendChild(hint);
       bar.appendChild(btn);
+      bar.appendChild(closeBtn);
       document.body.appendChild(bar);
     } catch(e) {}
   })()
@@ -878,6 +897,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       let authResolved = false;
       let checkInProgress = false;
       let pollInterval = null;
+      let latestProbe = null;
 
       // BitChord session capture and validation logic:
       // Reads live ytcfg from music.youtube.com and verifies signing secret
@@ -893,7 +913,11 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
 
           // Probe live ytcfg from the active page
           const probe = await loginWin.webContents.executeJavaScript(YTCFG_PROBE_SCRIPT).catch(() => null);
-          const loggedIn = probe && (probe.loggedIn === 'true' || probe.loggedIn === true);
+          if (probe && (probe.loggedIn === 'true' || probe.loggedIn === true)) {
+            latestProbe = probe;
+          }
+          const activeProbe = probe || latestProbe;
+          const loggedIn = activeProbe && (activeProbe.loggedIn === 'true' || activeProbe.loggedIn === true);
 
           // Verify cookies across YouTube & Google domains
           const ytCookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
@@ -914,11 +938,11 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
             return false;
           }
 
-          const pageId = (probe && probe.pageId) || null;
-          const dataSyncId = pageId || normalizeDataSyncId(probe && probe.dataSyncId);
-          const authUser = (probe && probe.authUser) || '0';
-          const visitorData = (probe && probe.visitorData) || null;
-          const clientVersion = (probe && probe.clientVersion) || null;
+          const pageId = (activeProbe && activeProbe.pageId) || null;
+          const dataSyncId = pageId || normalizeDataSyncId(activeProbe && activeProbe.dataSyncId);
+          const authUser = (activeProbe && activeProbe.authUser) || '0';
+          const visitorData = (activeProbe && activeProbe.visitorData) || null;
+          const clientVersion = (activeProbe && activeProbe.clientVersion) || null;
 
           // Adopt live session scope exactly as BitChord Innertube does
           innertube.adoptSessionScope({
@@ -978,6 +1002,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           if (curUrl.includes('music.youtube.com')) {
             const probe = await loginWin.webContents.executeJavaScript(YTCFG_PROBE_SCRIPT).catch(() => null);
             if (probe && (probe.loggedIn === 'true' || probe.loggedIn === true)) {
+              latestProbe = probe;
               await injectProfileConfirmationBar(loginWin);
             }
           }
@@ -1021,6 +1046,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         if (curUrl.includes('music.youtube.com')) {
           const probe = await loginWin.webContents.executeJavaScript(YTCFG_PROBE_SCRIPT).catch(() => null);
           if (probe && (probe.loggedIn === 'true' || probe.loggedIn === true)) {
+            latestProbe = probe;
             await injectProfileConfirmationBar(loginWin);
           }
         }
@@ -1050,6 +1076,20 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         ses.cookies.removeListener('changed', onCookieChanged);
         if (!authResolved) {
           try {
+            if (latestProbe && (latestProbe.loggedIn === 'true' || latestProbe.loggedIn === true)) {
+              const pageId = latestProbe.pageId || null;
+              const dataSyncId = pageId || normalizeDataSyncId(latestProbe.dataSyncId);
+              innertube.adoptSessionScope({
+                pageId,
+                dataSyncId,
+                authUser: latestProbe.authUser || '0',
+                visitorData: latestProbe.visitorData || null,
+                clientVersion: latestProbe.clientVersion || null,
+                loggedIn: true
+              });
+            } else {
+              await innertube.ensureSessionScope(ses, true).catch(() => {});
+            }
             const info = await innertube.getAccountInfo(ses);
             if (info && info.isLoggedIn) {
               authResolved = true;
@@ -1058,7 +1098,9 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
                 mainWindow.webContents.send('auth-state-changed', info);
               }
             }
-          } catch {}
+          } catch (err) {
+            console.warn('[Auth] Closed handler resolution notice:', err.message);
+          }
         }
         resolve(authResolved);
       });
