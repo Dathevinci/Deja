@@ -408,6 +408,12 @@ function runPlayerControllerTests() {
   SleepTimer.cancel();
   assert.strictEqual(SleepTimer.isRunning(), false, 'SleepTimer must be inactive after cancel');
 
+  // 16. Verify Preload Lyrics Synchronization Engine
+  assert.strictEqual(typeof controller.toggleLyricsDrawer, 'function', 'controller must export toggleLyricsDrawer');
+  assert.strictEqual(typeof controller.updatePreloadLiveLyrics, 'function', 'controller must export updatePreloadLiveLyrics');
+  assert.strictEqual(typeof controller.resolvePreloadLyrics, 'function', 'controller must export resolvePreloadLyrics');
+  assert.strictEqual(typeof controller.renderPreloadLyrics, 'function', 'controller must export renderPreloadLyrics');
+
   // Cleanup controller timers
   controller?.destroy?.();
 

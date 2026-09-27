@@ -158,15 +158,6 @@
           <button class="sidebar-link" data-playlist="workout">⚡ High Energy Beats</button>
         </div>
       </div>
-
-      <!-- Legal & Compliance Notice Pill -->
-      <div class="compliance-badge" title="Ad rules & Google TOS compliance">
-        <span class="badge-dot"></span>
-        <div class="badge-text">
-          <strong>Google TOS Compliant</strong>
-          <small>Standard Ads for Free Users</small>
-        </div>
-      </div>
     </aside>
 
     <!-- Main Content Area -->
@@ -225,14 +216,17 @@
     <!-- Left Track Information -->
     <div class="player-left">
       <div class="artwork-wrapper" id="player-artwork-wrapper" title="Click to expand Now Playing">
-        <img src="" alt="Album Artwork" id="player-artwork" class="player-artwork">
+        <img src="" alt="Album Artwork" id="player-artwork" class="player-artwork player-art-img">
         <div class="artwork-overlay">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
           </svg>
         </div>
       </div>
-      <div class="player-meta">
+      <div class="player-meta" id="player-meta-info" title="Click to expand Now Playing">
         <div class="title-row">
           <span class="track-title" id="player-track-title">Cruel Summer</span>
           <span class="track-ad-badge" id="player-ad-pill" style="display: none;">ADVERTISEMENT</span>
@@ -242,6 +236,14 @@
       <button class="player-heart-btn" id="btn-favorite" title="Love Song">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+        </svg>
+      </button>
+      <button class="player-icon-btn btn-expand-player" id="btn-expand-player" title="Expand Now Playing (⤢)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <polyline points="9 21 3 21 3 15"></polyline>
+          <line x1="21" y1="3" x2="14" y2="10"></line>
+          <line x1="3" y1="21" x2="10" y2="14"></line>
         </svg>
       </button>
     </div>
@@ -358,98 +360,192 @@
     </div>
   </footer>
 
-  <!-- Apple Music Expanded Now Playing Page -->
+  <!-- Apple Music / BitChord Immersive Full-Height Now Playing Screen Overlay -->
   <div class="deja-expanded-player-view" id="expanded-player-view">
+    <!-- Animated 4-Color Mesh Gradient Backdrop (BitChord MeshGradientBackground) -->
     <div class="deja-player-ambient-aura" id="preview-ambient-aura">
       <div class="deja-ambient-art-blur" id="preview-ambient-art-blur"></div>
       <div class="deja-ambient-mesh-overlay" id="preview-ambient-mesh-overlay"></div>
+      <div class="deja-ambient-mesh-blobs" id="preview-ambient-mesh-blobs">
+        <div class="mesh-blob blob-1"></div>
+        <div class="mesh-blob blob-2"></div>
+        <div class="mesh-blob blob-3"></div>
+        <div class="mesh-blob blob-4"></div>
+      </div>
+      <div class="deja-mesh-dark-scrim"></div>
     </div>
-    <div class="expanded-player-header">
-      <button class="btn-collapse-player" id="btn-collapse-player" title="Collapse Now Playing">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- Top Header: Sleek collapse arrow ⌄, "Playing from...", and three-dots options button -->
+    <header class="expanded-player-header">
+      <button class="btn-collapse-player" id="btn-collapse-player" title="Collapse (Esc)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
       </button>
-      <span class="expanded-header-title">Now Playing</span>
-      <div style="width: 36px;"></div>
-    </div>
+      <div class="expanded-header-origin" id="exp-header-origin" title="Playing Origin">
+        <span class="expanded-origin-label">PLAYING FROM</span>
+        <span class="expanded-origin-text" id="exp-playing-from">Album • Lover</span>
+      </div>
+      <div class="expanded-header-actions">
+        <button class="expanded-options-btn" id="exp-btn-options" title="More Options">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="2.2"></circle>
+            <circle cx="19" cy="12" r="2.2"></circle>
+            <circle cx="5" cy="12" r="2.2"></circle>
+          </svg>
+        </button>
+        <div class="exp-options-dropdown" id="exp-options-dropdown" style="display: none;">
+          <button class="exp-dropdown-item" id="opt-open-pipeline">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span>Audio Pipeline &amp; Stats</span>
+          </button>
+          <button class="exp-dropdown-item" id="opt-open-eq">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line></svg>
+            <span>Equalizer Presets</span>
+          </button>
+          <button class="exp-dropdown-item" id="opt-open-sleep">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span>Sleep Timer</span>
+          </button>
+          <button class="exp-dropdown-item" id="opt-open-lyrics">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M8 9h8"></path><path d="M8 13h6"></path></svg>
+            <span>View Synced Lyrics</span>
+          </button>
+          <button class="exp-dropdown-item" id="opt-open-queue">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            <span>Up Next Queue</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Center & Controls Column -->
     <div class="expanded-player-content">
+      <!-- Center: Large prominent squircle album cover (360x360px with 20px squircle radius) -->
       <div class="expanded-artwork-container" id="expanded-artwork-container">
-        <img src="" alt="Album Artwork" id="expanded-artwork-img" class="expanded-artwork-img">
+        <img src="" alt="Album Artwork" id="expanded-artwork-img" class="expanded-artwork-img now-playing-art">
       </div>
-      <div class="expanded-track-details">
-        <h2 class="expanded-track-title" id="expanded-track-title">Cruel Summer</h2>
-        <h4 class="expanded-track-artist" id="expanded-track-artist">Taylor Swift • Lover</h4>
+
+      <!-- Now Playing Synced Lyrics Screen (BitChord NowPlayingScreen.kt) -->
+      <div class="expanded-lyrics-container" id="expanded-lyrics-container" style="display: none;">
+        <!-- Injected synced lyric lines -->
       </div>
-      <div class="expanded-transport-wrap">
-        <div class="expanded-progress-row">
-          <span class="expanded-time" id="exp-time-current">0:00</span>
-          <div class="scrubber-track" id="exp-scrubber-track">
+
+      <!-- Below Cover: Track Meta, Like, Audio Pipeline Badge, Lyric Snippet, Scrubber, Transport, Bottom Row -->
+      <div class="expanded-track-meta-section">
+        <!-- Title and Artist + Like Heart & Audio Pipeline Badge -->
+        <div class="expanded-meta-row">
+          <div class="expanded-track-details">
+            <h2 class="expanded-track-title" id="expanded-track-title">Cruel Summer</h2>
+            <h4 class="expanded-track-artist" id="expanded-track-artist">Taylor Swift • Lover</h4>
+          </div>
+          <div class="expanded-meta-actions">
+            <button class="exp-circular-heart-btn" id="exp-btn-favorite" title="Like Song">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+              </svg>
+            </button>
+            <div class="exp-audio-pipeline-badge" id="exp-audio-pipeline-badge" title="BitChord Audio Pipeline &amp; Stats">
+              <span class="pipeline-status-dot"></span>
+              <span id="exp-pipeline-text">Opus • 160 kbps • 48.0 kHz • Stereo</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Lyric Snippet Preview Line ("Tap for synced lyrics >") -->
+        <div class="expanded-lyric-snippet-wrap" id="exp-lyric-snippet-wrap" title="Tap for live synced lyrics">
+          <span class="exp-lyric-snippet-text" id="exp-lyric-snippet">Tap for synced lyrics</span>
+          <svg class="exp-lyric-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+
+        <!-- Thin Apple Slider Scrubber (ThinSlider.kt) with current time (0:42) and remaining time (-3:10) -->
+        <div class="expanded-scrubber-section">
+          <div class="scrubber-track thin-apple-slider" id="exp-scrubber-track">
             <div class="scrubber-buffered" id="exp-scrubber-buffered"></div>
             <div class="scrubber-fill" id="exp-scrubber-fill"></div>
             <div class="scrubber-knob" id="exp-scrubber-knob"></div>
           </div>
-          <span class="expanded-time" id="exp-time-total">3:45</span>
+          <div class="expanded-time-row">
+            <span class="expanded-time exp-time-current" id="exp-time-current">0:00</span>
+            <span class="expanded-time exp-time-remaining" id="exp-time-total">-0:00</span>
+          </div>
         </div>
-        <div class="expanded-controls-row">
-          <button class="control-btn" id="exp-btn-shuffle" title="Shuffle">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="16 3 21 3 21 8"></polyline>
-              <line x1="4" y1="20" x2="21" y2="3"></line>
-              <polyline points="21 16 21 21 16 21"></polyline>
-              <line x1="15" y1="15" x2="21" y2="21"></line>
-              <line x1="4" y1="4" x2="9" y2="9"></line>
-            </svg>
-          </button>
-          <button class="control-btn" id="exp-btn-prev" title="Previous">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+
+        <!-- Center Transport Controls: Rewind ⏮, large circular Play/Pause button ▶/⏸ (64px with glow), Fast-Forward ⏭ -->
+        <div class="expanded-transport-row">
+          <button class="exp-transport-btn" id="exp-btn-prev" title="Rewind / Previous (Ctrl+Left)">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
               <polygon points="19 20 9 12 19 4 19 20"></polygon>
-              <line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"></line>
+              <line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"></line>
             </svg>
           </button>
-          <button class="play-circle-btn large" id="exp-btn-play-pause" title="Play / Pause">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" id="exp-play-pause-icon">
+          <button class="exp-play-circle-btn" id="exp-btn-play-pause" title="Play / Pause (Space)">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" id="exp-play-pause-icon">
               <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
           </button>
-          <button class="control-btn" id="exp-btn-next" title="Next">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+          <button class="exp-transport-btn" id="exp-btn-next" title="Fast-Forward / Next (Ctrl+Right)">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
               <polygon points="5 4 15 12 5 20 5 4"></polygon>
-              <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"></line>
-            </svg>
-          </button>
-          <button class="control-btn" id="exp-btn-repeat" title="Repeat">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="17 1 21 5 17 9"></polyline>
-              <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-              <polyline points="7 23 3 19 7 15"></polyline>
-              <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+              <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"></line>
             </svg>
           </button>
         </div>
-        <div class="expanded-actions-row">
-          <button class="player-icon-btn" id="exp-btn-lyrics" title="Live Synced Lyrics">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-              <path d="M8 9h8"></path>
-              <path d="M8 13h6"></path>
+
+        <!-- Bottom Row: Volume Slider with speaker icons, Repeat 🔁, Shuffle 🔀, Synced Lyrics 💬, Up Next Queue ≡ -->
+        <div class="expanded-bottom-row">
+          <div class="exp-volume-section">
+            <svg class="exp-vol-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             </svg>
-          </button>
-          <button class="player-icon-btn" id="exp-btn-queue" title="Up Next Queue">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="8" y1="6" x2="21" y2="6"></line>
-              <line x1="8" y1="12" x2="21" y2="12"></line>
-              <line x1="8" y1="18" x2="21" y2="18"></line>
-              <line x1="3" y1="6" x2="3.01" y2="6"></line>
-              <line x1="3" y1="12" x2="3.01" y2="12"></line>
-              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            <div class="exp-volume-track" id="exp-volume-track">
+              <div class="exp-volume-fill" id="exp-volume-fill"></div>
+            </div>
+            <svg class="exp-vol-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
             </svg>
-          </button>
-          <button class="player-heart-btn" id="exp-btn-favorite" title="Love Song">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
-            </svg>
-          </button>
+          </div>
+
+          <div class="exp-extra-controls">
+            <button class="exp-sub-btn" id="exp-btn-repeat" title="Repeat">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="17 1 21 5 17 9"></polyline>
+                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                <polyline points="7 23 3 19 7 15"></polyline>
+                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+              </svg>
+            </button>
+            <button class="exp-sub-btn" id="exp-btn-shuffle" title="Shuffle">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 3 21 3 21 8"></polyline>
+                <line x1="4" y1="20" x2="21" y2="3"></line>
+                <polyline points="21 16 21 21 16 21"></polyline>
+                <line x1="15" y1="15" x2="21" y2="21"></line>
+                <line x1="4" y1="4" x2="9" y2="9"></line>
+              </svg>
+            </button>
+            <button class="exp-sub-btn" id="exp-btn-lyrics" title="Synced Lyrics">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                <path d="M8 9h8"></path>
+                <path d="M8 13h6"></path>
+              </svg>
+            </button>
+            <button class="exp-sub-btn" id="exp-btn-queue" title="Up Next Queue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>

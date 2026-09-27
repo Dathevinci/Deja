@@ -386,6 +386,21 @@ body::-webkit-scrollbar-corner {
   border-radius: 50% !important;
 }
 
+.player-art-img,
+.now-playing-art,
+.track-card-img {
+  object-fit: cover !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.player-art-img[src*="hqdefault"],
+.now-playing-art[src*="hqdefault"],
+.track-card-img[src*="hqdefault"] {
+  transform: scale(1.35) !important;
+  transform-origin: center center !important;
+}
+
 /* ==========================================================================
    1. Top Navigation & Layout Offsets
    Hide raw YouTube Music top bar completely. The single clean top navigation

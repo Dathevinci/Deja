@@ -62,23 +62,48 @@ const CATALOGUE_TRACKS = [
     palette: { c1: 'rgba(250, 45, 72, 0.48)', c2: 'rgba(255, 120, 50, 0.44)', c3: 'rgba(255, 200, 55, 0.40)', c4: 'rgba(250, 80, 120, 0.35)', primaryR: 250, primaryG: 45, primaryB: 72 },
     cover: 'https://i.ytimg.com/vi/E9jGlwluIbk/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'Fever dream high in the quiet of the night' },
-      { time: 5, text: 'You know that I caught it (Oh yeah, you\'re right, I want it)' },
-      { time: 11, text: 'Bad, bad boy, shiny toy with a price' },
-      { time: 16, text: 'You know that I bought it (Oh yeah, even in my dreams)' },
-      { time: 23, text: 'And it\'s new, the shape of your body' },
-      { time: 26, text: 'It\'s blue, the feeling I\'ve got' },
-      { time: 29, text: 'And it\'s ooh, whoa, oh' },
-      { time: 34, text: 'It\'s a cruel summer with you' },
-      { time: 45, text: 'Hang your head low in the glow of the vending machine' },
-      { time: 50, text: 'I\'m not dying' },
-      { time: 60, text: 'We say that we\'ll just screw it up in these trying times' },
-      { time: 75, text: 'I\'m drunk in the back of the car' },
-      { time: 82, text: 'And I cried like a baby coming home from the bar' },
-      { time: 92, text: 'Said, "I\'m fine," but it wasn\'t true' },
-      { time: 104, text: 'I don\'t wanna keep secrets just to keep you' },
-      { time: 115, text: 'And I snuck in through the garden gate' },
-      { time: 122, text: 'Every night that summer just to seal my fate' }
+      { time: 0.72, text: "(Yeah, yeah, yeah, yeah)" },
+      { time: 5.77, text: "Fever dream high in the quiet of the night" },
+      { time: 8.11, text: "You know that I caught it (oh yeah, you're right, I want it)" },
+      { time: 11.43, text: "Bad, bad boy, shiny toy with a price" },
+      { time: 13.92, text: "You know that I bought it (oh yeah, you're right, I want it)" },
+      { time: 16.13, text: "Killing me slow, out the window" },
+      { time: 19.33, text: "I'm always waiting for you to be waiting below" },
+      { time: 24.16, text: "Devils roll the dice, angels roll their eyes" },
+      { time: 29.56, text: "What doesn't kill me makes me want you more" },
+      { time: 33.65, text: "And it's new, the shape of your body" },
+      { time: 36.85, text: "It's blue, the feeling I've got" },
+      { time: 39.42, text: "And it's ooh, whoa, oh" },
+      { time: 42.66, text: "It's a cruel summer" },
+      { time: 48.06, text: "It's cool, that's what I tell 'em" },
+      { time: 50.84, text: "No rules in breakable heaven" },
+      { time: 53.64, text: "But ooh, whoa, oh" },
+      { time: 56.76, text: "It's a cruel summer with you" },
+      { time: 65.41, text: "Hang your head low in the glow of the vending machine" },
+      { time: 70.32, text: "I'm not dying (oh yeah, you're right, I want it)" },
+      { time: 75.12, text: "We say that we'll just screw it up in these trying times" },
+      { time: 82.20, text: "We're not trying (oh yeah, you're right, I want it)" },
+      { time: 87.45, text: "So cut the headlights, summer's a knife" },
+      { time: 92.80, text: "I'm always waiting for you just to cut to the bone" },
+      { time: 98.15, text: "Devils roll the dice, angels roll their eyes" },
+      { time: 103.50, text: "And if I bleed, you'll be the last to know" },
+      { time: 108.20, text: "Oh, it's new, the shape of your body" },
+      { time: 111.40, text: "It's blue, the feeling I've got" },
+      { time: 114.10, text: "And it's ooh, whoa, oh" },
+      { time: 117.25, text: "It's a cruel summer" },
+      { time: 122.50, text: "It's cool, that's what I tell 'em" },
+      { time: 125.30, text: "No rules in breakable heaven" },
+      { time: 128.10, text: "But ooh, whoa, oh" },
+      { time: 131.25, text: "It's a cruel summer with you" },
+      { time: 137.80, text: "I'm drunk in the back of the car" },
+      { time: 140.20, text: "And I cried like a baby coming home from the bar (oh)" },
+      { time: 143.40, text: "Said, \"I'm fine,\" but it wasn't true" },
+      { time: 146.10, text: "I don't wanna keep secrets just to keep you" },
+      { time: 148.80, text: "And I snuck in through the garden gate" },
+      { time: 151.40, text: "Every night that summer just to seal my fate (oh)" },
+      { time: 154.50, text: "And I screamed for whatever it's worth" },
+      { time: 157.20, text: "\"I love you,\" ain't that the worst thing you ever heard?" },
+      { time: 162.80, text: "He looks up, grinning like a devil" }
     ]
   },
   {
@@ -369,6 +394,8 @@ let currentIndex = 0;
 let isPlaying = false;
 let currentTime = 0;
 let playbackTimer = null;
+let lyricClockTimer = null;
+let lastActiveLyricIndex = -1;
 let currentVolume = 0.75;
 let isMuted = false;
 let previousVolume = 0.75;
@@ -895,6 +922,8 @@ function createCatalogueItemFromLive(t) {
       { time: 12, text: 'Streamed directly from YouTube Music' }
     ]
   };
+  resolveSyncedLyrics(itemObj);
+  return itemObj;
 }
 
 function renderLiveCardHTML(item, globalCardId) {
@@ -906,7 +935,7 @@ function renderLiveCardHTML(item, globalCardId) {
   return `
     <div class="apple-music-card live-yt-card" data-live-id="${globalCardId}">
       <div class="card-thumb-wrapper">
-        <img src="${safeCover}" class="card-thumb" alt="${safeTitle}" onerror="this.src='../../assets/icon.png'">
+        <img src="${safeCover}" class="card-thumb track-card-img" alt="${safeTitle}" onerror="this.src='../../assets/icon.png'">
         <div class="card-play-btn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -942,9 +971,19 @@ async function fetchLiveYouTubeMusic() {
           const libSongs = await api.getLibrarySongs();
           if (libSongs && libSongs.songs && libSongs.songs.length > 0) {
             liveLikedSongs = libSongs.songs;
+            lovedTrackIds.clear();
             libSongs.songs.forEach(t => {
-              if (t.videoId && !CATALOGUE_TRACKS.some(x => x.videoId === t.videoId)) {
-                CATALOGUE_TRACKS.push(createCatalogueItemFromLive(t));
+              let existing = CATALOGUE_TRACKS.find(x => x.videoId === t.videoId);
+              if (!existing) {
+                existing = createCatalogueItemFromLive(t);
+                CATALOGUE_TRACKS.push(existing);
+              }
+              if (existing) {
+                if (!existing.playlists) existing.playlists = [];
+                if (!existing.playlists.includes('favorites')) {
+                  existing.playlists.push('favorites');
+                }
+                lovedTrackIds.add(existing.id);
               }
             });
           }
@@ -1086,18 +1125,25 @@ function updateAccountUI(acc) {
   const pillText = document.getElementById('user-pill-text');
 
   if (acc.isLoggedIn) {
-    if (avatarImg && acc.avatarUrl) {
-      avatarImg.src = acc.avatarUrl;
+    const displayName = acc.channelTitle || acc.name || 'Connected';
+    const photo = acc.avatarUrl || acc.photoUrl;
+
+    if (avatarImg && photo) {
+      avatarImg.src = photo;
       avatarImg.style.display = 'inline-block';
       if (avatarText) avatarText.style.display = 'none';
     } else if (avatarText) {
-      avatarText.innerText = (acc.name || 'U')[0].toUpperCase();
+      avatarText.innerText = (displayName || 'U')[0].toUpperCase();
       avatarText.style.display = 'inline-block';
       if (avatarImg) avatarImg.style.display = 'none';
     }
     if (pillText) {
-      pillText.innerText = acc.name || 'Connected';
+      pillText.innerText = displayName;
       pillText.style.color = '#34C759';
+    }
+    const badge = document.getElementById('btn-login-status');
+    if (badge) {
+      badge.title = `${displayName} (${acc.handle || 'Connected'})`;
     }
   } else {
     if (avatarText) {
@@ -1108,6 +1154,10 @@ function updateAccountUI(acc) {
     if (pillText) {
       pillText.innerText = 'Sign In';
       pillText.style.color = '';
+    }
+    const badge = document.getElementById('btn-login-status');
+    if (badge) {
+      badge.title = 'Sign in with Google / YouTube Music';
     }
   }
 }
@@ -1746,7 +1796,7 @@ function renderPlaylistsGridView(container) {
         ${curated.map(pl => `
           <div class="apple-music-card" onclick="navigateToPlaylist('${pl.id}')">
             <div class="card-thumb-wrapper">
-              <img src="${pl.cover}" class="card-thumb" alt="${pl.title}">
+              <img src="${pl.cover}" class="card-thumb track-card-img" alt="${pl.title}">
               <div class="card-play-btn">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -1761,7 +1811,7 @@ function renderPlaylistsGridView(container) {
         ${livePlaylists.map(lp => `
           <div class="apple-music-card" onclick="openBrowseDetail('${lp.browseId}', '${escapeHTML(lp.title)}', '${escapeHTML(lp.cover || '')}', '${escapeHTML(lp.subtitle || 'YouTube Music Playlist')}')">
             <div class="card-thumb-wrapper">
-              <img src="${escapeHTML(lp.cover || '../../assets/icon.png')}" class="card-thumb" alt="${escapeHTML(lp.title)}" onerror="this.src='../../assets/icon.png'">
+              <img src="${escapeHTML(lp.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(lp.title)}" onerror="this.src='../../assets/icon.png'">
               <div class="card-play-btn">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -1977,7 +2027,7 @@ function renderSearchResultsView(container) {
       ytGrid.innerHTML = ytResults.map((yt, i) => `
         <div class="apple-music-card" id="yt-card-${i}">
           <div class="card-thumb-wrapper">
-            <img src="${escapeHTML(yt.cover || '')}" class="card-thumb" alt="${escapeHTML(yt.title)}" onerror="this.src='../../assets/icon.png'">
+            <img src="${escapeHTML(yt.cover || '')}" class="card-thumb track-card-img" alt="${escapeHTML(yt.title)}" onerror="this.src='../../assets/icon.png'">
             <div class="card-play-btn">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -2024,7 +2074,7 @@ function renderCardGridHTML(tracksList) {
     return `
       <div class="apple-music-card" onclick="selectTrack(${idx})">
         <div class="card-thumb-wrapper">
-          <img src="${t.cover}" class="card-thumb" alt="${t.title}">
+          <img src="${t.cover}" class="card-thumb track-card-img" alt="${t.title}">
           <div class="card-play-btn">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -2098,17 +2148,24 @@ function loadTrack(idx) {
   const expandedTitle = document.getElementById('expanded-track-title');
   const expandedArtist = document.getElementById('expanded-track-artist');
   const expandedArtwork = document.getElementById('expanded-artwork-img');
+  const expPlayingFrom = document.getElementById('exp-playing-from');
   const expTotal = document.getElementById('exp-time-total');
   const expCurrent = document.getElementById('exp-time-current');
   const expFill = document.getElementById('exp-scrubber-fill');
   const expKnob = document.getElementById('exp-scrubber-knob');
+  const expSnippet = document.getElementById('exp-lyric-snippet');
+
   if (expandedTitle) expandedTitle.innerText = track.title;
   if (expandedArtist) expandedArtist.innerText = `${track.artist} • ${track.album}`;
   if (expandedArtwork) expandedArtwork.src = track.cover;
-  if (expTotal) expTotal.innerText = formatTime(track.duration);
+  if (expPlayingFrom) expPlayingFrom.innerText = `Album • ${track.album || 'YouTube Music'}`;
+  if (expTotal) expTotal.innerText = `-${formatTime(track.duration)}`;
   if (expCurrent) expCurrent.innerText = '0:00';
   if (expFill) expFill.style.width = '0%';
   if (expKnob) expKnob.style.left = '0%';
+  if (expSnippet) {
+    expSnippet.innerText = (track.lyrics && track.lyrics.length > 0) ? track.lyrics[0].text : 'Tap for synced lyrics';
+  }
 
   // Dynamic Mesh Gradient Tinting (BitChord MeshGradient.kt)
   applyDynamicMeshAura(track);
@@ -2116,6 +2173,9 @@ function loadTrack(idx) {
   // Update Lyrics & Queue
   renderLyrics(track.lyrics);
   renderPreviewQueue();
+
+  // Resolve millisecond synced lyrics via LRCLIB or InnerTube if not yet fetched
+  resolveSyncedLyrics(track);
 
   // Notify Electron Main Process
   notifyTrackState();
@@ -2158,20 +2218,131 @@ function applyDynamicMeshAura(track) {
 }
 
 function renderLyrics(lyrics) {
-  const container = document.getElementById('lyrics-lines-container');
-  if (!container) return;
+  if (typeof document === 'undefined') return;
+  const containers = [
+    document.getElementById('lyrics-lines-container'),
+    document.getElementById('expanded-lyrics-container')
+  ].filter(Boolean);
+
+  if (containers.length === 0) return;
 
   const track = CATALOGUE_TRACKS[currentIndex];
-  const songTitleEl = document.getElementById('lyrics-song-title');
-  const artistNameEl = document.getElementById('lyrics-artist-name');
-  if (songTitleEl) songTitleEl.innerText = track.title;
-  if (artistNameEl) artistNameEl.innerText = track.artist;
+  if (track) {
+    const songTitleEl = document.getElementById('lyrics-song-title');
+    const artistNameEl = document.getElementById('lyrics-artist-name');
+    if (songTitleEl) songTitleEl.innerText = track.title;
+    if (artistNameEl) artistNameEl.innerText = track.artist;
+  }
 
-  container.innerHTML = lyrics.map((l, i) => `
-    <div class="apple-lyric-line ${i === 0 ? 'active' : ''}" data-time="${l.time}" onclick="seekTo(${l.time})">
-      ${l.text}
-    </div>
-  `).join('');
+  const safeLyrics = (lyrics && Array.isArray(lyrics) && lyrics.length > 0)
+    ? lyrics
+    : [{ time: 0, text: 'No synchronized lyrics available for this track.' }];
+
+  containers.forEach(container => {
+    container.innerHTML = safeLyrics.map((l, i) => `
+      <div class="apple-lyric-line ${i === 0 ? 'active' : ''}" data-time="${l.time}" onclick="seekTo(${l.time})">
+        ${escapeHTML(l.text)}
+      </div>
+    `).join('');
+  });
+}
+
+/**
+ * Fetches and resolves millisecond-synced lyrics via LRCLIB and InnerTube
+ * (BitChord LyricsRepository.kt and LrcLib.kt provider architecture)
+ */
+async function resolveSyncedLyrics(track) {
+  if (!track || track._lyricsResolved) return;
+
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  const cleanTitle = (track.title || '')
+    .replace(/\uFEFF|\u200E|\u200F/g, '')
+    .replace(/\s*[\(\[](?:official\s+)?(?:music\s+|lyric\s+|lyrics\s+)?(?:video|audio|visualizer|track|remaster(?:ed)?(?:\s+\d{4})?|live(?:\s+at\s+[^)\]]+)?)[\]\)]/gi, '')
+    .replace(/\s*\(?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^)]+)?)\)?/gi, '')
+    .replace(/\s*\[?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^\]]+)?)\]?/gi, '')
+    .replace(/\s*(?:\||\/\/|-)\s*(?:official\s+video|official\s+audio|audio|lyric\s+video|lyrics).*$/gi, '')
+    .replace(/\s*[\(\[](?:feat\.|ft\.)\s+[^)\]]+[\]\)]/gi, '')
+    .replace(/\s*\(?(?:feat\.|ft\.)\s+[^)]+\)?/gi, '')
+    .replace(/\s*\[?(?:feat\.|ft\.)\s+[^\]]+\]?/gi, '')
+    .replace(/\s*(?:feat\.|ft\.)\s+.*$/gi, '')
+    .trim();
+  const cleanArtist = (track.artist || '')
+    .replace(/\uFEFF|\u200E|\u200F/g, '')
+    .replace(/\s*\(?(?:feat\.|ft\.)\s+[^)]+\)?/gi, '')
+    .trim();
+
+  try {
+    let resolved = null;
+    if (api?.getLyrics) {
+      resolved = await api.getLyrics({
+        videoId: track.videoId,
+        title: cleanTitle,
+        artist: cleanArtist,
+        duration: track.duration
+      });
+    }
+
+    if (!resolved && typeof fetch === 'function' && cleanTitle) {
+      try {
+        const url = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}&duration=${Math.round(track.duration || 180)}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.syncedLyrics) {
+            resolved = parseLrcLines(data.syncedLyrics);
+          }
+        }
+      } catch {}
+    }
+
+    if (resolved && resolved.length > 0) {
+      track.lyrics = resolved;
+      track._lyricsResolved = true;
+      if (CATALOGUE_TRACKS[currentIndex] === track) {
+        renderLyrics(track.lyrics);
+        updateLiveLyrics(true);
+      }
+    }
+  } catch (err) {
+    console.warn('[Lyrics] resolveSyncedLyrics notice:', err.message);
+  }
+}
+
+function parseLrcLines(lrcText) {
+  if (!lrcText || typeof lrcText !== 'string') return [];
+  const lines = lrcText.split(/\r?\n/);
+  const stampRegex = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+  const result = [];
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed || /^\[[A-Za-z]+:.*\]$/.test(trimmed)) continue;
+
+    stampRegex.lastIndex = 0;
+    const matches = [...trimmed.matchAll(stampRegex)];
+    if (matches.length === 0) continue;
+
+    const text = trimmed.replace(stampRegex, '').trim() || '♪';
+
+    for (const match of matches) {
+      const minutes = parseInt(match[1], 10) || 0;
+      const seconds = parseInt(match[2], 10) || 0;
+      let fractionMs = 0;
+      if (match[3]) {
+        if (match[3].length === 2) fractionMs = parseInt(match[3], 10) * 10;
+        else if (match[3].length === 1) fractionMs = parseInt(match[3], 10) * 100;
+        else fractionMs = parseInt(match[3].slice(0, 3), 10);
+      }
+      const timeInSec = Math.round((minutes * 60 + seconds + fractionMs / 1000) * 100) / 100;
+      result.push({ time: timeInSec, text });
+    }
+  }
+
+  result.sort((a, b) => a.time - b.time);
+  if (result.length > 0 && result[0].time > 5) {
+    result.unshift({ time: 0, text: '♪' });
+  }
+  return result;
 }
 
 function renderPreviewQueue() {
@@ -2277,6 +2448,9 @@ function play() {
   if (playbackTimer) clearInterval(playbackTimer);
   playbackTimer = setInterval(tick, 1000);
 
+  if (lyricClockTimer) clearInterval(lyricClockTimer);
+  lyricClockTimer = setInterval(tickLyricClock, 50);
+
   notifyTrackState();
 }
 
@@ -2299,6 +2473,10 @@ function pause() {
   if (playbackTimer) {
     clearInterval(playbackTimer);
     playbackTimer = null;
+  }
+  if (lyricClockTimer) {
+    clearInterval(lyricClockTimer);
+    lyricClockTimer = null;
   }
 
   notifyTrackState();
@@ -2379,7 +2557,7 @@ function tick() {
   const track = CATALOGUE_TRACKS[currentIndex];
 
   if (isDirectStreamPlaying && dejaAudio && !dejaAudio.paused) {
-    currentTime = Math.round(dejaAudio.currentTime);
+    currentTime = dejaAudio.currentTime;
     if (dejaAudio.duration && !isNaN(dejaAudio.duration) && Math.round(dejaAudio.duration) > 0) {
       const dur = Math.round(dejaAudio.duration);
       if (dur !== track.duration) {
@@ -2387,20 +2565,21 @@ function tick() {
         const totalEl = document.getElementById('time-total');
         const expTotal = document.getElementById('exp-time-total');
         if (totalEl) totalEl.innerText = formatTime(dur);
-        if (expTotal) expTotal.innerText = formatTime(dur);
+        if (expTotal) expTotal.innerText = '-' + formatTime(dur);
       }
     }
     updateDynamicPipeline(dejaAudio);
   } else if (isYtReady && ytPlayer && isYtPlaying && typeof ytPlayer.getCurrentTime === 'function') {
     try {
-      const ytSec = Math.round(ytPlayer.getCurrentTime());
-      if (ytSec >= 0) currentTime = ytSec;
+      const ytSec = ytPlayer.getCurrentTime();
+      if (typeof ytSec === 'number' && !isNaN(ytSec) && ytSec >= 0) currentTime = ytSec;
       const ytDur = Math.round(ytPlayer.getDuration());
       if (ytDur > 0 && ytDur !== track.duration) {
         track.duration = ytDur;
-        document.getElementById('time-total').innerText = formatTime(ytDur);
+        const totalEl = document.getElementById('time-total');
         const expTotal = document.getElementById('exp-time-total');
-        if (expTotal) expTotal.innerText = formatTime(ytDur);
+        if (totalEl) totalEl.innerText = formatTime(ytDur);
+        if (expTotal) expTotal.innerText = '-' + formatTime(ytDur);
       }
       updateDynamicPipeline(ytPlayer);
     } catch {}
@@ -2434,8 +2613,33 @@ function tick() {
   updateLiveLyrics();
 }
 
+/**
+ * Fast-frequency Lyric Clock (BitChord LyricClock.kt)
+ * Keeps lyrics and scrubbers updated at 20fps for millisecond precision
+ */
+function tickLyricClock() {
+  if (!isPlaying) return;
+  const track = CATALOGUE_TRACKS[currentIndex];
+  if (!track) return;
+
+  if (isDirectStreamPlaying && dejaAudio && !dejaAudio.paused) {
+    currentTime = dejaAudio.currentTime;
+  } else if (isYtReady && ytPlayer && isYtPlaying && typeof ytPlayer.getCurrentTime === 'function') {
+    try {
+      const ytSec = ytPlayer.getCurrentTime();
+      if (typeof ytSec === 'number' && !isNaN(ytSec) && ytSec >= 0) {
+        currentTime = ytSec;
+      }
+    } catch {}
+  }
+
+  updateProgress();
+  updateLiveLyrics();
+}
+
 function seekTo(seconds) {
   const track = CATALOGUE_TRACKS[currentIndex];
+  if (!track) return;
   currentTime = Math.max(0, Math.min(seconds, track.duration));
   if (isDirectStreamPlaying && dejaAudio) {
     try {
@@ -2447,13 +2651,16 @@ function seekTo(seconds) {
     } catch {}
   }
   updateProgress();
-  updateLiveLyrics();
+  updateLiveLyrics(true);
 }
 
 function updateProgress() {
   const track = CATALOGUE_TRACKS[currentIndex];
+  if (!track) return;
   const pct = (currentTime / track.duration) * 100;
   const timeStr = formatTime(currentTime);
+  const remainingSec = Math.max(0, track.duration - currentTime);
+  const remainingStr = '-' + formatTime(remainingSec);
 
   const curEl = document.getElementById('time-current');
   const fillEl = document.getElementById('scrubber-fill');
@@ -2463,32 +2670,96 @@ function updateProgress() {
   if (knobEl) knobEl.style.left = `${pct}%`;
 
   const expCurEl = document.getElementById('exp-time-current');
+  const expTotalEl = document.getElementById('exp-time-total');
   const expFillEl = document.getElementById('exp-scrubber-fill');
   const expKnobEl = document.getElementById('exp-scrubber-knob');
   if (expCurEl) expCurEl.innerText = timeStr;
+  if (expTotalEl) expTotalEl.innerText = remainingStr;
   if (expFillEl) expFillEl.style.width = `${pct}%`;
   if (expKnobEl) expKnobEl.style.left = `${pct}%`;
 }
 
-function updateLiveLyrics() {
+/**
+ * Real-time Dynamic Lyrics Synchronization (BitChord PlayerLyrics.kt & LyricClock.kt)
+ * Computes active line dynamically: timestamp <= currentTime < nextTimestamp
+ * Smooth spring-scrolling to vertical center (scrollIntoView({ behavior: 'smooth', block: 'center' }))
+ * High-contrast glowing text on active line; dimmed blur on past/upcoming lines
+ */
+function updateLiveLyrics(forceScroll = false) {
+  if (typeof document === 'undefined') return;
   const track = CATALOGUE_TRACKS[currentIndex];
-  const lyricElements = document.querySelectorAll('.apple-lyric-line');
+  if (!track || !track.lyrics || track.lyrics.length === 0) return;
+
+  const lines = track.lyrics;
   let activeIndex = -1;
 
-  for (let i = 0; i < track.lyrics.length; i++) {
-    if (currentTime >= track.lyrics[i].time) {
+  for (let i = 0; i < lines.length; i++) {
+    const lineTime = lines[i].time;
+    const nextTime = (i + 1 < lines.length) ? lines[i + 1].time : Infinity;
+    if (currentTime >= lineTime && currentTime < nextTime) {
       activeIndex = i;
+      break;
     }
   }
 
-  lyricElements.forEach((el, i) => {
-    if (i === activeIndex) {
-      el.classList.add('active');
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else {
-      el.classList.remove('active');
+  // Synchronize both drawer and Now Playing screen lyrics containers
+  const containers = [
+    document.getElementById('lyrics-lines-container'),
+    document.getElementById('expanded-lyrics-container')
+  ].filter(Boolean);
+
+  containers.forEach(container => {
+    const lyricElements = container.querySelectorAll('.apple-lyric-line');
+    lyricElements.forEach((el, i) => {
+      const isActive = (i === activeIndex);
+      if (el.classList.contains('active') !== isActive) {
+        el.classList.toggle('active', isActive);
+      }
+    });
+
+    if (activeIndex >= 0 && (activeIndex !== lastActiveLyricIndex || forceScroll)) {
+      const activeEl = lyricElements[activeIndex];
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
   });
+
+  lastActiveLyricIndex = activeIndex;
+
+  const expSnippet = document.getElementById('exp-lyric-snippet');
+  if (expSnippet) {
+    if (activeIndex >= 0 && lines[activeIndex]) {
+      expSnippet.innerText = lines[activeIndex].text;
+    } else if (lines.length > 0) {
+      expSnippet.innerText = lines[0].text;
+    } else {
+      expSnippet.innerText = 'Tap for synced lyrics';
+    }
+  }
+}
+
+/**
+ * Toggles Now Playing Lyrics View inside slide-up Now Playing screen (NowPlayingScreen.kt)
+ */
+function toggleNowPlayingLyrics() {
+  if (typeof document === 'undefined') return;
+  const artContainer = document.getElementById('expanded-artwork-container');
+  const lyricsContainer = document.getElementById('expanded-lyrics-container');
+  const expBtnLyrics = document.getElementById('exp-btn-lyrics');
+  if (!lyricsContainer) return;
+
+  const isShowingLyrics = lyricsContainer.style.display !== 'none';
+  if (isShowingLyrics) {
+    lyricsContainer.style.display = 'none';
+    if (artContainer) artContainer.style.display = 'block';
+    if (expBtnLyrics) expBtnLyrics.classList.remove('active');
+  } else {
+    lyricsContainer.style.display = 'flex';
+    if (artContainer) artContainer.style.display = 'none';
+    if (expBtnLyrics) expBtnLyrics.classList.add('active');
+    updateLiveLyrics(true);
+  }
 }
 
 function updatePlayButton() {
@@ -2496,8 +2767,10 @@ function updatePlayButton() {
   const icon = document.getElementById('play-pause-icon');
   const expIcon = document.getElementById('exp-play-pause-icon');
   const playerBar = document.getElementById('apple-player-bar');
+  const expView = document.getElementById('expanded-player-view');
 
   if (playerBar) playerBar.classList.toggle('is-playing', isPlaying);
+  if (expView) expView.classList.toggle('is-playing', isPlaying);
   if (document.body) document.body.classList.toggle('deja-playing', isPlaying);
 
   const pauseSvg = `
@@ -2554,6 +2827,8 @@ function adjustVolume(delta) {
 function applyVolume(vol) {
   const fill = document.getElementById('volume-fill');
   if (fill) fill.style.width = `${vol * 100}%`;
+  const expFill = document.getElementById('exp-volume-fill');
+  if (expFill) expFill.style.width = `${vol * 100}%`;
 
   if (masterGain && audioContext) {
     masterGain.gain.setValueAtTime(vol * 0.2, audioContext.currentTime);
@@ -2884,19 +3159,90 @@ function setupEvents() {
   };
   if (btnToggleLyrics) btnToggleLyrics.onclick = toggleLyrics;
   if (btnLyricsPanel) btnLyricsPanel.onclick = toggleLyrics;
-  if (expBtnLyrics) expBtnLyrics.onclick = toggleLyrics;
+  if (expBtnLyrics) expBtnLyrics.onclick = toggleNowPlayingLyrics;
   if (btnCloseLyrics) btnCloseLyrics.onclick = toggleLyrics;
 
-  // Expanded Now Playing view toggle
+  // Expanded Now Playing view toggle & interactions
   const expandedView = document.getElementById('expanded-player-view');
   const artworkWrapper = document.getElementById('player-artwork-wrapper');
+  const playerMeta = document.getElementById('player-meta-info');
+  const playerTrackTitle = document.getElementById('player-track-title');
+  const playerTrackArtist = document.getElementById('player-track-artist');
+  const btnExpandPlayer = document.getElementById('btn-expand-player');
   const btnCollapsePlayer = document.getElementById('btn-collapse-player');
-  if (artworkWrapper && expandedView) {
-    artworkWrapper.onclick = () => expandedView.classList.toggle('visible');
+  const expOptionsBtn = document.getElementById('exp-btn-options');
+  const expOptionsDropdown = document.getElementById('exp-options-dropdown');
+  const expAudioPipeline = document.getElementById('exp-audio-pipeline-badge');
+  const expLyricWrap = document.getElementById('exp-lyric-snippet-wrap');
+  const expVolTrack = document.getElementById('exp-volume-track');
+  const expScrubberTrack = document.getElementById('exp-scrubber-track');
+
+  const openExpandedView = () => {
+    if (!expandedView) return;
+    expandedView.classList.add('visible');
+    expandedView.classList.toggle('is-playing', isPlaying);
+  };
+  const closeExpandedView = () => {
+    if (!expandedView) return;
+    expandedView.classList.remove('visible');
+    if (expOptionsDropdown) expOptionsDropdown.style.display = 'none';
+    const lyricsContainer = document.getElementById('expanded-lyrics-container');
+    const artContainer = document.getElementById('expanded-artwork-container');
+    if (lyricsContainer) lyricsContainer.style.display = 'none';
+    if (artContainer) artContainer.style.display = 'block';
+    if (expBtnLyrics) expBtnLyrics.classList.remove('active');
+  };
+
+  if (artworkWrapper) artworkWrapper.onclick = openExpandedView;
+  if (playerMeta) playerMeta.onclick = openExpandedView;
+  if (playerTrackTitle) playerTrackTitle.onclick = openExpandedView;
+  if (playerTrackArtist) playerTrackArtist.onclick = openExpandedView;
+  if (btnExpandPlayer) btnExpandPlayer.onclick = openExpandedView;
+  if (btnCollapsePlayer) btnCollapsePlayer.onclick = closeExpandedView;
+
+  if (expOptionsBtn && expOptionsDropdown) {
+    expOptionsBtn.onclick = (e) => {
+      e.stopPropagation();
+      expOptionsDropdown.style.display = (expOptionsDropdown.style.display === 'none' || !expOptionsDropdown.style.display) ? 'flex' : 'none';
+    };
   }
-  if (btnCollapsePlayer && expandedView) {
-    btnCollapsePlayer.onclick = () => expandedView.classList.remove('visible');
+
+  // Options dropdown items
+  const optPipeline = document.getElementById('opt-open-pipeline');
+  const optEq = document.getElementById('opt-open-eq');
+  const optSleep = document.getElementById('opt-open-sleep');
+  const optLyrics = document.getElementById('opt-open-lyrics');
+  const optQueue = document.getElementById('opt-open-queue');
+
+  if (optPipeline) optPipeline.onclick = () => { if (expOptionsDropdown) expOptionsDropdown.style.display = 'none'; openPipelineModal(); };
+  if (optEq) optEq.onclick = () => { if (expOptionsDropdown) expOptionsDropdown.style.display = 'none'; const eqM = document.getElementById('eq-modal'); if (eqM) eqM.style.display = 'flex'; };
+  if (optSleep) optSleep.onclick = () => { if (expOptionsDropdown) expOptionsDropdown.style.display = 'none'; const sM = document.getElementById('sleep-modal'); if (sM) sM.style.display = 'flex'; };
+  if (optLyrics) optLyrics.onclick = () => { if (expOptionsDropdown) expOptionsDropdown.style.display = 'none'; toggleNowPlayingLyrics(); };
+  if (optQueue) optQueue.onclick = () => { if (expOptionsDropdown) expOptionsDropdown.style.display = 'none'; toggleQueue(); };
+
+  if (expAudioPipeline) expAudioPipeline.onclick = openPipelineModal;
+  if (expLyricWrap) expLyricWrap.onclick = toggleNowPlayingLyrics;
+
+  if (expScrubberTrack) {
+    expScrubberTrack.onclick = handleScrubberClick;
   }
+
+  if (expVolTrack) {
+    expVolTrack.onclick = (e) => {
+      const rect = expVolTrack.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      currentVolume = Math.max(0, Math.min(1, clickX / rect.width));
+      isMuted = false;
+      applyVolume(currentVolume);
+    };
+  }
+
+  // Dismiss options dropdown on outside click
+  window.addEventListener('click', (e) => {
+    if (expOptionsDropdown && expOptionsDropdown.style.display !== 'none' && !expOptionsDropdown.contains(e.target) && e.target !== expOptionsBtn) {
+      expOptionsDropdown.style.display = 'none';
+    }
+  });
 
   // Audio Pipeline Modal
   const pipelineModal = document.getElementById('pipeline-modal');
@@ -3038,6 +3384,19 @@ function setupEvents() {
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
 
+    if (e.key === 'Escape') {
+      closeExpandedView();
+      ['settings-modal', 'pipeline-modal', 'sleep-modal', 'eq-modal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      const lyricsDrawer = document.getElementById('apple-lyrics-drawer');
+      if (lyricsDrawer) lyricsDrawer.classList.remove('visible');
+      const queueDrawer = document.getElementById('apple-queue-drawer');
+      if (queueDrawer) queueDrawer.classList.remove('visible');
+      return;
+    }
+
     if (e.code === 'Space') {
       e.preventDefault();
       togglePlay();
@@ -3132,6 +3491,15 @@ if (typeof module !== 'undefined' && module.exports) {
     openBrowseDetail,
     playLiveTrack,
     resolveAndPlayTrack,
-    fallbackToIFrame
+    fallbackToIFrame,
+    resolveSyncedLyrics,
+    parseLrcLines,
+    updateLiveLyrics,
+    renderLyrics,
+    toggleNowPlayingLyrics,
+    seekTo,
+    updateAccountUI,
+    updateSidebarPlaylistsUI,
+    lovedTrackIds
   };
 }

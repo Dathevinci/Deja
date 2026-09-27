@@ -421,7 +421,26 @@ ipcMain.on('track-changed', (event, track) => {
 
   // Update Discord Rich Presence
   if (config.get('discordRPC')) {
-    discord.updateTrack(track);
+    const remainingTime = (track.duration && track.currentTime != null)
+      ? Math.max(0, track.duration - track.currentTime)
+      : 0;
+    const activityData = {
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      duration: track.duration,
+      currentTime: track.currentTime,
+      remainingTime: remainingTime,
+      artworkUrl: track.coverUrl || track.cover,
+      coverUrl: track.coverUrl || track.cover,
+      isPlaying: track.isPlaying !== false,
+      isAd: !!track.isAd
+    };
+    if (typeof discord.updateActivity === 'function') {
+      discord.updateActivity(activityData);
+    } else if (typeof discord.updateTrack === 'function') {
+      discord.updateTrack(activityData);
+    }
   }
 
   // Desktop notification on song change if enabled
@@ -464,6 +483,7 @@ ipcMain.handle('open-external', (event, url) => {
 ipcMain.handle('open-google-login', async () => {
   return new Promise((resolve) => {
     try {
+      const ses = session.fromPartition('persist:ytmusic');
       const loginWin = new BrowserWindow({
         width: 580,
         height: 720,
@@ -474,36 +494,100 @@ ipcMain.handle('open-google-login', async () => {
         webPreferences: {
           partition: 'persist:ytmusic',
           nodeIntegration: false,
-          contextIsolation: true
+          contextIsolation: true,
+          sandbox: true
         }
       });
-      loginWin.webContents.setUserAgent(CHROME_UA);
-      loginWin.loadURL('https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F');
 
-      const notifyAuth = async () => {
+      // Enforce clean Chrome User Agent with no Electron tokens
+      loginWin.webContents.setUserAgent(CHROME_UA);
+
+      // Handle popup windows during Google Auth (e.g. 2FA, Security Keys)
+      loginWin.webContents.setWindowOpenHandler(({ url }) => {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: {
+            userAgent: CHROME_UA,
+            autoHideMenuBar: true
+          }
+        };
+      });
+
+      let authResolved = false;
+
+      const checkLoginSuccess = async (targetUrl) => {
+        if (authResolved) return;
+        const currentUrl = targetUrl || (!loginWin.isDestroyed() ? loginWin.webContents.getURL() : '');
+        if (!currentUrl) return;
+
+        // When the URL reaches music.youtube.com and is not still within Google accounts
+        if (currentUrl.includes('music.youtube.com') && !currentUrl.includes('accounts.google.com')) {
+          try {
+            const cookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
+            const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
+            const allCookies = [...cookies, ...musicCookies];
+            const cookieNames = new Set(allCookies.map(c => c.name));
+
+            // Verify required Google authentication cookies are present (SAPISID, SID, or LOGIN_INFO)
+            const hasAuthCookie = cookieNames.has('SAPISID') ||
+                                  cookieNames.has('SID') ||
+                                  cookieNames.has('LOGIN_INFO') ||
+                                  cookieNames.has('__Secure-3PAPISID') ||
+                                  cookieNames.has('__Secure-1PAPISID');
+
+            if (hasAuthCookie) {
+              authResolved = true;
+              // Trigger innertube.getAccountInfo(ses) to fetch channel title and avatar
+              const info = await innertube.getAccountInfo(ses);
+              // Send IPC event (auth-changed) to mainWindow.webContents
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('auth-changed', info);
+                mainWindow.webContents.send('auth-state-changed', info);
+              }
+              // Close loginWin smoothly
+              setTimeout(() => {
+                if (!loginWin.isDestroyed()) {
+                  loginWin.close();
+                }
+              }, 600);
+            }
+          } catch (err) {
+            console.warn('[Auth] Error checking login cookies:', err.message);
+          }
+        }
+      };
+
+      // Listen for navigation events (did-navigate, did-navigate-in-page)
+      loginWin.webContents.on('did-navigate', (e, url) => {
+        checkLoginSuccess(url);
+      });
+
+      loginWin.webContents.on('did-navigate-in-page', (e, url) => {
+        checkLoginSuccess(url);
+      });
+
+      // Cookie change listener to detect login immediately
+      const onCookieChanged = (event, cookie, cause, removed) => {
+        if (!removed && (cookie.name === 'SAPISID' || cookie.name === 'SID' || cookie.name === 'LOGIN_INFO')) {
+          checkLoginSuccess();
+        }
+      };
+      ses.cookies.on('changed', onCookieChanged);
+
+      loginWin.on('closed', async () => {
+        ses.cookies.removeListener('changed', onCookieChanged);
         try {
-          const ses = session.fromPartition('persist:ytmusic');
           const info = await innertube.getAccountInfo(ses);
           if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('auth-changed', info);
             mainWindow.webContents.send('auth-state-changed', info);
           }
         } catch {}
-      };
-
-      loginWin.webContents.on('did-navigate', async (e, url) => {
-        if (url.includes('music.youtube.com') && !url.includes('accounts.google.com')) {
-          await notifyAuth();
-          setTimeout(() => {
-            if (!loginWin.isDestroyed()) {
-              loginWin.close();
-            }
-          }, 1500);
-        }
+        resolve(true);
       });
 
-      loginWin.on('closed', async () => {
-        await notifyAuth();
-        resolve(true);
+      loginWin.loadURL('https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F', {
+        userAgent: CHROME_UA
       });
     } catch (err) {
       console.error('[Auth] Failed to open Google login dialog:', err);
@@ -666,6 +750,20 @@ ipcMain.handle('yt-resolve-stream', async (event, videoId) => {
   }
 });
 
+// Synced Lyrics Resolution (LRCLIB & YouTube Music InnerTube)
+async function handleGetLyrics(event, query) {
+  if (!query || typeof query !== 'object') return null;
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getLyrics(query, ses);
+  } catch (err) {
+    console.warn('[Lyrics] Lyrics resolution error:', err.message);
+    return null;
+  }
+}
+ipcMain.handle('yt-get-lyrics', handleGetLyrics);
+ipcMain.handle('innertube-get-lyrics', handleGetLyrics);
+
 // App Lifecycle
 app.whenReady().then(() => {
   const ytSession = session.fromPartition('persist:ytmusic');
@@ -676,13 +774,38 @@ app.whenReady().then(() => {
     ses.webRequest.onBeforeSendHeaders((details, callback) => {
       const requestHeaders = details.requestHeaders || {};
 
+      // 1. Strip any Electron and app tokens across all headers to prevent Google's "browser or app may not be secure" block
+      for (const k of Object.keys(requestHeaders)) {
+        if (typeof requestHeaders[k] === 'string') {
+          if (/electron/i.test(requestHeaders[k])) {
+            requestHeaders[k] = requestHeaders[k].replace(/Electron\/[0-9\.]+\s*/gi, '').trim();
+          }
+          if (/deja/i.test(requestHeaders[k])) {
+            requestHeaders[k] = requestHeaders[k].replace(/Deja\/[0-9\.]+\s*/gi, '').trim();
+          }
+        }
+      }
+
+      const isGoogleAuth = details.url.includes('accounts.google.com');
       const isYtOrGv = (
         details.url.includes('youtube.com') ||
         details.url.includes('youtube-nocookie.com') ||
         details.url.includes('googlevideo.com')
       );
 
-      if (isYtOrGv) {
+      // Clean file:// origin/referer for Google OAuth & auth endpoints
+      if (isGoogleAuth) {
+        const origin = requestHeaders['Origin'] || requestHeaders['origin'] || '';
+        const referer = requestHeaders['Referer'] || requestHeaders['referer'] || '';
+        if (origin && origin.startsWith('file://')) {
+          delete requestHeaders['Origin'];
+          delete requestHeaders['origin'];
+        }
+        if (referer && referer.startsWith('file://')) {
+          delete requestHeaders['Referer'];
+          delete requestHeaders['referer'];
+        }
+      } else if (isYtOrGv) {
         const origin = requestHeaders['Origin'] || requestHeaders['origin'] || '';
         const referer = requestHeaders['Referer'] || requestHeaders['referer'] || '';
         if (!origin || origin.startsWith('file://')) {
@@ -693,15 +816,22 @@ app.whenReady().then(() => {
         }
       }
 
-      delete requestHeaders['Sec-Ch-Ua-Platform'];
-      delete requestHeaders['sec-ch-ua-platform'];
-      requestHeaders['Sec-Ch-Ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+      // Enforce clean standard Chrome 131 User-Agent and consistent Client Hints
       requestHeaders['User-Agent'] = CHROME_UA;
+      requestHeaders['Sec-Ch-Ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+      requestHeaders['Sec-Ch-Ua-Mobile'] = '?0';
+      requestHeaders['Sec-Ch-Ua-Platform'] = '"Windows"';
+
       callback({ cancel: false, requestHeaders });
     });
 
     // Strip iframe embedding restrictions and enable cross-origin media streaming
     ses.webRequest.onHeadersReceived((details, callback) => {
+      // Do NOT mutate security headers on accounts.google.com (Google security scripts detect altered CSP/CORS)
+      if (details.url.includes('accounts.google.com')) {
+        return callback({ cancel: false, responseHeaders: details.responseHeaders });
+      }
+
       const responseHeaders = { ...details.responseHeaders };
       for (const k of Object.keys(responseHeaders)) {
         const lower = k.toLowerCase();

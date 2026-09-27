@@ -979,6 +979,10 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
   let lastIsAd = null;
   let pollInterval = null;
   let shadowObserver = null;
+  let preloadLyrics = [];
+  let preloadLastActiveIndex = -1;
+  let lyricsVideoHooked = null;
+  let lastLyricsTrackId = '';
 
   // Wait for DOM ready
   if (typeof document !== 'undefined') {
@@ -1449,6 +1453,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     };
 
     if (trackId !== lastTrackId || isPlaying !== lastIsPlaying || isAdPlaying !== lastIsAd) {
+      const isNewTrack = (trackId !== lastTrackId);
       lastTrackId = trackId;
       lastIsPlaying = isPlaying;
       lastIsAd = isAdPlaying;
@@ -1460,6 +1465,24 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
       if (api?.sendTrackChanged) {
         api.sendTrackChanged(trackData);
       }
+
+      if (isNewTrack) {
+        lastLyricsTrackId = '';
+        const overlay = getEl('deja-lyrics-overlay', 'sonora-lyrics-overlay');
+        if (overlay && overlay.classList.contains('visible')) {
+          resolvePreloadLyrics(trackData);
+        }
+      }
+    }
+
+    if (video && video !== lyricsVideoHooked && typeof video.addEventListener === 'function') {
+      lyricsVideoHooked = video;
+      video.addEventListener('timeupdate', () => {
+        updatePreloadLiveLyrics(video.currentTime);
+      });
+      video.addEventListener('seeked', () => {
+        updatePreloadLiveLyrics(video.currentTime, true);
+      });
     }
 
     // Toggle Apple playing states for spring scaling and aura breathing
@@ -1902,7 +1925,146 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
   /* -------------------------------------------------------------
      8. BitChord Word-Synced Live Lyrics Drawer (PlayerLyrics.kt)
      Smooth spring scrolling, active line glow, seek-on-click
+     Dynamic real-time clock synchronization & LRCLIB/InnerTube integration
      ------------------------------------------------------------- */
+  function updatePreloadLiveLyrics(currentTime, forceScroll = false) {
+    const overlay = getEl('deja-lyrics-overlay', 'sonora-lyrics-overlay');
+    if (!overlay || !overlay.classList.contains('visible')) return;
+    if (!preloadLyrics || preloadLyrics.length === 0) return;
+
+    let activeIndex = -1;
+    for (let i = 0; i < preloadLyrics.length; i++) {
+      const lineTime = preloadLyrics[i].time;
+      const nextTime = (i + 1 < preloadLyrics.length) ? preloadLyrics[i + 1].time : Infinity;
+      if (currentTime >= lineTime && currentTime < nextTime) {
+        activeIndex = i;
+        break;
+      }
+    }
+
+    const lines = overlay.querySelectorAll('.deja-lyric-line, .sonora-lyric-line');
+    lines.forEach((el, i) => {
+      const isActive = (i === activeIndex);
+      if (el.classList.contains('active') !== isActive) {
+        el.classList.toggle('active', isActive);
+      }
+    });
+
+    if (activeIndex >= 0 && (activeIndex !== preloadLastActiveIndex || forceScroll)) {
+      const activeEl = lines[activeIndex];
+      if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    preloadLastActiveIndex = activeIndex;
+  }
+
+  async function resolvePreloadLyrics(track) {
+    if (!track || !track.title) return;
+    if (track.id && track.id === lastLyricsTrackId && preloadLyrics.length > 0) return;
+
+    const overlay = getEl('deja-lyrics-overlay', 'sonora-lyrics-overlay');
+    const container = getEl('deja-lyrics-content', 'sonora-lyrics-content');
+
+    if (overlay) {
+      const titleEl = overlay.querySelector('.deja-lyrics-title, .sonora-lyrics-title');
+      const artistEl = overlay.querySelector('.deja-lyrics-artist, .sonora-lyrics-artist');
+      const auraEl = overlay.querySelector('.deja-lyrics-aura, .sonora-lyrics-aura');
+      if (titleEl) titleEl.textContent = track.title;
+      if (artistEl) artistEl.textContent = track.artist;
+      if (auraEl && track.coverUrl) auraEl.style.backgroundImage = `url('${track.coverUrl}')`;
+    }
+
+    let videoId = '';
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        const urlParams = new URLSearchParams(window.location.search);
+        videoId = urlParams.get('v') || '';
+      }
+    } catch {}
+
+    const cleanTitle = (track.title || '')
+      .replace(/\uFEFF|\u200E|\u200F/g, '')
+      .replace(/\s*[\(\[](?:official\s+)?(?:music\s+|lyric\s+|lyrics\s+)?(?:video|audio|visualizer|track|remaster(?:ed)?(?:\s+\d{4})?|live(?:\s+at\s+[^)\]]+)?)[\]\)]/gi, '')
+      .replace(/\s*\(?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^)]+)?)\)?/gi, '')
+      .replace(/\s*\[?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^\]]+)?)\]?/gi, '')
+      .replace(/\s*(?:\||\/\/|-)\s*(?:official\s+video|official\s+audio|audio|lyric\s+video|lyrics).*$/gi, '')
+      .replace(/\s*[\(\[](?:feat\.|ft\.)\s+[^)\]]+[\]\)]/gi, '')
+      .replace(/\s*\(?(?:feat\.|ft\.)\s+[^)]+\)?/gi, '')
+      .replace(/\s*\[?(?:feat\.|ft\.)\s+[^\]]+\]?/gi, '')
+      .replace(/\s*(?:feat\.|ft\.)\s+.*$/gi, '')
+      .trim();
+    const cleanArtist = (track.artist || '')
+      .replace(/\uFEFF|\u200E|\u200F/g, '')
+      .replace(/\s*\(?(?:feat\.|ft\.)\s+[^)]+\)?/gi, '')
+      .trim();
+
+    try {
+      let resolved = null;
+      if (api?.getLyrics) {
+        resolved = await api.getLyrics({
+          videoId,
+          title: cleanTitle,
+          artist: cleanArtist,
+          duration: track.duration
+        });
+      }
+
+      if (resolved && Array.isArray(resolved) && resolved.length > 0) {
+        preloadLyrics = resolved;
+        lastLyricsTrackId = track.id || `${cleanTitle}-${cleanArtist}`;
+        renderPreloadLyrics(preloadLyrics);
+        return;
+      }
+    } catch (e) {
+      console.warn('[Preload] resolvePreloadLyrics API notice:', e.message);
+    }
+
+    // Fall back to extracting native YTM lyrics if available in tab
+    const nativeLyricsTab = document.querySelector('ytmusic-tab-renderer[tab-id="LYRICS"]');
+    if (nativeLyricsTab) {
+      const desc = nativeLyricsTab.querySelector('.description');
+      if (desc && desc.textContent.trim()) {
+        const lines = desc.textContent.trim().split('\n').filter(l => l.trim().length > 0);
+        if (lines.length > 0) {
+          const stepSec = Math.max(3, (track.duration || 180) / lines.length);
+          const fallbackLyrics = lines.map((l, i) => ({
+            time: Math.floor(i * stepSec),
+            text: l
+          }));
+          preloadLyrics = fallbackLyrics;
+          lastLyricsTrackId = track.id || `${cleanTitle}-${cleanArtist}`;
+          renderPreloadLyrics(fallbackLyrics);
+          return;
+        }
+      }
+    }
+
+    if (container) {
+      renderPreloadLyrics([]);
+    }
+  }
+
+  function renderPreloadLyrics(lyrics) {
+    const container = getEl('deja-lyrics-content', 'sonora-lyrics-content');
+    if (!container) return;
+
+    if (!lyrics || lyrics.length === 0) {
+      setSafeHTML(container, '<div class="deja-lyric-line sonora-lyric-line active" data-time="0">No synchronized lyrics available for this track.</div>');
+      return;
+    }
+
+    setSafeHTML(container, lyrics.map((l, i) => `
+      <div class="deja-lyric-line sonora-lyric-line ${i === 0 ? 'active' : ''}" data-time="${l.time}">
+        ${escapeHtml(l.text)}
+      </div>
+    `).join(''));
+
+    const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
+    const curTime = video ? video.currentTime : 0;
+    updatePreloadLiveLyrics(curTime, true);
+  }
+
   function toggleLyricsDrawer() {
     let overlay = getEl('deja-lyrics-overlay', 'sonora-lyrics-overlay');
     if (overlay) {
@@ -1911,6 +2073,8 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         setTimeout(() => overlay.remove(), 300);
       } else {
         overlay.classList.add('visible');
+        const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
+        if (video) updatePreloadLiveLyrics(video.currentTime, true);
       }
       return;
     }
@@ -1934,9 +2098,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         <button class="deja-lyrics-close sonora-lyrics-close" id="deja-lyrics-close-btn">&times;</button>
       </div>
       <div class="deja-lyrics-body sonora-lyrics-body" id="deja-lyrics-content">
-        <div class="deja-lyric-line sonora-lyric-line active" data-time="0">♪ Synchronized with YouTube Music playback</div>
-        <div class="deja-lyric-line sonora-lyric-line" data-time="15">Real-time lyrics rendered with Apple Music dynamic mesh backdrop</div>
-        <div class="deja-lyric-line sonora-lyric-line" data-time="30">Enjoy your music in high fidelity</div>
+        <div class="deja-lyric-line sonora-lyric-line active" data-time="0">♪ Loading synchronized lyrics...</div>
       </div>
     `);
 
@@ -1959,26 +2121,29 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
           const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
           if (video && !isNaN(seekSec)) {
             video.currentTime = seekSec;
+            updatePreloadLiveLyrics(seekSec, true);
           }
         }
       };
     }
 
-    // Try extracting native YTM lyrics if available in tab
-    const nativeLyricsTab = document.querySelector('ytmusic-tab-renderer[tab-id="LYRICS"]');
-    if (nativeLyricsTab) {
-      const desc = nativeLyricsTab.querySelector('.description');
-      if (desc && desc.textContent.trim()) {
-        const lines = desc.textContent.trim().split('\n').filter(l => l.trim().length > 0);
-        if (container && lines.length > 0) {
-          const stepSec = Math.max(3, (track.duration || 180) / lines.length);
-          setSafeHTML(container, lines.map((l, i) => `
-            <div class="deja-lyric-line sonora-lyric-line ${i === 0 ? 'active' : ''}" data-time="${Math.floor(i * stepSec)}">
-              ${escapeHtml(l)}
-            </div>
-          `).join(''));
-        }
-      }
+    // Hook video timeupdate
+    const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
+    if (video && video !== lyricsVideoHooked && typeof video.addEventListener === 'function') {
+      lyricsVideoHooked = video;
+      video.addEventListener('timeupdate', () => {
+        updatePreloadLiveLyrics(video.currentTime);
+      });
+      video.addEventListener('seeked', () => {
+        updatePreloadLiveLyrics(video.currentTime, true);
+      });
+    }
+
+    // Resolve lyrics from API or native tab fallback
+    if (preloadLyrics.length > 0 && lastLyricsTrackId === track.id) {
+      renderPreloadLyrics(preloadLyrics);
+    } else {
+      resolvePreloadLyrics(track);
     }
   }
 
@@ -2320,6 +2485,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         shadowObserver.disconnect();
         shadowObserver = null;
       }
+      lyricsVideoHooked = null;
       SleepTimer.cancel();
       if (typeof window !== 'undefined') {
         window.__DEJA_INITIALIZED__ = false;
@@ -2330,7 +2496,11 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     },
     SleepTimer,
     AudioPipeline,
-    AudioEqualizer
+    AudioEqualizer,
+    toggleLyricsDrawer,
+    updatePreloadLiveLyrics,
+    resolvePreloadLyrics,
+    renderPreloadLyrics
   };
 }
 

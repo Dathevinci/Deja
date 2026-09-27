@@ -22,9 +22,11 @@ function sapisidHash(sapisid, origin = MUSIC_ORIGIN) {
 async function getAuthContext(ses) {
   if (!ses) return { headers: getDefaultHeaders(), isLoggedIn: false, cookieStr: '' };
   try {
-    const cookies = await ses.cookies.get({ url: MUSIC_ORIGIN });
+    const cookies = await ses.cookies.get({ url: MUSIC_ORIGIN }).catch(() => []);
+    const ytCookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
+    const allCookies = [...cookies, ...ytCookies];
     const cookieMap = {};
-    cookies.forEach(c => {
+    allCookies.forEach(c => {
       cookieMap[c.name] = c.value;
     });
 
@@ -115,9 +117,16 @@ async function getAccountInfo(ses) {
       if (Array.isArray(node)) { node.forEach(walk); return; }
       if (node.activeAccountHeaderRenderer) {
         const h = node.activeAccountHeaderRenderer;
-        name = h.accountName?.runs?.[0]?.text || name;
-        handle = h.channelHandle?.runs?.[0]?.text || h.email?.runs?.[0]?.text || handle;
-        const thumbs = h.accountPhoto?.thumbnails || [];
+        name = h.accountName?.runs?.[0]?.text ||
+               h.channelTitle?.runs?.[0]?.text ||
+               h.channelName?.runs?.[0]?.text ||
+               h.title?.runs?.[0]?.text ||
+               name;
+        handle = h.channelHandle?.runs?.[0]?.text ||
+                 h.email?.runs?.[0]?.text ||
+                 h.byline?.runs?.[0]?.text ||
+                 handle;
+        const thumbs = h.accountPhoto?.thumbnails || h.avatar?.thumbnails || h.thumbnail?.thumbnails || [];
         if (thumbs.length > 0) {
           avatarUrl = thumbs[thumbs.length - 1].url;
         }
@@ -129,12 +138,22 @@ async function getAccountInfo(ses) {
     return {
       isLoggedIn: true,
       name,
+      channelTitle: name,
       handle,
-      avatarUrl
+      avatarUrl,
+      photoUrl: avatarUrl
     };
   } catch (err) {
     console.warn('[InnerTube] getAccountInfo error:', err.message);
-    return { isLoggedIn: false };
+    const auth = await getAuthContext(ses).catch(() => ({ isLoggedIn: false }));
+    return {
+      isLoggedIn: auth.isLoggedIn,
+      name: 'Google User',
+      channelTitle: 'Google User',
+      handle: '',
+      avatarUrl: '',
+      photoUrl: ''
+    };
   }
 }
 
@@ -870,6 +889,231 @@ function extractBestAudioFormat(data) {
   };
 }
 
+const LRCLIB_BASE = 'https://lrclib.net/api';
+const LRCLIB_USER_AGENT = 'Deja (https://github.com/Dathevinci/Deja)';
+
+/**
+ * Cleans YouTube Music track titles and artist names for lyrics matching
+ * Exactly matching BitChord's title.forLyricsSearch() and artist.artistForLyricsSearch().
+ */
+function cleanSearchTerm(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .replace(/\uFEFF|\u200E|\u200F/g, '')
+    .replace(/\s*[\(\[](?:official\s+)?(?:music\s+|lyric\s+|lyrics\s+)?(?:video|audio|visualizer|track|remaster(?:ed)?(?:\s+\d{4})?|live(?:\s+at\s+[^)\]]+)?)[\]\)]/gi, '')
+    .replace(/\s*\(?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^)]+)?)\)?/gi, '')
+    .replace(/\s*\[?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^\]]+)?)\]?/gi, '')
+    .replace(/\s*(?:\||\/\/|-)\s*(?:official\s+video|official\s+audio|audio|lyric\s+video|lyrics).*$/gi, '')
+    .replace(/\s*[\(\[](?:feat\.|ft\.)\s+[^)\]]+[\]\)]/gi, '')
+    .replace(/\s*\(?(?:feat\.|ft\.)\s+[^)]+\)?/gi, '')
+    .replace(/\s*\[?(?:feat\.|ft\.)\s+[^\]]+\]?/gi, '')
+    .replace(/\s*(?:feat\.|ft\.)\s+.*$/gi, '')
+    .trim();
+}
+
+/**
+ * Parses millisecond LRC formatted lyrics into [{ time: seconds, text: string }]
+ * Supports [mm:ss.xx] and [mm:ss.xxx], matching BitChord's LrcLib.kt.
+ */
+function parseLrcString(lrcContent) {
+  if (!lrcContent || typeof lrcContent !== 'string') return [];
+  const lines = lrcContent.split(/\r?\n/);
+  const stampRegex = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+  const result = [];
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed) continue;
+    if (/^\[[A-Za-z]+:.*\]$/.test(trimmed)) continue;
+
+    stampRegex.lastIndex = 0;
+    const matches = [...trimmed.matchAll(stampRegex)];
+    if (matches.length === 0) continue;
+
+    const text = trimmed.replace(stampRegex, '').trim();
+    const displayText = text.length > 0 ? text : '♪';
+
+    for (const match of matches) {
+      const minutes = parseInt(match[1], 10) || 0;
+      const seconds = parseInt(match[2], 10) || 0;
+      let fractionMs = 0;
+      if (match[3]) {
+        if (match[3].length === 2) {
+          fractionMs = parseInt(match[3], 10) * 10;
+        } else if (match[3].length === 1) {
+          fractionMs = parseInt(match[3], 10) * 100;
+        } else {
+          fractionMs = parseInt(match[3].slice(0, 3), 10);
+        }
+      }
+      const timeInSeconds = Math.round((minutes * 60 + seconds + fractionMs / 1000) * 100) / 100;
+      result.push({ time: timeInSeconds, text: displayText });
+    }
+  }
+
+  result.sort((a, b) => a.time - b.time);
+
+  if (result.length > 0 && result[0].time > 5) {
+    result.unshift({ time: 0, text: '♪' });
+  }
+
+  return result;
+}
+
+/**
+ * Fetches millisecond synchronized lyrics from LRCLIB API
+ * (BitChord LrcLib.kt provider architecture)
+ */
+async function fetchLrcLibLyrics(title, artist, durationSeconds) {
+  const cleanTitle = cleanSearchTerm(title);
+  const cleanArtist = cleanSearchTerm(artist);
+  if (!cleanTitle) return null;
+
+  const durationParam = (durationSeconds && typeof durationSeconds === 'number' && durationSeconds > 0)
+    ? Math.round(durationSeconds)
+    : null;
+
+  // 1. Exact match attempt
+  try {
+    let getUrl = `${LRCLIB_BASE}/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
+    if (durationParam) {
+      getUrl += `&duration=${durationParam}`;
+    }
+    const res = await fetch(getUrl, {
+      headers: { 'User-Agent': LRCLIB_USER_AGENT }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.syncedLyrics) {
+        const parsed = parseLrcString(data.syncedLyrics);
+        if (parsed.length > 0) return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('[LRCLIB] /get failed:', err.message);
+  }
+
+  // 2. Fuzzy search fallback matching closest duration
+  try {
+    const searchUrl = `${LRCLIB_BASE}/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
+    const res = await fetch(searchUrl, {
+      headers: { 'User-Agent': LRCLIB_USER_AGENT }
+    });
+    if (res.ok) {
+      const items = await res.json();
+      if (Array.isArray(items) && items.length > 0) {
+        const syncedItems = items.filter(it => it && it.syncedLyrics && it.syncedLyrics.trim().length > 0);
+        if (syncedItems.length > 0) {
+          if (durationParam) {
+            syncedItems.sort((a, b) => Math.abs((a.duration || 0) - durationParam) - Math.abs((b.duration || 0) - durationParam));
+          }
+          const parsed = parseLrcString(syncedItems[0].syncedLyrics);
+          if (parsed.length > 0) return parsed;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[LRCLIB] /search fallback failed:', err.message);
+  }
+
+  return null;
+}
+
+/**
+ * Fetches lyrics exposed in YouTube Music's Lyrics tab via InnerTube
+ * (BitChord YouTubeLyrics.kt provider architecture)
+ */
+async function fetchYouTubeMusicLyrics(videoId, ses) {
+  if (!videoId || typeof videoId !== 'string') return null;
+
+  try {
+    const nextData = await postMusic('next', { videoId, isAudioOnly: true }, ses);
+    let browseId = null;
+    let browseParams = null;
+
+    function walk(node) {
+      if (!node || typeof node !== 'object') return;
+      if (browseId) return;
+      if (Array.isArray(node)) { node.forEach(walk); return; }
+
+      if (node.tabRenderer) {
+        const title = node.tabRenderer.title || '';
+        const endpoint = node.tabRenderer.endpoint?.browseEndpoint;
+        if ((typeof title === 'string' && title.toLowerCase().includes('lyric')) || node.tabRenderer.tabIdentifier === 'LYRICS') {
+          if (endpoint?.browseId) {
+            browseId = endpoint.browseId;
+            browseParams = endpoint.params;
+            return;
+          }
+        }
+      }
+      Object.values(node).forEach(walk);
+    }
+    walk(nextData);
+
+    if (!browseId) return null;
+
+    const browsePayload = { browseId };
+    if (browseParams) browsePayload.params = browseParams;
+    const browseData = await postMusic('browse', browsePayload, ses);
+
+    let rawText = '';
+    function walkBrowse(node) {
+      if (!node || typeof node !== 'object') return;
+      if (rawText) return;
+      if (Array.isArray(node)) { node.forEach(walkBrowse); return; }
+
+      if (node.musicDescriptionShelfRenderer) {
+        const desc = node.musicDescriptionShelfRenderer.description;
+        if (desc && Array.isArray(desc.runs)) {
+          rawText = desc.runs.map(r => r.text).join('');
+          return;
+        }
+      }
+      Object.values(node).forEach(walkBrowse);
+    }
+    walkBrowse(browseData);
+
+    if (!rawText || !rawText.trim()) return null;
+
+    const rawLines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (rawLines.length === 0) return null;
+
+    const step = 4;
+    return rawLines.map((text, i) => ({
+      time: i * step,
+      text
+    }));
+  } catch (err) {
+    console.warn('[InnerTube] fetchYouTubeMusicLyrics failed:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Unified Synced Lyrics Provider
+ * Prioritizes LRCLIB millisecond synced lyrics, falls back to YouTube Music InnerTube lyrics.
+ */
+async function getLyrics({ videoId, title, artist, duration }, ses) {
+  // 1. Try LRCLIB for millisecond synced lyrics
+  if (title) {
+    const lrcLibLyrics = await fetchLrcLibLyrics(title, artist || '', duration);
+    if (lrcLibLyrics && lrcLibLyrics.length > 0) {
+      return lrcLibLyrics;
+    }
+  }
+
+  // 2. Fall back to YouTube Music InnerTube browse lyrics
+  if (videoId) {
+    const ytmLyrics = await fetchYouTubeMusicLyrics(videoId, ses);
+    if (ytmLyrics && ytmLyrics.length > 0) {
+      return ytmLyrics;
+    }
+  }
+
+  return null;
+}
+
 module.exports = {
   getAuthContext,
   getAccountInfo,
@@ -883,6 +1127,11 @@ module.exports = {
   getNextQueue,
   getAudioStream,
   extractBestAudioFormat,
+  getLyrics,
+  fetchLrcLibLyrics,
+  fetchYouTubeMusicLyrics,
+  parseLrcString,
+  cleanSearchTerm,
   search,
   rate,
   sapisidHash

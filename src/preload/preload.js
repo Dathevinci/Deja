@@ -22,9 +22,11 @@ const dejaAPI = {
   getBrowsePlaylist: (browseId) => ipcRenderer.invoke('yt-browse-playlist', browseId),
   getNextQueue: (videoId) => ipcRenderer.invoke('yt-next-queue', videoId),
   resolveAudioStream: (videoId) => ipcRenderer.invoke('yt-resolve-stream', videoId),
+  getLyrics: (query) => ipcRenderer.invoke('yt-get-lyrics', query),
   getAccountInfo: () => ipcRenderer.invoke('yt-account-info'),
   rateSong: (videoId, status) => ipcRenderer.invoke('yt-rate', { videoId, status }),
   onAuthChanged: (callback) => {
+    ipcRenderer.on('auth-changed', (event, data) => callback(data));
     ipcRenderer.on('auth-state-changed', (event, data) => callback(data));
   },
   onPlayerAction: (callback) => {
@@ -159,26 +161,30 @@ const LYRICS_STYLES = `
   }
   .deja-lyric-line,
   .sonora-lyric-line {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 600;
-    line-height: 1.4;
+    line-height: 1.45;
     color: rgba(255, 255, 255, 0.35);
-    transition: color 0.3s ease, transform 0.3s ease, filter 0.3s ease;
+    transition: color 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
     cursor: pointer;
     filter: blur(0.4px);
+    padding: 8px 12px;
+    border-radius: 12px;
   }
   .deja-lyric-line:hover,
   .sonora-lyric-line:hover {
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.05);
   }
   .deja-lyric-line.active,
   .sonora-lyric-line.active {
     color: #FFFFFF;
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 700;
     transform: scale(1.02);
     filter: none;
-    text-shadow: 0 4px 20px rgba(255, 255, 255, 0.35);
+    text-shadow: 0 4px 20px rgba(255, 255, 255, 0.4);
+    background: transparent;
   }
 `;
 

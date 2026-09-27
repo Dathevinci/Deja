@@ -65,6 +65,36 @@ function runEdgeCaseTests() {
     assert.strictEqual(typeof preview.EQ_PRESETS[preset].treble, 'number');
   });
 
+  // 7. Lyrics Parsing & Clean Search Term Edge Cases
+  const innertube = require('../src/main/innertube.js');
+  assert.deepStrictEqual(innertube.parseLrcString(null), []);
+  assert.deepStrictEqual(innertube.parseLrcString(undefined), []);
+  assert.deepStrictEqual(innertube.parseLrcString(''), []);
+  assert.deepStrictEqual(innertube.parseLrcString('Not an LRC file at all'), []);
+  assert.deepStrictEqual(innertube.parseLrcString('[invalid:stamp] No match'), []);
+  assert.deepStrictEqual(innertube.parseLrcString('[00:00] No fraction'), [{ time: 0, text: 'No fraction' }]);
+  assert.strictEqual(innertube.cleanSearchTerm(null), '');
+  assert.strictEqual(innertube.cleanSearchTerm(undefined), '');
+  assert.strictEqual(innertube.cleanSearchTerm(''), '');
+  assert.strictEqual(innertube.cleanSearchTerm(12345), '');
+
+  // 3-digit millisecond timestamps [mm:ss.xxx] (with intro gap if starts after 5s)
+  const parsed3digit = innertube.parseLrcString('[01:15.500] Three digit fraction');
+  assert.strictEqual(parsed3digit.length, 2);
+  assert.strictEqual(parsed3digit[0].time, 0);
+  assert.strictEqual(parsed3digit[0].text, '♪');
+  assert.strictEqual(parsed3digit[1].time, 75.5);
+  assert.strictEqual(parsed3digit[1].text, 'Three digit fraction');
+
+  // Empty line text defaults to musical note ♪
+  const emptyLineParsed = innertube.parseLrcString('[00:01.00] ');
+  assert.strictEqual(emptyLineParsed[0].text, '♪');
+
+  // Preview parseLrcLines edge cases
+  assert.deepStrictEqual(preview.parseLrcLines(null), []);
+  assert.deepStrictEqual(preview.parseLrcLines(undefined), []);
+  assert.deepStrictEqual(preview.parseLrcLines(''), []);
+
   console.log('✓ Edge cases and security tests passed successfully.');
 }
 

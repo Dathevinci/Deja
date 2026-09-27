@@ -28,6 +28,33 @@ function runInnerTubeIntegrationTests() {
   assert.strictEqual(typeof innertube.search, 'function');
   assert.strictEqual(typeof innertube.rate, 'function');
 
+  // Test getAuthContext with mock session (domain cookies & SAPISIDHASH)
+  const mockSes = {
+    cookies: {
+      get: async (opts) => {
+        if (opts && opts.domain) {
+          return [
+            { name: 'SAPISID', value: 'dummy_sapisid_123' },
+            { name: 'SID', value: 'dummy_sid_abc' }
+          ];
+        }
+        return [{ name: 'LOGIN_INFO', value: 'dummy_login_info' }];
+      }
+    }
+  };
+  innertube.getAuthContext(mockSes).then(ctx => {
+    assert.strictEqual(ctx.isLoggedIn, true);
+    assert.ok(ctx.headers['Authorization'].startsWith('SAPISIDHASH '));
+    assert.ok(ctx.cookieStr.includes('SAPISID=dummy_sapisid_123'));
+    assert.ok(ctx.cookieStr.includes('SID=dummy_sid_abc'));
+  });
+
+  // Test getAuthContext with null session
+  innertube.getAuthContext(null).then(ctx => {
+    assert.strictEqual(ctx.isLoggedIn, false);
+    assert.strictEqual(ctx.cookieStr, '');
+  });
+
   // 3. Verify parseHomeResponse structure handling
   const mockHomeData = {
     contents: {
