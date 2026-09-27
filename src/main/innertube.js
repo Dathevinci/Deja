@@ -920,15 +920,43 @@ function cleanSearchTerm(str) {
   if (!str || typeof str !== 'string') return '';
   return str
     .replace(/\uFEFF|\u200E|\u200F/g, '')
+    // Strip trailing unclosed or closed feature tags (e.g. '(feat. Din...', '(feat. Dina Rae)', 'ft. Daft Punk', 'featuring ...')
+    .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring)\b.*$/gi, '')
+    .replace(/\s*(?:feat\.?|ft\.?|featuring)\b.*$/gi, '')
+    // Strip parenthetical/bracketed official video/audio/remaster/live tags
     .replace(/\s*[\(\[](?:official\s+)?(?:music\s+|lyric\s+|lyrics\s+)?(?:video|audio|visualizer|track|remaster(?:ed)?(?:\s+\d{4})?|live(?:\s+at\s+[^)\]]+)?)[\]\)]/gi, '')
     .replace(/\s*\(?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^)]+)?)\)?/gi, '')
     .replace(/\s*\[?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^\]]+)?)\]?/gi, '')
+    // Strip trailing separators and descriptors
     .replace(/\s*(?:\||\/\/|-)\s*(?:official\s+video|official\s+audio|audio|lyric\s+video|lyrics).*$/gi, '')
-    .replace(/\s*[\(\[](?:feat\.|ft\.)\s+[^)\]]+[\]\)]/gi, '')
-    .replace(/\s*\(?(?:feat\.|ft\.)\s+[^)]+\)?/gi, '')
-    .replace(/\s*\[?(?:feat\.|ft\.)\s+[^\]]+\]?/gi, '')
-    .replace(/\s*(?:feat\.|ft\.)\s+.*$/gi, '')
+    // Clean any trailing ellipsis or periods
+    .replace(/[\.…\s]+$/, '')
     .trim();
+}
+
+/**
+ * Cleans artist name for lyrics matching
+ */
+function cleanArtistTerm(str) {
+  if (!str || typeof str !== 'string') return '';
+  let s = str
+    .replace(/\uFEFF|\u200E|\u200F/g, '')
+    .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring)\b.*$/gi, '')
+    .replace(/\s*(?:feat\.?|ft\.?|featuring)\b.*$/gi, '')
+    .trim();
+  // Strip metadata like bullet view counts or album info (e.g. "Eminem • The Eminem Show")
+  if (s.includes('•')) s = s.split('•')[0].trim();
+  if (s.includes('·')) s = s.split('·')[0].trim();
+  return s.replace(/[\.…\s]+$/, '').trim();
+}
+
+/**
+ * Extracts primary artist name if multiple artists are separated by comma, slash, or ampersand
+ */
+function getPrimaryArtist(str) {
+  const clean = cleanArtistTerm(str);
+  if (!clean) return '';
+  return clean.split(/[,&/]/)[0].trim();
 }
 
 /**
@@ -986,54 +1014,95 @@ function parseLrcString(lrcContent) {
  */
 async function fetchLrcLibLyrics(title, artist, durationSeconds) {
   const cleanTitle = cleanSearchTerm(title);
-  const cleanArtist = cleanSearchTerm(artist);
+  const cleanArtist = cleanArtistTerm(artist);
+  const primaryArtist = getPrimaryArtist(cleanArtist);
   if (!cleanTitle) return null;
 
   const durationParam = (durationSeconds && typeof durationSeconds === 'number' && durationSeconds > 0)
     ? Math.round(durationSeconds)
     : null;
 
-  // 1. Exact match attempt
-  try {
-    let getUrl = `${LRCLIB_BASE}/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
-    if (durationParam) {
-      getUrl += `&duration=${durationParam}`;
-    }
-    const res = await fetch(getUrl, {
-      headers: { 'User-Agent': LRCLIB_USER_AGENT }
-    });
-    if (res.ok) {
+  const artistCandidates = [cleanArtist, primaryArtist].filter(Boolean);
+  const uniqueArtists = [...new Set(artistCandidates)];
+
+  const tryParseLrcResponse = async (res) => {
+    if (!res || !res.ok) return null;
+    try {
       const data = await res.json();
-      if (data && data.syncedLyrics) {
+      if (data && data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
         const parsed = parseLrcString(data.syncedLyrics);
         if (parsed.length > 0) return parsed;
       }
-    }
-  } catch (err) {
-    console.warn('[LRCLIB] /get failed:', err.message);
-  }
+    } catch {}
+    return null;
+  };
 
-  // 2. Fuzzy search fallback matching closest duration
-  try {
-    const searchUrl = `${LRCLIB_BASE}/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
-    const res = await fetch(searchUrl, {
-      headers: { 'User-Agent': LRCLIB_USER_AGENT }
-    });
-    if (res.ok) {
-      const items = await res.json();
-      if (Array.isArray(items) && items.length > 0) {
-        const syncedItems = items.filter(it => it && it.syncedLyrics && it.syncedLyrics.trim().length > 0);
-        if (syncedItems.length > 0) {
-          if (durationParam) {
-            syncedItems.sort((a, b) => Math.abs((a.duration || 0) - durationParam) - Math.abs((b.duration || 0) - durationParam));
-          }
-          const parsed = parseLrcString(syncedItems[0].syncedLyrics);
-          if (parsed.length > 0) return parsed;
-        }
+  // 1. Exact match attempt via /get endpoint
+  for (const art of (uniqueArtists.length > 0 ? uniqueArtists : [''])) {
+    try {
+      let getUrl = `${LRCLIB_BASE}/get?track_name=${encodeURIComponent(cleanTitle)}`;
+      if (art) getUrl += `&artist_name=${encodeURIComponent(art)}`;
+      if (durationParam) getUrl += `&duration=${durationParam}`;
+
+      const res = await fetch(getUrl, {
+        headers: { 'User-Agent': LRCLIB_USER_AGENT }
+      });
+      const parsed = await tryParseLrcResponse(res);
+      if (parsed) return parsed;
+    } catch (err) {
+      console.warn('[LRCLIB] /get failed:', err.message);
+    }
+
+    // Try without duration parameter if duration was provided, to avoid 404 on minor duration drift
+    if (durationParam) {
+      try {
+        let getUrlNoDur = `${LRCLIB_BASE}/get?track_name=${encodeURIComponent(cleanTitle)}`;
+        if (art) getUrlNoDur += `&artist_name=${encodeURIComponent(art)}`;
+
+        const res = await fetch(getUrlNoDur, {
+          headers: { 'User-Agent': LRCLIB_USER_AGENT }
+        });
+        const parsed = await tryParseLrcResponse(res);
+        if (parsed) return parsed;
+      } catch (err) {
+        console.warn('[LRCLIB] /get without duration failed:', err.message);
       }
     }
-  } catch (err) {
-    console.warn('[LRCLIB] /search fallback failed:', err.message);
+  }
+
+  // 2. Fuzzy search fallback via /search endpoint (supporting both ?q=... and ?track_name=...)
+  const searchQueries = [];
+  for (const art of uniqueArtists) {
+    searchQueries.push(`${LRCLIB_BASE}/search?q=${encodeURIComponent(cleanTitle + ' ' + art)}`);
+    searchQueries.push(`${LRCLIB_BASE}/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(art)}`);
+  }
+  searchQueries.push(`${LRCLIB_BASE}/search?q=${encodeURIComponent(cleanTitle)}`);
+
+  const seenUrls = new Set();
+  for (const searchUrl of searchQueries) {
+    if (seenUrls.has(searchUrl)) continue;
+    seenUrls.add(searchUrl);
+
+    try {
+      const res = await fetch(searchUrl, {
+        headers: { 'User-Agent': LRCLIB_USER_AGENT }
+      });
+      if (res.ok) {
+        const items = await res.json();
+        if (Array.isArray(items) && items.length > 0) {
+          const syncedItems = items.filter(it => it && it.syncedLyrics && it.syncedLyrics.trim().length > 0);
+          if (syncedItems.length > 0) {
+            if (durationParam) {
+              syncedItems.sort((a, b) => Math.abs((a.duration || 0) - durationParam) - Math.abs((b.duration || 0) - durationParam));
+            }
+            const parsed = parseLrcString(syncedItems[0].syncedLyrics);
+            if (parsed.length > 0) return parsed;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[LRCLIB] /search fallback failed:', err.message);
+    }
   }
 
   return null;
@@ -1152,6 +1221,8 @@ module.exports = {
   fetchYouTubeMusicLyrics,
   parseLrcString,
   cleanSearchTerm,
+  cleanArtistTerm,
+  getPrimaryArtist,
   search,
   rate,
   sapisidHash,

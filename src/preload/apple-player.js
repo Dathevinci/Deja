@@ -1987,19 +1987,27 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
 
     const cleanTitle = (track.title || '')
       .replace(/\uFEFF|\u200E|\u200F/g, '')
+      // Strip trailing unclosed or closed feature tags
+      .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring)\b.*$/gi, '')
+      .replace(/\s*(?:feat\.?|ft\.?|featuring)\b.*$/gi, '')
+      // Strip parenthetical/bracketed official video/audio/remaster/live tags
       .replace(/\s*[\(\[](?:official\s+)?(?:music\s+|lyric\s+|lyrics\s+)?(?:video|audio|visualizer|track|remaster(?:ed)?(?:\s+\d{4})?|live(?:\s+at\s+[^)\]]+)?)[\]\)]/gi, '')
       .replace(/\s*\(?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^)]+)?)\)?/gi, '')
       .replace(/\s*\[?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^\]]+)?)\]?/gi, '')
+      // Strip trailing separators and descriptors
       .replace(/\s*(?:\||\/\/|-)\s*(?:official\s+video|official\s+audio|audio|lyric\s+video|lyrics).*$/gi, '')
-      .replace(/\s*[\(\[](?:feat\.|ft\.)\s+[^)\]]+[\]\)]/gi, '')
-      .replace(/\s*\(?(?:feat\.|ft\.)\s+[^)]+\)?/gi, '')
-      .replace(/\s*\[?(?:feat\.|ft\.)\s+[^\]]+\]?/gi, '')
-      .replace(/\s*(?:feat\.|ft\.)\s+.*$/gi, '')
+      // Clean any trailing ellipsis or periods
+      .replace(/[\.…\s]+$/, '')
       .trim();
-    const cleanArtist = (track.artist || '')
+
+    let cleanArtist = (track.artist || '')
       .replace(/\uFEFF|\u200E|\u200F/g, '')
-      .replace(/\s*\(?(?:feat\.|ft\.)\s+[^)]+\)?/gi, '')
+      .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring)\b.*$/gi, '')
+      .replace(/\s*(?:feat\.?|ft\.?|featuring)\b.*$/gi, '')
       .trim();
+    if (cleanArtist.includes('•')) cleanArtist = cleanArtist.split('•')[0].trim();
+    if (cleanArtist.includes('·')) cleanArtist = cleanArtist.split('·')[0].trim();
+    cleanArtist = cleanArtist.replace(/[\.…\s]+$/, '').trim();
 
     try {
       let resolved = null;

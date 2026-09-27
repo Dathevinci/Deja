@@ -186,6 +186,36 @@ function runBitChordArchitectureTests() {
     innertube.cleanSearchTerm('Blinding Lights (Live at SoFi Stadium)'),
     'Blinding Lights'
   );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('Superman (feat. Din...)'),
+    'Superman'
+  );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('Superman (feat. Din...'),
+    'Superman'
+  );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('Superman (feat. Dina Rae)'),
+    'Superman'
+  );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('Superman (Remastered)'),
+    'Superman'
+  );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('Superman [Official Video]'),
+    'Superman'
+  );
+
+  // Test cleanArtistTerm and getPrimaryArtist
+  assert.strictEqual(
+    innertube.cleanArtistTerm('Eminem • The Eminem Show'),
+    'Eminem'
+  );
+  assert.strictEqual(
+    innertube.getPrimaryArtist('Eminem, Dina Rae'),
+    'Eminem'
+  );
 
   // Test parseLrcString
   const sampleLrc = `
