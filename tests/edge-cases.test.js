@@ -220,6 +220,11 @@ function runEdgeCaseTests() {
   delete global.document;
 
   // 12. Session Cookie Parser Edge Cases (testing real parseCookiePairs from cookie-utils.js)
+  const { execFileSync } = require('child_process');
+  assert.doesNotThrow(() => {
+    execFileSync(process.execPath, ['--check', require.resolve('../src/main/main.js')]);
+  }, 'src/main/main.js must have zero syntax errors or duplicate declarations');
+
   const { parseCookiePairs } = require('../src/main/cookie-utils.js');
 
   assert.deepStrictEqual(parseCookiePairs(''), []);
