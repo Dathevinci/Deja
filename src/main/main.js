@@ -568,7 +568,6 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
               if (document.body) {
                 document.body.style.backgroundColor = '#ffffff';
                 document.body.style.overflow = 'auto';
-                document.body.style.minHeight = 'calc(100vh - 48px)';
               }
             } else if (isYTM) {
               if (document.documentElement) {
@@ -667,12 +666,12 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
                                       googleCookieNames.has('SSID');
           const hasAuthCookie = hasYtAuthCookie || hasGoogleAuthCookie;
 
-          // Prevent premature closing only if user is still on Google auth and has no auth cookies yet
-          if (curUrl.includes('accounts.google.') && !hasAuthCookie && !forceSync) {
+          // Prevent premature closing while user is still on Google auth flow (typing email, pwd, 2FA)
+          if (curUrl.includes('accounts.google.') && !forceSync) {
             return;
           }
 
-          if (hasAuthCookie || forceSync) {
+          if (hasYtAuthCookie || forceSync) {
             // Fetch real account details via innertube.getAccountInfo(ses)
             const info = await innertube.getAccountInfo(ses);
             if (info && info.isLoggedIn) {
@@ -692,14 +691,15 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
                   loginWin.close();
                 }
               }, 400);
-            } else if (hasGoogleAuthCookie && curUrl.includes('accounts.google.')) {
-              if (loginWin && !loginWin.isDestroyed()) {
-                loginWin.loadURL('https://music.youtube.com');
-              }
             } else if (forceSync) {
               if (loginWin && !loginWin.isDestroyed() && !curUrl.includes('music.youtube.com')) {
                 loginWin.loadURL('https://music.youtube.com');
               }
+            }
+          } else if (hasGoogleAuthCookie && !curUrl.includes('accounts.google.') && !curUrl.includes('music.youtube.com')) {
+            // Google auth finished and navigated away from accounts.google., redirect to YouTube Music to exchange session cookies
+            if (loginWin && !loginWin.isDestroyed()) {
+              loginWin.loadURL('https://music.youtube.com');
             }
           }
         } catch (err) {
@@ -752,7 +752,6 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           if (pollInterval) clearInterval(pollInterval);
           return;
         }
-        injectLoginHeader();
         checkLoginSuccess();
       }, 800);
 

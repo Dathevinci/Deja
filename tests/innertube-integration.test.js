@@ -32,10 +32,16 @@ function runInnerTubeIntegrationTests() {
   const mockSes = {
     cookies: {
       get: async (opts) => {
-        if (opts && opts.domain) {
+        if (opts && opts.domain && opts.domain.includes('youtube')) {
           return [
             { name: 'SAPISID', value: 'dummy_sapisid_123' },
             { name: 'SID', value: 'dummy_sid_abc' }
+          ];
+        }
+        if (opts && opts.domain && opts.domain.includes('google')) {
+          return [
+            { name: 'SAPISID', value: 'google_sapisid_xyz' },
+            { name: 'SID', value: 'google_sid_xyz' }
           ];
         }
         return [{ name: 'LOGIN_INFO', value: 'dummy_login_info' }];
@@ -45,14 +51,40 @@ function runInnerTubeIntegrationTests() {
   innertube.getAuthContext(mockSes).then(ctx => {
     assert.strictEqual(ctx.isLoggedIn, true);
     assert.ok(ctx.headers['Authorization'].startsWith('SAPISIDHASH '));
+    // Must prioritize YouTube SAPISID over Google SAPISID
+    const expectedHash = innertube.sapisidHash('dummy_sapisid_123');
+    assert.strictEqual(ctx.headers['Authorization'].split('_')[1], expectedHash.split('_')[1], 'Must use YouTube SAPISID for Authorization');
     assert.ok(ctx.cookieStr.includes('SAPISID=dummy_sapisid_123'));
     assert.ok(ctx.cookieStr.includes('SID=dummy_sid_abc'));
+  });
+
+  // Test getAuthContext with Google-only cookies (must be isLoggedIn: false for YouTube Music)
+  const mockGoogleOnlySes = {
+    cookies: {
+      get: async (opts) => {
+        if (opts && opts.domain && opts.domain.includes('google')) {
+          return [
+            { name: 'SAPISID', value: 'google_sapisid_only' },
+            { name: 'SID', value: 'google_sid_only' }
+          ];
+        }
+        return [];
+      }
+    }
+  };
+  innertube.getAuthContext(mockGoogleOnlySes).then(ctx => {
+    assert.strictEqual(ctx.isLoggedIn, false, 'Must not report YouTube logged in when only Google cookies exist');
   });
 
   // Test getAuthContext with null session
   innertube.getAuthContext(null).then(ctx => {
     assert.strictEqual(ctx.isLoggedIn, false);
     assert.strictEqual(ctx.cookieStr, '');
+  });
+
+  // Test getAccountInfo with Google-only session returns isLoggedIn: false
+  innertube.getAccountInfo(mockGoogleOnlySes).then(info => {
+    assert.strictEqual(info.isLoggedIn, false, 'getAccountInfo must return isLoggedIn: false when YouTube session is absent');
   });
 
   // 3. Verify parseHomeResponse structure handling

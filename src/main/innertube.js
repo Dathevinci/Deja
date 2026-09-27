@@ -27,15 +27,22 @@ async function getAuthContext(ses) {
     const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
     const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
     const googleDomainCookies = await ses.cookies.get({ domain: 'google.com' }).catch(() => []);
-    const allCookies = [...cookies, ...ytCookies, ...ytDomainCookies, ...googleCookies, ...googleDomainCookies];
+    // YouTube cookies must take precedence over Google cookies in the cookie jar
+    const allCookies = [...googleCookies, ...googleDomainCookies, ...cookies, ...ytCookies, ...ytDomainCookies];
     const cookieMap = {};
     allCookies.forEach(c => {
       cookieMap[c.name] = c.value;
     });
 
+    // YouTube-specific cookie mapping to check authentic YouTube session
+    const ytCookieMap = {};
+    [...cookies, ...ytCookies, ...ytDomainCookies].forEach(c => {
+      ytCookieMap[c.name] = c.value;
+    });
+
     const cookieStr = Object.entries(cookieMap).map(([k, v]) => `${k}=${v}`).join('; ');
-    const sapisid = cookieMap['SAPISID'] || cookieMap['__Secure-3PAPISID'] || cookieMap['__Secure-1PAPISID'];
-    const isLoggedIn = !!(sapisid || cookieMap['SID'] || cookieMap['LOGIN_INFO']);
+    const sapisid = ytCookieMap['SAPISID'] || ytCookieMap['__Secure-3PAPISID'] || ytCookieMap['__Secure-1PAPISID'] || cookieMap['SAPISID'] || cookieMap['__Secure-3PAPISID'] || cookieMap['__Secure-1PAPISID'];
+    const isLoggedIn = !!(ytCookieMap['SAPISID'] || ytCookieMap['LOGIN_INFO'] || ytCookieMap['__Secure-3PAPISID'] || ytCookieMap['__Secure-1PAPISID'] || ytCookieMap['SID']);
 
     const headers = getDefaultHeaders();
     if (cookieStr) {
@@ -155,9 +162,9 @@ async function getAccountInfo(ses) {
     console.warn('[InnerTube] getAccountInfo error:', err.message);
     const auth = await getAuthContext(ses).catch(() => ({ isLoggedIn: false }));
     return {
-      isLoggedIn: auth.isLoggedIn,
-      name: 'Google User',
-      channelTitle: 'Google User',
+      isLoggedIn: false,
+      name: '',
+      channelTitle: '',
       handle: '',
       avatarUrl: '',
       photoUrl: ''
