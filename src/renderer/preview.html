@@ -821,69 +821,103 @@
       <div class="modal-body" id="account-modal-body">
         <!-- Segmented Tab Navigation for Logged-out state -->
         <div class="apple-segmented-control" id="login-modal-tabs">
-          <button class="segmented-tab active" id="tab-btn-inapp" data-tab="inapp">In-App Google Sign In</button>
-          <button class="segmented-tab" id="tab-btn-browser" data-tab="browser">Browser Quick Connect</button>
+          <button class="segmented-tab active" id="tab-btn-browser" data-tab="browser">⚡ 1-Click Browser Sync</button>
+          <button class="segmented-tab" id="tab-btn-cookies" data-tab="cookies">📋 Paste Cookie / Token</button>
+          <button class="segmented-tab" id="tab-btn-inapp" data-tab="inapp">🪟 In-App Window</button>
         </div>
 
-        <!-- Tab 1: In-App Google Sign In -->
-        <div class="login-tab-content" id="tab-content-inapp">
+        <!-- Tab 1: 1-Click Browser Sync (Recommended) -->
+        <div class="login-tab-content" id="tab-content-browser">
+          <div class="browser-connect-inner">
+            <div class="connect-banner-highlight">
+              <div class="connect-banner-icon">⚡</div>
+              <div class="connect-banner-text">
+                <strong>Fastest & 100% Reliable:</strong> Google blocks password entry inside desktop app windows with <em>"Browser or app may not be secure"</em>. Browser Sync bypasses this by safely importing your active session from Chrome, Edge, Brave, or Firefox in 5 seconds!
+              </div>
+            </div>
+
+            <!-- Two-step cards -->
+            <div class="connect-steps-grid">
+              <!-- Step 1 -->
+              <div class="connect-step-card">
+                <div class="step-badge">Step 1</div>
+                <h4>Open YouTube Music</h4>
+                <p>Ensure you are signed in to YouTube Music in your default browser.</p>
+                <button class="btn-apple-secondary btn-mini-open" id="btn-open-ytm-browser">
+                  Open YouTube Music ↗
+                </button>
+              </div>
+
+              <!-- Step 2 -->
+              <div class="connect-step-card">
+                <div class="step-badge">Step 2</div>
+                <h4>Click or Drag Bookmarklet</h4>
+                <p>Drag this button to your Bookmarks Bar, then click it on YouTube Music:</p>
+                <a id="deja-bookmarklet-link" class="btn-apple-primary bookmarklet-button" href="javascript:(function(){var c=document.cookie;if(!c||c.indexOf('SAPISID')===-1){alert('Please navigate to music.youtube.com and make sure you are signed in first!');return;}fetch('http://127.0.0.1:3728/sync?c='+encodeURIComponent(c),{mode:'no-cors'}).then(function(){alert('Sync sent to Deja! Return to Deja now.');}).catch(function(e){alert('Could not reach Deja. Please make sure Deja is running!');});})()" title="Drag this button to your browser Bookmarks Bar!">
+                  ⭐ Drag Me: "Sync Deja"
+                </a>
+              </div>
+            </div>
+
+            <!-- Alternative: Console Snippet -->
+            <div class="connect-method-card" style="margin-top: 14px;">
+              <div class="method-card-header">
+                <span class="method-card-title">Or Run 1-Line in Browser Console (F12):</span>
+                <button class="btn-apple-secondary btn-mini-copy" id="btn-copy-sync-snippet" title="Copy snippet to clipboard">
+                  Copy Snippet
+                </button>
+              </div>
+              <div class="console-snippet-box">
+                <code class="console-snippet-code" id="sync-console-snippet">fetch('http://127.0.0.1:3728/sync?c=' + encodeURIComponent(document.cookie), { mode: 'no-cors' })</code>
+              </div>
+            </div>
+
+            <!-- Live Status Indicator -->
+            <div class="server-status-pill">
+              <span class="status-dot-pulse"></span>
+              <span id="sync-server-status-text">Deja local sync listener is ready on localhost:3728</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Paste Cookie / Token -->
+        <div class="login-tab-content" id="tab-content-cookies" style="display: none;">
+          <div class="connect-method-card">
+            <span class="method-card-title">Paste Cookie String, JSON Export, or SAPISID</span>
+            <p class="method-card-sub">
+              Paste your YouTube Music cookies (from Cookie-Editor extension or browser) or raw <code>SAPISID</code> token:
+            </p>
+            <textarea id="input-session-cookies" class="apple-text-input cookie-textarea" placeholder="Paste SAPISID=...; LOGIN_INFO=... or raw SAPISID token here"></textarea>
+            <div class="cookie-submit-row">
+              <span class="cookie-import-status" id="cookie-import-status"></span>
+              <button class="btn-apple-primary" id="btn-submit-session-cookies">
+                Connect Account
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: In-App Window (Experimental) -->
+        <div class="login-tab-content" id="tab-content-inapp" style="display: none;">
           <div class="login-content-inner">
             <div class="login-hero-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/>
               </svg>
             </div>
-            <h3 class="login-prompt-title">Sign in with your Google Account</h3>
-            <p class="login-prompt-desc">
-              Connect your YouTube Music account to stream personal playlists, liked songs, artists, and live algorithmic recommendations directly in Deja.
-            </p>
-            <button class="btn-apple-primary login-action-btn" id="btn-modal-open-login">
-              Open Google Sign In Window
-            </button>
+            <h3 class="login-prompt-title">In-App Google Sign In</h3>
+            <div class="google-warning-box">
+              <strong>⚠️ Google Restriction:</strong> Google actively blocks embedded desktop windows with <em>"This browser or app may not be secure"</em> after entering your email. If Google blocks you, please switch to <strong>1-Click Browser Sync</strong> instead.
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+              <button class="btn-apple-primary login-action-btn" id="btn-modal-open-login">
+                Open Google Login Window
+              </button>
+              <button class="btn-apple-secondary login-action-btn" id="btn-modal-open-ytm-web">
+                Open YouTube Music Web Window
+              </button>
+            </div>
             <div class="login-status-message" id="inapp-login-status"></div>
-          </div>
-        </div>
-
-        <!-- Tab 2: Browser Quick Connect -->
-        <div class="login-tab-content" id="tab-content-browser" style="display: none;">
-          <div class="browser-connect-inner">
-            <p class="browser-connect-desc">
-              Already signed in to YouTube Music in Chrome, Edge, Brave, or Firefox? Connect in 5 seconds without re-entering your password.
-            </p>
-
-            <!-- Method 1: Instant Browser Sync -->
-            <div class="connect-method-card">
-              <div class="method-card-header">
-                <span class="method-card-title">Method 1: Instant 1-Click Console Sync</span>
-                <button class="btn-apple-secondary btn-mini-open" id="btn-open-ytm-browser">
-                  Open YouTube Music ↗
-                </button>
-              </div>
-              <p class="method-card-sub">
-                In your browser on <strong>music.youtube.com</strong>, press <kbd>F12</kbd> (Console) and paste this snippet:
-              </p>
-              <div class="console-snippet-box">
-                <code class="console-snippet-code" id="sync-console-snippet">fetch('http://127.0.0.1:3728/sync?c=' + encodeURIComponent(document.cookie))</code>
-                <button class="btn-apple-secondary btn-mini-copy" id="btn-copy-sync-snippet" title="Copy snippet to clipboard">
-                  Copy
-                </button>
-              </div>
-            </div>
-
-            <!-- Method 2: Cookie String / SAPISID Import -->
-            <div class="connect-method-card">
-              <span class="method-card-title">Method 2: Paste Cookie String or SAPISID</span>
-              <p class="method-card-sub">
-                Paste your YouTube Music cookie string (e.g. <code>SAPISID=...; LOGIN_INFO=...</code>) or raw <code>SAPISID</code> token:
-              </p>
-              <textarea id="input-session-cookies" class="apple-text-input cookie-textarea" placeholder="Paste SAPISID=...; LOGIN_INFO=... or raw SAPISID here"></textarea>
-              <div class="cookie-submit-row">
-                <span class="cookie-import-status" id="cookie-import-status"></span>
-                <button class="btn-apple-primary" id="btn-submit-session-cookies">
-                  Connect Account
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 

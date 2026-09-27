@@ -729,14 +729,20 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(typeof previewModule.renderAccountModalContent, 'function', 'preview.js must export renderAccountModalContent');
   assert.strictEqual(typeof previewModule.switchLoginTab, 'function', 'preview.js must export switchLoginTab');
 
+  assert.ok(mainCode.includes('Access-Control-Allow-Private-Network'), 'main.js must set Access-Control-Allow-Private-Network for PNA browser sync');
+  assert.ok(html.includes('id="deja-bookmarklet-link"'), 'preview.html must include 1-click sync bookmarklet');
+  assert.ok(html.includes('id="tab-btn-cookies"'), 'preview.html must include Paste Cookie / Token tab');
+
   // Mock DOM for Account Modal
   const mockAccountModal = { id: 'account-login-modal', style: { display: 'none' } };
   const mockModalTitle = { id: 'account-modal-title', innerText: '' };
   const mockTabs = { id: 'login-modal-tabs', style: { display: 'flex' } };
   const mockTabInApp = { id: 'tab-btn-inapp', classList: { add: () => {}, remove: () => {} } };
   const mockTabBrowser = { id: 'tab-btn-browser', classList: { add: () => {}, remove: () => {} } };
-  const mockInAppContent = { id: 'tab-content-inapp', style: { display: 'block' } };
+  const mockTabCookies = { id: 'tab-btn-cookies', classList: { add: () => {}, remove: () => {} } };
+  const mockInAppContent = { id: 'tab-content-inapp', style: { display: 'none' } };
   const mockBrowserContent = { id: 'tab-content-browser', style: { display: 'none' } };
+  const mockCookiesContent = { id: 'tab-content-cookies', style: { display: 'none' } };
   const mockProfileView = { id: 'account-profile-view', style: { display: 'none' } };
 
   const prevDocAcc = global.document;
@@ -748,8 +754,10 @@ function runBitChordArchitectureTests() {
         if (id === 'login-modal-tabs') return mockTabs;
         if (id === 'tab-btn-inapp') return mockTabInApp;
         if (id === 'tab-btn-browser') return mockTabBrowser;
+        if (id === 'tab-btn-cookies') return mockTabCookies;
         if (id === 'tab-content-inapp') return mockInAppContent;
         if (id === 'tab-content-browser') return mockBrowserContent;
+        if (id === 'tab-content-cookies') return mockCookiesContent;
         if (id === 'account-profile-view') return mockProfileView;
         return { style: {}, classList: { add: () => {}, remove: () => {} } };
       },
@@ -763,6 +771,10 @@ function runBitChordArchitectureTests() {
     previewModule.switchLoginTab('browser');
     assert.strictEqual(mockBrowserContent.style.display, 'block', 'switchLoginTab(browser) must show browser content');
     assert.strictEqual(mockInAppContent.style.display, 'none', 'switchLoginTab(browser) must hide in-app content');
+
+    previewModule.switchLoginTab('cookies');
+    assert.strictEqual(mockCookiesContent.style.display, 'block', 'switchLoginTab(cookies) must show cookies content');
+    assert.strictEqual(mockBrowserContent.style.display, 'none', 'switchLoginTab(cookies) must hide browser content');
 
     previewModule.switchLoginTab('inapp');
     assert.strictEqual(mockInAppContent.style.display, 'block', 'switchLoginTab(inapp) must show in-app content');

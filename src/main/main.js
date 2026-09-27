@@ -517,9 +517,11 @@ function startSyncServer() {
   try {
     const http = require('http');
     syncServer = http.createServer(async (req, res) => {
+      // Chrome & Edge Private Network Access (PNA) and CORS headers
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', '*');
+      res.setHeader('Access-Control-Allow-Private-Network', 'true');
 
       if (req.method === 'OPTIONS') {
         res.writeHead(204);
@@ -529,6 +531,53 @@ function startSyncServer() {
 
       try {
         const parsedUrl = new URL(req.url, 'http://127.0.0.1:3728');
+
+        // Status check endpoint to see if Deja is authenticated and running
+        if (parsedUrl.pathname === '/sync-status') {
+          const ses = session.fromPartition('persist:ytmusic');
+          const info = await innertube.getAccountInfo(ses).catch(() => ({ isLoggedIn: false }));
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Private-Network': 'true'
+          });
+          res.end(JSON.stringify(info || { isLoggedIn: false }));
+          return;
+        }
+
+        // Web Helper / Connect Landing Page
+        if (parsedUrl.pathname === '/' || parsedUrl.pathname === '/connect' || parsedUrl.pathname === '/help') {
+          res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Private-Network': 'true'
+          });
+          res.end(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Deja Desktop Sync Helper</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; background: #0a0a0e; color: #fff; text-align: center; padding: 40px 20px; margin: 0; }
+    .card { max-width: 520px; margin: 0 auto; background: rgba(28,28,32,0.9); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 32px 28px; box-shadow: 0 16px 40px rgba(0,0,0,0.6); }
+    h1 { font-size: 24px; color: #FA2D48; margin-top: 0; }
+    p { font-size: 14px; line-height: 1.6; color: #aaa; }
+    .status-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(52,199,89,0.15); color: #34C759; padding: 6px 16px; border-radius: 999px; font-weight: 600; font-size: 13px; margin-bottom: 20px; }
+    .btn { display: inline-block; background: #FA2D48; color: #fff; text-decoration: none; padding: 10px 22px; border-radius: 999px; font-weight: 600; margin: 10px 4px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="status-badge">● Deja Sync Server is Online</div>
+    <h1>Deja Account Connect</h1>
+    <p>To connect your Google / YouTube Music account to Deja without entering your password, open YouTube Music in this browser and click your Deja bookmarklet!</p>
+    <a href="https://music.youtube.com" class="btn" target="_blank">Open YouTube Music ↗</a>
+  </div>
+</body>
+</html>`);
+          return;
+        }
+
         if (parsedUrl.pathname === '/sync') {
           let cookieParam = parsedUrl.searchParams.get('c') || '';
 
@@ -553,16 +602,34 @@ function startSyncServer() {
               if (activeLoginWin && !activeLoginWin.isDestroyed()) {
                 try { activeLoginWin.close(); } catch {}
               }
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ success: true, message: 'Signed in successfully!', account: result.account }));
+              const isDirectBrowser = req.headers['sec-fetch-dest'] === 'document' || req.headers['accept']?.includes('text/html');
+              if (isDirectBrowser) {
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(`<!DOCTYPE html><html><body style="font-family:system-ui;background:#0d0d12;color:#fff;text-align:center;padding-top:60px;"><h2 style="color:#34C759;">🎉 Connected to Deja Successfully!</h2><p>You can close this tab now and return to Deja.</p><script>setTimeout(() => window.close(), 1800);</script></body></html>`);
+              } else {
+                res.writeHead(200, {
+                  'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*',
+                  'Access-Control-Allow-Private-Network': 'true'
+                });
+                res.end(JSON.stringify({ success: true, message: 'Signed in successfully!', account: result.account }));
+              }
               return;
             } else {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.writeHead(400, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Private-Network': 'true'
+              });
               res.end(JSON.stringify({ success: false, error: (result && result.error) || 'Failed to authenticate with provided cookies.' }));
               return;
             }
           } else {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.writeHead(400, {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Private-Network': 'true'
+            });
             res.end(JSON.stringify({ success: false, error: 'Missing c parameter with cookie string.' }));
             return;
           }
@@ -571,7 +638,11 @@ function startSyncServer() {
         console.warn('[SyncServer] Request error:', err.message);
       }
 
-      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.writeHead(404, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Private-Network': 'true'
+      });
       res.end(JSON.stringify({ error: 'Not found' }));
     });
 
@@ -1106,7 +1177,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       });
 
       // Load initial URL
-      if (isSwitchChannel) {
+      if (isSwitchChannel || targetMethod === 'web-remix' || targetMethod === 'music-youtube') {
         loginWin.loadURL('https://music.youtube.com/', { userAgent: CHROME_UA });
       } else {
         loginWin.loadURL(BITCHORD_GOOGLE_SIGNIN_URL, { userAgent: CHROME_UA });
@@ -1391,6 +1462,29 @@ app.whenReady().then(() => {
         }
       }
 
+      const isGoogleAuth = (
+        details.url.includes('accounts.google.com') ||
+        details.url.includes('accounts.youtube.com') ||
+        details.url.includes('accounts.google.') ||
+        details.url.includes('accounts.youtube.') ||
+        isGoogleAuthRequest(details.url, details.initiator)
+      );
+
+      // Clean file:// origin/referer for Google OAuth & auth endpoints without tampering with native Client Hints
+      if (isGoogleAuth) {
+        const origin = requestHeaders['Origin'] || requestHeaders['origin'] || '';
+        const referer = requestHeaders['Referer'] || requestHeaders['referer'] || '';
+        if (origin && origin.startsWith('file://')) {
+          delete requestHeaders['Origin'];
+          delete requestHeaders['origin'];
+        }
+        if (referer && referer.startsWith('file://')) {
+          delete requestHeaders['Referer'];
+          delete requestHeaders['referer'];
+        }
+        return callback({ cancel: false, requestHeaders });
+      }
+
       // Remove any lowercase/variant header keys before explicitly setting clean canonical headers
       for (const k of Object.keys(requestHeaders)) {
         const lower = k.toLowerCase();
@@ -1412,29 +1506,6 @@ app.whenReady().then(() => {
       requestHeaders['Sec-Ch-Ua-Mobile'] = '?0';
       requestHeaders['Sec-Ch-Ua-Platform'] = '"Windows"';
       requestHeaders['Sec-Ch-Ua-Full-Version-List'] = '"Google Chrome";v="131.0.6778.86", "Chromium";v="131.0.6778.86", "Not_A Brand";v="24.0.0.0"';
-
-      const isGoogleAuth = (
-        details.url.includes('accounts.google.com') ||
-        details.url.includes('accounts.youtube.com') ||
-        details.url.includes('accounts.google.') ||
-        details.url.includes('accounts.youtube.') ||
-        isGoogleAuthRequest(details.url, details.initiator)
-      );
-
-      // Clean file:// origin/referer for Google OAuth & auth endpoints
-      if (isGoogleAuth) {
-        const origin = requestHeaders['Origin'] || requestHeaders['origin'] || '';
-        const referer = requestHeaders['Referer'] || requestHeaders['referer'] || '';
-        if (origin && origin.startsWith('file://')) {
-          delete requestHeaders['Origin'];
-          delete requestHeaders['origin'];
-        }
-        if (referer && referer.startsWith('file://')) {
-          delete requestHeaders['Referer'];
-          delete requestHeaders['referer'];
-        }
-        return callback({ cancel: false, requestHeaders });
-      }
 
       const isYtOrGv = (
         details.url.includes('youtube.com') ||

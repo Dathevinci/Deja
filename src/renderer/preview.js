@@ -1680,6 +1680,8 @@ function updateAccountUI(acc) {
   }
 }
 
+let accountModalSyncPoll = null;
+
 function openAccountModal(forceLogin = false) {
   if (typeof document === 'undefined') return;
   const modal = document.getElementById('account-login-modal');
@@ -1691,10 +1693,44 @@ function openAccountModal(forceLogin = false) {
   if (api && api.startCookieSyncServer) {
     try { api.startCookieSyncServer(); } catch {}
   }
+
+  // Poll sync status while modal is open so 1-click sync is detected immediately
+  if (accountModalSyncPoll) clearInterval(accountModalSyncPoll);
+  accountModalSyncPoll = setInterval(async () => {
+    if (!modal || modal.style.display === 'none') {
+      clearInterval(accountModalSyncPoll);
+      accountModalSyncPoll = null;
+      return;
+    }
+    if (liveAccount && liveAccount.isLoggedIn) return;
+    try {
+      const res = await fetch('http://127.0.0.1:3728/sync-status').catch(() => null);
+      if (res && res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data && data.isLoggedIn) {
+          clearInterval(accountModalSyncPoll);
+          accountModalSyncPoll = null;
+          updateAccountUI(data);
+          const syncStatusEl = document.getElementById('sync-server-status-text');
+          if (syncStatusEl) {
+            syncStatusEl.innerText = `Connected successfully as ${data.channelTitle || data.name}!`;
+            syncStatusEl.style.color = '#34C759';
+          }
+          await fetchLiveYouTubeMusic(true);
+          updateSidebarPlaylistsUI();
+          setTimeout(() => closeAccountModal(), 900);
+        }
+      }
+    } catch {}
+  }, 1400);
 }
 
 function closeAccountModal() {
   if (typeof document === 'undefined') return;
+  if (accountModalSyncPoll) {
+    clearInterval(accountModalSyncPoll);
+    accountModalSyncPoll = null;
+  }
   const modal = document.getElementById('account-login-modal');
   if (modal && modal.style) modal.style.display = 'none';
 }
@@ -1703,8 +1739,9 @@ function renderAccountModalContent(forceLoginView = false) {
   if (typeof document === 'undefined') return;
   const modalTitle = document.getElementById('account-modal-title');
   const tabs = document.getElementById('login-modal-tabs');
-  const inAppContent = document.getElementById('tab-content-inapp');
   const browserContent = document.getElementById('tab-content-browser');
+  const cookiesContent = document.getElementById('tab-content-cookies');
+  const inAppContent = document.getElementById('tab-content-inapp');
   const profileView = document.getElementById('account-profile-view');
 
   const isLoggedIn = liveAccount && liveAccount.isLoggedIn && !forceLoginView;
@@ -1714,6 +1751,7 @@ function renderAccountModalContent(forceLoginView = false) {
     if (tabs && tabs.style) tabs.style.display = 'none';
     if (inAppContent && inAppContent.style) inAppContent.style.display = 'none';
     if (browserContent && browserContent.style) browserContent.style.display = 'none';
+    if (cookiesContent && cookiesContent.style) cookiesContent.style.display = 'none';
     if (profileView && profileView.style) profileView.style.display = 'block';
 
     const displayName = liveAccount.channelTitle || liveAccount.name || 'Google User';
@@ -1750,37 +1788,38 @@ function renderAccountModalContent(forceLoginView = false) {
     if (profileView && profileView.style) profileView.style.display = 'none';
 
     const activeTab = (typeof document.querySelector === 'function')
-      ? (document.querySelector('.segmented-tab.active')?.getAttribute('data-tab') || 'inapp')
-      : 'inapp';
+      ? (document.querySelector('.segmented-tab.active')?.getAttribute('data-tab') || 'browser')
+      : 'browser';
     switchLoginTab(activeTab);
   }
 }
 
 function switchLoginTab(tabName) {
   if (typeof document === 'undefined') return;
-  const inAppTabBtn = document.getElementById('tab-btn-inapp');
   const browserTabBtn = document.getElementById('tab-btn-browser');
-  const inAppContent = document.getElementById('tab-content-inapp');
-  const browserContent = document.getElementById('tab-content-browser');
+  const cookiesTabBtn = document.getElementById('tab-btn-cookies');
+  const inAppTabBtn = document.getElementById('tab-btn-inapp');
 
-  if (tabName === 'browser') {
-    if (browserTabBtn && browserTabBtn.classList && typeof browserTabBtn.classList.add === 'function') {
-      browserTabBtn.classList.add('active');
-    }
-    if (inAppTabBtn && inAppTabBtn.classList && typeof inAppTabBtn.classList.remove === 'function') {
-      inAppTabBtn.classList.remove('active');
-    }
-    if (browserContent && browserContent.style) browserContent.style.display = 'block';
-    if (inAppContent && inAppContent.style) inAppContent.style.display = 'none';
-  } else {
-    if (inAppTabBtn && inAppTabBtn.classList && typeof inAppTabBtn.classList.add === 'function') {
-      inAppTabBtn.classList.add('active');
-    }
-    if (browserTabBtn && browserTabBtn.classList && typeof browserTabBtn.classList.remove === 'function') {
-      browserTabBtn.classList.remove('active');
-    }
+  const browserContent = document.getElementById('tab-content-browser');
+  const cookiesContent = document.getElementById('tab-content-cookies');
+  const inAppContent = document.getElementById('tab-content-inapp');
+
+  [browserTabBtn, cookiesTabBtn, inAppTabBtn].forEach(b => {
+    if (b && b.classList) b.classList.remove('active');
+  });
+  [browserContent, cookiesContent, inAppContent].forEach(c => {
+    if (c && c.style) c.style.display = 'none';
+  });
+
+  if (tabName === 'cookies') {
+    if (cookiesTabBtn && cookiesTabBtn.classList) cookiesTabBtn.classList.add('active');
+    if (cookiesContent && cookiesContent.style) cookiesContent.style.display = 'block';
+  } else if (tabName === 'inapp') {
+    if (inAppTabBtn && inAppTabBtn.classList) inAppTabBtn.classList.add('active');
     if (inAppContent && inAppContent.style) inAppContent.style.display = 'block';
-    if (browserContent && browserContent.style) browserContent.style.display = 'none';
+  } else {
+    if (browserTabBtn && browserTabBtn.classList) browserTabBtn.classList.add('active');
+    if (browserContent && browserContent.style) browserContent.style.display = 'block';
   }
 }
 
@@ -4628,10 +4667,12 @@ function setupEvents() {
   const btnCloseAccModal = document.getElementById('btn-close-account-modal');
   if (btnCloseAccModal) btnCloseAccModal.onclick = closeAccountModal;
 
-  const tabInApp = document.getElementById('tab-btn-inapp');
   const tabBrowser = document.getElementById('tab-btn-browser');
-  if (tabInApp) tabInApp.onclick = () => switchLoginTab('inapp');
+  const tabCookies = document.getElementById('tab-btn-cookies');
+  const tabInApp = document.getElementById('tab-btn-inapp');
   if (tabBrowser) tabBrowser.onclick = () => switchLoginTab('browser');
+  if (tabCookies) tabCookies.onclick = () => switchLoginTab('cookies');
+  if (tabInApp) tabInApp.onclick = () => switchLoginTab('inapp');
 
   const btnModalOpenLogin = document.getElementById('btn-modal-open-login');
   if (btnModalOpenLogin) {
@@ -4664,6 +4705,37 @@ function setupEvents() {
     };
   }
 
+  const btnModalOpenYtmWeb = document.getElementById('btn-modal-open-ytm-web');
+  if (btnModalOpenYtmWeb) {
+    btnModalOpenYtmWeb.onclick = async () => {
+      const statusMsg = document.getElementById('inapp-login-status');
+      if (statusMsg) {
+        statusMsg.style.color = 'var(--apple-text-secondary)';
+        statusMsg.innerText = 'Opening YouTube Music web window...';
+      }
+      const api = window.dejaAPI || window.sonoraAPI;
+      if (api?.openGoogleLogin) {
+        try {
+          const success = await api.openGoogleLogin('music-youtube');
+          if (success) {
+            if (statusMsg) {
+              statusMsg.style.color = '#34C759';
+              statusMsg.innerText = 'Signed in successfully!';
+            }
+            setTimeout(() => closeAccountModal(), 600);
+          } else {
+            if (statusMsg) statusMsg.innerText = 'Window closed.';
+          }
+        } catch (err) {
+          if (statusMsg) {
+            statusMsg.style.color = '#FA2D48';
+            statusMsg.innerText = 'Error: ' + err.message;
+          }
+        }
+      }
+    };
+  }
+
   const btnOpenYtmBrowser = document.getElementById('btn-open-ytm-browser');
   if (btnOpenYtmBrowser) {
     btnOpenYtmBrowser.onclick = () => {
@@ -4680,7 +4752,7 @@ function setupEvents() {
   if (btnCopySnippet) {
     btnCopySnippet.onclick = () => {
       const snippetEl = document.getElementById('sync-console-snippet');
-      const text = snippetEl ? snippetEl.innerText.trim() : "fetch('http://127.0.0.1:3728/sync?c=' + encodeURIComponent(document.cookie))";
+      const text = snippetEl ? snippetEl.innerText.trim() : "fetch('http://127.0.0.1:3728/sync?c=' + encodeURIComponent(document.cookie), { mode: 'no-cors' })";
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text);
       }
