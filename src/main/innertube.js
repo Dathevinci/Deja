@@ -743,6 +743,128 @@ function parseDurationString(str) {
   return 0;
 }
 
+/**
+ * Extracts direct audio stream URL via InnerTube player endpoint (BitChord architecture).
+ * Bypasses YouTube IFrame embed restrictions, Error 150/101, and region restrictions.
+ * Tries ANDROID_MUSIC client context, IOS client context, and authenticated session context.
+ * Parses streamingData.adaptiveFormats / formats (audio/webm; codecs="opus" or audio/mp4).
+ */
+async function getAudioStream(videoId, ses) {
+  if (!videoId || typeof videoId !== 'string') return null;
+
+  // 1. ANDROID_MUSIC client context (BitChord Android PlayerClient.kt)
+  try {
+    const payload = {
+      context: {
+        client: {
+          clientName: 'ANDROID_MUSIC',
+          clientVersion: '6.20.51',
+          androidSdkVersion: 30,
+          hl: 'en',
+          gl: 'US'
+        }
+      },
+      videoId,
+      contentCheckOk: true,
+      racyCheckOk: true
+    };
+    const res = await fetch(`${MUSIC_BASE}/player?prettyPrint=false`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.android.apps.youtube.music/6.20.51 (Linux; U; Android 11)'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const best = extractBestAudioFormat(data);
+      if (best) return best;
+    }
+  } catch (err) {
+    console.warn('[InnerTube] getAudioStream ANDROID_MUSIC attempt notice:', err.message);
+  }
+
+  // 2. IOS client context (BitChord iOS PlayerClient.kt)
+  try {
+    const payload = {
+      context: {
+        client: {
+          clientName: 'IOS',
+          clientVersion: '19.45.4',
+          deviceMake: 'Apple',
+          deviceModel: 'iPhone16,2',
+          hl: 'en',
+          gl: 'US'
+        }
+      },
+      videoId,
+      contentCheckOk: true,
+      racyCheckOk: true
+    };
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_1 like Mac OS X; en_US)'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const best = extractBestAudioFormat(data);
+      if (best) return best;
+    }
+  } catch (err) {
+    console.warn('[InnerTube] getAudioStream IOS attempt notice:', err.message);
+  }
+
+  // 3. Authenticated / WEB_REMIX session context
+  try {
+    const data = await postMusic('player', {
+      videoId,
+      contentCheckOk: true,
+      racyCheckOk: true
+    }, ses);
+    const best = extractBestAudioFormat(data);
+    if (best) return best;
+  } catch (err) {
+    console.warn('[InnerTube] getAudioStream session attempt notice:', err.message);
+  }
+
+  return null;
+}
+
+function extractBestAudioFormat(data) {
+  if (!data || !data.streamingData) return null;
+  const formats = (data.streamingData.adaptiveFormats || []).concat(data.streamingData.formats || []);
+  const audioFormats = formats.filter(f => f.mimeType && f.mimeType.startsWith('audio/'));
+  if (audioFormats.length === 0) return null;
+
+  // Filter formats that have direct playable URL (no signature cipher deciphering needed)
+  const direct = audioFormats.filter(f => !!f.url);
+  if (direct.length === 0) return null;
+
+  // Prioritize audio/webm; codecs="opus" (160k, 70k, 50k) or audio/mp4 (128k) by highest bitrate
+  direct.sort((a, b) => {
+    const aOpus = (a.mimeType && a.mimeType.includes('opus')) ? 1 : 0;
+    const bOpus = (b.mimeType && b.mimeType.includes('opus')) ? 1 : 0;
+    if (aOpus !== bOpus) return bOpus - aOpus;
+    return (b.bitrate || 0) - (a.bitrate || 0);
+  });
+
+  const chosen = direct[0];
+  return {
+    url: chosen.url,
+    mimeType: chosen.mimeType,
+    bitrate: chosen.bitrate,
+    itag: chosen.itag,
+    contentLength: chosen.contentLength,
+    duration: chosen.approxDurationMs ? Math.round(Number(chosen.approxDurationMs) / 1000) : null,
+    loudnessDb: data.playerConfig?.audioConfig?.loudnessDb
+  };
+}
+
 module.exports = {
   getAuthContext,
   getAccountInfo,
@@ -754,6 +876,8 @@ module.exports = {
   getLibraryPlaylists,
   getPlaylist,
   getNextQueue,
+  getAudioStream,
+  extractBestAudioFormat,
   search,
   rate,
   sapisidHash

@@ -15,6 +15,8 @@ function runBitChordArchitectureTests() {
   assert.ok(mainCode.includes("ipcMain.handle('open-google-login'"), 'main.js must provide open-google-login IPC handler');
   assert.ok(mainCode.includes("ipcMain.handle('toggle-web-mode'"), 'main.js must provide toggle-web-mode IPC handler');
   assert.ok(mainCode.includes("ipcMain.handle('yt-search'"), 'main.js must provide yt-search IPC handler');
+  assert.ok(mainCode.includes("ipcMain.handle('yt-resolve-stream'"), 'main.js must provide yt-resolve-stream IPC handler');
+  assert.ok(mainCode.includes("app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')"), 'main.js must set autoplay-policy command line switch before whenReady');
 
   // 2. Verify preload.js API bridges
   const preloadPath = path.join(__dirname, '../src/preload/preload.js');
@@ -22,6 +24,7 @@ function runBitChordArchitectureTests() {
   assert.ok(preloadCode.includes('searchYouTube:'), 'preload.js must expose searchYouTube in dejaAPI');
   assert.ok(preloadCode.includes('toggleWebMode:'), 'preload.js must expose toggleWebMode in dejaAPI');
   assert.ok(preloadCode.includes('openGoogleLogin:'), 'preload.js must expose openGoogleLogin in dejaAPI');
+  assert.ok(preloadCode.includes('resolveAudioStream:'), 'preload.js must expose resolveAudioStream in dejaAPI');
 
   // 3. Verify menu.js
   const menuPath = path.join(__dirname, '../src/main/menu.js');
@@ -38,6 +41,7 @@ function runBitChordArchitectureTests() {
   assert.ok(html.includes('id="nav-forward"'), 'Must include forward navigation arrow');
   assert.ok(html.includes('id="btn-toggle-web"'), 'Must include toggle web mode button');
   assert.ok(html.includes('id="yt-player-container"'), 'Must include hidden YouTube player container');
+  assert.ok(html.includes('id="deja-audio-element"'), 'Must include native HTML5 deja-audio-element audio player');
   assert.ok(html.includes('class="apple-sidebar"'), 'Must include Apple sidebar navigation');
   assert.ok(html.includes('data-page="listen-now"'), 'Sidebar must include Listen Now');
   assert.ok(html.includes('data-page="browse"'), 'Sidebar must include Browse');
@@ -129,6 +133,8 @@ function runBitChordArchitectureTests() {
 
   // 6.5 Playlist shuffle function existence
   assert.strictEqual(typeof shufflePlayPlaylist, 'function', 'shufflePlayPlaylist must be a defined function');
+  assert.strictEqual(typeof previewModule.resolveAndPlayTrack, 'function', 'resolveAndPlayTrack must be a defined function');
+  assert.strictEqual(typeof previewModule.fallbackToIFrame, 'function', 'fallbackToIFrame must be a defined function');
 
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }

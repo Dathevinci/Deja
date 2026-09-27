@@ -472,10 +472,169 @@ let trebleFilter = null;
 let activeOscillators = [];
 let noteIntervalId = null;
 
-// YouTube Live Audio Playback State
+// YouTube Live Audio Playback State & Native BitChord Direct Stream Engine
 let ytPlayer = null;
 let isYtReady = false;
 let isYtPlaying = false;
+
+// Native BitChord Direct Audio Stream Resolution via InnerTube
+let dejaAudio = null;
+let isDirectStreamPlaying = false;
+let currentStreamMeta = null;
+
+function setupDejaAudioElement() {
+  if (typeof document === 'undefined') return;
+  dejaAudio = document.getElementById('deja-audio-element');
+  if (!dejaAudio) {
+    dejaAudio = document.createElement('audio');
+    dejaAudio.id = 'deja-audio-element';
+    dejaAudio.preload = 'auto';
+    dejaAudio.style.display = 'none';
+    document.body.appendChild(dejaAudio);
+  }
+
+  dejaAudio.addEventListener('play', () => {
+    isDirectStreamPlaying = true;
+    isPlaying = true;
+    updatePlayButton();
+    notifyTrackState();
+  });
+
+  dejaAudio.addEventListener('pause', () => {
+    if (!dejaAudio.ended && isDirectStreamPlaying) {
+      isPlaying = false;
+      updatePlayButton();
+      notifyTrackState();
+    }
+  });
+
+  dejaAudio.addEventListener('ended', () => {
+    isDirectStreamPlaying = false;
+    nextTrack();
+  });
+
+  dejaAudio.addEventListener('timeupdate', () => {
+    if (!isDirectStreamPlaying) return;
+    const sec = Math.round(dejaAudio.currentTime);
+    if (sec >= 0) currentTime = sec;
+    const track = CATALOGUE_TRACKS[currentIndex];
+    if (track && dejaAudio.duration && !isNaN(dejaAudio.duration) && Math.round(dejaAudio.duration) > 0) {
+      const dur = Math.round(dejaAudio.duration);
+      if (dur !== track.duration) {
+        track.duration = dur;
+        const totalEl = document.getElementById('time-total');
+        const expTotal = document.getElementById('exp-time-total');
+        if (totalEl) totalEl.innerText = formatTime(dur);
+        if (expTotal) expTotal.innerText = formatTime(dur);
+      }
+    }
+    updateProgress();
+    updateLiveLyrics();
+    updateDynamicPipeline(dejaAudio);
+  });
+
+  dejaAudio.addEventListener('error', () => {
+    console.warn('[Deja Audio] Direct stream playback error, falling back gracefully to IFrame:', dejaAudio.error?.message || dejaAudio.error?.code);
+    isDirectStreamPlaying = false;
+    const track = CATALOGUE_TRACKS[currentIndex];
+    if (track && track.videoId) {
+      fallbackToIFrame(track);
+    }
+  });
+}
+
+/**
+ * Fallback gracefully to hidden YouTube IFrame player with unMute() and setVolume(100).
+ */
+function fallbackToIFrame(track) {
+  if (!track || !track.videoId) return;
+  if (isYtReady && ytPlayer) {
+    try {
+      ytPlayer.unMute();
+      ytPlayer.setVolume(isMuted ? 0 : Math.round(currentVolume * 100));
+      const currentLoaded = ytPlayer.getVideoData ? ytPlayer.getVideoData().video_id : null;
+      if (currentLoaded !== track.videoId) {
+        ytPlayer.loadVideoById(track.videoId);
+      } else {
+        ytPlayer.playVideo();
+      }
+      isYtPlaying = true;
+    } catch (e) {
+      console.warn('[YouTube] Could not play video in iframe:', e.message);
+    }
+  }
+}
+
+/**
+ * Direct Audio Stream Resolution via InnerTube (BitChord architecture):
+ * Resolves direct audio stream URL via IPC and pipes to native HTML5 deja-audio-element.
+ * If stream URL requires signature cipher or fails, gracefully falls back to IFrame.
+ */
+async function resolveAndPlayTrack(track) {
+  if (!track) return;
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+
+  // Stop any active audio before switching
+  if (dejaAudio && !dejaAudio.paused) {
+    try { dejaAudio.pause(); } catch {}
+  }
+  if (isYtReady && ytPlayer && isYtPlaying) {
+    try { ytPlayer.pauseVideo(); } catch {}
+    isYtPlaying = false;
+  }
+
+  // Ensure AudioContext is resumed if suspended
+  if (audioContext && audioContext.state === 'suspended') {
+    audioContext.resume().catch(() => {});
+  }
+
+  if (api?.resolveAudioStream && track.videoId) {
+    try {
+      const stream = await api.resolveAudioStream(track.videoId);
+      if (stream && stream.url && dejaAudio) {
+        currentStreamMeta = stream;
+        isDirectStreamPlaying = true;
+        dejaAudio.src = stream.url;
+        dejaAudio.volume = isMuted ? 0 : currentVolume;
+        if (currentTime > 0) {
+          dejaAudio.currentTime = currentTime;
+        }
+        if (stream.duration && stream.duration > 0) {
+          track.duration = stream.duration;
+          const totalEl = document.getElementById('time-total');
+          const expTotal = document.getElementById('exp-time-total');
+          if (totalEl) totalEl.innerText = formatTime(track.duration);
+          if (expTotal) expTotal.innerText = formatTime(track.duration);
+        }
+        const p = dejaAudio.play();
+        if (p) {
+          p.catch(err => {
+            console.warn('[Deja Audio] HTML5 play() error, falling back to IFrame:', err.message);
+            isDirectStreamPlaying = false;
+            fallbackToIFrame(track);
+          });
+        }
+        isPlaying = true;
+        updatePlayButton();
+        if (playbackTimer) clearInterval(playbackTimer);
+        playbackTimer = setInterval(tick, 1000);
+        notifyTrackState();
+        return;
+      }
+    } catch (err) {
+      console.warn('[Deja Audio] Direct stream resolution error:', err.message);
+    }
+  }
+
+  // Graceful fallback to unmuted IFrame player
+  isDirectStreamPlaying = false;
+  fallbackToIFrame(track);
+  isPlaying = true;
+  updatePlayButton();
+  if (playbackTimer) clearInterval(playbackTimer);
+  playbackTimer = setInterval(tick, 1000);
+  notifyTrackState();
+}
 
 if (typeof window !== 'undefined') {
   window.onYouTubeIframeAPIReady = function() {
@@ -496,18 +655,21 @@ if (typeof window !== 'undefined') {
           fs: 0,
           modestbranding: 1,
           rel: 0,
-          origin: validOrigin
+          origin: validOrigin,
+          enablejsapi: 1,
+          widget_referrer: 'https://music.youtube.com',
+          playsinline: 1
         },
         events: {
           onReady: () => {
             isYtReady = true;
             try {
-              ytPlayer.setVolume(Math.round(currentVolume * 100));
-              if (isPlaying) {
+              ytPlayer.unMute();
+              ytPlayer.setVolume(isMuted ? 0 : Math.round(currentVolume * 100));
+              if (isPlaying && !isDirectStreamPlaying) {
                 const cur = CATALOGUE_TRACKS[currentIndex];
                 if (cur && cur.videoId) {
-                  ytPlayer.loadVideoById(cur.videoId);
-                  isYtPlaying = true;
+                  fallbackToIFrame(cur);
                 }
               }
             } catch {}
@@ -517,6 +679,7 @@ if (typeof window !== 'undefined') {
             if (event.data === 0) {
               nextTrack();
             } else if (event.data === 1) {
+              try { ytPlayer.unMute(); } catch {}
               isYtPlaying = true;
               isPlaying = true;
               updatePlayButton();
@@ -529,14 +692,21 @@ if (typeof window !== 'undefined') {
               } catch {}
             } else if (event.data === 2) {
               isYtPlaying = false;
-              isPlaying = false;
-              updatePlayButton();
-              notifyTrackState();
+              if (!isDirectStreamPlaying) {
+                isPlaying = false;
+                updatePlayButton();
+                notifyTrackState();
+              }
             }
           },
           onError: (event) => {
             console.warn('[YouTube Player] Playback error code:', event?.data);
             isYtPlaying = false;
+            // If IFrame playback encounters Error 150 / 101 or embed block, attempt direct stream
+            const cur = CATALOGUE_TRACKS[currentIndex];
+            if (cur && cur.videoId && !isDirectStreamPlaying) {
+              resolveAndPlayTrack(cur);
+            }
           }
         }
       });
@@ -576,6 +746,7 @@ if (typeof document !== 'undefined') {
 }
 
 function initUI() {
+  setupDejaAudioElement();
   document.getElementById('scrubber-track').onclick = handleScrubberClick;
   const expScrubber = document.getElementById('exp-scrubber-track');
   if (expScrubber) expScrubber.onclick = handleScrubberClick;
@@ -1879,9 +2050,9 @@ function renderCardGridHTML(tracksList) {
 function selectTrack(idx) {
   if (idx < 0 || idx >= CATALOGUE_TRACKS.length) return;
   loadTrack(idx);
-  play();
-
   const track = CATALOGUE_TRACKS[idx];
+  resolveAndPlayTrack(track);
+
   const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
   if (api?.getNextQueue && track.videoId) {
     api.getNextQueue(track.videoId).then(queueItems => {
@@ -2082,21 +2253,24 @@ function play() {
   isPlaying = true;
   updatePlayButton();
 
+  // Resume AudioContext if suspended
+  if (audioContext && audioContext.state === 'suspended') {
+    audioContext.resume().catch(() => {});
+  }
+
   const track = CATALOGUE_TRACKS[currentIndex];
-  if (track && track.videoId) {
-    if (isYtReady && ytPlayer) {
-      try {
-        const currentLoaded = ytPlayer.getVideoData ? ytPlayer.getVideoData().video_id : null;
-        if (currentLoaded !== track.videoId) {
-          ytPlayer.loadVideoById(track.videoId);
-        } else {
-          ytPlayer.playVideo();
-        }
-        isYtPlaying = true;
-      } catch (e) {
-        console.warn('[YouTube] Could not play video in iframe:', e.message);
-      }
-    }
+  if (isDirectStreamPlaying && dejaAudio && dejaAudio.src) {
+    dejaAudio.volume = isMuted ? 0 : currentVolume;
+    dejaAudio.play().catch(e => {
+      console.warn('[Deja Audio] Resume failed, falling back:', e.message);
+      isDirectStreamPlaying = false;
+      fallbackToIFrame(track);
+    });
+  } else if (!isDirectStreamPlaying && (!dejaAudio || !dejaAudio.src)) {
+    resolveAndPlayTrack(track);
+    return;
+  } else {
+    fallbackToIFrame(track);
   }
 
   ensureAudioGraph();
@@ -2110,6 +2284,10 @@ function play() {
 function pause() {
   isPlaying = false;
   updatePlayButton();
+
+  if (dejaAudio && !dejaAudio.paused) {
+    try { dejaAudio.pause(); } catch {}
+  }
 
   if (isYtReady && ytPlayer && isYtPlaying) {
     try {
@@ -2203,7 +2381,20 @@ function toggleRepeat() {
 function tick() {
   const track = CATALOGUE_TRACKS[currentIndex];
 
-  if (isYtReady && ytPlayer && isYtPlaying && typeof ytPlayer.getCurrentTime === 'function') {
+  if (isDirectStreamPlaying && dejaAudio && !dejaAudio.paused) {
+    currentTime = Math.round(dejaAudio.currentTime);
+    if (dejaAudio.duration && !isNaN(dejaAudio.duration) && Math.round(dejaAudio.duration) > 0) {
+      const dur = Math.round(dejaAudio.duration);
+      if (dur !== track.duration) {
+        track.duration = dur;
+        const totalEl = document.getElementById('time-total');
+        const expTotal = document.getElementById('exp-time-total');
+        if (totalEl) totalEl.innerText = formatTime(dur);
+        if (expTotal) expTotal.innerText = formatTime(dur);
+      }
+    }
+    updateDynamicPipeline(dejaAudio);
+  } else if (isYtReady && ytPlayer && isYtPlaying && typeof ytPlayer.getCurrentTime === 'function') {
     try {
       const ytSec = Math.round(ytPlayer.getCurrentTime());
       if (ytSec >= 0) currentTime = ytSec;
@@ -2216,7 +2407,7 @@ function tick() {
       }
       updateDynamicPipeline(ytPlayer);
     } catch {}
-  } else {
+  } else if (isPlaying) {
     currentTime += 1;
   }
 
@@ -2246,7 +2437,11 @@ function tick() {
 function seekTo(seconds) {
   const track = CATALOGUE_TRACKS[currentIndex];
   currentTime = Math.max(0, Math.min(seconds, track.duration));
-  if (isYtReady && ytPlayer && track.videoId) {
+  if (isDirectStreamPlaying && dejaAudio) {
+    try {
+      dejaAudio.currentTime = currentTime;
+    } catch {}
+  } else if (isYtReady && ytPlayer && track.videoId) {
     try {
       ytPlayer.seekTo(currentTime, true);
     } catch {}
@@ -2363,14 +2558,22 @@ function applyVolume(vol) {
   if (masterGain && audioContext) {
     masterGain.gain.setValueAtTime(vol * 0.2, audioContext.currentTime);
   }
+  if (dejaAudio) {
+    dejaAudio.volume = isMuted ? 0 : vol;
+  }
   if (isYtReady && ytPlayer && typeof ytPlayer.setVolume === 'function') {
     try {
-      ytPlayer.setVolume(Math.round(vol * 100));
+      if (isMuted) {
+        ytPlayer.mute();
+      } else {
+        ytPlayer.unMute();
+        ytPlayer.setVolume(Math.round(vol * 100));
+      }
     } catch {}
   }
 }
 
-function updateDynamicPipeline(player) {
+function updateDynamicPipeline(source) {
   const bufferEl = document.getElementById('pipeline-buffer');
   const codecEl = document.getElementById('pipeline-codec');
   const bitrateEl = document.getElementById('pipeline-bitrate');
@@ -2378,8 +2581,21 @@ function updateDynamicPipeline(player) {
   const tierEl = document.getElementById('pipeline-tier');
 
   const track = CATALOGUE_TRACKS[currentIndex];
-  if (player && typeof player.getVideoLoadedFraction === 'function' && isYtPlaying) {
-    const frac = player.getVideoLoadedFraction() || 0;
+  if (isDirectStreamPlaying && dejaAudio) {
+    let bufSec = '0.0';
+    try {
+      if (dejaAudio.buffered && dejaAudio.buffered.length > 0) {
+        const end = dejaAudio.buffered.end(dejaAudio.buffered.length - 1);
+        bufSec = Math.max(0, end - dejaAudio.currentTime).toFixed(1);
+      }
+    } catch {}
+    if (bufferEl) bufferEl.innerText = `${bufSec}s forward buffer (HTML5 audio stream)`;
+    if (codecEl) codecEl.innerText = currentStreamMeta?.mimeType || 'Opus / WebM (Native HTML5 Stream)';
+    if (bitrateEl) bitrateEl.innerText = currentStreamMeta?.bitrate ? `${Math.round(currentStreamMeta.bitrate / 1000)} kbps` : '160 kbps';
+    if (rateEl) rateEl.innerText = `${audioContext?.sampleRate || 48000} Hz`;
+    if (tierEl) tierEl.innerText = 'BitChord Direct Stream (Native HTML5)';
+  } else if (source && typeof source.getVideoLoadedFraction === 'function' && isYtPlaying) {
+    const frac = source.getVideoLoadedFraction() || 0;
     const bufSec = Math.max(0, (frac * track.duration) - currentTime).toFixed(1);
     if (bufferEl) bufferEl.innerText = `${bufSec}s forward buffer (${Math.round(frac * 100)}%)`;
     if (codecEl) codecEl.innerText = 'Opus (audio/webm)';
@@ -2914,6 +3130,8 @@ if (typeof module !== 'undefined' && module.exports) {
     createCatalogueItemFromLive,
     fetchLiveYouTubeMusic,
     openBrowseDetail,
-    playLiveTrack
+    playLiveTrack,
+    resolveAndPlayTrack,
+    fallbackToIFrame
   };
 }

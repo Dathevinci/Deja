@@ -113,6 +113,51 @@ function runInnerTubeIntegrationTests() {
   const found = preview.CATALOGUE_TRACKS.find(t => t.videoId === 'test123');
   assert.ok(found, 'Live track must be registered in CATALOGUE_TRACKS for playback and queue');
 
+  // 6. Verify Direct Audio Stream Extraction via InnerTube (BitChord architecture)
+  assert.strictEqual(typeof innertube.getAudioStream, 'function', 'innertube.getAudioStream must be a function');
+  assert.strictEqual(typeof innertube.extractBestAudioFormat, 'function', 'innertube.extractBestAudioFormat must be a function');
+
+  // 6.1 Highest bitrate Opus selection
+  const mockPlayerData = {
+    streamingData: {
+      adaptiveFormats: [
+        { itag: 249, mimeType: 'audio/webm; codecs="opus"', bitrate: 50000, url: 'https://googlevideo.com/videoplayback?itag=249' },
+        { itag: 251, mimeType: 'audio/webm; codecs="opus"', bitrate: 160000, url: 'https://googlevideo.com/videoplayback?itag=251', approxDurationMs: '210000' },
+        { itag: 140, mimeType: 'audio/mp4; codecs="mp4a.40.2"', bitrate: 128000, url: 'https://googlevideo.com/videoplayback?itag=140' },
+        { itag: 137, mimeType: 'video/mp4; codecs="avc1.640028"', bitrate: 2500000, url: 'https://googlevideo.com/videoplayback?itag=137' } // video, must be filtered out
+      ]
+    },
+    playerConfig: {
+      audioConfig: {
+        loudnessDb: -1.2
+      }
+    }
+  };
+
+  const bestFormat = innertube.extractBestAudioFormat(mockPlayerData);
+  assert.ok(bestFormat, 'Must extract audio format');
+  assert.strictEqual(bestFormat.itag, 251, 'Must pick highest bitrate Opus stream (itag 251)');
+  assert.strictEqual(bestFormat.bitrate, 160000);
+  assert.strictEqual(bestFormat.url, 'https://googlevideo.com/videoplayback?itag=251');
+  assert.strictEqual(bestFormat.duration, 210);
+  assert.strictEqual(bestFormat.loudnessDb, -1.2);
+
+  // 6.2 Graceful fallback when signature deciphering required (no direct url)
+  const mockCipherData = {
+    streamingData: {
+      adaptiveFormats: [
+        { itag: 251, mimeType: 'audio/webm; codecs="opus"', bitrate: 160000, signatureCipher: 's=abc123&sp=sig&url=https%3A%2F%2Fgooglevideo.com...' }
+      ]
+    }
+  };
+  const cipherResult = innertube.extractBestAudioFormat(mockCipherData);
+  assert.strictEqual(cipherResult, null, 'Must return null when formats require signature deciphering');
+
+  // 6.3 Empty or invalid data handling
+  assert.strictEqual(innertube.extractBestAudioFormat(null), null);
+  assert.strictEqual(innertube.extractBestAudioFormat({}), null);
+  assert.strictEqual(innertube.extractBestAudioFormat({ streamingData: {} }), null);
+
   console.log('✓ InnerTube API & YouTube Music Live Integration tests passed successfully.');
 }
 

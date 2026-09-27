@@ -21,6 +21,7 @@ const dejaAPI = {
   getLibraryPlaylists: () => ipcRenderer.invoke('yt-library-playlists'),
   getBrowsePlaylist: (browseId) => ipcRenderer.invoke('yt-browse-playlist', browseId),
   getNextQueue: (videoId) => ipcRenderer.invoke('yt-next-queue', videoId),
+  resolveAudioStream: (videoId) => ipcRenderer.invoke('yt-resolve-stream', videoId),
   getAccountInfo: () => ipcRenderer.invoke('yt-account-info'),
   rateSong: (videoId, status) => ipcRenderer.invoke('yt-rate', { videoId, status }),
   onAuthChanged: (callback) => {

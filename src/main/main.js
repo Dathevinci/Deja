@@ -32,6 +32,9 @@ if (!gotTheLock) {
 const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 app.userAgentFallback = CHROME_UA;
 
+// Chromium autoplay policy: allow immediate audio playback without prior user gesture
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 let mainWindow = null;
 let forceShowTimeout = null;
 let isWindowDisplayed = false;
@@ -651,19 +654,55 @@ ipcMain.handle('yt-rate', async (event, { videoId, status }) => {
   }
 });
 
+// Direct Audio Stream Resolution via InnerTube (BitChord architecture)
+ipcMain.handle('yt-resolve-stream', async (event, videoId) => {
+  if (!videoId || typeof videoId !== 'string') return null;
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getAudioStream(videoId, ses);
+  } catch (err) {
+    console.warn('[Stream] Audio stream resolution error:', err.message);
+    return null;
+  }
+});
+
 // App Lifecycle
 app.whenReady().then(() => {
-  // Clean request headers to avoid Google security prompt issues
-  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    if (!details.requestHeaders) {
-      callback({ cancel: false });
-      return;
-    }
-    delete details.requestHeaders['Sec-Ch-Ua-Platform'];
-    delete details.requestHeaders['sec-ch-ua-platform'];
-    details.requestHeaders['Sec-Ch-Ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
-    details.requestHeaders['User-Agent'] = CHROME_UA;
-    callback({ cancel: false, requestHeaders: details.requestHeaders });
+  const ytSession = session.fromPartition('persist:ytmusic');
+  const activeSessions = [session.defaultSession, ytSession];
+
+  activeSessions.forEach(ses => {
+    // Intercept headers: emulate genuine YouTube Music client and eliminate Error 150 / 101 embed blocks
+    ses.webRequest.onBeforeSendHeaders((details, callback) => {
+      const requestHeaders = details.requestHeaders || {};
+
+      // Rewrite Origin & Referer to music.youtube.com for all YouTube & GoogleVideo requests
+      if (
+        details.url.includes('youtube.com') ||
+        details.url.includes('youtube-nocookie.com') ||
+        details.url.includes('googlevideo.com')
+      ) {
+        requestHeaders['Origin'] = 'https://music.youtube.com';
+        requestHeaders['Referer'] = 'https://music.youtube.com/';
+      }
+
+      delete requestHeaders['Sec-Ch-Ua-Platform'];
+      delete requestHeaders['sec-ch-ua-platform'];
+      requestHeaders['Sec-Ch-Ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+      requestHeaders['User-Agent'] = CHROME_UA;
+      callback({ cancel: false, requestHeaders });
+    });
+
+    // Strip iframe embedding restrictions and enable cross-origin media streaming
+    ses.webRequest.onHeadersReceived((details, callback) => {
+      const responseHeaders = { ...details.responseHeaders };
+      delete responseHeaders['x-frame-options'];
+      delete responseHeaders['X-Frame-Options'];
+      delete responseHeaders['content-security-policy'];
+      delete responseHeaders['Content-Security-Policy'];
+      responseHeaders['Access-Control-Allow-Origin'] = ['*'];
+      callback({ cancel: false, responseHeaders });
+    });
   });
 
   createWindow();
