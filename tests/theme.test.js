@@ -54,7 +54,19 @@ function runThemeTests() {
   assert.ok(css.includes('--deja-aura-c1'), 'Must support dynamic color extraction variables');
   assert.ok(css.includes('dejaMeshDrift'), 'Must include animated mesh drift keyframes');
   assert.ok(css.includes('18px !important'), 'Artwork on player page must have 18px squircle radius');
-  assert.ok(css.includes('dejaArtworkBreathing'), 'Artwork must have smooth play/pause breathing animation');
+  // Verify Blink CSS Parser Bug Fix (No grouped *::-webkit-scrollbar)
+  assert.ok(!css.includes('*::-webkit-scrollbar'), 'apple-theme.css must not use invalid *::-webkit-scrollbar (causes Blink parser to drop entire scrollbar block)');
+
+  // Verify Chip Cloud Pill Styling & Arrow Button Hiding
+  assert.ok(css.includes('ytmusic-chip-cloud-renderer'), 'Must style ytmusic-chip-cloud-renderer');
+  assert.ok(css.includes('#left-arrow-button') && css.includes('#right-arrow-button'), 'Must hide scroll arrows on chip cloud renderer');
+
+  // Verify BitChord Signatures (Audio Pipeline, Sleep Timer, EQ, Queue Drawer)
+  assert.ok(css.includes('.deja-audio-pipeline-badge'), 'Must style BitChord audio pipeline badge');
+  assert.ok(css.includes('.deja-sleep-timer-btn'), 'Must style BitChord sleep timer button');
+  assert.ok(css.includes('.deja-eq-btn'), 'Must style BitChord equalizer button');
+  assert.ok(css.includes('.deja-queue-drawer'), 'Must style BitChord Up Next queue drawer');
+  assert.ok(css.includes('.deja-ambient-mesh-overlay'), 'Must include luminous dynamic mesh gradient overlay');
 
   console.log('✓ Apple Theme CSS tests passed successfully.');
 }

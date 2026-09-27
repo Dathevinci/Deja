@@ -51,15 +51,13 @@ body.apple-pure-black {
   -ms-overflow-style: none !important;
 }
 
-::-webkit-scrollbar,
-*::-webkit-scrollbar {
+::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
 }
 
-::-webkit-scrollbar-button,
-*::-webkit-scrollbar-button {
+::-webkit-scrollbar-button {
   display: none !important;
   width: 0 !important;
   height: 0 !important;

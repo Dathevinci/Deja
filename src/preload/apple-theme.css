@@ -46,29 +46,30 @@ body, ytmusic-app {
   -ms-overflow-style: none !important;
 }
 
-::-webkit-scrollbar,
-*::-webkit-scrollbar {
+::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
   background: transparent !important;
 }
 
-::-webkit-scrollbar-button,
-*::-webkit-scrollbar-button {
+::-webkit-scrollbar-button {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
 }
 
-::-webkit-scrollbar-track,
-*::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   display: none !important;
   background: transparent !important;
 }
 
-::-webkit-scrollbar-thumb,
-*::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-corner {
   display: none !important;
   background: transparent !important;
 }
@@ -504,20 +505,26 @@ ytmusic-mini-guide-entry-renderer:hover {
   background: rgba(255, 255, 255, 0.07) !important;
 }
 
-ytmusic-mini-guide-entry-renderer[aria-selected="true"],
-ytmusic-mini-guide-entry-renderer[selected],
-ytmusic-mini-guide-entry-renderer.deja-active,
-ytmusic-mini-guide-entry-renderer.active {
-  background: rgba(250, 45, 72, 0.14) !important;
-  box-shadow: 0 2px 10px rgba(250, 45, 72, 0.15) !important;
+ytmusic-mini-guide-entry-renderer:not(.deja-active) {
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
-ytmusic-mini-guide-entry-renderer[aria-selected="true"] yt-icon,
-ytmusic-mini-guide-entry-renderer[aria-selected="true"] .title,
-ytmusic-mini-guide-entry-renderer[selected] yt-icon,
-ytmusic-mini-guide-entry-renderer[selected] .title,
+ytmusic-mini-guide-entry-renderer.deja-active,
+ytmusic-mini-guide-entry-renderer.sonora-active {
+  background: rgba(250, 45, 72, 0.12) !important;
+  box-shadow: 0 2px 10px rgba(250, 45, 72, 0.12) !important;
+}
+
+ytmusic-mini-guide-entry-renderer:not(.deja-active) yt-icon,
+ytmusic-mini-guide-entry-renderer:not(.deja-active) .title {
+  color: var(--apple-text-secondary) !important;
+}
+
 ytmusic-mini-guide-entry-renderer.deja-active yt-icon,
-ytmusic-mini-guide-entry-renderer.deja-active .title {
+ytmusic-mini-guide-entry-renderer.deja-active .title,
+ytmusic-mini-guide-entry-renderer.sonora-active yt-icon,
+ytmusic-mini-guide-entry-renderer.sonora-active .title {
   color: var(--apple-accent) !important;
   fill: var(--apple-accent) !important;
 }
@@ -611,46 +618,46 @@ ytmusic-mini-guide-entry-renderer a {
   background: transparent !important;
 }
 
-/* Soft, refined active state (subtle rounded pill highlight with var(--apple-accent) icon/text, no harsh chunky red boxes) */
-ytmusic-guide-entry-renderer[aria-selected="true"],
-ytmusic-guide-entry-renderer[is-active],
-ytmusic-guide-entry-renderer.iron-selected,
-ytmusic-guide-entry-renderer.deja-active,
-ytmusic-guide-entry-renderer[selected],
-ytmusic-guide-entry-renderer.active {
-  background: rgba(250, 45, 72, 0.14) !important;
+/* Sidebar Non-Active / Default State Reset (Ensure no multiple chunky highlights) */
+ytmusic-guide-entry-renderer:not(.deja-active) {
+  background: transparent !important;
+  box-shadow: none !important;
   border: none !important;
-  box-shadow: 0 2px 10px rgba(250, 45, 72, 0.15) !important;
 }
 
-ytmusic-guide-entry-renderer[aria-selected="true"] yt-formatted-string,
-ytmusic-guide-entry-renderer[is-active] yt-formatted-string,
-ytmusic-guide-entry-renderer.iron-selected yt-formatted-string,
+ytmusic-guide-entry-renderer:not(.deja-active) yt-formatted-string,
+ytmusic-guide-entry-renderer:not(.deja-active) .title {
+  color: var(--apple-text-secondary) !important;
+  font-weight: 500 !important;
+}
+
+ytmusic-guide-entry-renderer:not(.deja-active) yt-icon,
+ytmusic-guide-entry-renderer:not(.deja-active) tp-yt-iron-icon {
+  color: var(--apple-text-secondary) !important;
+  fill: var(--apple-text-secondary) !important;
+}
+
+/* Soft, refined active state strictly restricted to .deja-active (subtle rounded pill highlight with rgba(250, 45, 72, 0.12), no harsh chunky red boxes) */
+ytmusic-guide-entry-renderer.deja-active,
+ytmusic-guide-entry-renderer.sonora-active {
+  background: rgba(250, 45, 72, 0.12) !important;
+  border-radius: var(--apple-radius-btn) !important;
+  border: none !important;
+  box-shadow: 0 2px 10px rgba(250, 45, 72, 0.12) !important;
+}
+
 ytmusic-guide-entry-renderer.deja-active yt-formatted-string,
-ytmusic-guide-entry-renderer[selected] yt-formatted-string,
-ytmusic-guide-entry-renderer.active yt-formatted-string,
-ytmusic-guide-entry-renderer[aria-selected="true"] .title,
-ytmusic-guide-entry-renderer[is-active] .title,
-ytmusic-guide-entry-renderer.iron-selected .title,
 ytmusic-guide-entry-renderer.deja-active .title,
-ytmusic-guide-entry-renderer[selected] .title,
-ytmusic-guide-entry-renderer.active .title {
+ytmusic-guide-entry-renderer.sonora-active yt-formatted-string,
+ytmusic-guide-entry-renderer.sonora-active .title {
   color: var(--apple-accent) !important;
   font-weight: 600 !important;
 }
 
-ytmusic-guide-entry-renderer[aria-selected="true"] yt-icon,
-ytmusic-guide-entry-renderer[is-active] yt-icon,
-ytmusic-guide-entry-renderer.iron-selected yt-icon,
 ytmusic-guide-entry-renderer.deja-active yt-icon,
-ytmusic-guide-entry-renderer[selected] yt-icon,
-ytmusic-guide-entry-renderer.active yt-icon,
-ytmusic-guide-entry-renderer[aria-selected="true"] tp-yt-iron-icon,
-ytmusic-guide-entry-renderer[is-active] tp-yt-iron-icon,
-ytmusic-guide-entry-renderer.iron-selected tp-yt-iron-icon,
 ytmusic-guide-entry-renderer.deja-active tp-yt-iron-icon,
-ytmusic-guide-entry-renderer[selected] tp-yt-iron-icon,
-ytmusic-guide-entry-renderer.active tp-yt-iron-icon {
+ytmusic-guide-entry-renderer.sonora-active yt-icon,
+ytmusic-guide-entry-renderer.sonora-active tp-yt-iron-icon {
   color: var(--apple-accent) !important;
   fill: var(--apple-accent) !important;
 }
@@ -660,6 +667,65 @@ ytmusic-guide-entry-renderer.active tp-yt-iron-icon {
   border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
   padding-top: 8px !important;
   margin-top: 8px !important;
+}
+
+/* ==========================================================================
+   Chip Cloud - Sleek Apple Filter Pills & Arrow Elimination
+   Eliminates ugly Windows < > arrow buttons and scrollbars under chip cloud
+   ========================================================================== */
+ytmusic-chip-cloud-renderer #left-arrow-button,
+ytmusic-chip-cloud-renderer #right-arrow-button,
+ytmusic-chip-cloud-renderer #left-arrow,
+ytmusic-chip-cloud-renderer #right-arrow,
+ytmusic-chip-cloud-renderer .arrow-button,
+#chips.ytmusic-chip-cloud-renderer #left-arrow-button,
+#chips.ytmusic-chip-cloud-renderer #right-arrow-button {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+ytmusic-chip-cloud-renderer,
+ytmusic-chip-cloud-renderer #chips,
+#chips.ytmusic-chip-cloud-renderer {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 6px 0 !important;
+}
+
+ytmusic-chip-cloud-chip-renderer {
+  border-radius: var(--apple-radius-pill) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: var(--apple-text-secondary) !important;
+  font-family: var(--apple-font) !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  letter-spacing: -0.01em !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  box-shadow: none !important;
+}
+
+ytmusic-chip-cloud-chip-renderer:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+ytmusic-chip-cloud-chip-renderer[selected],
+ytmusic-chip-cloud-chip-renderer[aria-selected="true"],
+ytmusic-chip-cloud-chip-renderer.iron-selected {
+  background: rgba(250, 45, 72, 0.18) !important;
+  color: var(--apple-accent) !important;
+  border-color: rgba(250, 45, 72, 0.4) !important;
+  box-shadow: 0 2px 10px rgba(250, 45, 72, 0.2) !important;
 }
 
 /* Clean Apple Sign-in Promo in Sidebar */
@@ -1163,25 +1229,53 @@ ytmusic-player-bar .expand-button:hover {
    Apple Music Signature Dynamic Ambient Aura & Prominent Squircle Artwork
    ========================================================================== */
 ytmusic-player-page,
-#player-page.ytmusic-app {
+#player-page.ytmusic-app,
+#player-page,
+ytmusic-app-layout[player-page-open_],
+ytmusic-app-layout[player-page-open_] #player-page,
+ytmusic-app-layout[player-page-open_] #content,
+ytmusic-app-layout[player-page-open_] #main-panel,
+ytmusic-app-layout[player-page-open_] #side-panel,
+ytmusic-app-layout[player-page-open_] #player,
+ytmusic-app-layout[player-fullscreened_],
+ytmusic-player-page #main-panel,
+ytmusic-player-page #player,
+ytmusic-player-page ytmusic-player,
+ytmusic-player-page .main-panel,
+ytmusic-player-page .side-panel,
+ytmusic-player-page #background,
+ytmusic-player-page #player-page-background,
+ytmusic-player-page #song-video,
+ytmusic-player-page #song-media-window,
+ytmusic-player-page ytmusic-tab-renderer,
+ytmusic-player-page ytmusic-tab-header-renderer {
   top: 42px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+ytmusic-player-page,
+#player-page.ytmusic-app,
+#player-page {
   height: calc(100vh - 42px - 80px) !important;
   max-height: calc(100vh - 42px - 80px) !important;
-  background: transparent !important;
   position: relative !important;
   overflow: hidden !important;
 }
 
-/* Dynamic Ambient Aura Container */
+/* BitChord-Aligned Dynamic Mesh Gradient Backdrop (MeshGradient.kt, ArtworkMeshBackdrop.kt) */
+/* 4 luminous color blobs with soft drift, subtle rotation, and smooth 1.4s crossfades */
 .deja-player-ambient-aura {
   position: absolute !important;
-  inset: -20% !important;
-  width: 140% !important;
-  height: 140% !important;
+  inset: -25% !important;
+  width: 150% !important;
+  height: 150% !important;
   z-index: 0 !important;
   pointer-events: none !important;
   overflow: hidden !important;
-  opacity: 0.8 !important;
+  opacity: 0.88 !important;
+  transition: opacity 1.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .deja-ambient-art-blur {
@@ -1192,6 +1286,7 @@ ytmusic-player-page,
   filter: blur(85px) saturate(240%) brightness(0.48) !important;
   animation: dejaAuraDrift 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1) !important;
   transform: scale(1.08) !important;
+  transition: opacity 1.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .deja-ambient-mesh-overlay {
@@ -1206,7 +1301,7 @@ ytmusic-player-page,
               radial-gradient(circle at 50% 50%, rgba(18, 18, 22, 0.30) 0%, rgba(14, 14, 16, 0.88) 100%) !important;
   mix-blend-mode: overlay !important;
   animation: dejaMeshDrift 24s infinite alternate ease-in-out !important;
-  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: opacity 1.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 @keyframes dejaMeshDrift {
@@ -1336,35 +1431,30 @@ body.deja-playing ytmusic-player-page .song-media-window {
 }
 
 /* macOS / Apple Style Scrollbars - Fully hidden for pure borderless fluidity */
-::-webkit-scrollbar,
-*::-webkit-scrollbar {
+::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
   background: transparent !important;
 }
 
-::-webkit-scrollbar-button,
-*::-webkit-scrollbar-button {
+::-webkit-scrollbar-button {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
 }
 
-::-webkit-scrollbar-track,
-*::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   display: none !important;
   background: transparent !important;
 }
 
-::-webkit-scrollbar-thumb,
-*::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
   display: none !important;
   background: transparent !important;
 }
 
-::-webkit-scrollbar-corner,
-*::-webkit-scrollbar-corner {
+::-webkit-scrollbar-corner {
   display: none !important;
   background: transparent !important;
 }
@@ -1572,5 +1662,274 @@ body.mini-player-mode ytmusic-player-bar {
 .deja-modal-btn-primary:hover,
 .sonora-modal-btn-primary:hover {
   opacity: 0.9;
+}
+
+/* ==========================================================================
+   BitChord Signature Features: Audio Pipeline, Sleep Timer, EQ, Queue Drawer
+   ========================================================================== */
+
+/* 1. Audio Pipeline / Stats for Nerds Badge */
+.deja-audio-pipeline-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: var(--apple-radius-pill) !important;
+  color: var(--apple-text-secondary) !important;
+  font-family: var(--apple-font) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  padding: 4px 10px !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  user-select: none !important;
+  flex-shrink: 0 !important;
+}
+
+.deja-audio-pipeline-badge:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(250, 45, 72, 0.4) !important;
+  box-shadow: 0 0 12px rgba(250, 45, 72, 0.25) !important;
+  transform: scale(1.04) !important;
+}
+
+.deja-audio-pipeline-badge .badge-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: #34C759 !important;
+  box-shadow: 0 0 6px rgba(52, 199, 89, 0.6) !important;
+}
+
+/* 2. Sleep Timer Button & Live Countdown Pill */
+.deja-sleep-timer-btn,
+.deja-eq-btn,
+.deja-queue-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: var(--apple-text-secondary) !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+.deja-sleep-timer-btn:hover,
+.deja-eq-btn:hover,
+.deja-queue-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #FFFFFF !important;
+  transform: scale(1.08) !important;
+}
+
+.deja-sleep-timer-btn.active,
+.deja-eq-btn.active,
+.deja-queue-btn.active {
+  background: rgba(250, 45, 72, 0.18) !important;
+  color: var(--apple-accent) !important;
+  border-color: rgba(250, 45, 72, 0.4) !important;
+}
+
+.deja-sleep-timer-btn.has-timer {
+  width: auto !important;
+  padding: 0 10px !important;
+  border-radius: var(--apple-radius-pill) !important;
+  gap: 5px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* 3. Up Next Queue Drawer (PlayerQueue.kt) */
+.deja-queue-drawer {
+  position: fixed !important;
+  top: 42px !important;
+  right: 0 !important;
+  bottom: 80px !important;
+  width: 440px !important;
+  background: rgba(20, 20, 24, 0.94) !important;
+  backdrop-filter: blur(50px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(50px) saturate(200%) !important;
+  border-left: 1px solid var(--apple-border) !important;
+  z-index: 9997 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transform: translateX(100%) !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  overflow: hidden !important;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+.deja-queue-drawer.visible {
+  transform: translateX(0) !important;
+}
+
+.deja-queue-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 20px 24px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.deja-queue-title {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: #FFFFFF !important;
+  margin: 0 !important;
+}
+
+.deja-queue-count {
+  font-size: 12px !important;
+  color: var(--apple-text-tertiary) !important;
+  font-weight: 500 !important;
+}
+
+.deja-queue-body {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 12px 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  scrollbar-width: none !important;
+}
+
+.deja-queue-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+.deja-queue-item:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+.deja-queue-item.playing {
+  background: rgba(250, 45, 72, 0.12) !important;
+}
+
+.deja-queue-thumb {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 8px !important;
+  object-fit: cover !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.deja-queue-info {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.deja-queue-track-title {
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: #FFFFFF !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.deja-queue-track-artist {
+  font-size: 12px !important;
+  color: var(--apple-text-secondary) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  margin-top: 2px !important;
+}
+
+.deja-queue-duration {
+  font-size: 11.5px !important;
+  color: var(--apple-text-tertiary) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* 4. Stats for Nerds / Audio Pipeline Modal Sheet */
+.deja-pipeline-card {
+  max-width: 560px !important;
+  width: 90% !important;
+}
+
+.deja-pipeline-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 14px !important;
+  margin: 16px 0 !important;
+}
+
+.deja-pipeline-cell {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 12px !important;
+  padding: 12px 14px !important;
+}
+
+.deja-pipeline-label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: var(--apple-text-tertiary) !important;
+}
+
+.deja-pipeline-value {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #FFFFFF !important;
+  margin-top: 4px !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* 5. Sleep Timer & Equalizer Options */
+.deja-picker-options {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  margin: 16px 0 !important;
+}
+
+.deja-picker-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  color: #FFFFFF !important;
+  font-family: var(--apple-font) !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.deja-picker-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+.deja-picker-btn.selected {
+  background: rgba(250, 45, 72, 0.15) !important;
+  border-color: rgba(250, 45, 72, 0.4) !important;
+  color: var(--apple-accent) !important;
+  font-weight: 600 !important;
 }
 

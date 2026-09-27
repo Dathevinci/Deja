@@ -158,6 +158,7 @@ function loadTrack(idx) {
   });
 
   renderLyrics(track.lyrics);
+  renderPreviewQueue();
 
   // Notify Electron Main process
   const api = window.dejaAPI || window.sonoraAPI;
@@ -197,6 +198,95 @@ function setupEvents() {
   document.getElementById('btn-switch-live').onclick = () => {
     window.location.href = 'https://music.youtube.com';
   };
+
+  // Queue toggle
+  const queueDrawer = document.getElementById('apple-queue-drawer');
+  const btnQueuePanel = document.getElementById('btn-queue-panel');
+  const btnCloseQueue = document.getElementById('btn-close-queue');
+  if (btnQueuePanel && queueDrawer) {
+    btnQueuePanel.onclick = () => {
+      queueDrawer.classList.toggle('visible');
+      btnQueuePanel.classList.toggle('active');
+      renderPreviewQueue();
+    };
+  }
+  if (btnCloseQueue && queueDrawer) {
+    btnCloseQueue.onclick = () => {
+      queueDrawer.classList.remove('visible');
+      if (btnQueuePanel) btnQueuePanel.classList.remove('active');
+    };
+  }
+
+  // Audio Pipeline Modal
+  const pipelineModal = document.getElementById('pipeline-modal');
+  const btnPipeline = document.getElementById('btn-audio-pipeline');
+  const btnClosePipeline = document.getElementById('btn-close-pipeline');
+  if (btnPipeline && pipelineModal) {
+    btnPipeline.onclick = openPipelineModal;
+  }
+  if (btnClosePipeline && pipelineModal) {
+    btnClosePipeline.onclick = () => { pipelineModal.style.display = 'none'; };
+  }
+
+  // Sleep Timer Modal
+  const sleepModal = document.getElementById('sleep-modal');
+  const btnSleep = document.getElementById('btn-sleep-timer');
+  const btnCloseSleep = document.getElementById('btn-close-sleep');
+  if (btnSleep && sleepModal) {
+    btnSleep.onclick = () => { sleepModal.style.display = 'flex'; };
+  }
+  if (btnCloseSleep && sleepModal) {
+    btnCloseSleep.onclick = () => { sleepModal.style.display = 'none'; };
+  }
+  document.querySelectorAll('[data-sleep]').forEach(btn => {
+    btn.onclick = () => {
+      const minutes = parseInt(btn.getAttribute('data-sleep'), 10);
+      startPreviewSleepTimer(minutes);
+      if (sleepModal) sleepModal.style.display = 'none';
+    };
+  });
+  const btnSleepTrack = document.getElementById('btn-sleep-opt-track');
+  if (btnSleepTrack) {
+    btnSleepTrack.onclick = () => {
+      startPreviewSleepTrack();
+      if (sleepModal) sleepModal.style.display = 'none';
+    };
+  }
+  const btnSleepCancel = document.getElementById('btn-sleep-opt-cancel');
+  if (btnSleepCancel) {
+    btnSleepCancel.onclick = () => {
+      cancelPreviewSleepTimer();
+      if (sleepModal) sleepModal.style.display = 'none';
+    };
+  }
+
+  // Equalizer Modal
+  const eqModal = document.getElementById('eq-modal');
+  const btnEq = document.getElementById('btn-equalizer');
+  const btnCloseEq = document.getElementById('btn-close-eq');
+  if (btnEq && eqModal) {
+    btnEq.onclick = () => { eqModal.style.display = 'flex'; };
+  }
+  if (btnCloseEq && eqModal) {
+    btnCloseEq.onclick = () => { eqModal.style.display = 'none'; };
+  }
+  document.querySelectorAll('[data-eq]').forEach(btn => {
+    btn.onclick = () => {
+      const preset = btn.getAttribute('data-eq');
+      applyPreviewEq(preset);
+      if (eqModal) eqModal.style.display = 'none';
+    };
+  });
+
+  // Modal backdrop click-away
+  ['settings-modal', 'pipeline-modal', 'sleep-modal', 'eq-modal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', (e) => {
+        if (e.target === el) el.style.display = 'none';
+      });
+    }
+  });
 
   // Lyrics toggle
   const lyricsDrawer = document.getElementById('apple-lyrics-drawer');
@@ -334,8 +424,18 @@ function tick() {
   currentTime += 1;
 
   if (currentTime >= track.duration) {
+    if (sleepMode === 'track') {
+      cancelPreviewSleepTimer();
+      triggerPreviewSleepPause();
+      return;
+    }
     nextTrack();
     return;
+  }
+
+  if (sleepMode === 'track') {
+    sleepRemainingSec = Math.max(0, track.duration - currentTime);
+    updateSleepUI();
   }
 
   updateProgress();
@@ -548,3 +648,135 @@ function extractTrackPalette(coverUrl, callback) {
     if (typeof callback === 'function') callback(null);
   }
 }
+
+// ==========================================
+// BitChord Feature Suite for Deja Preview
+// ==========================================
+
+function renderPreviewQueue() {
+  const queueBody = document.getElementById('preview-queue-body');
+  const countLabel = document.getElementById('queue-count-label');
+  if (!queueBody) return;
+  if (countLabel) countLabel.innerText = `${SAMPLE_TRACKS.length} tracks`;
+
+  queueBody.innerHTML = SAMPLE_TRACKS.map((t, idx) => `
+    <div class="deja-queue-item ${idx === currentIndex ? 'active-playing' : ''}" onclick="selectTrack(${idx})">
+      <div class="deja-queue-item-index">${idx === currentIndex ? '▶' : idx + 1}</div>
+      <img src="${t.cover}" class="deja-queue-thumb" alt="${t.title}">
+      <div class="deja-queue-item-meta">
+        <div class="deja-queue-item-title">${t.title}</div>
+        <div class="deja-queue-item-artist">${t.artist}</div>
+      </div>
+      <div class="deja-queue-item-duration">${formatTime(t.duration)}</div>
+    </div>
+  `).join('');
+}
+
+let sleepTimerId = null;
+let sleepRemainingSec = null;
+let sleepMode = null; // 'duration' or 'track'
+
+function startPreviewSleepTimer(minutes) {
+  cancelPreviewSleepTimer();
+  sleepMode = 'duration';
+  sleepRemainingSec = minutes * 60;
+  updateSleepUI();
+
+  sleepTimerId = setInterval(() => {
+    if (sleepRemainingSec > 0) {
+      sleepRemainingSec -= 1;
+      updateSleepUI();
+      if (sleepRemainingSec <= 0) {
+        cancelPreviewSleepTimer();
+        triggerPreviewSleepPause();
+      }
+    }
+  }, 1000);
+}
+
+function startPreviewSleepTrack() {
+  cancelPreviewSleepTimer();
+  sleepMode = 'track';
+  const track = SAMPLE_TRACKS[currentIndex];
+  sleepRemainingSec = Math.max(0, track.duration - currentTime);
+  updateSleepUI();
+}
+
+function cancelPreviewSleepTimer() {
+  if (sleepTimerId) {
+    clearInterval(sleepTimerId);
+    sleepTimerId = null;
+  }
+  sleepRemainingSec = null;
+  sleepMode = null;
+  updateSleepUI();
+}
+
+function triggerPreviewSleepPause() {
+  pause();
+  const status = document.getElementById('sleep-status-text');
+  if (status) status.innerText = 'Playback paused by Sleep Timer';
+}
+
+function updateSleepUI() {
+  const sleepBtn = document.getElementById('btn-sleep-timer');
+  const statusText = document.getElementById('sleep-status-text');
+  if (!sleepRemainingSec || sleepRemainingSec <= 0) {
+    if (sleepBtn) {
+      sleepBtn.classList.remove('active');
+      sleepBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      `;
+    }
+    if (statusText) statusText.innerText = 'Sleep timer is currently inactive';
+  } else {
+    if (sleepBtn) {
+      sleepBtn.classList.add('active');
+      const mm = Math.floor(sleepRemainingSec / 60);
+      const ss = sleepRemainingSec % 60;
+      sleepBtn.innerText = `${mm}:${ss < 10 ? '0' : ''}${ss}`;
+    }
+    if (statusText) {
+      statusText.innerText = `Sleep timer active: pauses in ${formatTime(sleepRemainingSec)}${sleepMode === 'track' ? ' (End of Track)' : ''}`;
+    }
+  }
+}
+
+let currentEqPreset = 'Flat';
+const EQ_PRESETS = {
+  'Flat': { bass: 0, mid: 0, treble: 0 },
+  'Bass Boost': { bass: 6, mid: 0, treble: -1 },
+  'Acoustic': { bass: 2, mid: 3, treble: 1 },
+  'Vocal Booster': { bass: -2, mid: 4, treble: 2 },
+  'Treble Booster': { bass: -2, mid: 1, treble: 5 }
+};
+
+function applyPreviewEq(presetName) {
+  currentEqPreset = presetName;
+  const status = document.getElementById('eq-status-text');
+  if (status) status.innerHTML = `Active Preset: <strong>${presetName}</strong>`;
+  const buttons = document.querySelectorAll('#eq-picker-options .deja-picker-btn');
+  buttons.forEach(btn => {
+    btn.classList.toggle('selected', btn.getAttribute('data-eq') === presetName);
+  });
+  const eqBtn = document.getElementById('btn-equalizer');
+  if (eqBtn) {
+    eqBtn.classList.toggle('active', presetName !== 'Flat');
+  }
+}
+
+function openPipelineModal() {
+  const modal = document.getElementById('pipeline-modal');
+  if (modal) {
+    const bufferEl = document.getElementById('pipeline-buffer');
+    if (bufferEl) {
+      const buf = (15 + Math.random() * 8).toFixed(1);
+      bufferEl.innerText = `${buf}s forward buffer`;
+    }
+    modal.style.display = 'flex';
+  }
+}
+

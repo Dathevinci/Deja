@@ -287,8 +287,34 @@
       </div>
     </div>
 
-    <!-- Right Controls: Lyrics, Queue, Volume Slider -->
+    <!-- Right Controls: Pipeline, Sleep Timer, EQ, Lyrics, Queue, Volume -->
     <div class="player-right">
+      <div class="deja-audio-pipeline-badge" id="btn-audio-pipeline" title="BitChord Audio Pipeline & Stats for Nerds">
+        <span class="badge-dot"></span>
+        <span>160k Opus</span>
+      </div>
+
+      <button class="deja-sleep-timer-btn" id="btn-sleep-timer" title="BitChord Sleep Timer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </button>
+
+      <button class="deja-eq-btn" id="btn-equalizer" title="Equalizer Presets">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="21" x2="4" y2="14"></line>
+          <line x1="4" y1="10" x2="4" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12" y2="3"></line>
+          <line x1="20" y1="21" x2="20" y2="16"></line>
+          <line x1="20" y1="12" x2="20" y2="3"></line>
+          <line x1="1" y1="14" x2="7" y2="14"></line>
+          <line x1="9" y1="8" x2="15" y2="8"></line>
+          <line x1="17" y1="16" x2="23" y2="16"></line>
+        </svg>
+      </button>
+
       <button class="player-icon-btn active" id="btn-lyrics-panel" title="Time-Synced Lyrics">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -406,6 +432,140 @@
             <small>Standard Google ads are shown to free users; YouTube Premium members enjoy native ad-free playback.</small>
           </div>
           <span class="compliance-tag">ACTIVE & ENFORCED</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Up Next Queue Drawer (PlayerQueue.kt) -->
+  <aside class="deja-queue-drawer" id="apple-queue-drawer">
+    <div class="deja-queue-header">
+      <div>
+        <h3 class="deja-queue-title">Up Next</h3>
+        <span class="deja-queue-count" id="queue-count-label">3 tracks</span>
+      </div>
+      <button class="deja-lyrics-close" id="btn-close-queue">&times;</button>
+    </div>
+    <div class="deja-queue-body" id="preview-queue-body">
+      <!-- Injected preview queue items -->
+    </div>
+  </aside>
+
+  <!-- Audio Pipeline Modal (NerdStats.kt) -->
+  <div class="modal-backdrop" id="pipeline-modal" style="display: none;">
+    <div class="apple-modal-box deja-pipeline-card">
+      <div class="modal-header">
+        <h2>Audio Pipeline & Stats for Nerds</h2>
+        <button class="modal-close-btn" id="btn-close-pipeline">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="deja-pipeline-grid">
+          <div class="deja-pipeline-cell">
+            <div class="deja-pipeline-label">Stream Codec</div>
+            <div class="deja-pipeline-value" id="pipeline-codec">Opus (audio/webm)</div>
+          </div>
+          <div class="deja-pipeline-cell">
+            <div class="deja-pipeline-label">Audio Bitrate</div>
+            <div class="deja-pipeline-value" id="pipeline-bitrate">160 kbps</div>
+          </div>
+          <div class="deja-pipeline-cell">
+            <div class="deja-pipeline-label">Sample Rate</div>
+            <div class="deja-pipeline-value" id="pipeline-samplerate">48.0 kHz</div>
+          </div>
+          <div class="deja-pipeline-cell">
+            <div class="deja-pipeline-label">Channels & Depth</div>
+            <div class="deja-pipeline-value" id="pipeline-channels">2.0 Stereo • 16-bit</div>
+          </div>
+          <div class="deja-pipeline-cell">
+            <div class="deja-pipeline-label">Buffer Health</div>
+            <div class="deja-pipeline-value" id="pipeline-buffer">18.4s forward buffer</div>
+          </div>
+          <div class="deja-pipeline-cell">
+            <div class="deja-pipeline-label">Audio Quality Tier</div>
+            <div class="deja-pipeline-value" style="color: #34C759;" id="pipeline-tier">BitChord Standard (160k Opus)</div>
+          </div>
+        </div>
+        <div style="font-size: 11.5px; color: var(--apple-text-tertiary); margin-top: 10px; line-height: 1.5;">
+          <strong>Audio Renderer:</strong> Chromium Hardware Audio Pipeline (Web Audio API sink)<br>
+          Real-time stream telemetry from BitChord audio pipeline architecture.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sleep Timer Modal (SleepTimer.kt) -->
+  <div class="modal-backdrop" id="sleep-modal" style="display: none;">
+    <div class="apple-modal-box">
+      <div class="modal-header">
+        <h2>BitChord Sleep Timer</h2>
+        <button class="modal-close-btn" id="btn-close-sleep">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="sleep-status-text" style="margin-bottom: 12px; font-size: 13px; color: var(--apple-text-secondary);">
+          Sleep timer is currently inactive
+        </div>
+        <div class="deja-picker-options">
+          <button class="deja-picker-btn" id="btn-sleep-opt-track">
+            <span>End of Current Track</span>
+            <small style="color: var(--apple-text-tertiary);">Pauses when song finishes</small>
+          </button>
+          <button class="deja-picker-btn" data-sleep="15">
+            <span>15 Minutes</span>
+            <small style="color: var(--apple-text-tertiary);">900 seconds</small>
+          </button>
+          <button class="deja-picker-btn" data-sleep="30">
+            <span>30 Minutes</span>
+            <small style="color: var(--apple-text-tertiary);">1,800 seconds</small>
+          </button>
+          <button class="deja-picker-btn" data-sleep="45">
+            <span>45 Minutes</span>
+            <small style="color: var(--apple-text-tertiary);">2,700 seconds</small>
+          </button>
+          <button class="deja-picker-btn" data-sleep="60">
+            <span>60 Minutes</span>
+            <small style="color: var(--apple-text-tertiary);">3,600 seconds</small>
+          </button>
+          <button class="deja-picker-btn" id="btn-sleep-opt-cancel" style="color: #FF5F56;">
+            <span>Turn Off Sleep Timer</span>
+            <small style="color: var(--apple-text-tertiary);">Cancel timer</small>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Equalizer Modal (GraphicEq) -->
+  <div class="modal-backdrop" id="eq-modal" style="display: none;">
+    <div class="apple-modal-box">
+      <div class="modal-header">
+        <h2>Sound Enhancement & Equalizer</h2>
+        <button class="modal-close-btn" id="btn-close-eq">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="eq-status-text" style="margin-bottom: 12px; font-size: 13px; color: var(--apple-text-secondary);">
+          Active Preset: <strong>Flat</strong>
+        </div>
+        <div class="deja-picker-options" id="eq-picker-options">
+          <button class="deja-picker-btn selected" data-eq="Flat">
+            <span>Flat</span>
+            <small style="color: var(--apple-text-tertiary);">Pristine neutral reference</small>
+          </button>
+          <button class="deja-picker-btn" data-eq="Bass Boost">
+            <span>Bass Boost</span>
+            <small style="color: var(--apple-text-tertiary);">+6dB sub-bass punch</small>
+          </button>
+          <button class="deja-picker-btn" data-eq="Acoustic">
+            <span>Acoustic</span>
+            <small style="color: var(--apple-text-tertiary);">+3dB warm mids</small>
+          </button>
+          <button class="deja-picker-btn" data-eq="Vocal Booster">
+            <span>Vocal Booster</span>
+            <small style="color: var(--apple-text-tertiary);">+4dB vocal clarity</small>
+          </button>
+          <button class="deja-picker-btn" data-eq="Treble Booster">
+            <span>Treble Booster</span>
+            <small style="color: var(--apple-text-tertiary);">+5dB crisp highs</small>
+          </button>
         </div>
       </div>
     </div>

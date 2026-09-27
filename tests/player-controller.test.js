@@ -295,6 +295,41 @@ function runPlayerControllerTests() {
   extractArtworkPalette(null, (pal) => { nullPaletteResult = pal; });
   assert.strictEqual(nullPaletteResult, null, 'extractArtworkPalette should return null for empty/null coverUrl');
 
+  // 9. Verify BitChord Audio Pipeline Engine (NerdStats.kt)
+  const AudioPipeline = playerModule.AudioPipeline;
+  assert.ok(AudioPipeline, 'AudioPipeline must be exported');
+  const snap = AudioPipeline.getSnapshot();
+  assert.strictEqual(snap.codec, 'Opus (audio/webm)');
+  assert.strictEqual(snap.bitrate, '160 kbps');
+  assert.strictEqual(snap.sampleRate, '48.0 kHz');
+  assert.strictEqual(snap.channels, '2.0 Stereo');
+  assert.ok(snap.buffer.includes('forward buffer'));
+
+  // 10. Verify BitChord Sleep Timer Engine (SleepTimer.kt)
+  const SleepTimer = playerModule.SleepTimer;
+  assert.ok(SleepTimer, 'SleepTimer must be exported');
+  SleepTimer.start(15);
+  assert.strictEqual(SleepTimer.isRunning(), true, 'SleepTimer must be active after start');
+  assert.strictEqual(SleepTimer.remainingMs() > 0, true, 'Remaining ms must be > 0');
+  SleepTimer.cancel();
+  assert.strictEqual(SleepTimer.isRunning(), false, 'SleepTimer must be inactive after cancel');
+
+  // 11. Verify BitChord Audio Equalizer Engine (GraphicEq)
+  const AudioEqualizer = playerModule.AudioEqualizer;
+  assert.ok(AudioEqualizer, 'AudioEqualizer must be exported');
+  const eqPresets = AudioEqualizer.presets;
+  assert.ok(eqPresets['Flat'], 'Flat preset must exist');
+  assert.ok(eqPresets['Bass Boost'], 'Bass Boost preset must exist');
+  assert.ok(eqPresets['Acoustic'], 'Acoustic preset must exist');
+  assert.ok(eqPresets['Vocal Booster'], 'Vocal Booster preset must exist');
+  assert.ok(eqPresets['Treble Booster'], 'Treble Booster preset must exist');
+  AudioEqualizer.applyPreset('Bass Boost');
+  assert.strictEqual(AudioEqualizer.currentPreset, 'Bass Boost');
+
+  // 12. Verify BitChord Shadow CSS Exports for Polymer Components
+  assert.ok(playerModule.SHADOW_PLAYER_BAR_CSS.includes('.left-controls'), 'SHADOW_PLAYER_BAR_CSS must style .left-controls');
+  assert.ok(playerModule.SHADOW_UNIVERSAL_SCROLLBAR_CSS.includes('scrollbar-width: none'), 'SHADOW_UNIVERSAL_SCROLLBAR_CSS must eliminate scrollbars');
+
   // Cleanup controller timers
   controller?.destroy?.();
 
