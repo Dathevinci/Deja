@@ -160,6 +160,16 @@
           <div id="sidebar-yt-playlists-container"></div>
         </div>
       </div>
+      <div class="sidebar-account-footer">
+        <div class="sidebar-account-btn" id="sidebar-account-btn" title="Google Account / YouTube Music">
+          <span class="profile-avatar sidebar-avatar" id="sidebar-avatar-text">G</span>
+          <img class="profile-avatar-img sidebar-avatar-img" id="sidebar-avatar-img" style="display:none; width: 26px; height: 26px; border-radius: 50%; object-fit: cover;" alt="Avatar" />
+          <div class="sidebar-account-info">
+            <span class="sidebar-account-name" id="sidebar-account-name">Sign In</span>
+            <span class="sidebar-account-sub" id="sidebar-account-sub">YouTube Music</span>
+          </div>
+        </div>
+      </div>
     </aside>
 
     <!-- Main Content Area -->
@@ -796,6 +806,105 @@
         </div>
         <div class="deja-picker-options" id="add-to-playlist-list" style="max-height: 240px; overflow-y: auto;">
           <!-- List of custom playlists dynamically injected -->
+        </div>
+      </div>
+    </div>
+  <!-- Apple Music Style Account & Sign-in Modal (BitChord multi-method auth) -->
+  <div class="modal-backdrop" id="account-login-modal" style="display: none;">
+    <div class="apple-modal-box account-modal-box">
+      <div class="modal-header">
+        <h2 id="account-modal-title">Sign in to YouTube Music</h2>
+        <button class="modal-close-btn" id="btn-close-account-modal">&times;</button>
+      </div>
+      <div class="modal-body" id="account-modal-body">
+        <!-- Segmented Tab Navigation for Logged-out state -->
+        <div class="apple-segmented-control" id="login-modal-tabs">
+          <button class="segmented-tab active" id="tab-btn-inapp" data-tab="inapp">In-App Google Sign In</button>
+          <button class="segmented-tab" id="tab-btn-browser" data-tab="browser">Browser Quick Connect</button>
+        </div>
+
+        <!-- Tab 1: In-App Google Sign In -->
+        <div class="login-tab-content" id="tab-content-inapp">
+          <div class="login-content-inner">
+            <div class="login-hero-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/>
+              </svg>
+            </div>
+            <h3 class="login-prompt-title">Sign in with your Google Account</h3>
+            <p class="login-prompt-desc">
+              Connect your YouTube Music account to stream personal playlists, liked songs, artists, and live algorithmic recommendations directly in Deja.
+            </p>
+            <button class="btn-apple-primary login-action-btn" id="btn-modal-open-login">
+              Open Google Sign In Window
+            </button>
+            <div class="login-status-message" id="inapp-login-status"></div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Browser Quick Connect -->
+        <div class="login-tab-content" id="tab-content-browser" style="display: none;">
+          <div class="browser-connect-inner">
+            <p class="browser-connect-desc">
+              Already signed in to YouTube Music in Chrome, Edge, Brave, or Firefox? Connect in 5 seconds without re-entering your password.
+            </p>
+
+            <!-- Method 1: Instant Browser Sync -->
+            <div class="connect-method-card">
+              <div class="method-card-header">
+                <span class="method-card-title">Method 1: Instant 1-Click Console Sync</span>
+                <button class="btn-apple-secondary btn-mini-open" id="btn-open-ytm-browser">
+                  Open YouTube Music ↗
+                </button>
+              </div>
+              <p class="method-card-sub">
+                In your browser on <strong>music.youtube.com</strong>, press <kbd>F12</kbd> (Console) and paste this snippet:
+              </p>
+              <div class="console-snippet-box">
+                <code class="console-snippet-code" id="sync-console-snippet">fetch('http://127.0.0.1:3728/sync?c=' + encodeURIComponent(document.cookie))</code>
+                <button class="btn-apple-secondary btn-mini-copy" id="btn-copy-sync-snippet" title="Copy snippet to clipboard">
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            <!-- Method 2: Cookie String / SAPISID Import -->
+            <div class="connect-method-card">
+              <span class="method-card-title">Method 2: Paste Cookie String or SAPISID</span>
+              <p class="method-card-sub">
+                Paste your YouTube Music cookie string (e.g. <code>SAPISID=...; LOGIN_INFO=...</code>) or raw <code>SAPISID</code> token:
+              </p>
+              <textarea id="input-session-cookies" class="apple-text-input cookie-textarea" placeholder="Paste SAPISID=...; LOGIN_INFO=... or raw SAPISID here"></textarea>
+              <div class="cookie-submit-row">
+                <span class="cookie-import-status" id="cookie-import-status"></span>
+                <button class="btn-apple-primary" id="btn-submit-session-cookies">
+                  Connect Account
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logged-in Profile View (Shown when liveAccount.isLoggedIn) -->
+        <div class="account-profile-view" id="account-profile-view" style="display: none;">
+          <div class="profile-hero">
+            <div class="profile-avatar-large" id="profile-avatar-large-text">G</div>
+            <img class="profile-avatar-large-img" id="profile-avatar-large-img" style="display:none;" alt="Avatar" />
+            <h3 class="profile-name" id="profile-display-name">Google User</h3>
+            <span class="profile-handle" id="profile-handle">@user</span>
+            <div class="profile-status-badge">
+              <span class="status-indicator-dot"></span>
+              <span>YouTube Music Connected</span>
+            </div>
+          </div>
+          <div class="profile-actions-row">
+            <button class="btn-apple-secondary" id="btn-switch-account">
+              Switch Account
+            </button>
+            <button class="btn-apple-secondary btn-signout" id="btn-modal-logout">
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
     </div>

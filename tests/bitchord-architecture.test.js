@@ -484,7 +484,7 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(discord.pendingActivity.isAd, true, 'Ad state must be reflected in pending activity');
 
   // 8. Verify Google Login Window, Security Blocking Prevention & Auth Synchronization
-  assert.ok(mainCode.includes('ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F'), 'main.js must load Google ServiceLogin with music.youtube.com continue URL');
+  assert.ok(mainCode.includes('ServiceLogin?ltmpl=music&service=youtube&passive=true&continue=https%3A%2F%2Fmusic.youtube.com%2F'), 'main.js must load BitChord Google ServiceLogin with music.youtube.com continue URL');
   assert.ok(mainCode.includes("loginWin.webContents.on('did-navigate'"), 'main.js must listen for did-navigate on loginWin');
   assert.ok(mainCode.includes("loginWin.webContents.on('did-navigate-in-page'"), 'main.js must listen for did-navigate-in-page on loginWin');
   assert.ok(mainCode.includes("'auth-changed'"), 'main.js must send auth-changed IPC event to mainWindow');
@@ -579,30 +579,34 @@ function runBitChordArchitectureTests() {
   assert.ok(!appleThemeCss.includes('animation: dejaArtworkBreathing 7s infinite'), 'apple-theme.css must not run infinite artwork breathing animation');
   assert.ok(appleThemeCss.includes('z-index: 100020 !important'), 'apple-theme.css must enforce z-index: 100020 !important for queue drawer');
 
-  // 9.2 Independent Google Login Window Architecture
+  // 9.2 Independent Google Login Window Architecture & Cookie Quick-Connect
   assert.ok(!mainCode.includes('parent: mainWindow, modal: true'), 'Login window must NOT use parent or modal to prevent Google embedded webview detection');
-  assert.ok(mainCode.includes("Object.defineProperty(navigator, 'webdriver'"), 'main.js must inject stealth webdriver evasion into login window');
+  assert.ok(!mainCode.includes('injectStealth'), 'main.js must NOT inject stealth scripts into Google login window to prevent botguard detection');
+  assert.ok(!mainCode.includes('injectLoginHeader'), 'main.js must NOT inject DOM header into Google login window to keep it 100% clean and untouched');
   assert.ok(mainCode.includes("https://music.youtube.com"), 'main.js must support direct YouTube Music sign-in route');
   assert.ok(mainCode.includes("curUrl.includes('accounts.google.')"), 'main.js must prevent closing login window while user is still on Google auth');
   assert.ok(mainCode.includes("disable-blink-features") && mainCode.includes("AutomationControlled"), 'main.js must disable AutomationControlled blink feature');
   assert.ok(mainCode.includes('width: 800') && mainCode.includes('height: 700'), 'main.js must create 800x700 login window');
   assert.ok(mainCode.includes('pollInterval'), 'main.js must actively poll for authentication cookies');
-  assert.ok(mainCode.includes('injectLoginHeader'), 'main.js must inject visible login header');
-  assert.ok(mainCode.includes('Sign in to YouTube Music'), 'main.js header must have Sign in to YouTube Music title');
-  assert.ok(mainCode.includes('Done / Sync My Account'), 'main.js header must have Done / Sync My Account button');
-  assert.ok(mainCode.includes('Load music.youtube.com'), 'main.js header must have Load music.youtube.com button');
+  assert.ok(mainCode.includes("ipcMain.handle('import-session-cookies'"), 'main.js must provide import-session-cookies IPC handler');
+  assert.ok(mainCode.includes('127.0.0.1:3728/sync'), 'main.js must provide local HTTP sync listener on http://127.0.0.1:3728/sync');
   assert.ok(mainCode.includes("backgroundColor: '#ffffff'"), 'main.js must set white background on login window to avoid black void');
   assert.ok(mainCode.includes("domain: '.google.com'"), 'main.js must capture cookies on Google domains as well as YouTube');
   assert.ok(mainCode.includes('hasGoogleAuthCookie'), 'main.js must track Google authentication cookies');
   assert.ok(preloadCode.includes("openGoogleLogin: (targetMethod) =>"), 'preload.js must forward targetMethod parameter in openGoogleLogin bridge');
+  assert.ok(preloadCode.includes("importSessionCookies: (cookies) =>"), 'preload.js must expose importSessionCookies bridge');
   assert.ok(mainCode.includes('isGoogleAuthRequest'), 'main.js must implement isGoogleAuthRequest to safeguard all Google auth endpoints');
   assert.ok(mainCode.includes('gstatic.com') && mainCode.includes('googleapis.com'), 'main.js must safeguard gstatic and googleapis subresources for Google auth');
   assert.ok(mainCode.includes('youtube.com/signin') && mainCode.includes('consent.youtube.'), 'main.js must safeguard youtube signin and consent endpoints');
   assert.ok(mainCode.includes('isEmbedOrMedia'), 'main.js must only mutate response headers on player media streaming and embed iframes');
-  assert.ok(!mainCode.includes('header.innerHTML ='), 'main.js must not set innerHTML on login header to strictly comply with Trusted Types');
   assert.ok(mainCode.includes('sandbox: true'), 'main.js must enforce sandbox: true on login window webPreferences');
   assert.ok(mainCode.includes('CHROME_METADATA'), 'main.js must define CHROME_METADATA matching standard Windows Chrome 131');
-  assert.ok(mainCode.includes('DEJA_LOAD_YTM'), 'main.js must handle DEJA_LOAD_YTM to cleanly load music.youtube.com from header button');
+  assert.ok(html.includes('id="account-login-modal"'), 'preview.html must include Apple Music-style account login modal');
+  assert.ok(html.includes('id="tab-btn-inapp"'), 'preview.html must include In-App Google Sign In tab');
+  assert.ok(html.includes('id="tab-btn-browser"'), 'preview.html must include Browser Quick Connect tab');
+  assert.ok(html.includes('id="sync-console-snippet"'), 'preview.html must include 1-line browser sync snippet');
+  assert.ok(html.includes('id="input-session-cookies"'), 'preview.html must include cookie input textarea');
+  assert.ok(html.includes('id="sidebar-account-btn"'), 'preview.html must include sidebar account button');
 
   // 9.3 HTML Custom Playlists Components
   assert.ok(html.includes('id="btn-sidebar-new-playlist"'), 'HTML must provide "+ New Playlist" button in sidebar');
@@ -654,6 +658,62 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(typeof previewModule.openLyricsDrawer, 'function', 'preview.js must export openLyricsDrawer');
   assert.strictEqual(typeof previewModule.closeLyricsDrawer, 'function', 'preview.js must export closeLyricsDrawer');
   assert.strictEqual(typeof previewModule.toggleLyricsDrawer, 'function', 'preview.js must export toggleLyricsDrawer');
+
+  // 9.5 Verify Account Modal & Multi-Method Auth Logic
+  assert.strictEqual(typeof previewModule.openAccountModal, 'function', 'preview.js must export openAccountModal');
+  assert.strictEqual(typeof previewModule.closeAccountModal, 'function', 'preview.js must export closeAccountModal');
+  assert.strictEqual(typeof previewModule.renderAccountModalContent, 'function', 'preview.js must export renderAccountModalContent');
+  assert.strictEqual(typeof previewModule.switchLoginTab, 'function', 'preview.js must export switchLoginTab');
+
+  // Mock DOM for Account Modal
+  const mockAccountModal = { id: 'account-login-modal', style: { display: 'none' } };
+  const mockModalTitle = { id: 'account-modal-title', innerText: '' };
+  const mockTabs = { id: 'login-modal-tabs', style: { display: 'flex' } };
+  const mockTabInApp = { id: 'tab-btn-inapp', classList: { add: () => {}, remove: () => {} } };
+  const mockTabBrowser = { id: 'tab-btn-browser', classList: { add: () => {}, remove: () => {} } };
+  const mockInAppContent = { id: 'tab-content-inapp', style: { display: 'block' } };
+  const mockBrowserContent = { id: 'tab-content-browser', style: { display: 'none' } };
+  const mockProfileView = { id: 'account-profile-view', style: { display: 'none' } };
+
+  const prevDocAcc = global.document;
+  try {
+    global.document = {
+      getElementById: (id) => {
+        if (id === 'account-login-modal') return mockAccountModal;
+        if (id === 'account-modal-title') return mockModalTitle;
+        if (id === 'login-modal-tabs') return mockTabs;
+        if (id === 'tab-btn-inapp') return mockTabInApp;
+        if (id === 'tab-btn-browser') return mockTabBrowser;
+        if (id === 'tab-content-inapp') return mockInAppContent;
+        if (id === 'tab-content-browser') return mockBrowserContent;
+        if (id === 'account-profile-view') return mockProfileView;
+        return { style: {}, classList: { add: () => {}, remove: () => {} } };
+      },
+      querySelector: () => null,
+      querySelectorAll: () => []
+    };
+
+    previewModule.openAccountModal();
+    assert.strictEqual(mockAccountModal.style.display, 'flex', 'openAccountModal must display modal');
+
+    previewModule.switchLoginTab('browser');
+    assert.strictEqual(mockBrowserContent.style.display, 'block', 'switchLoginTab(browser) must show browser content');
+    assert.strictEqual(mockInAppContent.style.display, 'none', 'switchLoginTab(browser) must hide in-app content');
+
+    previewModule.switchLoginTab('inapp');
+    assert.strictEqual(mockInAppContent.style.display, 'block', 'switchLoginTab(inapp) must show in-app content');
+    assert.strictEqual(mockBrowserContent.style.display, 'none', 'switchLoginTab(inapp) must hide browser content');
+
+    previewModule.closeAccountModal();
+    assert.strictEqual(mockAccountModal.style.display, 'none', 'closeAccountModal must hide modal');
+  } finally {
+    global.document = prevDocAcc;
+  }
+
+  // 9.6 Verify 20fps Synced Lyrics Engine (tickLyricClock)
+  assert.strictEqual(typeof previewModule.tickLyricClock, 'function', 'preview.js must export tickLyricClock');
+  assert.strictEqual(typeof previewModule.startLyricClock, 'function', 'preview.js must export startLyricClock');
+  assert.strictEqual(typeof previewModule.stopLyricClock, 'function', 'preview.js must export stopLyricClock');
 
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }

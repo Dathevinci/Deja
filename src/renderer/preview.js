@@ -1579,6 +1579,13 @@ function updateAccountUI(acc) {
   const avatarImg = document.getElementById('user-avatar-img');
   const pillText = document.getElementById('user-pill-text');
 
+  // Sidebar account profile elements
+  const sidebarAvatarText = document.getElementById('sidebar-avatar-text');
+  const sidebarAvatarImg = document.getElementById('sidebar-avatar-img');
+  const sidebarName = document.getElementById('sidebar-account-name');
+  const sidebarSub = document.getElementById('sidebar-account-sub');
+  const sidebarBadge = document.getElementById('sidebar-account-btn');
+
   if (acc.isLoggedIn) {
     const displayName = acc.channelTitle || acc.name || 'Connected';
     const photo = acc.avatarUrl || acc.photoUrl;
@@ -1612,6 +1619,27 @@ function updateAccountUI(acc) {
       const span = switchLiveBtn.querySelector('span');
       if (span) span.innerText = 'YouTube Music Connected';
     }
+
+    // Update sidebar account profile
+    if (sidebarAvatarImg && photo) {
+      sidebarAvatarImg.src = photo;
+      sidebarAvatarImg.style.display = 'inline-block';
+      sidebarAvatarImg.onerror = () => {
+        sidebarAvatarImg.style.display = 'none';
+        if (sidebarAvatarText) {
+          sidebarAvatarText.innerText = (displayName || 'U')[0].toUpperCase();
+          sidebarAvatarText.style.display = 'inline-block';
+        }
+      };
+      if (sidebarAvatarText) sidebarAvatarText.style.display = 'none';
+    } else if (sidebarAvatarText) {
+      sidebarAvatarText.innerText = (displayName || 'U')[0].toUpperCase();
+      sidebarAvatarText.style.display = 'inline-block';
+      if (sidebarAvatarImg) sidebarAvatarImg.style.display = 'none';
+    }
+    if (sidebarName) sidebarName.innerText = displayName;
+    if (sidebarSub) sidebarSub.innerText = acc.handle || 'Connected';
+    if (sidebarBadge) sidebarBadge.title = `${displayName} (${acc.handle || 'Connected'})`;
   } else {
     if (avatarText) {
       avatarText.innerText = 'G';
@@ -1631,6 +1659,128 @@ function updateAccountUI(acc) {
       const span = switchLiveBtn.querySelector('span');
       if (span) span.innerText = 'Connect Live YouTube Music';
     }
+
+    // Reset sidebar account profile
+    if (sidebarAvatarText) {
+      sidebarAvatarText.innerText = 'G';
+      sidebarAvatarText.style.display = 'inline-block';
+    }
+    if (sidebarAvatarImg) sidebarAvatarImg.style.display = 'none';
+    if (sidebarName) sidebarName.innerText = 'Sign In';
+    if (sidebarSub) sidebarSub.innerText = 'YouTube Music';
+    if (sidebarBadge) sidebarBadge.title = 'Sign in to YouTube Music';
+  }
+
+  // If account login modal is currently open, refresh its content
+  const modal = (typeof document !== 'undefined' && typeof document.getElementById === 'function')
+    ? document.getElementById('account-login-modal')
+    : null;
+  if (modal && modal.style && modal.style.display && modal.style.display !== 'none') {
+    renderAccountModalContent();
+  }
+}
+
+function openAccountModal(forceLogin = false) {
+  if (typeof document === 'undefined') return;
+  const modal = document.getElementById('account-login-modal');
+  if (!modal) return;
+  if (modal.style) modal.style.display = 'flex';
+  renderAccountModalContent(forceLogin);
+
+  const api = (typeof window !== 'undefined') ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (api && api.startCookieSyncServer) {
+    try { api.startCookieSyncServer(); } catch {}
+  }
+}
+
+function closeAccountModal() {
+  if (typeof document === 'undefined') return;
+  const modal = document.getElementById('account-login-modal');
+  if (modal && modal.style) modal.style.display = 'none';
+}
+
+function renderAccountModalContent(forceLoginView = false) {
+  if (typeof document === 'undefined') return;
+  const modalTitle = document.getElementById('account-modal-title');
+  const tabs = document.getElementById('login-modal-tabs');
+  const inAppContent = document.getElementById('tab-content-inapp');
+  const browserContent = document.getElementById('tab-content-browser');
+  const profileView = document.getElementById('account-profile-view');
+
+  const isLoggedIn = liveAccount && liveAccount.isLoggedIn && !forceLoginView;
+
+  if (isLoggedIn) {
+    if (modalTitle) modalTitle.innerText = 'Account';
+    if (tabs && tabs.style) tabs.style.display = 'none';
+    if (inAppContent && inAppContent.style) inAppContent.style.display = 'none';
+    if (browserContent && browserContent.style) browserContent.style.display = 'none';
+    if (profileView && profileView.style) profileView.style.display = 'block';
+
+    const displayName = liveAccount.channelTitle || liveAccount.name || 'Google User';
+    const handle = liveAccount.handle || '';
+    const photo = liveAccount.avatarUrl || liveAccount.photoUrl;
+
+    const profName = document.getElementById('profile-display-name');
+    const profHandle = document.getElementById('profile-handle');
+    const profAvatarLarge = document.getElementById('profile-avatar-large-text');
+    const profAvatarImg = document.getElementById('profile-avatar-large-img');
+
+    if (profName) profName.innerText = displayName;
+    if (profHandle) profHandle.innerText = handle;
+
+    if (profAvatarImg && photo) {
+      profAvatarImg.src = photo;
+      if (profAvatarImg.style) profAvatarImg.style.display = 'inline-block';
+      profAvatarImg.onerror = () => {
+        if (profAvatarImg.style) profAvatarImg.style.display = 'none';
+        if (profAvatarLarge) {
+          profAvatarLarge.innerText = (displayName || 'U')[0].toUpperCase();
+          if (profAvatarLarge.style) profAvatarLarge.style.display = 'flex';
+        }
+      };
+      if (profAvatarLarge && profAvatarLarge.style) profAvatarLarge.style.display = 'none';
+    } else if (profAvatarLarge) {
+      profAvatarLarge.innerText = (displayName || 'U')[0].toUpperCase();
+      if (profAvatarLarge.style) profAvatarLarge.style.display = 'flex';
+      if (profAvatarImg && profAvatarImg.style) profAvatarImg.style.display = 'none';
+    }
+  } else {
+    if (modalTitle) modalTitle.innerText = 'Sign in to YouTube Music';
+    if (tabs && tabs.style) tabs.style.display = 'flex';
+    if (profileView && profileView.style) profileView.style.display = 'none';
+
+    const activeTab = (typeof document.querySelector === 'function')
+      ? (document.querySelector('.segmented-tab.active')?.getAttribute('data-tab') || 'inapp')
+      : 'inapp';
+    switchLoginTab(activeTab);
+  }
+}
+
+function switchLoginTab(tabName) {
+  if (typeof document === 'undefined') return;
+  const inAppTabBtn = document.getElementById('tab-btn-inapp');
+  const browserTabBtn = document.getElementById('tab-btn-browser');
+  const inAppContent = document.getElementById('tab-content-inapp');
+  const browserContent = document.getElementById('tab-content-browser');
+
+  if (tabName === 'browser') {
+    if (browserTabBtn && browserTabBtn.classList && typeof browserTabBtn.classList.add === 'function') {
+      browserTabBtn.classList.add('active');
+    }
+    if (inAppTabBtn && inAppTabBtn.classList && typeof inAppTabBtn.classList.remove === 'function') {
+      inAppTabBtn.classList.remove('active');
+    }
+    if (browserContent && browserContent.style) browserContent.style.display = 'block';
+    if (inAppContent && inAppContent.style) inAppContent.style.display = 'none';
+  } else {
+    if (inAppTabBtn && inAppTabBtn.classList && typeof inAppTabBtn.classList.add === 'function') {
+      inAppTabBtn.classList.add('active');
+    }
+    if (browserTabBtn && browserTabBtn.classList && typeof browserTabBtn.classList.remove === 'function') {
+      browserTabBtn.classList.remove('active');
+    }
+    if (inAppContent && inAppContent.style) inAppContent.style.display = 'block';
+    if (browserContent && browserContent.style) browserContent.style.display = 'none';
   }
 }
 
@@ -3776,6 +3926,10 @@ if (typeof window !== 'undefined') {
   window.toggleQueue = toggleQueue;
   window.openQueueDrawer = openQueueDrawer;
   window.closeQueueDrawer = closeQueueDrawer;
+  window.openAccountModal = openAccountModal;
+  window.closeAccountModal = closeAccountModal;
+  window.renderAccountModalContent = renderAccountModalContent;
+  window.switchLoginTab = switchLoginTab;
 }
 
 function updatePlayButton() {
@@ -4100,20 +4254,7 @@ function openPipelineModal() {
 }
 
 function handleGoogleConnect() {
-  const api = window.dejaAPI || window.sonoraAPI;
-  if (api?.openGoogleLogin) {
-    api.openGoogleLogin().then(async () => {
-      if (api.getAccountInfo) {
-        const acc = await api.getAccountInfo();
-        updateAccountUI(acc);
-      }
-      await fetchLiveYouTubeMusic(true);
-      updateSidebarPlaylistsUI();
-      renderCurrentView();
-    });
-  } else {
-    alert('Deja YouTube Music Auth: Open Google login window.');
-  }
+  openAccountModal();
 }
 
 // ==========================================
@@ -4458,12 +4599,154 @@ function setupEvents() {
     btnSidebarNewPl.onclick = () => openCreatePlaylistModal();
   }
 
-  // Profile status badge -> Google sign in
+  // Profile status badge -> Google sign in / account modal
   const btnLoginStatus = document.getElementById('btn-login-status');
   if (btnLoginStatus) btnLoginStatus.onclick = handleGoogleConnect;
 
+  // Sidebar account button -> Google sign in / account modal
+  const btnSidebarAccount = document.getElementById('sidebar-account-btn');
+  if (btnSidebarAccount) btnSidebarAccount.onclick = handleGoogleConnect;
+
+  // Account Login Modal wiring
+  const btnCloseAccModal = document.getElementById('btn-close-account-modal');
+  if (btnCloseAccModal) btnCloseAccModal.onclick = closeAccountModal;
+
+  const tabInApp = document.getElementById('tab-btn-inapp');
+  const tabBrowser = document.getElementById('tab-btn-browser');
+  if (tabInApp) tabInApp.onclick = () => switchLoginTab('inapp');
+  if (tabBrowser) tabBrowser.onclick = () => switchLoginTab('browser');
+
+  const btnModalOpenLogin = document.getElementById('btn-modal-open-login');
+  if (btnModalOpenLogin) {
+    btnModalOpenLogin.onclick = async () => {
+      const statusMsg = document.getElementById('inapp-login-status');
+      if (statusMsg) {
+        statusMsg.style.color = 'var(--apple-text-secondary)';
+        statusMsg.innerText = 'Opening secure sign-in window...';
+      }
+      const api = window.dejaAPI || window.sonoraAPI;
+      if (api?.openGoogleLogin) {
+        try {
+          const success = await api.openGoogleLogin('direct-google');
+          if (success) {
+            if (statusMsg) {
+              statusMsg.style.color = '#34C759';
+              statusMsg.innerText = 'Signed in successfully!';
+            }
+            setTimeout(() => closeAccountModal(), 600);
+          } else {
+            if (statusMsg) statusMsg.innerText = 'Sign in window closed.';
+          }
+        } catch (err) {
+          if (statusMsg) {
+            statusMsg.style.color = '#FA2D48';
+            statusMsg.innerText = 'Error: ' + err.message;
+          }
+        }
+      }
+    };
+  }
+
+  const btnOpenYtmBrowser = document.getElementById('btn-open-ytm-browser');
+  if (btnOpenYtmBrowser) {
+    btnOpenYtmBrowser.onclick = () => {
+      const api = window.dejaAPI || window.sonoraAPI;
+      if (api?.openExternal) {
+        api.openExternal('https://music.youtube.com');
+      } else if (typeof window !== 'undefined') {
+        window.open('https://music.youtube.com', '_blank');
+      }
+    };
+  }
+
+  const btnCopySnippet = document.getElementById('btn-copy-sync-snippet');
+  if (btnCopySnippet) {
+    btnCopySnippet.onclick = () => {
+      const snippetEl = document.getElementById('sync-console-snippet');
+      const text = snippetEl ? snippetEl.innerText.trim() : "fetch('http://127.0.0.1:3728/sync?c=' + encodeURIComponent(document.cookie))";
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+      }
+      const orig = btnCopySnippet.innerText;
+      btnCopySnippet.innerText = 'Copied!';
+      btnCopySnippet.style.color = '#34C759';
+      setTimeout(() => {
+        btnCopySnippet.innerText = orig;
+        btnCopySnippet.style.color = '';
+      }, 2000);
+    };
+  }
+
+  const btnSubmitCookies = document.getElementById('btn-submit-session-cookies');
+  if (btnSubmitCookies) {
+    btnSubmitCookies.onclick = async () => {
+      const inputEl = document.getElementById('input-session-cookies');
+      const statusEl = document.getElementById('cookie-import-status');
+      const val = inputEl ? inputEl.value.trim() : '';
+
+      if (!val) {
+        if (statusEl) {
+          statusEl.style.color = '#FA2D48';
+          statusEl.innerText = 'Please paste cookies or SAPISID first.';
+        }
+        return;
+      }
+
+      if (statusEl) {
+        statusEl.style.color = 'var(--apple-text-secondary)';
+        statusEl.innerText = 'Connecting...';
+      }
+
+      const api = window.dejaAPI || window.sonoraAPI;
+      if (api?.importSessionCookies) {
+        try {
+          const res = await api.importSessionCookies(val);
+          if (res && res.success) {
+            if (statusEl) {
+              statusEl.style.color = '#34C759';
+              statusEl.innerText = 'Connected successfully!';
+            }
+            if (inputEl) inputEl.value = '';
+            setTimeout(() => {
+              closeAccountModal();
+            }, 800);
+          } else {
+            if (statusEl) {
+              statusEl.style.color = '#FA2D48';
+              statusEl.innerText = (res && res.error) ? res.error : 'Authentication failed. Please check cookies.';
+            }
+          }
+        } catch (err) {
+          if (statusEl) {
+            statusEl.style.color = '#FA2D48';
+            statusEl.innerText = 'Error: ' + err.message;
+          }
+        }
+      }
+    };
+  }
+
+  const btnSwitchAccount = document.getElementById('btn-switch-account');
+  if (btnSwitchAccount) {
+    btnSwitchAccount.onclick = () => {
+      renderAccountModalContent(true);
+    };
+  }
+
+  const btnModalLogout = document.getElementById('btn-modal-logout');
+  if (btnModalLogout) {
+    btnModalLogout.onclick = async () => {
+      const api = window.dejaAPI || window.sonoraAPI;
+      if (api?.logoutGoogle) {
+        await api.logoutGoogle();
+      }
+      updateAccountUI({ isLoggedIn: false });
+      renderAccountModalContent(true);
+    };
+  }
+
   // Modal backdrop click-away
-  ['settings-modal', 'pipeline-modal', 'sleep-modal', 'eq-modal', 'create-playlist-modal', 'add-to-playlist-modal'].forEach(id => {
+  ['account-login-modal', 'settings-modal', 'pipeline-modal', 'sleep-modal', 'eq-modal', 'create-playlist-modal', 'add-to-playlist-modal'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener('click', (e) => {
@@ -4562,7 +4845,7 @@ function setupEvents() {
       }
 
       // 2. If any modal is currently visible, dismiss it first
-      const openModal = ['pipeline-modal', 'sleep-modal', 'eq-modal', 'create-playlist-modal', 'add-to-playlist-modal', 'settings-modal'].find(id => {
+      const openModal = ['account-login-modal', 'pipeline-modal', 'sleep-modal', 'eq-modal', 'create-playlist-modal', 'add-to-playlist-modal', 'settings-modal'].find(id => {
         const el = document.getElementById(id);
         return el && el.style.display && el.style.display !== 'none';
       });
@@ -4730,6 +5013,10 @@ if (typeof module !== 'undefined' && module.exports) {
     getPrimaryArtist,
     openCreatePlaylistModal,
     closeCreatePlaylistModal,
-    openAddToPlaylistModal
+    openAddToPlaylistModal,
+    openAccountModal,
+    closeAccountModal,
+    renderAccountModalContent,
+    switchLoginTab
   };
 }

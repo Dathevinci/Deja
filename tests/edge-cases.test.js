@@ -219,6 +219,52 @@ function runEdgeCaseTests() {
   // Clean up global mock
   delete global.document;
 
+  // 12. Session Cookie Parser Edge Cases
+  function parseCookiePairs(rawInput) {
+    if (!rawInput || typeof rawInput !== 'string') return [];
+    const clean = rawInput.trim();
+    if (!clean) return [];
+    const pairs = [];
+    if (!clean.includes('=') && !clean.includes(';')) {
+      pairs.push({ name: 'SAPISID', value: clean });
+    } else {
+      const items = clean.split(/[\r\n;]+/);
+      for (const item of items) {
+        const trimmed = item.trim();
+        if (!trimmed) continue;
+        const eqIdx = trimmed.indexOf('=');
+        if (eqIdx > 0) {
+          const name = trimmed.substring(0, eqIdx).trim();
+          let value = trimmed.substring(eqIdx + 1).trim();
+          if (value.startsWith('"') && value.endsWith('"')) {
+            value = value.slice(1, -1);
+          }
+          if (name && value) {
+            pairs.push({ name, value });
+          }
+        }
+      }
+    }
+    return pairs;
+  }
+
+  assert.deepStrictEqual(parseCookiePairs(''), []);
+  assert.deepStrictEqual(parseCookiePairs(null), []);
+  assert.deepStrictEqual(parseCookiePairs(undefined), []);
+  assert.deepStrictEqual(parseCookiePairs('   '), []);
+  assert.deepStrictEqual(parseCookiePairs('RAW_SAPISID_TOKEN_ABC123'), [
+    { name: 'SAPISID', value: 'RAW_SAPISID_TOKEN_ABC123' }
+  ]);
+  assert.deepStrictEqual(parseCookiePairs('SAPISID="quoted_token"; LOGIN_INFO=live_info_token'), [
+    { name: 'SAPISID', value: 'quoted_token' },
+    { name: 'LOGIN_INFO', value: 'live_info_token' }
+  ]);
+  assert.deepStrictEqual(parseCookiePairs('SID=123;\nHSID=456;\r\nSSID=789'), [
+    { name: 'SID', value: '123' },
+    { name: 'HSID', value: '456' },
+    { name: 'SSID', value: '789' }
+  ]);
+
   console.log('✓ Edge cases and security tests passed successfully.');
 }
 

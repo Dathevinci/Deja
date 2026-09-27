@@ -2004,12 +2004,14 @@ body:has(.deja-expanded-player-view.visible) .deja-queue-drawer {
   top: 0 !important;
   bottom: 0 !important;
   height: 100vh !important;
+  z-index: 100020 !important;
 }
 
 .deja-queue-drawer.visible,
 .deja-queue-drawer.active {
   transform: translate3d(0, 0, 0) !important;
-  pointer-events: auto;
+  pointer-events: auto !important;
+  z-index: 100020 !important;
 }
 
 .deja-queue-header {
@@ -2858,4 +2860,327 @@ body,
 .deja-toast.show {
   transform: translate3d(-50%, 0, 0);
   opacity: 1;
+}
+
+/* ==========================================================================
+   Apple Music Style Account & Multi-Method Sign-In Modal
+   ========================================================================== */
+.account-modal-box {
+  max-width: 520px !important;
+  width: 92% !important;
+  border-radius: 16px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.account-modal-box .modal-header {
+  padding: 20px 24px 14px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.account-modal-box .modal-body {
+  padding: 20px 24px 24px !important;
+}
+
+.apple-segmented-control {
+  display: flex;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 20px;
+  gap: 4px;
+}
+
+.segmented-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--apple-text-secondary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.segmented-tab:hover {
+  color: #FFFFFF;
+}
+
+.segmented-tab.active {
+  background: rgba(255, 255, 255, 0.16);
+  color: #FFFFFF;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.login-content-inner {
+  text-align: center;
+  padding: 12px 16px 20px;
+}
+
+.login-hero-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: rgba(250, 45, 72, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: #FA2D48;
+}
+
+.login-prompt-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin: 0 0 8px;
+}
+
+.login-prompt-desc {
+  font-size: 13px;
+  color: var(--apple-text-secondary);
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+
+.login-action-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.login-status-message {
+  font-size: 12px;
+  color: var(--apple-text-tertiary);
+  margin-top: 12px;
+  min-height: 18px;
+}
+
+.browser-connect-inner {
+  padding: 4px 0 10px;
+}
+
+.browser-connect-desc {
+  font-size: 13px;
+  color: var(--apple-text-secondary);
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+
+.connect-method-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.method-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.method-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.method-card-sub {
+  font-size: 12px;
+  color: var(--apple-text-tertiary);
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+
+.console-snippet-box {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px 10px;
+  gap: 8px;
+}
+
+.console-snippet-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  color: #34C759;
+  word-break: break-all;
+  flex: 1;
+}
+
+.btn-mini-open, .btn-mini-copy {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.cookie-textarea {
+  width: 100%;
+  height: 64px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+
+.cookie-submit-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.cookie-import-status {
+  font-size: 12px;
+  margin-right: auto;
+}
+
+.account-profile-view {
+  text-align: center;
+  padding: 16px 12px 20px;
+}
+
+.profile-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.profile-avatar-large {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: #FA2D48;
+  color: #FFFFFF;
+  font-size: 26px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(250, 45, 72, 0.4);
+  margin-bottom: 12px;
+}
+
+.profile-avatar-large-img {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  margin-bottom: 12px;
+}
+
+.profile-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0 0 4px;
+}
+
+.profile-handle {
+  font-size: 13px;
+  color: var(--apple-text-secondary);
+  margin-bottom: 10px;
+}
+
+.profile-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(52, 199, 89, 0.14);
+  color: #34C759;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(52, 199, 89, 0.25);
+}
+
+.status-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34C759;
+  box-shadow: 0 0 6px #34C759;
+}
+
+.profile-actions-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.btn-signout {
+  color: #FF453A !important;
+  border-color: rgba(255, 69, 58, 0.3) !important;
+}
+
+.btn-signout:hover {
+  background: rgba(255, 69, 58, 0.12) !important;
+}
+
+.sidebar-account-footer {
+  padding: 10px 12px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: auto;
+}
+
+.sidebar-account-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.sidebar-account-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-avatar {
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sidebar-account-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-account-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #FFFFFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-account-sub {
+  font-size: 10.5px;
+  color: var(--apple-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

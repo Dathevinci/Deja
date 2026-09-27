@@ -501,11 +501,210 @@ ipcMain.handle('open-external', (event, url) => {
   }
 });
 
-// Google Account & YouTube Music Authentication Dialog
+// Google Account & YouTube Music Authentication (BitChord Architecture)
 let activeLoginWin = null;
+let syncServer = null;
+
+/**
+ * Lightweight local HTTP sync listener on http://127.0.0.1:3728/sync.
+ * Accepts GET/POST ?c=COOKIE_STRING with CORS enabled so a user can run a 1-line browser snippet:
+ * fetch('http://127.0.0.1:3728/sync?c=' + encodeURIComponent(document.cookie))
+ * from their browser console to import session cookies directly.
+ */
+function startSyncServer() {
+  if (syncServer) return;
+  try {
+    const http = require('http');
+    syncServer = http.createServer(async (req, res) => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', '*');
+
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      try {
+        const parsedUrl = new URL(req.url, 'http://127.0.0.1:3728');
+        if (parsedUrl.pathname === '/sync') {
+          let cookieParam = parsedUrl.searchParams.get('c') || '';
+
+          if (!cookieParam && req.method === 'POST') {
+            try {
+              const chunks = [];
+              for await (const chunk of req) chunks.push(chunk);
+              const rawBody = Buffer.concat(chunks).toString('utf8');
+              try {
+                const bodyJson = JSON.parse(rawBody);
+                cookieParam = bodyJson.c || bodyJson.cookie || bodyJson.cookies || rawBody;
+              } catch {
+                cookieParam = rawBody;
+              }
+            } catch {}
+          }
+
+          if (cookieParam) {
+            const ses = session.fromPartition('persist:ytmusic');
+            const result = await applySessionCookies(cookieParam, ses);
+            if (result && result.success) {
+              if (activeLoginWin && !activeLoginWin.isDestroyed()) {
+                try { activeLoginWin.close(); } catch {}
+              }
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: true, message: 'Signed in successfully!', account: result.account }));
+              return;
+            } else {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: (result && result.error) || 'Failed to authenticate with provided cookies.' }));
+              return;
+            }
+          } else {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Missing c parameter with cookie string.' }));
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('[SyncServer] Request error:', err.message);
+      }
+
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found' }));
+    });
+
+    syncServer.on('error', (err) => {
+      console.warn('[SyncServer] HTTP sync server notice:', err.message);
+    });
+
+    syncServer.listen(3728, '127.0.0.1', () => {
+      console.log('[SyncServer] Listening on http://127.0.0.1:3728/sync');
+    });
+
+    if (typeof syncServer.unref === 'function') {
+      syncServer.unref();
+    }
+  } catch (err) {
+    console.warn('[SyncServer] Could not initialize sync server:', err.message);
+  }
+}
+
+/**
+ * Parses and sets session cookies for YouTube and Google domains into the session partition,
+ * then validates via innertube.getAccountInfo(ses).
+ */
+async function applySessionCookies(rawCookieInput, ses) {
+  if (!rawCookieInput || typeof rawCookieInput !== 'string') {
+    return { success: false, error: 'Cookie string is empty.' };
+  }
+  const cleanInput = rawCookieInput.trim();
+  if (!cleanInput) {
+    return { success: false, error: 'Cookie string is empty.' };
+  }
+
+  const cookiePairs = [];
+  if (!cleanInput.includes('=') && !cleanInput.includes(';')) {
+    // Single raw token, treat as SAPISID
+    cookiePairs.push({ name: 'SAPISID', value: cleanInput });
+    cookiePairs.push({ name: '__Secure-3PAPISID', value: cleanInput });
+    cookiePairs.push({ name: '__Secure-1PAPISID', value: cleanInput });
+  } else {
+    // Semicolon or newline separated key=value pairs
+    const items = cleanInput.split(/[\r\n;]+/);
+    for (const item of items) {
+      const trimmed = item.trim();
+      if (!trimmed) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const name = trimmed.substring(0, eqIdx).trim();
+        let value = trimmed.substring(eqIdx + 1).trim();
+        if (value.startsWith('"') && value.endsWith('"')) {
+          value = value.slice(1, -1);
+        }
+        if (name && value) {
+          cookiePairs.push({ name, value });
+        }
+      }
+    }
+  }
+
+  if (cookiePairs.length === 0) {
+    return { success: false, error: 'No valid cookies found in input.' };
+  }
+
+  // Set cookies across YouTube and Google domains
+  const urls = ['https://music.youtube.com', 'https://youtube.com'];
+  for (const { name, value } of cookiePairs) {
+    for (const targetUrl of urls) {
+      try {
+        const details = {
+          url: targetUrl,
+          name,
+          value,
+          path: '/',
+          secure: true,
+          httpOnly: false,
+          sameSite: 'no_restriction'
+        };
+        if (!name.startsWith('__Host-')) {
+          details.domain = '.youtube.com';
+        }
+        await ses.cookies.set(details);
+      } catch {
+        try {
+          await ses.cookies.set({
+            url: targetUrl,
+            name,
+            value,
+            path: '/',
+            secure: true
+          });
+        } catch {}
+      }
+    }
+
+    if (name.includes('SID') || name.includes('APISID') || name === 'LOGIN_INFO') {
+      try {
+        await ses.cookies.set({
+          url: 'https://google.com',
+          domain: '.google.com',
+          name,
+          value,
+          path: '/',
+          secure: true,
+          httpOnly: false,
+          sameSite: 'no_restriction'
+        });
+      } catch {}
+    }
+  }
+
+  try {
+    const info = await innertube.getAccountInfo(ses);
+    if (info && info.isLoggedIn) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('auth-changed', info);
+        mainWindow.webContents.send('auth-state-changed', info);
+      }
+      return { success: true, account: info };
+    } else {
+      return {
+        success: false,
+        error: 'Cookies were imported, but YouTube Music session could not be authenticated. Please ensure you copied cookies while logged into YouTube Music.'
+      };
+    }
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Google Account & YouTube Music Authentication Dialog
 ipcMain.handle('open-google-login', async (event, targetMethod) => {
   return new Promise((resolve) => {
     try {
+      startSyncServer();
+
       if (activeLoginWin && !activeLoginWin.isDestroyed()) {
         activeLoginWin.focus();
         return resolve(true);
@@ -517,6 +716,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       } catch {
         ses.setUserAgent(CHROME_UA);
       }
+
       // Independent normal window (no parent / modal to avoid Google embedded browser detection)
       const loginWin = new BrowserWindow({
         width: 800,
@@ -544,7 +744,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         loginWin.webContents.setUserAgent(CHROME_UA);
       }
 
-      // Handle popup windows during Google Auth (e.g. 2FA, Security Keys)
+      // Handle popup windows during Google Auth (e.g. 2FA, passkeys, Security Keys)
       loginWin.webContents.setWindowOpenHandler(({ url }) => {
         return {
           action: 'allow',
@@ -572,167 +772,42 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       let checkInProgress = false;
       let pollInterval = null;
 
-      const injectStealth = () => {
-        if (!loginWin || loginWin.isDestroyed()) return;
-        loginWin.webContents.executeJavaScript(`
-          try {
-            if (navigator.webdriver === true) {
-              Object.defineProperty(navigator, 'webdriver', { get: () => undefined, configurable: true });
-            }
-            if (!window.chrome) {
-              window.chrome = { app: { isInstalled: false }, csi: () => {}, loadTimes: () => {} };
-            }
-          } catch (e) {}
-        `).catch(() => {});
-      };
-
-      const injectLoginHeader = () => {
-        if (!loginWin || loginWin.isDestroyed()) return;
-        loginWin.webContents.executeJavaScript(`
-          try {
-            const isGoogle = window.location.hostname.includes('google.');
-            const isYTM = window.location.hostname.includes('youtube.');
-
-            // Ensure smooth background rendering
-            if (isGoogle) {
-              if (document.documentElement) {
-                document.documentElement.style.backgroundColor = '#ffffff';
-              }
-              if (document.body) {
-                document.body.style.backgroundColor = '#ffffff';
-              }
-            } else if (isYTM) {
-              if (document.documentElement) {
-                document.documentElement.style.backgroundColor = '#030303';
-              }
-              if (document.body) {
-                document.body.style.backgroundColor = '#030303';
-              }
-            }
-
-            // Safe DOM creation compliant with CSP & Trusted Types (no innerHTML)
-            if (!document.getElementById('deja-login-header')) {
-              const header = document.createElement('div');
-              header.id = 'deja-login-header';
-              header.style.cssText = 'position:fixed;top:0;left:0;right:0;height:44px;background:#18181c;border-bottom:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.5);box-sizing:border-box;user-select:none;pointer-events:auto;';
-
-              const leftDiv = document.createElement('div');
-              leftDiv.style.cssText = 'display:flex;align-items:center;gap:10px;';
-              const dot = document.createElement('div');
-              dot.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#FA2D48;box-shadow:0 0 8px rgba(250,45,72,0.8);';
-              const title = document.createElement('span');
-              title.style.cssText = 'font-size:13px;font-weight:600;color:#FFFFFF;letter-spacing:-0.2px;';
-              title.textContent = 'Sign in to YouTube Music';
-              leftDiv.appendChild(dot);
-              leftDiv.appendChild(title);
-
-              const rightDiv = document.createElement('div');
-              rightDiv.style.cssText = 'display:flex;align-items:center;gap:10px;';
-
-              const btnLoad = document.createElement('button');
-              btnLoad.id = 'deja-btn-load-ytm';
-              btnLoad.style.cssText = 'background:rgba(255,255,255,0.08);color:#e4e4e7;border:1px solid rgba(255,255,255,0.16);padding:5px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:all 0.15s ease;';
-              btnLoad.textContent = 'Load music.youtube.com';
-              btnLoad.onmouseenter = () => { btnLoad.style.background = 'rgba(255,255,255,0.16)'; };
-              btnLoad.onmouseleave = () => { btnLoad.style.background = 'rgba(255,255,255,0.08)'; };
-              btnLoad.onclick = () => {
-                btnLoad.textContent = 'Loading...';
-                document.title = 'DEJA_LOAD_YTM_' + Date.now();
-                console.log('DEJA_LOAD_YTM_' + Date.now());
-                try {
-                  window.location.href = 'https://music.youtube.com';
-                } catch (e) {}
-                setTimeout(() => {
-                  if (btnLoad) btnLoad.textContent = 'Load music.youtube.com';
-                }, 3000);
-              };
-
-              const btnSync = document.createElement('button');
-              btnSync.id = 'deja-btn-sync-done';
-              btnSync.style.cssText = 'background:#FA2D48;color:#FFFFFF;border:none;padding:5px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;box-shadow:0 2px 10px rgba(250,45,72,0.4);transition:all 0.15s ease;';
-              btnSync.textContent = 'Done / Sync My Account';
-              btnSync.onmouseenter = () => { btnSync.style.background = '#fb455c'; };
-              btnSync.onmouseleave = () => { btnSync.style.background = '#FA2D48'; };
-              btnSync.onclick = () => {
-                btnSync.textContent = 'Syncing...';
-                document.title = 'DEJA_SYNC_TRIGGER_' + Date.now();
-                window.location.hash = 'deja-sync';
-                console.log('DEJA_SYNC_TRIGGER_' + Date.now());
-                setTimeout(() => {
-                  if (btnSync) btnSync.textContent = 'Done / Sync My Account';
-                }, 3000);
-              };
-
-              rightDiv.appendChild(btnLoad);
-              rightDiv.appendChild(btnSync);
-
-              header.appendChild(leftDiv);
-              header.appendChild(rightDiv);
-
-              (document.body || document.documentElement).appendChild(header);
-            }
-
-            // Detect Google "This browser or app may not be secure" block and highlight the Load music.youtube.com button
-            const bodyText = (document.body ? document.body.innerText : '') || (document.documentElement ? document.documentElement.innerText : '');
-            if (isGoogle && (bodyText.includes('may not be secure') || bodyText.includes("Couldn't sign you in"))) {
-              const headTitle = document.querySelector('#deja-login-header span');
-              const headBtnLoad = document.getElementById('deja-btn-load-ytm');
-              if (headTitle) {
-                headTitle.textContent = 'Sign-in blocked by Google - Click "Load music.youtube.com"';
-              }
-              if (headBtnLoad) {
-                headBtnLoad.style.background = '#FA2D48';
-                headBtnLoad.style.color = '#FFFFFF';
-                headBtnLoad.style.fontWeight = '600';
-                headBtnLoad.style.boxShadow = '0 0 12px rgba(250, 45, 72, 0.6)';
-              }
-            }
-
-            if (document.body && !document.body.dataset.dejaHeaderShifted) {
-              document.body.style.paddingTop = '44px';
-              document.body.style.boxSizing = 'border-box';
-              document.body.dataset.dejaHeaderShifted = 'true';
-            }
-          } catch (e) {}
-        `).catch(() => {});
-      };
-
-      const checkLoginSuccess = async (targetUrl, forceSync = false) => {
+      // NEVER inject any script or DOM element into accounts.google.com, accounts.youtube.com,
+      // or any google domain. Keep Google's login page 100% clean and untouched to prevent Botguard detection.
+      const checkLoginSuccess = async (targetUrl) => {
         if (authResolved || checkInProgress) return;
         checkInProgress = true;
         try {
           if (!loginWin || loginWin.isDestroyed()) return;
           const curUrl = loginWin.webContents.getURL() || targetUrl || '';
 
-          // Check for cookies across both YouTube and Google domains
+          // Prevent checking while user is still on Google auth flow
+          if (curUrl.includes('accounts.google.') || curUrl.includes('accounts.youtube.') || curUrl.includes('myaccount.google.')) {
+            return;
+          }
+
+          // Check for cookies across YouTube domains
           const ytCookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
           const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
           const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
-          const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
-          const googleDomainCookies = await ses.cookies.get({ domain: 'google.com' }).catch(() => []);
+          const allYtCookies = [...ytCookies, ...ytDomainCookies, ...musicCookies];
+          const ytCookieNames = new Set(allYtCookies.map(c => c.name));
 
-          const ytCookieNames = new Set([...ytCookies, ...ytDomainCookies, ...musicCookies].map(c => c.name));
-          const googleCookieNames = new Set([...googleCookies, ...googleDomainCookies].map(c => c.name));
-
-          // If SAPISID, LOGIN_INFO, or SID is present on either domain, auth cookies exist
           const hasYtAuthCookie = ytCookieNames.has('SAPISID') ||
                                   ytCookieNames.has('LOGIN_INFO') ||
                                   ytCookieNames.has('__Secure-3PAPISID') ||
                                   ytCookieNames.has('__Secure-1PAPISID') ||
                                   ytCookieNames.has('SID');
+
+          const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
+          const googleDomainCookies = await ses.cookies.get({ domain: 'google.com' }).catch(() => []);
+          const googleCookieNames = new Set([...googleCookies, ...googleDomainCookies].map(c => c.name));
           const hasGoogleAuthCookie = googleCookieNames.has('SAPISID') ||
                                       googleCookieNames.has('SID') ||
                                       googleCookieNames.has('__Secure-3PAPISID') ||
                                       googleCookieNames.has('SSID');
-          const hasAuthCookie = hasYtAuthCookie || hasGoogleAuthCookie;
 
-          // Prevent premature closing while user is still on Google/YouTube auth flow (typing email, pwd, 2FA)
-          if ((curUrl.includes('accounts.google.') || curUrl.includes('accounts.youtube.') || curUrl.includes('myaccount.google.')) && !forceSync) {
-            return;
-          }
-
-          if (hasYtAuthCookie || forceSync) {
-            // Fetch real account details via innertube.getAccountInfo(ses)
+          if (curUrl.includes('music.youtube.com') || hasYtAuthCookie) {
             const info = await innertube.getAccountInfo(ses);
             if (info && info.isLoggedIn) {
               authResolved = true;
@@ -740,91 +815,38 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
                 clearInterval(pollInterval);
                 pollInterval = null;
               }
-              // Send IPC event (auth-changed) to mainWindow.webContents
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('auth-changed', info);
                 mainWindow.webContents.send('auth-state-changed', info);
               }
-              // Close loginWin smoothly
               setTimeout(() => {
                 if (loginWin && !loginWin.isDestroyed()) {
                   loginWin.close();
                 }
               }, 400);
-            } else if (forceSync) {
-              if (loginWin && !loginWin.isDestroyed() && !curUrl.includes('music.youtube.com')) {
-                loginWin.loadURL('https://music.youtube.com');
-              }
+              return;
             }
-          } else if (hasGoogleAuthCookie && !curUrl.includes('accounts.google.') && !curUrl.includes('music.youtube.com')) {
-            // Google auth finished and navigated away from accounts.google., redirect to YouTube Music to exchange session cookies
+          }
+
+          if (hasGoogleAuthCookie && !curUrl.includes('accounts.google.') && !curUrl.includes('music.youtube.com')) {
             if (loginWin && !loginWin.isDestroyed()) {
-              loginWin.loadURL('https://music.youtube.com');
+              loginWin.loadURL('https://music.youtube.com', { userAgent: CHROME_UA });
             }
           }
         } catch (err) {
-          console.warn('[Auth] Error checking login cookies:', err.message);
+          console.warn('[Auth] Error checking login session:', err.message);
         } finally {
           checkInProgress = false;
         }
       };
 
-      const handleLoadYtm = () => {
-        if (loginWin && !loginWin.isDestroyed()) {
-          loginWin.loadURL('https://music.youtube.com', {
-            userAgent: CHROME_UA
-          }).catch(err => {
-            console.warn('[Auth] Error loading music.youtube.com:', err.message);
-          });
-        }
-      };
-
-      // Listen for title updates and console messages triggered by header buttons
-      loginWin.webContents.on('page-title-updated', (e, title) => {
-        if (title.startsWith('DEJA_LOAD_YTM')) {
-          e.preventDefault();
-          handleLoadYtm();
-          return;
-        }
-        if (title.startsWith('DEJA_SYNC_TRIGGER')) {
-          e.preventDefault();
-          checkLoginSuccess(null, true);
-        }
-      });
-
-      loginWin.webContents.on('console-message', (e) => {
-        if (e && e.message) {
-          if (e.message.startsWith('DEJA_LOAD_YTM')) {
-            handleLoadYtm();
-            return;
-          }
-          if (e.message.startsWith('DEJA_SYNC_TRIGGER')) {
-            checkLoginSuccess(null, true);
-          }
-        }
-      });
-
-      // Listen for DOM creation and navigation events
-      loginWin.webContents.on('dom-ready', () => {
-        injectStealth();
-        injectLoginHeader();
-        checkLoginSuccess();
-      });
-
+      // Listen for navigation events
       loginWin.webContents.on('did-navigate', (e, url) => {
-        injectStealth();
-        injectLoginHeader();
         checkLoginSuccess(url);
-        setTimeout(() => checkLoginSuccess(url), 500);
-        setTimeout(() => checkLoginSuccess(url), 1200);
       });
 
       loginWin.webContents.on('did-navigate-in-page', (e, url) => {
-        injectStealth();
-        injectLoginHeader();
-        const isForce = !!(url && url.includes('deja-sync'));
-        checkLoginSuccess(url, isForce);
-        setTimeout(() => checkLoginSuccess(url, isForce), 500);
+        checkLoginSuccess(url);
       });
 
       // Active polling every 800ms for immediate cookie detection
@@ -836,7 +858,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         checkLoginSuccess();
       }, 800);
 
-      // Cookie change listener to detect login immediately across YouTube and Google
+      // Cookie change listener to detect login immediately
       const onCookieChanged = (event, cookie, cause, removed) => {
         if (!removed && (
           cookie.name === 'SAPISID' ||
@@ -873,15 +895,9 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         resolve(authResolved);
       });
 
-      const googleLoginUrl = 'https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F';
-      // Load https://music.youtube.com as the primary initial URL in loginWin.
-      // On music.youtube.com, clicking native "Sign In" performs first-party authentication
-      // which Google allows without the "This browser or app may not be secure" block.
-      const initialUrl = (targetMethod === 'direct-google')
-        ? googleLoginUrl
-        : 'https://music.youtube.com';
-
-      loginWin.loadURL(initialUrl, {
+      // Load BitChord's exact sign-in URL: clean, untouched Google ServiceLogin
+      const BITCHORD_GOOGLE_SIGNIN_URL = 'https://accounts.google.com/ServiceLogin?ltmpl=music&service=youtube&passive=true&continue=https%3A%2F%2Fmusic.youtube.com%2F';
+      loginWin.loadURL(BITCHORD_GOOGLE_SIGNIN_URL, {
         userAgent: CHROME_UA
       });
     } catch (err) {
@@ -891,7 +907,37 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
   });
 });
 
-// Toggle between native BitChord Apple UI and raw YouTube Music web mode
+// Import session cookies from browser quick-connect or raw input
+ipcMain.handle('import-session-cookies', async (event, cookieStr) => {
+  const ses = session.fromPartition('persist:ytmusic');
+  return await applySessionCookies(cookieStr, ses);
+});
+
+// Start the lightweight HTTP sync server if not already running
+ipcMain.handle('start-cookie-sync-server', () => {
+  startSyncServer();
+  return true;
+});
+
+// Sign out / disconnect Google account
+ipcMain.handle('logout-google', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    await ses.clearStorageData({
+      storages: ['cookies', 'localstorage', 'cache']
+    });
+    const info = { isLoggedIn: false };
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('auth-changed', info);
+      mainWindow.webContents.send('auth-state-changed', info);
+    }
+    return { success: true };
+  } catch (err) {
+    console.warn('[Auth] Logout error:', err.message);
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('toggle-web-mode', async () => {
   if (!mainWindow) return false;
   try {
@@ -1061,6 +1107,7 @@ ipcMain.handle('innertube-get-lyrics', handleGetLyrics);
 
 // App Lifecycle
 app.whenReady().then(() => {
+  startSyncServer();
   const ytSession = session.fromPartition('persist:ytmusic');
   const activeSessions = [session.defaultSession, ytSession];
 
