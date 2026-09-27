@@ -3696,6 +3696,8 @@ function handleGoogleConnect() {
         updateAccountUI(acc);
       }
       await fetchLiveYouTubeMusic(true);
+      updateSidebarPlaylistsUI();
+      renderCurrentView();
     });
   } else {
     alert('Deja YouTube Music Auth: Open Google login window.');
@@ -3800,6 +3802,8 @@ function setupEvents() {
   };
   const closeExpandedView = () => {
     if (!expandedView) return;
+    expandedView.style.transform = '';
+    expandedView.style.transition = '';
     expandedView.classList.remove('visible');
     if (expOptionsDropdown) expOptionsDropdown.style.display = 'none';
     const lyricsContainer = document.getElementById('expanded-lyrics-container');
@@ -3814,7 +3818,13 @@ function setupEvents() {
   if (playerTrackTitle) playerTrackTitle.onclick = openExpandedView;
   if (playerTrackArtist) playerTrackArtist.onclick = openExpandedView;
   if (btnExpandPlayer) btnExpandPlayer.onclick = openExpandedView;
-  if (btnCollapsePlayer) btnCollapsePlayer.onclick = closeExpandedView;
+  if (btnCollapsePlayer) {
+    btnCollapsePlayer.onclick = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      closeExpandedView();
+    };
+  }
 
   // Fluid iOS / macOS swipe / drag down to dismiss gesture on Now Playing header
   const expHeader = document.querySelector('.expanded-player-header');
@@ -3900,12 +3910,16 @@ function setupEvents() {
     };
   }
 
-  // Dismiss options dropdown on outside click
-  window.addEventListener('click', (e) => {
-    if (expOptionsDropdown && expOptionsDropdown.style.display !== 'none' && !expOptionsDropdown.contains(e.target) && e.target !== expOptionsBtn) {
-      expOptionsDropdown.style.display = 'none';
+  // Dismiss options dropdown immediately on outside click or pointerdown
+  const handleCloseOptionsDropdown = (e) => {
+    if (expOptionsDropdown && expOptionsDropdown.style.display !== 'none') {
+      if (!expOptionsDropdown.contains(e.target) && !expOptionsBtn.contains(e.target)) {
+        expOptionsDropdown.style.display = 'none';
+      }
     }
-  });
+  };
+  window.addEventListener('pointerdown', handleCloseOptionsDropdown, true);
+  window.addEventListener('click', handleCloseOptionsDropdown, true);
 
   // Audio Pipeline Modal
   const pipelineModal = document.getElementById('pipeline-modal');
@@ -4092,8 +4106,20 @@ function setupEvents() {
   // Global Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      // 1. If options menu is open, pressing Escape closes the options menu first
+      if (expOptionsDropdown && expOptionsDropdown.style.display !== 'none') {
+        expOptionsDropdown.style.display = 'none';
+        return;
+      }
+
+      // 2. Otherwise, if expanded player view is visible, collapse it
+      if (expandedView && expandedView.classList.contains('visible')) {
+        closeExpandedView();
+        return;
+      }
+
+      // 3. Otherwise, dismiss drawers and modals
       closeLyricsDrawer();
-      closeExpandedView();
       closeSongMenu();
       ['settings-modal', 'pipeline-modal', 'sleep-modal', 'eq-modal', 'create-playlist-modal', 'add-to-playlist-modal'].forEach(id => {
         const el = document.getElementById(id);
@@ -4144,6 +4170,8 @@ function setupIPC() {
     api.onAuthChanged(async (acc) => {
       updateAccountUI(acc);
       await fetchLiveYouTubeMusic(true);
+      updateSidebarPlaylistsUI();
+      renderCurrentView();
     });
   }
 

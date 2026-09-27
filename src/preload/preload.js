@@ -78,13 +78,13 @@ const LYRICS_STYLES = `
   .deja-lyrics-aura,
   .sonora-lyrics-aura {
     position: absolute;
-    inset: -20%;
+    inset: -10%;
     background-size: cover;
     background-position: center;
-    filter: blur(80px) brightness(0.4) saturate(250%);
+    filter: blur(30px) brightness(0.45) saturate(200%);
     opacity: 0.65;
     z-index: 0;
-    animation: dejaAuraPulse 12s infinite alternate ease-in-out;
+    transition: background-image 1.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   @keyframes dejaAuraPulse {
     0% { transform: scale(1) rotate(0deg); }

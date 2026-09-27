@@ -380,6 +380,11 @@ function runBitChordArchitectureTests() {
   assert.ok(css.includes('transform: translate3d(0, 100%, 0)'), 'CSS must use hardware-accelerated translate3d for Now Playing slide-up view');
   assert.ok(css.includes('z-index: 100050'), 'Modal backdrop must be elevated above expanded player view');
   assert.ok(css.includes('z-index: 10002'), 'Queue drawer must be layered above expanded player view');
+  assert.ok(css.includes('z-index: 100010'), 'Options menu must have z-index: 100010 to sit above artwork');
+  assert.ok(css.includes('z-index: 100000'), 'Expanded player header must have elevated z-index');
+  assert.ok(css.includes('contain: layout paint;'), 'CSS must include contain: layout paint to prevent layout thrashing');
+  assert.ok(html.includes('now-playing-options-menu'), 'preview.html must include now-playing-options-menu class');
+  assert.ok(html.includes('now-playing-art-wrap'), 'preview.html must include now-playing-art-wrap class');
 
   // 9.2 Independent Google Login Window Architecture
   assert.ok(!mainCode.includes('parent: mainWindow, modal: true'), 'Login window must NOT use parent or modal to prevent Google embedded webview detection');
@@ -389,6 +394,10 @@ function runBitChordArchitectureTests() {
   assert.ok(mainCode.includes("disable-blink-features") && mainCode.includes("AutomationControlled"), 'main.js must disable AutomationControlled blink feature');
   assert.ok(mainCode.includes('width: 800') && mainCode.includes('height: 700'), 'main.js must create 800x700 login window');
   assert.ok(mainCode.includes('pollInterval'), 'main.js must actively poll for authentication cookies');
+  assert.ok(mainCode.includes('injectLoginHeader'), 'main.js must inject visible login header');
+  assert.ok(mainCode.includes('Sign in to YouTube Music'), 'main.js header must have Sign in to YouTube Music title');
+  assert.ok(mainCode.includes('Done / Sync My Account'), 'main.js header must have Done / Sync My Account button');
+  assert.ok(mainCode.includes('Load music.youtube.com'), 'main.js header must have Load music.youtube.com button');
   assert.ok(preloadCode.includes("openGoogleLogin: (targetMethod) =>"), 'preload.js must forward targetMethod parameter in openGoogleLogin bridge');
 
   // 9.3 HTML Custom Playlists Components

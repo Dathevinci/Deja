@@ -546,39 +546,57 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         `).catch(() => {});
       };
 
-      const injectSecondarySignInPrompt = () => {
+      const injectLoginHeader = () => {
         if (!loginWin || loginWin.isDestroyed()) return;
         loginWin.webContents.executeJavaScript(`
           try {
-            const cur = window.location.href;
-            if (cur.includes('music.youtube.com')) {
-              const oldBanner = document.getElementById('deja-stealth-banner');
-              if (oldBanner) oldBanner.remove();
-              return;
-            }
-            if (document.body && !document.getElementById('deja-stealth-banner')) {
-              const b = document.createElement('div');
-              b.id = 'deja-stealth-banner';
-              b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#18181b;color:#f4f4f5;padding:8px 16px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;display:flex;align-items:center;justify-content:space-between;z-index:2147483647;border-bottom:1px solid rgba(255,255,255,0.15);box-shadow:0 2px 10px rgba(0,0,0,0.5);';
-              b.innerHTML = '<span style="font-weight:500;">Google blocking or stuck? Sign in directly via YouTube Music:</span><button id="btn-switch-ytm-signin" style="background:#FA2D48;color:#FFFFFF;border:none;padding:5px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-size:11px;outline:none;">Sign In via YouTube Music</button>';
-              document.body.prepend(b);
-              const btn = document.getElementById('btn-switch-ytm-signin');
-              if (btn) {
-                btn.onclick = () => {
+            if (!document.getElementById('deja-login-header')) {
+              const header = document.createElement('div');
+              header.id = 'deja-login-header';
+              header.style.cssText = 'position:fixed;top:0;left:0;right:0;height:48px;background:#18181c;border-bottom:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.5);box-sizing:border-box;user-select:none;';
+              header.innerHTML = \`
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:10px;height:10px;border-radius:50%;background:#FA2D48;box-shadow:0 0 8px rgba(250,45,72,0.8);"></div>
+                  <span style="font-size:14px;font-weight:600;color:#FFFFFF;letter-spacing:-0.2px;">Sign in to YouTube Music</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <button id="deja-btn-load-ytm" style="background:rgba(255,255,255,0.08);color:#e4e4e7;border:1px solid rgba(255,255,255,0.16);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:all 0.15s ease;">Load music.youtube.com</button>
+                  <button id="deja-btn-sync-done" style="background:#FA2D48;color:#FFFFFF;border:none;padding:6px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;box-shadow:0 2px 10px rgba(250,45,72,0.4);transition:all 0.15s ease;">Done / Sync My Account</button>
+                </div>
+              \`;
+              document.documentElement.appendChild(header);
+
+              const btnLoad = document.getElementById('deja-btn-load-ytm');
+              if (btnLoad) {
+                btnLoad.onmouseenter = () => { btnLoad.style.background = 'rgba(255,255,255,0.16)'; };
+                btnLoad.onmouseleave = () => { btnLoad.style.background = 'rgba(255,255,255,0.08)'; };
+                btnLoad.onclick = () => {
                   window.location.href = 'https://music.youtube.com';
                 };
               }
+
+              const btnSync = document.getElementById('deja-btn-sync-done');
+              if (btnSync) {
+                btnSync.onmouseenter = () => { btnSync.style.background = '#fb455c'; };
+                btnSync.onmouseleave = () => { btnSync.style.background = '#FA2D48'; };
+                btnSync.onclick = () => {
+                  btnSync.innerText = 'Syncing...';
+                  document.title = 'DEJA_SYNC_TRIGGER_' + Date.now();
+                  window.location.hash = 'deja-sync';
+                  setTimeout(() => {
+                    if (btnSync) btnSync.innerText = 'Done / Sync My Account';
+                  }, 3000);
+                };
+              }
             }
+
+            if (document.body && !document.body.dataset.dejaHeaderShifted) {
+              document.body.style.marginTop = '48px';
+              document.body.dataset.dejaHeaderShifted = 'true';
+            }
+
             const bodyText = document.body ? document.body.innerText : '';
             if (bodyText.includes('This browser or app may not be secure') || bodyText.includes("Couldn't sign you in")) {
-              const banner = document.getElementById('deja-stealth-banner');
-              if (banner) {
-                banner.innerHTML = '<span style="font-weight:600;color:#ff6b6b;">Google blocked embedded login. Redirecting directly to YouTube Music sign-in...</span><button id="btn-switch-ytm-signin" style="background:#FA2D48;color:#FFFFFF;border:none;padding:5px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-size:11px;outline:none;">Go Now</button>';
-                const btn = document.getElementById('btn-switch-ytm-signin');
-                if (btn) {
-                  btn.onclick = () => { window.location.href = 'https://music.youtube.com'; };
-                }
-              }
               setTimeout(() => {
                 if (window.location.href.includes('accounts.google.')) {
                   window.location.href = 'https://music.youtube.com';
@@ -589,7 +607,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         `).catch(() => {});
       };
 
-      const checkLoginSuccess = async (targetUrl) => {
+      const checkLoginSuccess = async (targetUrl, forceSync = false) => {
         if (authResolved || checkInProgress) return;
         checkInProgress = true;
         try {
@@ -600,21 +618,22 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           const cookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
           const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
           const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
-          const allCookies = [...cookies, ...ytDomainCookies, ...musicCookies];
+          const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
+          const allCookies = [...cookies, ...ytDomainCookies, ...musicCookies, ...googleCookies];
           const cookieNames = new Set(allCookies.map(c => c.name));
 
-          // Verify required Google authentication cookies are present (SAPISID, __Secure-3PAPISID, SID, or LOGIN_INFO)
+          // Check for cookies on .youtube.com and music.youtube.com: if SAPISID or LOGIN_INFO is present, the user has completed login, regardless of URL.
           const hasAuthCookie = cookieNames.has('SAPISID') ||
+                                cookieNames.has('LOGIN_INFO') ||
                                 cookieNames.has('__Secure-3PAPISID') ||
-                                cookieNames.has('SID') ||
-                                cookieNames.has('LOGIN_INFO');
+                                cookieNames.has('SID');
 
-          // Do NOT close window or resolve prematurely while user is still entering credentials on Google
-          if (curUrl.includes('accounts.google.') && !hasAuthCookie) {
+          // Prevent premature closing only if user is still on Google auth and has no auth cookies yet
+          if (curUrl.includes('accounts.google.') && !hasAuthCookie && !forceSync) {
             return;
           }
 
-          if (hasAuthCookie) {
+          if (hasAuthCookie || forceSync) {
             // Fetch real account details via innertube.getAccountInfo(ses)
             const info = await innertube.getAccountInfo(ses);
             if (info && info.isLoggedIn) {
@@ -633,7 +652,11 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
                 if (loginWin && !loginWin.isDestroyed()) {
                   loginWin.close();
                 }
-              }, 600);
+              }, 400);
+            } else if (forceSync) {
+              if (loginWin && !loginWin.isDestroyed() && !curUrl.includes('music.youtube.com')) {
+                loginWin.loadURL('https://music.youtube.com');
+              }
             }
           }
         } catch (err) {
@@ -643,16 +666,24 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         }
       };
 
+      // Listen for title updates triggered by header sync button
+      loginWin.webContents.on('page-title-updated', (e, title) => {
+        if (title.startsWith('DEJA_SYNC_TRIGGER')) {
+          e.preventDefault();
+          checkLoginSuccess(null, true);
+        }
+      });
+
       // Listen for DOM creation and navigation events
       loginWin.webContents.on('dom-ready', () => {
         injectStealth();
-        injectSecondarySignInPrompt();
+        injectLoginHeader();
         checkLoginSuccess();
       });
 
       loginWin.webContents.on('did-navigate', (e, url) => {
         injectStealth();
-        injectSecondarySignInPrompt();
+        injectLoginHeader();
         checkLoginSuccess(url);
         setTimeout(() => checkLoginSuccess(url), 500);
         setTimeout(() => checkLoginSuccess(url), 1200);
@@ -660,8 +691,10 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
 
       loginWin.webContents.on('did-navigate-in-page', (e, url) => {
         injectStealth();
-        checkLoginSuccess(url);
-        setTimeout(() => checkLoginSuccess(url), 500);
+        injectLoginHeader();
+        const isForce = !!(url && url.includes('deja-sync'));
+        checkLoginSuccess(url, isForce);
+        setTimeout(() => checkLoginSuccess(url, isForce), 500);
       });
 
       // Active polling every 800ms for immediate cookie detection
@@ -670,6 +703,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           if (pollInterval) clearInterval(pollInterval);
           return;
         }
+        injectLoginHeader();
         checkLoginSuccess();
       }, 800);
 

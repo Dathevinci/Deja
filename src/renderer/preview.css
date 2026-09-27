@@ -972,9 +972,7 @@ body.deja-playing .artwork-wrapper {
   left: 0;
   right: 0;
   bottom: 80px;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.55);
   z-index: 10000;
   opacity: 0;
   pointer-events: none;
@@ -994,8 +992,8 @@ body.deja-playing .artwork-wrapper {
   bottom: 80px;
   width: 480px;
   background: rgba(18, 18, 20, 0.94);
-  backdrop-filter: blur(50px) saturate(200%);
-  -webkit-backdrop-filter: blur(50px) saturate(200%);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
   border-left: 1px solid var(--border-subtle);
   z-index: 10001;
   display: flex;
@@ -1017,19 +1015,20 @@ body.deja-playing .artwork-wrapper {
 
 .lyrics-dynamic-aura {
   position: absolute;
-  inset: -30%;
+  inset: -10%;
   background-size: cover;
   background-position: center;
-  filter: blur(90px) brightness(0.4) saturate(250%);
+  filter: blur(30px) brightness(0.45) saturate(200%);
   opacity: 0.7;
   z-index: 0;
-  animation: appleAuraFloat 14s infinite alternate ease-in-out;
+  transition: background-image 1.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
 }
 
 @keyframes appleAuraFloat {
   0% { transform: scale(1) rotate(0deg); }
-  50% { transform: scale(1.2) rotate(6deg); }
-  100% { transform: scale(1.08) rotate(-4deg); }
+  50% { transform: scale(1.05) rotate(3deg); }
+  100% { transform: scale(1.02) rotate(-3deg); }
 }
 
 .lyrics-header {
@@ -1283,10 +1282,10 @@ body.deja-playing .artwork-wrapper {
   inset: 0;
   background-size: cover;
   background-position: center;
-  filter: blur(90px) saturate(260%) brightness(0.38);
-  animation: dejaAuraDrift 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
-  transform: scale(1.12);
-  transition: background-image 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  filter: blur(32px) saturate(220%) brightness(0.42);
+  transform: scale(1.06);
+  transition: background-image 1.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
 }
 
 .deja-ambient-mesh-overlay {
@@ -1299,21 +1298,21 @@ body.deja-playing .artwork-wrapper {
               radial-gradient(circle at 22% 82%, var(--deja-aura-c3, rgba(40, 160, 220, 0.42)) 0%, transparent 55%),
               radial-gradient(circle at 78% 78%, var(--deja-aura-c4, rgba(250, 140, 45, 0.42)) 0%, transparent 60%);
   mix-blend-mode: screen;
-  animation: dejaMeshDrift 22s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95);
   transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
 }
 
 .deja-ambient-mesh-blobs {
   position: absolute;
   inset: 0;
-  filter: blur(80px);
+  filter: blur(30px);
   opacity: 0.75;
 }
 
 .mesh-blob {
   position: absolute;
   border-radius: 50%;
-  animation: blobFloat 18s infinite alternate ease-in-out;
+  transition: background 1.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .mesh-blob.blob-1 {
@@ -1332,8 +1331,6 @@ body.deja-playing .artwork-wrapper {
   right: 10%;
   background: var(--deja-aura-c2, #8A2BE2);
   opacity: 0.30;
-  animation-duration: 24s;
-  animation-delay: -5s;
 }
 
 .mesh-blob.blob-3 {
@@ -1343,8 +1340,6 @@ body.deja-playing .artwork-wrapper {
   left: 18%;
   background: var(--deja-aura-c3, #007AFF);
   opacity: 0.28;
-  animation-duration: 20s;
-  animation-delay: -8s;
 }
 
 .mesh-blob.blob-4 {
@@ -1354,8 +1349,6 @@ body.deja-playing .artwork-wrapper {
   right: 15%;
   background: var(--deja-aura-c4, #FF9500);
   opacity: 0.28;
-  animation-duration: 26s;
-  animation-delay: -12s;
 }
 
 @keyframes blobFloat {
@@ -1368,6 +1361,12 @@ body.deja-playing .artwork-wrapper {
   0% { transform: scale(1) rotate(0deg); }
   50% { transform: scale(1.08) rotate(5deg); }
   100% { transform: scale(1.03) rotate(-4deg); }
+}
+
+@keyframes dejaAuraDrift {
+  0% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.05) rotate(3deg); }
+  100% { transform: scale(1.02) rotate(-3deg); }
 }
 
 .deja-mesh-dark-scrim {
@@ -1384,14 +1383,14 @@ body.deja-playing .artwork-wrapper {
   align-items: center;
   justify-content: space-between;
   position: relative;
-  z-index: 5;
+  z-index: 100000;
   padding: 8px 0;
 }
 
 .btn-collapse-player,
 .expanded-options-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: #FFFFFF;
   width: 38px;
   height: 38px;
@@ -1400,14 +1399,12 @@ body.deja-playing .artwork-wrapper {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-collapse-player:hover,
 .expanded-options-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.22);
   transform: scale(1.08);
 }
 
@@ -1435,24 +1432,26 @@ body.deja-playing .artwork-wrapper {
 
 .expanded-header-actions {
   position: relative;
+  z-index: 100005;
 }
 
-.exp-options-dropdown {
+.exp-options-dropdown,
+.now-playing-options-menu {
   position: absolute;
   top: 48px;
   right: 0;
-  background: rgba(28, 28, 32, 0.95);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(28, 28, 32, 0.96);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 14px;
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   width: 220px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
-  z-index: 100;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  z-index: 100010;
 }
 
 .exp-dropdown-item {
@@ -1488,7 +1487,9 @@ body.deja-playing .artwork-wrapper {
   gap: 16px;
 }
 
-.expanded-artwork-container {
+.expanded-artwork-container,
+#now-playing-art-wrap,
+.now-playing-art-wrap {
   width: 360px;
   height: 360px;
   max-width: min(360px, 38vh);
@@ -1496,6 +1497,7 @@ body.deja-playing .artwork-wrapper {
   border-radius: 20px;
   overflow: hidden;
   position: relative;
+  z-index: 2;
   transform-origin: center center;
   transform: scale(0.96);
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8),
@@ -1506,12 +1508,15 @@ body.deja-playing .artwork-wrapper {
 
 body.deja-playing .expanded-artwork-container,
 .apple-player-bar.is-playing ~ .deja-expanded-player-view .expanded-artwork-container,
-.deja-expanded-player-view.is-playing .expanded-artwork-container {
+.deja-expanded-player-view.is-playing .expanded-artwork-container,
+body.deja-playing #now-playing-art-wrap,
+.deja-expanded-player-view.is-playing #now-playing-art-wrap,
+body.deja-playing .now-playing-art-wrap,
+.deja-expanded-player-view.is-playing .now-playing-art-wrap {
   transform: scale(1.03);
   box-shadow: 0 24px 70px -10px rgba(0, 0, 0, 0.85),
               0 0 50px var(--apple-accent-glow),
               0 0 90px rgba(var(--deja-aura-r, 250), var(--deja-aura-g, 45), var(--deja-aura-b, 72), 0.28);
-  animation: dejaArtworkBreathing 6s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95);
 }
 
 @keyframes dejaArtworkBreathing {
@@ -1615,13 +1620,11 @@ body.deja-playing .expanded-artwork-container,
   gap: 6px;
   padding: 5px 12px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.9);
   font-size: 11px;
   font-weight: 600;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
@@ -1885,7 +1888,7 @@ body.deja-playing .expanded-artwork-container,
               radial-gradient(circle at 85% 15%, var(--deja-aura-c2, rgba(140, 40, 220, 0.22)) 0%, transparent 60%),
               radial-gradient(circle at 20% 85%, var(--deja-aura-c3, rgba(40, 160, 220, 0.18)) 0%, transparent 55%),
               radial-gradient(circle at 80% 80%, var(--deja-aura-c4, rgba(250, 140, 45, 0.18)) 0%, transparent 60%);
-  animation: appMeshFloat 28s infinite alternate ease-in-out;
+  will-change: opacity;
 }
 
 @keyframes appMeshFloat {
@@ -2532,9 +2535,7 @@ body.deja-playing .expanded-artwork-container,
   letter-spacing: 0.06em;
   padding: 3px 6px;
   border-radius: 6px;
-  background: rgba(18, 18, 20, 0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(18, 18, 20, 0.88);
   color: #FFFFFF;
   text-transform: uppercase;
   z-index: 2;
@@ -2566,6 +2567,26 @@ body,
 .card-grid {
   scroll-behavior: smooth !important;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Card and List Paint & Layout Containment to prevent layout thrashing */
+.apple-music-card,
+.artist-card,
+.radio-card,
+.create-playlist-card,
+.deja-pipeline-card,
+.songs-table-row,
+.queue-item,
+.apple-lyric-line {
+  contain: layout paint;
+}
+
+.card-grid,
+.songs-table-container,
+.artists-grid,
+.radio-grid,
+.apple-queue-list {
+  contain: layout;
 }
 
 /* GPU Hardware Layer Promotion: cards, Now Playing overlay, lyrics drawer, squircle album art, buttons */

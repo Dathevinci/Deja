@@ -551,10 +551,11 @@ const SHADOW_PLAYER_PAGE_CSS = `
     inset: 0 !important;
     background-size: cover !important;
     background-position: center !important;
-    filter: blur(85px) saturate(240%) brightness(0.48) !important;
-    animation: dejaAuraDrift 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1) !important;
-    transform: scale(1.08) !important;
+    filter: blur(32px) saturate(220%) brightness(0.48) !important;
+    animation: none !important;
+    transform: scale(1.06) !important;
     transition: opacity 1.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    will-change: opacity !important;
   }
 
   .deja-ambient-mesh-overlay {
@@ -568,8 +569,9 @@ const SHADOW_PLAYER_PAGE_CSS = `
                 radial-gradient(circle at 75% 75%, var(--deja-aura-c4, rgba(250, 140, 45, 0.40)) 0%, transparent 65%),
                 radial-gradient(circle at 50% 50%, rgba(18, 18, 22, 0.30) 0%, rgba(14, 14, 16, 0.88) 100%) !important;
     mix-blend-mode: overlay !important;
-    animation: dejaMeshDrift 24s infinite alternate ease-in-out !important;
+    animation: none !important;
     transition: opacity 1.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    will-change: opacity !important;
   }
 
   @keyframes dejaMeshDrift {
