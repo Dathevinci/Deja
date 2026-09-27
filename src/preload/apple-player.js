@@ -304,8 +304,98 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
       }
     }
 
+    // Toggle Apple playing states for spring scaling and aura breathing
+    if (typeof document !== 'undefined' && document.body && document.body.classList) {
+      document.body.classList.toggle('deja-playing', isPlaying);
+    }
+    if (playerBar && playerBar.classList) {
+      playerBar.classList.toggle('is-playing', isPlaying);
+      if (typeof playerBar.setAttribute === 'function') {
+        if (isPlaying) playerBar.setAttribute('playing', '');
+        else playerBar.removeAttribute('playing');
+      }
+    }
+
+    // Synchronize dynamic ambient aura for now-playing / watch view
+    updateAmbientAura(coverUrl);
+
+    // Synchronize active sidebar navigation state
+    updateSidebarActiveState();
+
     // Synchronize account avatar from native DOM if present
     updateAccountAvatar();
+  }
+
+  function updateAmbientAura(coverUrl) {
+    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return;
+    const playerPage = document.querySelector('ytmusic-player-page') || document.getElementById('player-page');
+    if (playerPage) {
+      let aura = getEl('deja-player-ambient-aura', 'sonora-player-ambient-aura');
+      if (!aura) {
+        aura = document.createElement('div');
+        aura.id = 'deja-player-ambient-aura';
+        aura.className = 'deja-player-ambient-aura sonora-player-ambient-aura';
+        setSafeHTML(aura, `
+          <div class="deja-ambient-art-blur" id="deja-ambient-art-blur"></div>
+          <div class="deja-ambient-mesh-overlay"></div>
+        `);
+        if (typeof playerPage.prepend === 'function') {
+          playerPage.prepend(aura);
+        } else if (typeof playerPage.appendChild === 'function') {
+          playerPage.appendChild(aura);
+        }
+      }
+      const blurEl = getEl('deja-ambient-art-blur', 'sonora-ambient-art-blur');
+      if (blurEl && coverUrl && blurEl.style) {
+        const bgVal = `url("${coverUrl}")`;
+        if (blurEl.style.backgroundImage !== bgVal) {
+          blurEl.style.backgroundImage = bgVal;
+        }
+      }
+    }
+
+    // Also update lyrics drawer dynamic aura if open
+    const lyricsAura = document.querySelector('.deja-lyrics-aura, .sonora-lyrics-aura');
+    if (lyricsAura && coverUrl && lyricsAura.style) {
+      const bgVal = `url("${coverUrl}")`;
+      if (lyricsAura.style.backgroundImage !== bgVal) {
+        lyricsAura.style.backgroundImage = bgVal;
+      }
+    }
+  }
+
+  function updateSidebarActiveState() {
+    if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
+    const currentPath = (typeof window !== 'undefined' && window.location && window.location.pathname) || '';
+    const entries = document.querySelectorAll('ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer');
+    if (!entries || !entries.forEach) return;
+
+    entries.forEach(entry => {
+      const link = entry.querySelector ? entry.querySelector('a') : null;
+      const href = link ? (link.getAttribute('href') || link.pathname || '') : '';
+      const text = (entry.textContent || '').trim().toLowerCase();
+
+      let isActive = false;
+      if (href) {
+        if (href === '/' || href === '') {
+          isActive = (currentPath === '/' || currentPath === '');
+        } else if (currentPath.startsWith(href)) {
+          isActive = true;
+        }
+      } else {
+        if (text.includes('home') && (currentPath === '/' || currentPath === '')) {
+          isActive = true;
+        } else if (text.includes('explore') && currentPath.includes('/explore')) {
+          isActive = true;
+        } else if (text.includes('library') && currentPath.includes('/library')) {
+          isActive = true;
+        }
+      }
+
+      if (entry.classList && typeof entry.classList.toggle === 'function') {
+        entry.classList.toggle('deja-active', isActive);
+      }
+    });
   }
 
   function updateAccountAvatar() {

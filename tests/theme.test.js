@@ -35,6 +35,19 @@ function runThemeTests() {
   assert.ok(css.includes('.sonora-traffic-lights'), 'Must retain backwards-compatible .sonora-traffic-lights');
   assert.ok(css.includes('.sonora-ad-badge'), 'Must retain backwards-compatible .sonora-ad-badge');
 
+  // Verify Fluid Micro-interactions & Scrollbar Elimination
+  assert.ok(css.includes('scrollbar-width: none !important'), 'Must eliminate native browser scrollbars');
+  assert.ok(css.includes('cubic-bezier(0.16, 1, 0.3, 1)'), 'Must use Apple fluid spring cubic-bezier curves');
+
+  // Verify Apple Squircle & Cover Art After Playing
+  assert.ok(css.includes('scale(1.05)'), 'Album art must scale smoothly to 1.05 when playing');
+  assert.ok(css.includes('#hover.paper-progress'), 'Must eliminate floating thumbnail tooltip artifacts');
+
+  // Verify Now Playing Dynamic Ambient Aura & 18px Squircle
+  assert.ok(css.includes('.deja-player-ambient-aura'), 'Must wrap now playing view with Apple dynamic ambient aura');
+  assert.ok(css.includes('18px !important'), 'Artwork on player page must have 18px squircle radius');
+  assert.ok(css.includes('dejaArtworkBreathing'), 'Artwork must have smooth play/pause breathing animation');
+
   console.log('✓ Apple Theme CSS tests passed successfully.');
 }
 

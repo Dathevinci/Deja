@@ -341,6 +341,9 @@ function updateLiveLyrics() {
 
 function updatePlayButton() {
   const icon = document.getElementById('play-pause-icon');
+  const playerBar = document.getElementById('apple-player-bar');
+  if (playerBar) playerBar.classList.toggle('is-playing', isPlaying);
+  if (document.body) document.body.classList.toggle('deja-playing', isPlaying);
   if (isPlaying) {
     icon.innerHTML = `
       <rect x="6" y="4" width="4" height="16"></rect>
