@@ -19,6 +19,10 @@ function runInnerTubeIntegrationTests() {
   assert.strictEqual(typeof innertube.getAccountInfo, 'function');
   assert.strictEqual(typeof innertube.getHomeFeed, 'function');
   assert.strictEqual(typeof innertube.getExploreFeed, 'function');
+  assert.strictEqual(typeof innertube.getChartsFeed, 'function');
+  assert.strictEqual(typeof innertube.getNewReleasesFeed, 'function');
+  assert.strictEqual(typeof innertube.getLibrarySongs, 'function');
+  assert.strictEqual(typeof innertube.getLibraryPlaylists, 'function');
   assert.strictEqual(typeof innertube.getPlaylist, 'function');
   assert.strictEqual(typeof innertube.getNextQueue, 'function');
   assert.strictEqual(typeof innertube.search, 'function');

@@ -560,6 +560,50 @@ ipcMain.handle('yt-explore-feed', async () => {
   }
 });
 
+// Live YouTube Music Charts Feed (Top video charts, Top artists)
+ipcMain.handle('yt-charts-feed', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getChartsFeed(ses);
+  } catch (err) {
+    console.warn('[Feed] Charts feed error:', err.message);
+    return { shelves: [], tracks: [], artists: [] };
+  }
+});
+
+// Live YouTube Music New Releases Feed (Albums & singles, Music videos)
+ipcMain.handle('yt-new-releases-feed', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getNewReleasesFeed(ses);
+  } catch (err) {
+    console.warn('[Feed] New releases feed error:', err.message);
+    return { shelves: [], tracks: [] };
+  }
+});
+
+// User Google Library Liked Songs (FEmusic_liked_videos)
+ipcMain.handle('yt-library-songs', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getLibrarySongs(ses);
+  } catch (err) {
+    console.warn('[Library] Liked songs error:', err.message);
+    return { songs: [] };
+  }
+});
+
+// User Google Library Playlists (FEmusic_liked_playlists)
+ipcMain.handle('yt-library-playlists', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getLibraryPlaylists(ses);
+  } catch (err) {
+    console.warn('[Library] Liked playlists error:', err.message);
+    return [];
+  }
+});
+
 // Live YouTube Music Browse Playlist / Album tracks
 ipcMain.handle('yt-browse-playlist', async (event, browseId) => {
   if (!browseId || typeof browseId !== 'string') return null;

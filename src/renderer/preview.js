@@ -381,6 +381,11 @@ let searchQuery = '';
 // Live YouTube Music State (InnerTube WEB_REMIX architecture)
 let liveHomeShelves = [];
 let liveExploreShelves = [];
+let liveChartsShelves = [];
+let liveNewReleasesShelves = [];
+let liveArtists = [];
+let liveUserPlaylists = [];
+let liveLikedSongs = [];
 let liveAccount = { isLoggedIn: false };
 let activeBrowseDetail = null;
 let isFetchingLive = false;
@@ -475,22 +480,36 @@ let isYtPlaying = false;
 if (typeof window !== 'undefined') {
   window.onYouTubeIframeAPIReady = function() {
     try {
+      const initialVideoId = (CATALOGUE_TRACKS[0] && CATALOGUE_TRACKS[0].videoId) || 'ic8j13U_FS8';
+      const validOrigin = (window.location && window.location.protocol && window.location.protocol.startsWith('http'))
+        ? window.location.origin
+        : 'https://music.youtube.com';
+
       ytPlayer = new YT.Player('yt-player-container', {
-        height: '1',
-        width: '1',
+        height: '180',
+        width: '320',
+        videoId: initialVideoId,
         playerVars: {
           autoplay: 0,
           controls: 0,
           disablekb: 1,
           fs: 0,
           modestbranding: 1,
-          rel: 0
+          rel: 0,
+          origin: validOrigin
         },
         events: {
           onReady: () => {
             isYtReady = true;
             try {
               ytPlayer.setVolume(Math.round(currentVolume * 100));
+              if (isPlaying) {
+                const cur = CATALOGUE_TRACKS[currentIndex];
+                if (cur && cur.videoId) {
+                  ytPlayer.loadVideoById(cur.videoId);
+                  isYtPlaying = true;
+                }
+              }
             } catch {}
           },
           onStateChange: (event) => {
@@ -502,6 +521,12 @@ if (typeof window !== 'undefined') {
               isPlaying = true;
               updatePlayButton();
               notifyTrackState();
+              try {
+                const vidData = ytPlayer.getVideoData ? ytPlayer.getVideoData() : null;
+                const isAd = !!(vidData && (vidData.isAd || vidData.author === ''));
+                const adPill = document.getElementById('player-ad-pill');
+                if (adPill) adPill.style.display = isAd ? 'inline-flex' : 'none';
+              } catch {}
             } else if (event.data === 2) {
               isYtPlaying = false;
               isPlaying = false;
@@ -509,10 +534,9 @@ if (typeof window !== 'undefined') {
               notifyTrackState();
             }
           },
-          onError: (err) => {
-            console.warn('[YouTube Player] Playback error; switching to Web Audio API synth:', err);
+          onError: (event) => {
+            console.warn('[YouTube Player] Playback error code:', event?.data);
             isYtPlaying = false;
-            startWebAudioStream();
           }
         }
       });
@@ -735,17 +759,61 @@ async function fetchLiveYouTubeMusic() {
   if (!api) return;
   isFetchingLive = true;
 
-  // 1. Account Info
+  // 1. Account Info & User Library
   try {
     if (api.getAccountInfo) {
       const acc = await api.getAccountInfo();
       updateAccountUI(acc);
+      if (acc && acc.isLoggedIn) {
+        if (api.getLibraryPlaylists) {
+          const userPls = await api.getLibraryPlaylists();
+          if (userPls && userPls.length > 0) {
+            liveUserPlaylists = userPls;
+            updateSidebarPlaylistsUI(userPls);
+          }
+        }
+        if (api.getLibrarySongs) {
+          const libSongs = await api.getLibrarySongs();
+          if (libSongs && libSongs.songs && libSongs.songs.length > 0) {
+            liveLikedSongs = libSongs.songs;
+            libSongs.songs.forEach(t => {
+              if (t.videoId && !CATALOGUE_TRACKS.some(x => x.videoId === t.videoId)) {
+                CATALOGUE_TRACKS.push(createCatalogueItemFromLive(t));
+              }
+            });
+          }
+        }
+      }
     }
   } catch (err) {
     console.warn('[Account] getAccountInfo error:', err.message);
   }
 
-  // 2. Home Feed (FEmusic_home)
+  // 2. Charts Feed (Top video charts, Top artists, 100 live chart songs)
+  try {
+    if (api.getChartsFeed) {
+      const chartsData = await api.getChartsFeed();
+      if (chartsData) {
+        if (chartsData.shelves && chartsData.shelves.length > 0) {
+          liveChartsShelves = chartsData.shelves;
+        }
+        if (chartsData.artists && chartsData.artists.length > 0) {
+          liveArtists = chartsData.artists;
+        }
+        if (chartsData.tracks && chartsData.tracks.length > 0) {
+          chartsData.tracks.forEach(t => {
+            if (t.videoId && !CATALOGUE_TRACKS.some(x => x.videoId === t.videoId)) {
+              CATALOGUE_TRACKS.push(createCatalogueItemFromLive(t));
+            }
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Feed] Charts feed error:', err.message);
+  }
+
+  // 3. Home Feed (FEmusic_home)
   try {
     if (api.getHomeFeed) {
       const homeData = await api.getHomeFeed();
@@ -758,16 +826,13 @@ async function fetchLiveYouTubeMusic() {
             }
           });
         }
-        if (currentView === 'listen-now') {
-          renderCurrentView();
-        }
       }
     }
   } catch (err) {
     console.warn('[Feed] Home feed error:', err.message);
   }
 
-  // 3. Explore Feed (FEmusic_explore)
+  // 4. Explore Feed (FEmusic_explore)
   try {
     if (api.getExploreFeed) {
       const exploreData = await api.getExploreFeed();
@@ -780,16 +845,71 @@ async function fetchLiveYouTubeMusic() {
             }
           });
         }
-        if (currentView === 'browse') {
-          renderCurrentView();
-        }
       }
     }
   } catch (err) {
     console.warn('[Feed] Explore feed error:', err.message);
   }
 
+  // 5. New Releases Feed (FEmusic_new_releases)
+  try {
+    if (api.getNewReleasesFeed) {
+      const newRelData = await api.getNewReleasesFeed();
+      if (newRelData && newRelData.shelves && newRelData.shelves.length > 0) {
+        liveNewReleasesShelves = newRelData.shelves;
+        if (newRelData.tracks && newRelData.tracks.length > 0) {
+          newRelData.tracks.forEach(t => {
+            if (t.videoId && !CATALOGUE_TRACKS.some(x => x.videoId === t.videoId)) {
+              CATALOGUE_TRACKS.push(createCatalogueItemFromLive(t));
+            }
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Feed] New releases feed error:', err.message);
+  }
+
   isFetchingLive = false;
+  renderCurrentView();
+}
+
+function updateSidebarPlaylistsUI(userPls) {
+  if (typeof document === 'undefined' || !userPls || userPls.length === 0) return;
+  const groups = document.querySelectorAll('.sidebar-group');
+  let myPlaylistsGroup = null;
+  groups.forEach(g => {
+    const h = g.querySelector('.sidebar-heading');
+    if (h && h.innerText.includes('My Playlists')) {
+      myPlaylistsGroup = g;
+    }
+  });
+  if (!myPlaylistsGroup) return;
+
+  let html = `
+    <span class="sidebar-heading">My Playlists</span>
+    <button class="sidebar-link" data-playlist="favorites">⭐ Liked Songs</button>
+  `;
+  userPls.slice(0, 8).forEach(p => {
+    html += `
+      <button class="sidebar-link live-user-playlist-link" data-browse-id="${escapeHTML(p.browseId || '')}" title="${escapeHTML(p.title || '')}">
+        📁 ${escapeHTML(p.title || 'Playlist')}
+      </button>
+    `;
+  });
+  myPlaylistsGroup.innerHTML = html;
+
+  const favBtn = myPlaylistsGroup.querySelector('[data-playlist="favorites"]');
+  if (favBtn) favBtn.onclick = () => navigateToPlaylist('favorites');
+
+  const links = myPlaylistsGroup.querySelectorAll('.live-user-playlist-link');
+  links.forEach(l => {
+    l.onclick = () => {
+      const bId = l.getAttribute('data-browse-id');
+      const title = l.innerText.replace('📁 ', '').trim();
+      if (bId) openBrowseDetail(bId, title);
+    };
+  });
 }
 
 function updateAccountUI(acc) {
@@ -991,11 +1111,45 @@ function playLiveTrack(item) {
 }
 
 function renderListenNowView(container) {
-  const hasLiveShelves = liveHomeShelves && liveHomeShelves.length > 0;
+  const allShelves = [];
+
+  if (liveChartsShelves && liveChartsShelves.length > 0) {
+    liveChartsShelves.forEach(s => {
+      if (s.items && s.items.length > 0 && !allShelves.some(x => x.title === s.title)) {
+        allShelves.push(s);
+      }
+    });
+  }
+
+  if (liveHomeShelves && liveHomeShelves.length > 0) {
+    liveHomeShelves.forEach(s => {
+      if (s.items && s.items.length > 0 && !allShelves.some(x => x.title === s.title)) {
+        allShelves.push(s);
+      }
+    });
+  }
+
+  if (liveExploreShelves && liveExploreShelves.length > 0) {
+    liveExploreShelves.forEach(s => {
+      if (s.items && s.items.length > 0 && !allShelves.some(x => x.title === s.title)) {
+        allShelves.push(s);
+      }
+    });
+  }
+
+  if (liveNewReleasesShelves && liveNewReleasesShelves.length > 0) {
+    liveNewReleasesShelves.forEach(s => {
+      if (s.items && s.items.length > 0 && !allShelves.some(x => x.title === s.title)) {
+        allShelves.push(s);
+      }
+    });
+  }
+
+  const hasLiveShelves = allShelves.length > 0;
   let shelvesHTML = '';
 
   if (hasLiveShelves) {
-    shelvesHTML = liveHomeShelves.map((shelf, shelfIdx) => {
+    shelvesHTML = allShelves.map((shelf, shelfIdx) => {
       return `
         <section class="shelf-section">
           <div class="shelf-header">
@@ -1077,7 +1231,7 @@ function renderListenNowView(container) {
   `;
 
   if (hasLiveShelves) {
-    liveHomeShelves.forEach((shelf, sIdx) => {
+    allShelves.forEach((shelf, sIdx) => {
       shelf.items.forEach((item, iIdx) => {
         const cardId = `live-home-${sIdx}-${iIdx}`;
         const el = document.querySelector(`[data-live-id="${cardId}"]`);
@@ -1110,22 +1264,48 @@ function renderListenNowView(container) {
 
 function renderBrowseView(container) {
   const genres = ['All', 'Charts', 'New Releases', 'Moods & Genres', 'Trending', 'Chill', 'Synthwave'];
-  const hasLiveShelves = liveExploreShelves && liveExploreShelves.length > 0;
+  const allBrowseShelves = [];
+
+  if (liveNewReleasesShelves && liveNewReleasesShelves.length > 0) {
+    liveNewReleasesShelves.forEach(s => {
+      if (s.items && s.items.length > 0 && !allBrowseShelves.some(x => x.title === s.title)) {
+        allBrowseShelves.push(s);
+      }
+    });
+  }
+
+  if (liveExploreShelves && liveExploreShelves.length > 0) {
+    liveExploreShelves.forEach(s => {
+      if (s.items && s.items.length > 0 && !allBrowseShelves.some(x => x.title === s.title)) {
+        allBrowseShelves.push(s);
+      }
+    });
+  }
+
+  if (liveChartsShelves && liveChartsShelves.length > 0) {
+    liveChartsShelves.forEach(s => {
+      if (s.items && s.items.length > 0 && !allBrowseShelves.some(x => x.title === s.title)) {
+        allBrowseShelves.push(s);
+      }
+    });
+  }
+
+  const hasLiveShelves = allBrowseShelves.length > 0;
   let shelvesHTML = '';
 
   if (hasLiveShelves) {
-    shelvesHTML = liveExploreShelves.map((shelf, shelfIdx) => {
+    shelvesHTML = allBrowseShelves.map((shelf, shelfIdx) => {
       return `
         <section class="shelf-section">
           <div class="shelf-header">
             <div>
               <h2 class="shelf-title">${escapeHTML(shelf.title)}</h2>
             </div>
-            <span class="shelf-action" style="color: var(--apple-accent); font-weight: 600;">YouTube Music Explore</span>
+            <span class="shelf-action" style="color: var(--apple-accent); font-weight: 600;">YouTube Music</span>
           </div>
-          <div class="card-grid">
+          <div class="card-grid" ${shelfIdx === 0 ? 'id="browse-card-grid"' : ''}>
             ${shelf.items.map((item, itemIdx) => {
-              const globalCardId = `live-explore-${shelfIdx}-${itemIdx}`;
+              const globalCardId = `live-browse-${shelfIdx}-${itemIdx}`;
               return renderLiveCardHTML(item, globalCardId);
             }).join('')}
           </div>
@@ -1156,9 +1336,9 @@ function renderBrowseView(container) {
   `;
 
   if (hasLiveShelves) {
-    liveExploreShelves.forEach((shelf, sIdx) => {
+    allBrowseShelves.forEach((shelf, sIdx) => {
       shelf.items.forEach((item, iIdx) => {
-        const cardId = `live-explore-${sIdx}-${iIdx}`;
+        const cardId = `live-browse-${sIdx}-${iIdx}`;
         const el = document.querySelector(`[data-live-id="${cardId}"]`);
         if (el) {
           el.onclick = () => {
@@ -1188,25 +1368,25 @@ function filterByGenre(genre) {
 
 function renderRadioView(container) {
   const stations = [
-    { title: 'Apple Music 1', desc: 'The pulse of music culture. Live premieres, artist takeovers & deep cuts.', cover: CATALOGUE_TRACKS[0].cover, trackIdx: 0 },
-    { title: 'Chillhop Beats FM', desc: 'Cozy study beats, melodic piano & relaxing rainy day textures.', cover: CATALOGUE_TRACKS[7].cover, trackIdx: 7 },
-    { title: 'Synthwave 80s Radio', desc: 'Retro outrun arpeggios, neon driving vibes & vintage analog synths.', cover: CATALOGUE_TRACKS[2].cover, trackIdx: 2 },
-    { title: 'Deep Space Ambient', desc: 'Weightless cosmic soundscapes for meditation and deep flow states.', cover: CATALOGUE_TRACKS[1].cover, trackIdx: 1 },
-    { title: 'Energy HyperDrive', desc: 'High-octane BPM for running, training, and breaking barriers.', cover: CATALOGUE_TRACKS[8].cover, trackIdx: 8 },
-    { title: 'Botanica Zen Radio', desc: 'Forest birds, gentle acoustic plucks, and organic lo-fi rhythms.', cover: CATALOGUE_TRACKS[4].cover, trackIdx: 4 }
+    { title: "Today's Top Hits Radio", desc: 'The biggest global hits and chart-topping singles streaming continuously.', cover: CATALOGUE_TRACKS[0].cover, trackIdx: 0 },
+    { title: 'Chillhop & Lo-Fi Beats', desc: 'Relaxing study beats, mellow piano textures, and warm atmospheric grooves.', cover: CATALOGUE_TRACKS[7].cover, trackIdx: 7 },
+    { title: 'Synthwave 80s Cyber Radio', desc: 'Outrun arpeggios, vintage analog synthesizers, and midnight neon drive.', cover: CATALOGUE_TRACKS[1].cover, trackIdx: 1 },
+    { title: 'Pure Pop Energy Radio', desc: 'High-tempo chart toppers, dance anthems, and vibrant modern rhythms.', cover: CATALOGUE_TRACKS[2].cover, trackIdx: 2 },
+    { title: 'Acoustic & Flow Radio', desc: 'Organic acoustic plucks, soothing vocal melodies, and acoustic sessions.', cover: CATALOGUE_TRACKS[5].cover, trackIdx: 5 },
+    { title: 'High Endurance Workout', desc: 'Heavy basslines, driving kicks, and fast-paced motivation tracks.', cover: CATALOGUE_TRACKS[6].cover, trackIdx: 6 }
   ];
 
   container.innerHTML = `
     <div style="padding: 10px 0 20px 0;">
       <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 8px;">BitChord Radio</h1>
-      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Continuous live streams curated for every mood and moment.</p>
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Continuous live streams and AutoPlay mixes powered by YouTube Music.</p>
 
       <div class="radio-grid">
         ${stations.map(st => `
-          <div class="radio-card" onclick="selectTrack(${st.trackIdx})">
+          <div class="radio-card" onclick="startRadioStation(${st.trackIdx})">
             <div class="radio-card-top">
               <span class="radio-live-badge"><span class="radio-live-dot"></span> LIVE</span>
-              <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">160k Opus</span>
+              <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">YouTube Music Radio</span>
             </div>
             <img src="${st.cover}" class="radio-card-cover" alt="${st.title}">
             <div>
@@ -1218,6 +1398,10 @@ function renderRadioView(container) {
       </div>
     </div>
   `;
+}
+
+function startRadioStation(trackIdx) {
+  selectTrack(trackIdx);
 }
 
 function renderRecentlyAddedView(container) {
@@ -1233,35 +1417,68 @@ function renderRecentlyAddedView(container) {
 }
 
 function renderArtistsView(container) {
-  const artistsMap = new Map();
-  CATALOGUE_TRACKS.forEach(t => {
-    if (!artistsMap.has(t.artist)) {
-      artistsMap.set(t.artist, { artist: t.artist, genre: t.genre, cover: t.cover, trackId: t.id });
-    }
-  });
+  const hasLiveArtists = liveArtists && liveArtists.length > 0;
 
-  const artistsList = Array.from(artistsMap.values());
+  let artistsHTML = '';
+  if (hasLiveArtists) {
+    artistsHTML = liveArtists.map(a => {
+      const safeName = escapeHTML(a.artist);
+      const safeSub = escapeHTML(a.subscribers || 'YouTube Music Chart');
+      const safeCover = escapeHTML(a.cover || '../../assets/icon.png');
+      const browseId = a.browseId || '';
+      return `
+        <div class="artist-card" onclick="openArtistItem('${browseId}', '${safeName}', '${safeCover}', '${safeSub}')">
+          <div class="artist-avatar-wrap">
+            <img src="${safeCover}" class="artist-avatar-img" alt="${safeName}" onerror="this.src='../../assets/icon.png'">
+          </div>
+          <div class="artist-card-name">${safeName}</div>
+          <div class="artist-card-sub">${safeSub}</div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    const artistsMap = new Map();
+    CATALOGUE_TRACKS.forEach(t => {
+      if (!artistsMap.has(t.artist)) {
+        artistsMap.set(t.artist, { artist: t.artist, genre: t.genre, cover: t.cover, trackId: t.id });
+      }
+    });
+
+    const artistsList = Array.from(artistsMap.values());
+    artistsHTML = artistsList.map(a => {
+      const trackIdx = CATALOGUE_TRACKS.findIndex(t => t.artist === a.artist);
+      return `
+        <div class="artist-card" onclick="selectTrack(${trackIdx})">
+          <div class="artist-avatar-wrap">
+            <img src="${a.cover}" class="artist-avatar-img" alt="${a.artist}">
+          </div>
+          <div class="artist-card-name">${a.artist}</div>
+          <div class="artist-card-sub">${a.genre}</div>
+        </div>
+      `;
+    }).join('');
+  }
 
   container.innerHTML = `
     <div style="padding: 10px 0 20px 0;">
       <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 8px;">Artists</h1>
-      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Browse by your favorite creators and audio producers.</p>
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Top charting YouTube Music artists & creators.</p>
       <div class="artists-grid">
-        ${artistsList.map(a => {
-          const trackIdx = CATALOGUE_TRACKS.findIndex(t => t.artist === a.artist);
-          return `
-            <div class="artist-card" onclick="selectTrack(${trackIdx})">
-              <div class="artist-avatar-wrap">
-                <img src="${a.cover}" class="artist-avatar-img" alt="${a.artist}">
-              </div>
-              <div class="artist-card-name">${a.artist}</div>
-              <div class="artist-card-sub">${a.genre}</div>
-            </div>
-          `;
-        }).join('')}
+        ${artistsHTML}
       </div>
     </div>
   `;
+}
+
+function openArtistItem(browseId, artistName, cover, subtitle) {
+  if (browseId) {
+    openBrowseDetail(browseId, artistName, cover, subtitle);
+  } else {
+    const match = CATALOGUE_TRACKS.find(t => t.artist.toLowerCase().includes(artistName.toLowerCase()));
+    if (match) {
+      playLiveTrack(match);
+    }
+  }
 }
 
 function renderAlbumsView(container) {
@@ -1326,20 +1543,41 @@ function renderSongsTableView(container) {
 }
 
 function renderPlaylistsGridView(container) {
-  const playlists = [
+  const curated = [
     { id: 'favorites', title: 'Liked Songs', count: lovedTrackIds.size, desc: 'Your personalized collection of loved tracks.', cover: CATALOGUE_TRACKS[0].cover },
     { id: 'lofi', title: 'Deep Focus & Chill', count: CATALOGUE_TRACKS.filter(t => t.playlists.includes('lofi')).length, desc: 'Warm analog chords and rain for work & coding.', cover: CATALOGUE_TRACKS[4].cover },
     { id: 'synth', title: 'Synthwave Vibes', count: CATALOGUE_TRACKS.filter(t => t.playlists.includes('synth')).length, desc: 'Retro 80s outrun beats and neon highway driving.', cover: CATALOGUE_TRACKS[2].cover },
     { id: 'workout', title: 'High Energy Beats', count: CATALOGUE_TRACKS.filter(t => t.playlists.includes('workout')).length, desc: 'Heavy basslines and fast tempo for high endurance.', cover: CATALOGUE_TRACKS[8].cover }
   ];
 
+  // Extract live YouTube Music chart playlists from liveChartsShelves
+  const livePlaylists = [];
+  if (liveChartsShelves && liveChartsShelves.length > 0) {
+    liveChartsShelves.forEach(s => {
+      if (s.items) {
+        s.items.forEach(it => {
+          if (it.browseId && !livePlaylists.some(p => p.browseId === it.browseId)) {
+            livePlaylists.push(it);
+          }
+        });
+      }
+    });
+  }
+  if (liveUserPlaylists && liveUserPlaylists.length > 0) {
+    liveUserPlaylists.forEach(up => {
+      if (up.browseId && !livePlaylists.some(p => p.browseId === up.browseId)) {
+        livePlaylists.push(up);
+      }
+    });
+  }
+
   container.innerHTML = `
     <div style="padding: 10px 0 20px 0;">
       <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 8px;">Playlists</h1>
-      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Curated collections crafted for every moment.</p>
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Curated collections and YouTube Music Chart Playlists.</p>
       
       <div class="card-grid">
-        ${playlists.map(pl => `
+        ${curated.map(pl => `
           <div class="apple-music-card" onclick="navigateToPlaylist('${pl.id}')">
             <div class="card-thumb-wrapper">
               <img src="${pl.cover}" class="card-thumb" alt="${pl.title}">
@@ -1351,6 +1589,21 @@ function renderPlaylistsGridView(container) {
             </div>
             <div class="card-title">${pl.title}</div>
             <div class="card-subtitle">${pl.count} tracks</div>
+          </div>
+        `).join('')}
+
+        ${livePlaylists.map(lp => `
+          <div class="apple-music-card" onclick="openBrowseDetail('${lp.browseId}', '${escapeHTML(lp.title)}', '${escapeHTML(lp.cover || '')}', '${escapeHTML(lp.subtitle || 'YouTube Music Playlist')}')">
+            <div class="card-thumb-wrapper">
+              <img src="${escapeHTML(lp.cover || '../../assets/icon.png')}" class="card-thumb" alt="${escapeHTML(lp.title)}" onerror="this.src='../../assets/icon.png'">
+              <div class="card-play-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </div>
+            </div>
+            <div class="card-title">${escapeHTML(lp.title)}</div>
+            <div class="card-subtitle">${escapeHTML(lp.subtitle || 'YouTube Charts')}</div>
           </div>
         `).join('')}
       </div>
@@ -1830,23 +2083,23 @@ function play() {
   updatePlayButton();
 
   const track = CATALOGUE_TRACKS[currentIndex];
-  if (isYtReady && ytPlayer && track.videoId) {
-    stopWebAudioStream();
-    try {
-      const currentLoaded = ytPlayer.getVideoData ? ytPlayer.getVideoData().video_id : null;
-      if (currentLoaded !== track.videoId) {
-        ytPlayer.loadVideoById(track.videoId);
-      } else {
-        ytPlayer.playVideo();
+  if (track && track.videoId) {
+    if (isYtReady && ytPlayer) {
+      try {
+        const currentLoaded = ytPlayer.getVideoData ? ytPlayer.getVideoData().video_id : null;
+        if (currentLoaded !== track.videoId) {
+          ytPlayer.loadVideoById(track.videoId);
+        } else {
+          ytPlayer.playVideo();
+        }
+        isYtPlaying = true;
+      } catch (e) {
+        console.warn('[YouTube] Could not play video in iframe:', e.message);
       }
-      isYtPlaying = true;
-    } catch (e) {
-      console.warn('[YouTube] Could not play video; using synthesizer fallback:', e.message);
-      startWebAudioStream();
     }
-  } else {
-    startWebAudioStream();
   }
+
+  ensureAudioGraph();
 
   if (playbackTimer) clearInterval(playbackTimer);
   playbackTimer = setInterval(tick, 1000);
@@ -2215,45 +2468,10 @@ function ensureAudioGraph() {
 function startWebAudioStream() {
   try {
     ensureAudioGraph();
-    if (!audioContext) return;
-    stopWebAudioStream();
-
-    const track = CATALOGUE_TRACKS[currentIndex];
-    // Rich musical chord progressions based on track id
-    const baseFreqs = [220, 261.63, 196, 293.66, 174.61]; // A, C, G, D, F
-    const root = baseFreqs[currentIndex % baseFreqs.length];
-
-    // Pad Voice 1: Root Warm Sine
-    const osc1 = audioContext.createOscillator();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(root, audioContext.currentTime);
-
-    // Pad Voice 2: Fifth / Major Third Triangle
-    const osc2 = audioContext.createOscillator();
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(root * 1.5, audioContext.currentTime);
-
-    // Sub-bass Voice 3: Deep Sine
-    const osc3 = audioContext.createOscillator();
-    osc3.type = 'sine';
-    osc3.frequency.setValueAtTime(root / 2, audioContext.currentTime);
-
-    const voiceGain = audioContext.createGain();
-    voiceGain.gain.setValueAtTime(0.001, audioContext.currentTime);
-    voiceGain.gain.exponentialRampToValueAtTime(0.35, audioContext.currentTime + 1.2);
-
-    osc1.connect(voiceGain);
-    osc2.connect(voiceGain);
-    osc3.connect(voiceGain);
-    voiceGain.connect(bassFilter);
-
-    osc1.start();
-    osc2.start();
-    osc3.start();
-
-    activeOscillators = [osc1, osc2, osc3];
+    // Compliance with Google TOS & user specifications:
+    // Real YouTube audio streaming only, no mock sine wave beep oscillators.
   } catch (err) {
-    console.warn('[Audio] Synthesizer started silently:', err.message);
+    console.warn('[Audio] Audio graph init notice:', err.message);
   }
 }
 
