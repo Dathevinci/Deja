@@ -313,14 +313,16 @@ function getDefaultHeaders() {
 
 /**
  * Makes an authenticated request to YouTube Music InnerTube endpoint.
+ * Supports query parameters, header version alignment, and clean scope fallback.
  */
-async function postMusic(endpoint, body, ses) {
-  if (ses && (!currentSessionScope.loggedIn || !currentSessionScope.dataSyncId)) {
+async function postMusic(endpoint, body = {}, ses = null, queryParams = null) {
+  if (ses && !currentSessionScope.loggedIn) {
     await ensureSessionScope(ses).catch(() => {});
   }
   const { headers } = await getAuthContext(ses);
   const clientVersion = currentSessionScope.clientVersion || WEB_REMIX_CLIENT_VERSION;
-  
+  headers['X-YouTube-Client-Version'] = clientVersion;
+
   const buildPayload = (includeDataSync = true) => ({
     context: {
       client: {
@@ -341,19 +343,31 @@ async function postMusic(endpoint, body, ses) {
     ...body
   });
 
-  let response = await fetch(`${MUSIC_BASE}/${endpoint}?prettyPrint=false`, {
+  let url = `${MUSIC_BASE}/${endpoint}?prettyPrint=false`;
+  if (queryParams && typeof queryParams === 'object') {
+    for (const [k, v] of Object.entries(queryParams)) {
+      if (v !== undefined && v !== null) {
+        url += `&${encodeURIComponent(k)}=${encodeURIComponent(v)}`;
+      }
+    }
+  }
+
+  let response = await fetch(url, {
     method: 'POST',
     headers,
     body: JSON.stringify(buildPayload(true))
   });
 
-  // If rejected with 400/401/403 and onBehalfOfUser was sent, retry once without onBehalfOfUser
-  // (BitChord fallback for session scope mismatch where Google rejects outdated/guessed dataSyncId)
-  if (!response.ok && (response.status === 400 || response.status === 401 || response.status === 403) && currentSessionScope.dataSyncId) {
-    console.warn(`[InnerTube] HTTP ${response.status} on ${endpoint}; retrying without onBehalfOfUser`);
-    response = await fetch(`${MUSIC_BASE}/${endpoint}?prettyPrint=false`, {
+  // If rejected with 400/401/403 and onBehalfOfUser or pageId was sent, retry once without onBehalfOfUser and X-Goog-PageId
+  // (BitChord fallback for session scope mismatch where Google rejects outdated/guessed dataSyncId or brand pageId)
+  if (!response.ok && (response.status === 400 || response.status === 401 || response.status === 403) && (currentSessionScope.dataSyncId || currentSessionScope.pageId)) {
+    console.warn(`[InnerTube] HTTP ${response.status} on ${endpoint}; retrying without onBehalfOfUser and X-Goog-PageId`);
+    const fallbackHeaders = { ...headers };
+    delete fallbackHeaders['X-Goog-PageId'];
+    delete fallbackHeaders['x-goog-pageid'];
+    response = await fetch(url, {
       method: 'POST',
-      headers,
+      headers: fallbackHeaders,
       body: JSON.stringify(buildPayload(false))
     });
   }
@@ -363,6 +377,71 @@ async function postMusic(endpoint, body, ses) {
   }
 
   return await response.json();
+}
+
+/**
+ * Extracts continuation token from any modern or legacy InnerTube response.
+ * Matches BitChord InnertubeParser.continuationToken.
+ */
+function extractContinuationToken(data) {
+  let token = null;
+  function walk(node) {
+    if (token || !node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        walk(item);
+        if (token) return;
+      }
+      return;
+    }
+    if (node.continuationItemRenderer) {
+      const ep = node.continuationItemRenderer.continuationEndpoint;
+      token = ep?.continuationCommand?.token || ep?.browseContinuationEndpoint?.continuationCommand?.token;
+      if (token) return;
+    }
+    if (node.continuationCommand && typeof node.continuationCommand.token === 'string') {
+      token = node.continuationCommand.token;
+      if (token) return;
+    }
+    if (node.nextContinuationData && typeof node.nextContinuationData.continuation === 'string') {
+      token = node.nextContinuationData.continuation;
+      if (token) return;
+    }
+    if (node.reloadContinuationData && typeof node.reloadContinuationData.continuation === 'string') {
+      token = node.reloadContinuationData.continuation;
+      if (token) return;
+    }
+    if (node.nextRadioContinuationData && typeof node.nextRadioContinuationData.continuation === 'string') {
+      token = node.nextRadioContinuationData.continuation;
+      if (token) return;
+    }
+    for (const val of Object.values(node)) {
+      walk(val);
+      if (token) return;
+    }
+  }
+  walk(data);
+  return token;
+}
+
+/**
+ * Follows an InnerTube browse continuation token.
+ * Exactly matches BitChord Innertube.kt browseContinuation.
+ */
+async function getBrowseContinuation(token, ses) {
+  if (!token) return null;
+  try {
+    return await postMusic('browse', {
+      continuation: token
+    }, ses, {
+      ctoken: token,
+      continuation: token,
+      type: 'next'
+    });
+  } catch (err) {
+    console.warn('[InnerTube] getBrowseContinuation notice:', err.message);
+    return null;
+  }
 }
 
 /**
@@ -480,6 +559,7 @@ async function getExploreFeed(ses) {
 
 /**
  * Browses a specific playlist or album by browseId (e.g. VL..., PL..., MPREb..., etc.).
+ * Supports continuation token paging for comprehensive track retrieval.
  */
 async function getPlaylist(browseId, ses) {
   if (!browseId || typeof browseId !== 'string') return null;
@@ -487,30 +567,48 @@ async function getPlaylist(browseId, ses) {
   if (targetId.startsWith('PL')) {
     targetId = 'VL' + targetId;
   }
-  try {
-    const data = await postMusic('browse', { browseId: targetId }, ses);
-    const parsed = parsePlaylistResponse(data, targetId);
-    if (parsed && parsed.songs && parsed.songs.length > 0) {
-      return parsed;
-    }
-    if (targetId !== browseId) {
-      const origData = await postMusic('browse', { browseId }, ses);
-      const origParsed = parsePlaylistResponse(origData, browseId);
-      if (origParsed && origParsed.songs && origParsed.songs.length > 0) {
-        return origParsed;
+
+  async function fetchPlaylistWithContinuations(id) {
+    try {
+      const data = await postMusic('browse', { browseId: id }, ses);
+      if (!data) return null;
+      const parsed = parsePlaylistResponse(data, id);
+      if (!parsed) return null;
+
+      let token = extractContinuationToken(data);
+      let page = 1;
+      while (token && page < 10) {
+        page++;
+        const contData = await getBrowseContinuation(token, ses);
+        if (!contData) break;
+        const contParsed = parsePlaylistResponse(contData, id);
+        if (contParsed && contParsed.songs && contParsed.songs.length > 0) {
+          for (const s of contParsed.songs) {
+            if (!parsed.songs.some(existing => existing.videoId === s.videoId)) {
+              parsed.songs.push(s);
+            }
+          }
+        }
+        token = extractContinuationToken(contData);
       }
+      return parsed;
+    } catch (err) {
+      console.warn(`[InnerTube] getPlaylist error for ${id}:`, err.message);
+      return null;
     }
-    return parsed;
-  } catch (err) {
-    console.warn(`[InnerTube] getPlaylist error for ${targetId}:`, err.message);
-    if (targetId !== browseId) {
-      try {
-        const origData = await postMusic('browse', { browseId }, ses);
-        return parsePlaylistResponse(origData, browseId);
-      } catch {}
-    }
-    return null;
   }
+
+  let res = await fetchPlaylistWithContinuations(targetId);
+  if (res && res.songs && res.songs.length > 0) {
+    return res;
+  }
+  if (targetId !== browseId) {
+    const origRes = await fetchPlaylistWithContinuations(browseId);
+    if (origRes && origRes.songs && origRes.songs.length > 0) {
+      return origRes;
+    }
+  }
+  return res || { title: 'Playlist', subtitle: 'YouTube Music', cover: '', songs: [] };
 }
 
 /**
@@ -554,34 +652,47 @@ async function getNewReleasesFeed(ses) {
 
 /**
  * Fetches user's Liked Songs library playlist (FEmusic_liked_videos, VLLM, LM).
+ * Supports continuation token paging for comprehensive liked library retrieval.
  */
 async function getLibrarySongs(ses) {
-  // 1. Try FEmusic_liked_videos
-  try {
-    const data = await postMusic('browse', { browseId: 'FEmusic_liked_videos' }, ses);
-    const res = parsePlaylistResponse(data, 'FEmusic_liked_videos');
-    if (res && res.songs && res.songs.length > 0) return res;
-  } catch (err) {
-    console.warn('[InnerTube] getLibrarySongs (FEmusic_liked_videos) notice:', err.message);
+  async function fetchSongsWithContinuations(browseId) {
+    try {
+      const data = await postMusic('browse', { browseId }, ses);
+      if (!data) return null;
+      const res = parsePlaylistResponse(data, browseId);
+      if (!res || !res.songs || res.songs.length === 0) return null;
+
+      let token = extractContinuationToken(data);
+      let page = 1;
+      while (token && page < 10) {
+        page++;
+        const contData = await getBrowseContinuation(token, ses);
+        if (!contData) break;
+        const contRes = parsePlaylistResponse(contData, browseId);
+        if (contRes && contRes.songs && contRes.songs.length > 0) {
+          for (const s of contRes.songs) {
+            if (!res.songs.some(existing => existing.videoId === s.videoId)) {
+              res.songs.push(s);
+            }
+          }
+        }
+        token = extractContinuationToken(contData);
+      }
+      return res;
+    } catch (err) {
+      console.warn(`[InnerTube] getLibrarySongs (${browseId}) notice:`, err.message);
+      return null;
+    }
   }
 
-  // 2. Try VLLM (Liked Music auto-playlist)
-  try {
-    const data = await postMusic('browse', { browseId: 'VLLM' }, ses);
-    const res = parsePlaylistResponse(data, 'VLLM');
-    if (res && res.songs && res.songs.length > 0) return res;
-  } catch (err) {
-    console.warn('[InnerTube] getLibrarySongs (VLLM) notice:', err.message);
-  }
+  const res1 = await fetchSongsWithContinuations('FEmusic_liked_videos');
+  if (res1 && res1.songs && res1.songs.length > 0) return res1;
 
-  // 3. Try LM
-  try {
-    const data = await postMusic('browse', { browseId: 'LM' }, ses);
-    const res = parsePlaylistResponse(data, 'LM');
-    if (res && res.songs && res.songs.length > 0) return res;
-  } catch (err) {
-    console.warn('[InnerTube] getLibrarySongs (LM) notice:', err.message);
-  }
+  const res2 = await fetchSongsWithContinuations('VLLM');
+  if (res2 && res2.songs && res2.songs.length > 0) return res2;
+
+  const res3 = await fetchSongsWithContinuations('LM');
+  if (res3 && res3.songs && res3.songs.length > 0) return res3;
 
   return { songs: [] };
 }
@@ -589,7 +700,7 @@ async function getLibrarySongs(ses) {
 /**
  * Fetches user's custom and saved playlists from YouTube Music:
  * Queries FEmusic_liked_playlists, FEmusic_library_playlists, and FEmusic_library_landing.
- * Merges and deduplicates all user playlists.
+ * Merges, paginates via continuations, and deduplicates all user playlists.
  */
 async function getLibraryPlaylists(ses) {
   const playlists = [];
@@ -602,44 +713,52 @@ async function getLibraryPlaylists(ses) {
       const bId = item.browseId || (item.playlistId ? (item.playlistId.startsWith('VL') ? item.playlistId : `VL${item.playlistId}`) : null);
       if (!bId) continue;
       if (bId.toLowerCase().includes('create') || bId === 'FEplaylist_add') continue;
-      const normalizedKey = bId.replace(/^VL/, '');
-      if (!seenBrowseIds.has(normalizedKey) && !seenBrowseIds.has(bId)) {
-        seenBrowseIds.add(normalizedKey);
-        seenBrowseIds.add(bId);
+      if (bId === 'VLLM' || bId === 'LM' || bId === 'FEmusic_liked_videos') continue;
+
+      let normalizedBrowseId = bId;
+      if (!bId.startsWith('VL') && !bId.startsWith('FE') && !bId.startsWith('MPRE') && !bId.startsWith('UC')) {
+        normalizedBrowseId = `VL${bId}`;
+      }
+      const key = normalizedBrowseId.replace(/^VL/, '');
+      if (!seenBrowseIds.has(key) && !seenBrowseIds.has(normalizedBrowseId)) {
+        seenBrowseIds.add(key);
+        seenBrowseIds.add(normalizedBrowseId);
         playlists.push({
           ...item,
-          browseId: (bId.startsWith('VL') || bId.startsWith('FE') || bId.startsWith('MPRE') || bId.startsWith('UC')) ? bId : `VL${bId}`,
-          id: item.id || `browse-${bId}`
+          browseId: normalizedBrowseId,
+          playlistId: key,
+          id: item.id || `browse-${normalizedBrowseId}`
         });
       }
     }
   }
 
-  // 1. FEmusic_liked_playlists
-  try {
-    const data = await postMusic('browse', { browseId: 'FEmusic_liked_playlists' }, ses);
-    addPlaylists(parseLibraryPlaylistsResponse(data));
-  } catch (err) {
-    console.warn('[InnerTube] getLibraryPlaylists (liked_playlists) notice:', err.message);
-  }
-
-  // 2. FEmusic_library_playlists
-  if (playlists.length === 0) {
+  async function fetchFeedWithContinuations(browseId) {
     try {
-      const data = await postMusic('browse', { browseId: 'FEmusic_library_playlists' }, ses);
+      const data = await postMusic('browse', { browseId }, ses);
+      if (!data) return;
       addPlaylists(parseLibraryPlaylistsResponse(data));
+
+      let token = extractContinuationToken(data);
+      let page = 1;
+      while (token && page < 10) {
+        page++;
+        const contData = await getBrowseContinuation(token, ses);
+        if (!contData) break;
+        addPlaylists(parseLibraryPlaylistsResponse(contData));
+        token = extractContinuationToken(contData);
+      }
     } catch (err) {
-      console.warn('[InnerTube] getLibraryPlaylists (library_playlists) notice:', err.message);
+      console.warn(`[InnerTube] getLibraryPlaylists (${browseId}) notice:`, err.message);
     }
   }
 
-  // 3. FEmusic_library_landing (Web library landing page)
-  try {
-    const data = await postMusic('browse', { browseId: 'FEmusic_library_landing' }, ses);
-    addPlaylists(parseLibraryPlaylistsResponse(data));
-  } catch (err) {
-    console.warn('[InnerTube] getLibraryPlaylists (library_landing) notice:', err.message);
-  }
+  // Concurrently query FEmusic_liked_playlists, FEmusic_library_playlists, and FEmusic_library_landing
+  await Promise.allSettled([
+    fetchFeedWithContinuations('FEmusic_liked_playlists'),
+    fetchFeedWithContinuations('FEmusic_library_playlists'),
+    fetchFeedWithContinuations('FEmusic_library_landing')
+  ]);
 
   return playlists;
 }
@@ -1136,10 +1255,11 @@ function parseLibraryPlaylistsResponse(data) {
       bId = item.playlistId.startsWith('VL') ? item.playlistId : `VL${item.playlistId}`;
     }
     if (!bId) return;
-    // Filter out "New playlist" action tile
+    // Filter out "New playlist" action tile and Liked Songs playlist (handled separately)
     const lowTitle = (item.title || '').toLowerCase();
     const lowBId = bId.toLowerCase();
     if (lowBId.includes('create') || lowBId === 'feplaylist_add' || lowTitle === 'new playlist' || lowTitle === '+ new playlist') return;
+    if (bId === 'VLLM' || bId === 'LM' || bId === 'FEmusic_liked_videos' || lowBId === 'vllm' || lowBId === 'lm') return;
 
     let normalizedBrowseId = bId;
     if (!bId.startsWith('VL') && !bId.startsWith('FE') && !bId.startsWith('MPRE') && !bId.startsWith('UC')) {
@@ -1197,6 +1317,38 @@ function parseLibraryPlaylistsResponse(data) {
           cover: thumbs.length > 0 ? thumbs[thumbs.length - 1].url : ''
         });
       }
+    } else if (node.compactPlaylistRenderer) {
+      const cp = node.compactPlaylistRenderer;
+      const title = (Array.isArray(cp.title?.runs) ? cp.title.runs.map(x => x.text).join('') : cp.title?.simpleText) || '';
+      const bId = cp.navigationEndpoint?.browseEndpoint?.browseId || (cp.playlistId ? `VL${cp.playlistId}` : null);
+      const thumbs = cp.thumbnails?.[0]?.thumbnails || cp.thumbnail?.thumbnails || [];
+      if (title && bId) {
+        addItem({
+          id: `browse-${bId}`,
+          type: 'browse',
+          title,
+          subtitle: (Array.isArray(cp.shortBylineText?.runs) ? cp.shortBylineText.runs.map(x => x.text).join('') : cp.shortBylineText?.simpleText) || 'Playlist',
+          browseId: bId,
+          cover: thumbs.length > 0 ? thumbs[thumbs.length - 1].url : ''
+        });
+      }
+    } else if (node.lockupViewModel) {
+      const vm = node.lockupViewModel;
+      const title = vm.metadata?.title?.content || (Array.isArray(vm.metadata?.title?.runs) ? vm.metadata.title.runs.map(x => x.text).join('') : '');
+      const subtitle = vm.metadata?.subtitle?.content || (Array.isArray(vm.metadata?.subtitle?.runs) ? vm.metadata.subtitle.runs.map(x => x.text).join('') : 'Playlist');
+      const bId = vm.rendererContext?.commandContext?.onTap?.innertubeCommand?.browseEndpoint?.browseId ||
+                  (vm.contentId ? (vm.contentId.startsWith('VL') ? vm.contentId : `VL${vm.contentId}`) : null);
+      const thumbs = vm.image?.sources || [];
+      if (title && bId) {
+        addItem({
+          id: `browse-${bId}`,
+          type: 'browse',
+          title,
+          subtitle,
+          browseId: bId,
+          cover: thumbs.length > 0 ? thumbs[thumbs.length - 1].url : ''
+        });
+      }
     }
     Object.values(node).forEach(walk);
   }
@@ -1222,15 +1374,21 @@ function parseResponsiveItem(r) {
   const videoId = r.playlistItemData?.videoId ||
                   r.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId ||
                   r.navigationEndpoint?.watchEndpoint?.videoId ||
+                  r.defaultNavigationEndpoint?.watchEndpoint?.videoId ||
                   titleCol?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId ||
                   col1?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId;
 
   let browseId = r.navigationEndpoint?.browseEndpoint?.browseId ||
+                 r.defaultNavigationEndpoint?.browseEndpoint?.browseId ||
                  titleCol?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId ||
+                 titleCol?.navigationEndpoint?.browseEndpoint?.browseId ||
                  col1?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId;
 
   const watchPlaylist = r.navigationEndpoint?.watchPlaylistEndpoint?.playlistId ||
-                        r.navigationEndpoint?.watchEndpoint?.playlistId;
+                        r.navigationEndpoint?.watchEndpoint?.playlistId ||
+                        r.defaultNavigationEndpoint?.watchPlaylistEndpoint?.playlistId ||
+                        titleCol?.runs?.[0]?.navigationEndpoint?.watchPlaylistEndpoint?.playlistId ||
+                        r.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchPlaylistEndpoint?.playlistId;
   if (!browseId && watchPlaylist) {
     browseId = watchPlaylist.startsWith('VL') ? watchPlaylist : `VL${watchPlaylist}`;
   }
@@ -1261,13 +1419,34 @@ function parseTwoRowItem(r) {
   if (!title) return null;
 
   const subtitle = (Array.isArray(r.subtitle?.runs) ? r.subtitle.runs.map(x => x.text).join('') : (r.subtitle?.simpleText || '')) || '';
-  const endpoint = r.navigationEndpoint || {};
-  let browseId = endpoint.browseEndpoint?.browseId;
-  const watchPlaylist = endpoint.watchPlaylistEndpoint?.playlistId || endpoint.watchEndpoint?.playlistId;
+  const endpoint = r.navigationEndpoint ||
+                   r.defaultNavigationEndpoint ||
+                   r.title?.runs?.[0]?.navigationEndpoint ||
+                   r.title?.navigationEndpoint ||
+                   r.thumbnailRenderer?.musicThumbnailRenderer?.navigationEndpoint ||
+                   {};
+
+  let browseId = endpoint.browseEndpoint?.browseId ||
+                 r.navigationEndpoint?.browseEndpoint?.browseId ||
+                 r.defaultNavigationEndpoint?.browseEndpoint?.browseId ||
+                 r.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId ||
+                 r.thumbnailRenderer?.musicThumbnailRenderer?.navigationEndpoint?.browseEndpoint?.browseId;
+
+  const watchPlaylist = endpoint.watchPlaylistEndpoint?.playlistId ||
+                        endpoint.watchEndpoint?.playlistId ||
+                        r.navigationEndpoint?.watchPlaylistEndpoint?.playlistId ||
+                        r.navigationEndpoint?.watchEndpoint?.playlistId ||
+                        r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnailOverlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchPlaylistEndpoint?.playlistId;
   if (!browseId && watchPlaylist) {
     browseId = watchPlaylist.startsWith('VL') ? watchPlaylist : `VL${watchPlaylist}`;
   }
-  let videoId = endpoint.watchEndpoint?.videoId || endpoint.watchPlaylistEndpoint?.videoId;
+
+  let videoId = endpoint.watchEndpoint?.videoId ||
+                endpoint.watchPlaylistEndpoint?.videoId ||
+                r.navigationEndpoint?.watchEndpoint?.videoId ||
+                r.navigationEndpoint?.watchPlaylistEndpoint?.videoId ||
+                r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnailOverlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+
   if (!videoId && browseId && browseId.startsWith('MPED')) {
     videoId = browseId.replace(/^MPED/, '');
   }
@@ -1277,6 +1456,7 @@ function parseTwoRowItem(r) {
 
   const thumbs = r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
                  r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+                 r.thumbnailRenderer?.thumbnail?.thumbnails ||
                  r.thumbnail?.thumbnails || [];
   const cover = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '');
 
@@ -1786,5 +1966,7 @@ module.exports = {
   fetchSessionScope,
   ensureSessionScope,
   fetchVisitorData,
-  ensureVisitorData
+  ensureVisitorData,
+  extractContinuationToken,
+  getBrowseContinuation
 };

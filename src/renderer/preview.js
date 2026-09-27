@@ -1345,23 +1345,28 @@ async function _fetchLiveYouTubeMusicInternal() {
       }
     }
 
-    // Always attempt fetching library if logged in, or try once if cookies might be present
-    if (api.getLibraryPlaylists) {
+    // Concurrently fetch all library components for maximum speed and instant UI reactivity
+    const fetchPlaylistsTask = async () => {
+      if (!api.getLibraryPlaylists) return;
       try {
         const userPls = await api.getLibraryPlaylists();
-        if (userPls && userPls.length > 0) {
+        if (Array.isArray(userPls)) {
           liveUserPlaylists = userPls;
-          updateSidebarPlaylistsUI(userPls);
+          updateSidebarPlaylistsUI(liveUserPlaylists);
+          if (currentView === 'library' || currentView === 'playlists') {
+            renderCurrentView();
+          }
         }
       } catch (err) {
         console.warn('[Library] getLibraryPlaylists error:', err.message);
       }
-    }
+    };
 
-    if (api.getLibrarySongs) {
+    const fetchSongsTask = async () => {
+      if (!api.getLibrarySongs) return;
       try {
         const libSongs = await api.getLibrarySongs();
-        if (libSongs && libSongs.songs && libSongs.songs.length > 0) {
+        if (libSongs && Array.isArray(libSongs.songs)) {
           liveLikedSongs = libSongs.songs;
           lovedTrackIds.clear();
           libSongs.songs.forEach(t => {
@@ -1378,33 +1383,51 @@ async function _fetchLiveYouTubeMusicInternal() {
               lovedTrackIds.add(existing.id);
             }
           });
+          if (currentView === 'library' || currentView === 'songs' || currentView === 'playlists' || currentView === 'playlist-favorites') {
+            renderCurrentView();
+          }
         }
       } catch (err) {
         console.warn('[Library] getLibrarySongs error:', err.message);
       }
-    }
+    };
 
-    if (api.getLibraryAlbums) {
+    const fetchAlbumsTask = async () => {
+      if (!api.getLibraryAlbums) return;
       try {
         const albums = await api.getLibraryAlbums();
-        if (albums && albums.length > 0) {
+        if (Array.isArray(albums)) {
           liveLibraryAlbums = albums;
+          if (currentView === 'library' || currentView === 'albums') {
+            renderCurrentView();
+          }
         }
       } catch (err) {
         console.warn('[Library] getLibraryAlbums error:', err.message);
       }
-    }
+    };
 
-    if (api.getLibraryArtists) {
+    const fetchArtistsTask = async () => {
+      if (!api.getLibraryArtists) return;
       try {
         const artists = await api.getLibraryArtists();
-        if (artists && artists.length > 0) {
+        if (Array.isArray(artists)) {
           liveLibraryArtists = artists;
+          if (currentView === 'library' || currentView === 'artists') {
+            renderCurrentView();
+          }
         }
       } catch (err) {
         console.warn('[Library] getLibraryArtists error:', err.message);
       }
-    }
+    };
+
+    await Promise.allSettled([
+      fetchPlaylistsTask(),
+      fetchSongsTask(),
+      fetchAlbumsTask(),
+      fetchArtistsTask()
+    ]);
   } catch (err) {
     console.warn('[Account] Library fetch error:', err.message);
   }
@@ -1896,16 +1919,27 @@ async function openBrowseDetail(browseId, title = 'Album', cover = '', subtitle 
           songs: detail.songs || [],
           isLoading: false
         };
-        if (currentView === 'browse-detail') {
-          renderCurrentView();
+      } else {
+        if (activeBrowseDetail) {
+          activeBrowseDetail.isLoading = false;
         }
+      }
+      if (currentView === 'browse-detail') {
+        renderCurrentView();
       }
     } catch (err) {
       console.warn('[Browse] getBrowsePlaylist error:', err.message);
       if (activeBrowseDetail) {
         activeBrowseDetail.isLoading = false;
-        renderCurrentView();
+        if (currentView === 'browse-detail') {
+          renderCurrentView();
+        }
       }
+    }
+  } else if (activeBrowseDetail) {
+    activeBrowseDetail.isLoading = false;
+    if (currentView === 'browse-detail') {
+      renderCurrentView();
     }
   }
 }
@@ -2001,7 +2035,7 @@ function renderBrowseDetailView(container) {
       const row = document.getElementById(`browse-song-${idx}`);
       if (row) {
         row.onclick = () => {
-          userQueue = songs.slice(idx + 1).map(x => createCatalogueItemFromLive(x));
+          userQueue = songs.map(x => createCatalogueItemFromLive(x));
           playLiveTrack(s);
           if (typeof renderPreviewQueue === 'function') renderPreviewQueue();
         };
@@ -2011,7 +2045,7 @@ function renderBrowseDetailView(container) {
     const btnPlayAll = document.getElementById('btn-play-browse-all');
     if (btnPlayAll) {
       btnPlayAll.onclick = () => {
-        userQueue = songs.slice(1).map(x => createCatalogueItemFromLive(x));
+        userQueue = songs.map(x => createCatalogueItemFromLive(x));
         playLiveTrack(songs[0]);
         if (typeof renderPreviewQueue === 'function') renderPreviewQueue();
       };
@@ -2021,7 +2055,7 @@ function renderBrowseDetailView(container) {
     if (btnShuffleAll) {
       btnShuffleAll.onclick = () => {
         const shuffled = [...songs].sort(() => Math.random() - 0.5);
-        userQueue = shuffled.slice(1).map(x => createCatalogueItemFromLive(x));
+        userQueue = shuffled.map(x => createCatalogueItemFromLive(x));
         playLiveTrack(shuffled[0]);
         if (typeof renderPreviewQueue === 'function') renderPreviewQueue();
       };
@@ -2483,20 +2517,17 @@ function renderPlaylistsGridView(container) {
     liveChartsShelves.forEach(s => {
       if (s.items) {
         s.items.forEach(it => {
-          if (it.browseId && !livePlaylists.some(p => p.browseId === it.browseId)) {
-            livePlaylists.push(it);
+          if (it.browseId && !chartPlaylists.some(p => p.browseId === it.browseId)) {
+            chartPlaylists.push(it);
           }
         });
       }
     });
   }
-  if (liveUserPlaylists && liveUserPlaylists.length > 0) {
-    liveUserPlaylists.forEach(up => {
-      if (up.browseId && !livePlaylists.some(p => p.browseId === up.browseId)) {
-        livePlaylists.push(up);
-      }
-    });
-  }
+
+  const hasUserPlaylists = liveUserPlaylists && liveUserPlaylists.length > 0;
+  const hasCustomPlaylists = customPlaylists && customPlaylists.length > 0;
+  const hasChartPlaylists = chartPlaylists.length > 0;
 
   container.innerHTML = `
     <div style="padding: 10px 0 20px 0;">
@@ -2514,16 +2545,15 @@ function renderPlaylistsGridView(container) {
         </button>
       </div>
 
-      <div class="card-grid">
-        <!-- 1. Create New Playlist Card -->
-        <div class="create-playlist-card" id="card-action-new-playlist">
+      <!-- Quick Actions / Liked Songs -->
+      <div class="card-grid" style="margin-bottom: 32px;">
+        <div class="create-playlist-card" id="card-action-new-playlist" style="cursor: pointer;">
           <div class="create-playlist-card-icon">+</div>
           <div style="font-weight: 700; font-size: 15px; color: var(--text-main);">New Playlist</div>
           <div style="font-size: 12.5px; color: var(--text-secondary);">Create custom collection</div>
         </div>
 
-        <!-- 2. Liked Songs Card -->
-        <div class="apple-music-card" onclick="navigateToPlaylist('favorites')">
+        <div class="apple-music-card" id="card-action-liked-songs" style="cursor: pointer;">
           <div class="card-thumb-wrapper">
             <img src="${CATALOGUE_TRACKS[0]?.cover || '../../assets/icon.png'}" class="card-thumb track-card-img" alt="Liked Songs">
             <div class="card-play-btn">
@@ -2533,44 +2563,81 @@ function renderPlaylistsGridView(container) {
             </div>
           </div>
           <div class="card-title">⭐ Liked Songs</div>
-          <div class="card-subtitle">${lovedTrackIds.size} tracks • Favorites</div>
+          <div class="card-subtitle">${lovedTrackIds.size || (liveLikedSongs && liveLikedSongs.length) || 0} tracks • Favorites</div>
         </div>
-
-        <!-- 3. Custom Playlists -->
-        ${customPlaylists.map(pl => {
-          const songCount = pl.tracks ? pl.tracks.length : 0;
-          return `
-            <div class="apple-music-card" onclick="navigateToPlaylist('${pl.id}')">
-              <div class="card-thumb-wrapper">
-                <img src="${pl.cover || '../../assets/icon.png'}" class="card-thumb track-card-img" alt="${escapeHTML(pl.title)}" onerror="this.src='../../assets/icon.png'">
-                <div class="card-play-btn">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                  </svg>
-                </div>
-              </div>
-              <div class="card-title">${escapeHTML(pl.title)}</div>
-              <div class="card-subtitle">${songCount} tracks • Custom</div>
-            </div>
-          `;
-        }).join('')}
-
-        <!-- 4. Real YouTube Music Playlists -->
-        ${livePlaylists.map(lp => `
-          <div class="apple-music-card" onclick="openBrowseDetail('${lp.browseId}', '${escapeHTML(lp.title)}', '${escapeHTML(lp.cover || '')}', '${escapeHTML(lp.subtitle || 'YouTube Music Playlist')}')">
-            <div class="card-thumb-wrapper">
-              <img src="${escapeHTML(lp.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(lp.title)}" onerror="this.src='../../assets/icon.png'">
-              <div class="card-play-btn">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-              </div>
-            </div>
-            <div class="card-title">${escapeHTML(lp.title)}</div>
-            <div class="card-subtitle">${escapeHTML(lp.subtitle || 'YouTube Music')}</div>
-          </div>
-        `).join('')}
       </div>
+
+      <!-- YouTube Music Playlists (Personal) -->
+      ${hasUserPlaylists ? `
+        <div style="margin-bottom: 32px;">
+          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 14px;">YouTube Music Playlists</h2>
+          <div class="card-grid">
+            ${liveUserPlaylists.map(lp => `
+              <div class="apple-music-card playlist-grid-browse-card" data-browse-id="${escapeHTML(lp.browseId || '')}" data-title="${escapeHTML(lp.title || '')}" data-cover="${escapeHTML(lp.cover || '')}" data-subtitle="${escapeHTML(lp.subtitle || 'YouTube Music Playlist')}" style="cursor: pointer;">
+                <div class="card-thumb-wrapper">
+                  <img src="${escapeHTML(lp.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(lp.title || '')}" onerror="this.src='../../assets/icon.png'">
+                  <div class="card-play-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </div>
+                </div>
+                <div class="card-title">${escapeHTML(lp.title || 'Playlist')}</div>
+                <div class="card-subtitle">${escapeHTML(lp.subtitle || 'YouTube Music')}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Custom Playlists -->
+      ${hasCustomPlaylists ? `
+        <div style="margin-bottom: 32px;">
+          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 14px;">Custom Playlists</h2>
+          <div class="card-grid">
+            ${customPlaylists.map(pl => {
+              const songCount = pl.tracks ? pl.tracks.length : 0;
+              return `
+                <div class="apple-music-card playlist-grid-custom-card" data-playlist-id="${escapeHTML(pl.id)}" style="cursor: pointer;">
+                  <div class="card-thumb-wrapper">
+                    <img src="${pl.cover || '../../assets/icon.png'}" class="card-thumb track-card-img" alt="${escapeHTML(pl.title)}" onerror="this.src='../../assets/icon.png'">
+                    <div class="card-play-btn">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="card-title">${escapeHTML(pl.title)}</div>
+                  <div class="card-subtitle">${songCount} tracks • Custom</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Featured / Chart Playlists -->
+      ${hasChartPlaylists ? `
+        <div style="margin-bottom: 32px;">
+          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 14px;">Featured & Charts Playlists</h2>
+          <div class="card-grid">
+            ${chartPlaylists.map(lp => `
+              <div class="apple-music-card playlist-grid-browse-card" data-browse-id="${escapeHTML(lp.browseId || '')}" data-title="${escapeHTML(lp.title || '')}" data-cover="${escapeHTML(lp.cover || '')}" data-subtitle="${escapeHTML(lp.subtitle || 'YouTube Music Playlist')}" style="cursor: pointer;">
+                <div class="card-thumb-wrapper">
+                  <img src="${escapeHTML(lp.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(lp.title || '')}" onerror="this.src='../../assets/icon.png'">
+                  <div class="card-play-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </div>
+                </div>
+                <div class="card-title">${escapeHTML(lp.title || 'Playlist')}</div>
+                <div class="card-subtitle">${escapeHTML(lp.subtitle || 'YouTube Music')}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
     </div>
   `;
 
@@ -2579,6 +2646,26 @@ function renderPlaylistsGridView(container) {
 
   const cardNew = document.getElementById('card-action-new-playlist');
   if (cardNew) cardNew.onclick = () => openCreatePlaylistModal();
+
+  const cardLiked = document.getElementById('card-action-liked-songs');
+  if (cardLiked) cardLiked.onclick = () => navigateToPlaylist('favorites');
+
+  container.querySelectorAll('.playlist-grid-custom-card').forEach(card => {
+    card.onclick = () => {
+      const plId = card.getAttribute('data-playlist-id');
+      if (plId) navigateToPlaylist(plId);
+    };
+  });
+
+  container.querySelectorAll('.playlist-grid-browse-card').forEach(card => {
+    card.onclick = () => {
+      const bId = card.getAttribute('data-browse-id');
+      const title = card.getAttribute('data-title');
+      const cover = card.getAttribute('data-cover');
+      const subtitle = card.getAttribute('data-subtitle');
+      if (bId) openBrowseDetail(bId, title, cover, subtitle);
+    };
+  });
 }
 
 function renderLibraryView(container) {
@@ -2607,7 +2694,7 @@ function renderLibraryView(container) {
 
       <!-- Quick Library Navigation Cards -->
       <div class="card-grid" style="margin-bottom: 32px;">
-        <div class="apple-music-card" onclick="navigateToPlaylist('favorites')">
+        <div class="apple-music-card" onclick="navigateToPlaylist('favorites')" style="cursor: pointer;">
           <div class="card-thumb-wrapper">
             <img src="${CATALOGUE_TRACKS[0]?.cover || '../../assets/icon.png'}" class="card-thumb track-card-img" alt="Liked Songs">
             <div class="card-play-btn">
@@ -2620,7 +2707,7 @@ function renderLibraryView(container) {
           <div class="card-subtitle">${lovedTrackIds.size || (liveLikedSongs && liveLikedSongs.length) || 0} tracks • Favorites</div>
         </div>
 
-        <div class="apple-music-card" onclick="navigateTo('playlists')">
+        <div class="apple-music-card" onclick="navigateTo('playlists')" style="cursor: pointer;">
           <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center;">
             <span style="font-size: 36px;">📁</span>
           </div>
@@ -2628,7 +2715,7 @@ function renderLibraryView(container) {
           <div class="card-subtitle">${liveUserPlaylists.length + (customPlaylists ? customPlaylists.length : 0)} playlists</div>
         </div>
 
-        <div class="apple-music-card" onclick="navigateTo('albums')">
+        <div class="apple-music-card" onclick="navigateTo('albums')" style="cursor: pointer;">
           <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center;">
             <span style="font-size: 36px;">💿</span>
           </div>
@@ -2636,7 +2723,7 @@ function renderLibraryView(container) {
           <div class="card-subtitle">${liveLibraryAlbums.length || 'Collection'} albums</div>
         </div>
 
-        <div class="apple-music-card" onclick="navigateTo('artists')">
+        <div class="apple-music-card" onclick="navigateTo('artists')" style="cursor: pointer;">
           <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center;">
             <span style="font-size: 36px;">👤</span>
           </div>
@@ -2651,16 +2738,16 @@ function renderLibraryView(container) {
           <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 14px;">YouTube Music Playlists</h2>
           <div class="card-grid">
             ${liveUserPlaylists.map(lp => `
-              <div class="apple-music-card" onclick="openBrowseDetail('${lp.browseId}', '${escapeHTML(lp.title)}', '${escapeHTML(lp.cover || '')}', '${escapeHTML(lp.subtitle || 'YouTube Music Playlist')}')">
+              <div class="apple-music-card library-browse-card" data-browse-id="${escapeHTML(lp.browseId || '')}" data-title="${escapeHTML(lp.title || '')}" data-cover="${escapeHTML(lp.cover || '')}" data-subtitle="${escapeHTML(lp.subtitle || 'YouTube Music Playlist')}" style="cursor: pointer;">
                 <div class="card-thumb-wrapper">
-                  <img src="${escapeHTML(lp.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(lp.title)}" onerror="this.src='../../assets/icon.png'">
+                  <img src="${escapeHTML(lp.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(lp.title || '')}" onerror="this.src='../../assets/icon.png'">
                   <div class="card-play-btn">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="5 3 19 12 5 21 5 3"></polygon>
                     </svg>
                   </div>
                 </div>
-                <div class="card-title">${escapeHTML(lp.title)}</div>
+                <div class="card-title">${escapeHTML(lp.title || 'Playlist')}</div>
                 <div class="card-subtitle">${escapeHTML(lp.subtitle || 'YouTube Music')}</div>
               </div>
             `).join('')}
@@ -2670,7 +2757,7 @@ function renderLibraryView(container) {
         <div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12); border-radius: 16px; padding: 32px; text-align: center; margin-bottom: 32px;">
           <p style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">No YouTube Music Playlists Loaded</p>
           <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Make sure you are signed in to YouTube Music to sync your playlists and library.</p>
-          <button class="btn-apple-primary" onclick="fetchLiveYouTubeMusic()">
+          <button class="btn-apple-primary" id="btn-library-sync-now">
             <span>Sync Library Now</span>
           </button>
         </div>
@@ -2682,16 +2769,16 @@ function renderLibraryView(container) {
           <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 14px;">Saved Albums</h2>
           <div class="card-grid">
             ${liveLibraryAlbums.map(alb => `
-              <div class="apple-music-card" onclick="openBrowseDetail('${alb.browseId}', '${escapeHTML(alb.title)}', '${escapeHTML(alb.cover || '')}', '${escapeHTML(alb.subtitle || 'Album')}')">
+              <div class="apple-music-card library-browse-card" data-browse-id="${escapeHTML(alb.browseId || '')}" data-title="${escapeHTML(alb.title || '')}" data-cover="${escapeHTML(alb.cover || '')}" data-subtitle="${escapeHTML(alb.subtitle || 'Album')}" style="cursor: pointer;">
                 <div class="card-thumb-wrapper">
-                  <img src="${escapeHTML(alb.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(alb.title)}" onerror="this.src='../../assets/icon.png'">
+                  <img src="${escapeHTML(alb.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(alb.title || '')}" onerror="this.src='../../assets/icon.png'">
                   <div class="card-play-btn">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="5 3 19 12 5 21 5 3"></polygon>
                     </svg>
                   </div>
                 </div>
-                <div class="card-title">${escapeHTML(alb.title)}</div>
+                <div class="card-title">${escapeHTML(alb.title || 'Album')}</div>
                 <div class="card-subtitle">${escapeHTML(alb.subtitle || 'Album')}</div>
               </div>
             `).join('')}
@@ -2703,6 +2790,19 @@ function renderLibraryView(container) {
 
   const btnLibNew = document.getElementById('btn-library-new-playlist');
   if (btnLibNew) btnLibNew.onclick = () => openCreatePlaylistModal();
+
+  const btnSyncNow = document.getElementById('btn-library-sync-now');
+  if (btnSyncNow) btnSyncNow.onclick = () => fetchLiveYouTubeMusic(true);
+
+  container.querySelectorAll('.library-browse-card').forEach(card => {
+    card.onclick = () => {
+      const bId = card.getAttribute('data-browse-id');
+      const title = card.getAttribute('data-title');
+      const cover = card.getAttribute('data-cover');
+      const subtitle = card.getAttribute('data-subtitle');
+      if (bId) openBrowseDetail(bId, title, cover, subtitle);
+    };
+  });
 }
 
 function renderSinglePlaylistView(container, playlistId) {
@@ -3026,9 +3126,9 @@ function selectTrack(idx) {
   resolveAndPlayTrack(track);
 
   const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
-  if (api?.getNextQueue && track.videoId) {
+  if (api?.getNextQueue && track.videoId && (!userQueue || userQueue.length === 0)) {
     api.getNextQueue(track.videoId).then(queueItems => {
-      if (queueItems && queueItems.length > 0) {
+      if ((!userQueue || userQueue.length === 0) && queueItems && queueItems.length > 0) {
         userQueue = queueItems.map(qi => createCatalogueItemFromLive(qi));
         renderPreviewQueue();
       }
@@ -3576,17 +3676,21 @@ function pause() {
 
 function nextTrack() {
   if (isShuffle) {
-    const pool = (userQueue && userQueue.length > 1) ? userQueue : CATALOGUE_TRACKS;
+    const pool = (userQueue && userQueue.length > 0) ? userQueue : CATALOGUE_TRACKS;
     const randTrack = pool[Math.floor(Math.random() * pool.length)];
     playLiveTrack(randTrack);
     return;
   }
 
   const currentVideoId = CATALOGUE_TRACKS[currentIndex]?.videoId;
-  if (userQueue && userQueue.length > 1) {
-    const qIdx = userQueue.findIndex(t => t.videoId === currentVideoId);
+  const currentId = CATALOGUE_TRACKS[currentIndex]?.id;
+  if (userQueue && userQueue.length > 0) {
+    const qIdx = userQueue.findIndex(t => (currentVideoId && t.videoId === currentVideoId) || (currentId && t.id === currentId));
     if (qIdx !== -1 && qIdx + 1 < userQueue.length) {
       playLiveTrack(userQueue[qIdx + 1]);
+      return;
+    } else if (qIdx === -1 && userQueue.length > 0) {
+      playLiveTrack(userQueue[0]);
       return;
     }
   }
@@ -3602,8 +3706,9 @@ function prevTrack() {
   }
 
   const currentVideoId = CATALOGUE_TRACKS[currentIndex]?.videoId;
-  if (userQueue && userQueue.length > 1) {
-    const qIdx = userQueue.findIndex(t => t.videoId === currentVideoId);
+  const currentId = CATALOGUE_TRACKS[currentIndex]?.id;
+  if (userQueue && userQueue.length > 0) {
+    const qIdx = userQueue.findIndex(t => (currentVideoId && t.videoId === currentVideoId) || (currentId && t.id === currentId));
     if (qIdx > 0) {
       playLiveTrack(userQueue[qIdx - 1]);
       return;

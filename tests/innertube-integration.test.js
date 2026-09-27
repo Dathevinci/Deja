@@ -304,6 +304,79 @@ function runInnerTubeIntegrationTests() {
   assert.strictEqual(parsedPlaylists[1].browseId, 'VLPLgrid987xyz');
   assert.strictEqual(parsedPlaylists[1].cover, 'https://i.ytimg.com/gym.jpg');
 
+  // 5. Verify Continuation Token Extraction
+  assert.strictEqual(typeof innertube.extractContinuationToken, 'function');
+  assert.strictEqual(typeof innertube.getBrowseContinuation, 'function');
+
+  const mockContinuationPayload1 = {
+    continuationContents: {
+      musicPlaylistShelfContinuation: {
+        continuations: [{
+          nextContinuationData: {
+            continuation: 'TOKEN_NEXT_DATA_ABC'
+          }
+        }]
+      }
+    }
+  };
+  assert.strictEqual(innertube.extractContinuationToken(mockContinuationPayload1), 'TOKEN_NEXT_DATA_ABC');
+
+  const mockContinuationPayload2 = {
+    contents: {
+      singleColumnBrowseResultsRenderer: {
+        continuations: [{
+          continuationCommand: {
+            token: 'TOKEN_COMMAND_XYZ'
+          }
+        }]
+      }
+    }
+  };
+  assert.strictEqual(innertube.extractContinuationToken(mockContinuationPayload2), 'TOKEN_COMMAND_XYZ');
+  assert.strictEqual(innertube.extractContinuationToken({}), null);
+
+  // 6. Verify Modern 2025/2026 InnerTube lockupViewModel & compactPlaylistRenderer parsing
+  const mockModernFormats = {
+    contents: [
+      {
+        compactPlaylistRenderer: {
+          playlistId: 'PLcompact123',
+          title: { runs: [{ text: 'Compact Mix' }] },
+          shortBylineText: { runs: [{ text: 'By Deja' }] },
+          thumbnails: [{ thumbnails: [{ url: 'https://i.ytimg.com/compact.jpg' }] }]
+        }
+      },
+      {
+        lockupViewModel: {
+          contentId: 'PLlockup456',
+          metadata: {
+            title: { content: 'Lockup Favorites' },
+            subtitle: { content: 'Playlist • 50 tracks' }
+          },
+          image: {
+            sources: [{ url: 'https://i.ytimg.com/lockup.jpg' }]
+          }
+        }
+      },
+      // Liked videos playlist (VLLM) - should be filtered out to avoid duplicating ⭐ Liked Songs
+      {
+        musicTwoRowItemRenderer: {
+          title: { runs: [{ text: 'Liked Music' }] },
+          navigationEndpoint: { browseEndpoint: { browseId: 'VLLM' } }
+        }
+      }
+    ]
+  };
+
+  const modernParsed = innertube.parseLibraryPlaylistsResponse(mockModernFormats);
+  assert.strictEqual(modernParsed.length, 2, 'Must parse compactPlaylistRenderer & lockupViewModel while filtering VLLM');
+  assert.strictEqual(modernParsed[0].title, 'Compact Mix');
+  assert.strictEqual(modernParsed[0].browseId, 'VLPLcompact123');
+  assert.strictEqual(modernParsed[0].cover, 'https://i.ytimg.com/compact.jpg');
+  assert.strictEqual(modernParsed[1].title, 'Lockup Favorites');
+  assert.strictEqual(modernParsed[1].browseId, 'VLPLlockup456');
+  assert.strictEqual(modernParsed[1].cover, 'https://i.ytimg.com/lockup.jpg');
+
   console.log('✓ InnerTube API & YouTube Music Live Integration tests passed successfully.');
 }
 
