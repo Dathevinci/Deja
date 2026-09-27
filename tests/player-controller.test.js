@@ -70,6 +70,9 @@ function runPlayerControllerTests() {
       if (sel === 'img.image.ytmusic-player-bar' || sel === 'ytmusic-player-bar img') {
         return this._find(el => el.tagName === 'IMG');
       }
+      if (sel === 'a') {
+        return this._find(el => el.tagName === 'A');
+      }
       return null;
     }
 
@@ -104,9 +107,13 @@ function runPlayerControllerTests() {
         add: (cls) => { if (!this.className.includes(cls)) this.className += ` ${cls}`; },
         remove: (cls) => { this.className = this.className.replace(cls, '').trim(); },
         contains: (cls) => this.className.includes(cls),
-        toggle: (cls) => {
-          if (this.className.includes(cls)) this.className = this.className.replace(cls, '').trim();
-          else this.className += ` ${cls}`;
+        toggle: (cls, force) => {
+          const shouldAdd = typeof force === 'boolean' ? force : !this.className.includes(cls);
+          if (shouldAdd) {
+            if (!this.className.includes(cls)) this.className = (this.className + ` ${cls}`).trim();
+          } else {
+            this.className = this.className.replace(new RegExp(`(^|\\s)${cls}(\\s|$)`, 'g'), ' ').trim();
+          }
         }
       };
     }
@@ -123,6 +130,12 @@ function runPlayerControllerTests() {
       if (sel === '.ad-showing') return elements['mock-ad'] || null;
       return null;
     },
+    querySelectorAll: (sel) => {
+      if (sel.includes('ytmusic-guide-entry-renderer') || sel.includes('ytmusic-mini-guide-entry-renderer')) {
+        return elements.guideEntries || [];
+      }
+      return [];
+    },
     addEventListener: (event, cb) => {
       listeners[event] = listeners[event] || [];
       listeners[event].push(cb);
@@ -131,6 +144,9 @@ function runPlayerControllerTests() {
 
   const windowMock = {
     document: documentMock,
+    location: {
+      pathname: '/browse/FEmusic_explore'
+    },
     history: {
       back: () => { windowMock.historyBackCalled = true; },
       forward: () => { windowMock.historyForwardCalled = true; }
@@ -169,6 +185,26 @@ function runPlayerControllerTests() {
   mockPlayerBar.appendChild(titleEl);
   mockPlayerBar.appendChild(bylineEl);
   elements['mock-player-bar'] = mockPlayerBar;
+
+  const entryHome = new MockElement('YTMUSIC-GUIDE-ENTRY-RENDERER', 'entry-home');
+  entryHome.textContent = 'Home';
+  const homeLink = new MockElement('A');
+  homeLink.setAttribute('href', '/');
+  entryHome.appendChild(homeLink);
+
+  const entryExplore = new MockElement('YTMUSIC-GUIDE-ENTRY-RENDERER', 'entry-explore');
+  entryExplore.textContent = 'Explore';
+  const exploreLink = new MockElement('A');
+  exploreLink.setAttribute('href', 'browse/FEmusic_explore');
+  entryExplore.appendChild(exploreLink);
+
+  const entryLibrary = new MockElement('YTMUSIC-GUIDE-ENTRY-RENDERER', 'entry-library');
+  entryLibrary.textContent = 'Library';
+  const libraryLink = new MockElement('A');
+  libraryLink.setAttribute('href', '/library');
+  entryLibrary.appendChild(libraryLink);
+
+  elements.guideEntries = [entryHome, entryExplore, entryLibrary];
 
   // Run controller in mock environment
   global.window = windowMock;
@@ -246,6 +282,19 @@ function runPlayerControllerTests() {
   mockPlayerBar.setAttribute('is-ad', 'true');
   // Trigger poll
   mockVideo.currentTime = 50;
+
+  // 7. Verify Sidebar Active Navigation State Logic
+  assert.strictEqual(entryExplore.className.includes('deja-active'), true, 'Explore entry must receive deja-active for /browse/FEmusic_explore');
+  assert.strictEqual(entryHome.className.includes('deja-active'), false, 'Home entry must not have deja-active');
+  assert.strictEqual(entryLibrary.className.includes('deja-active'), false, 'Library entry must not have deja-active');
+
+  // 8. Verify Artwork Palette Extraction Function
+  const extractArtworkPalette = playerModule.extractArtworkPalette;
+  assert.strictEqual(typeof extractArtworkPalette, 'function', 'extractArtworkPalette must be exported');
+  let nullPaletteResult = 'initial';
+  extractArtworkPalette(null, (pal) => { nullPaletteResult = pal; });
+  assert.strictEqual(nullPaletteResult, null, 'extractArtworkPalette should return null for empty/null coverUrl');
+
   // Cleanup controller timers
   controller?.destroy?.();
 

@@ -4,6 +4,86 @@
  * Runs inside the Electron preload execution context to guarantee immunity against web page CSP.
  */
 
+const artworkPaletteCache = new Map();
+
+function extractArtworkPalette(coverUrl, callback) {
+  if (!coverUrl || typeof Image === 'undefined') {
+    if (typeof callback === 'function') callback(null);
+    return;
+  }
+  if (artworkPaletteCache.has(coverUrl)) {
+    if (typeof callback === 'function') callback(artworkPaletteCache.get(coverUrl));
+    return;
+  }
+
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+          if (typeof callback === 'function') callback(null);
+          return;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = 16;
+        canvas.height = 16;
+        const ctx = canvas.getContext ? canvas.getContext('2d', { willReadFrequently: true }) : null;
+        if (!ctx) {
+          if (typeof callback === 'function') callback(null);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, 16, 16);
+        const imgData = ctx.getImageData(0, 0, 16, 16).data;
+
+        function getRGB(x, y) {
+          const idx = (y * 16 + x) * 4;
+          return [imgData[idx] || 0, imgData[idx + 1] || 0, imgData[idx + 2] || 0];
+        }
+
+        function boostLuminance([r, g, b]) {
+          const max = Math.max(r, g, b);
+          if (max < 45) {
+            const boost = 55 / (max || 1);
+            return [
+              Math.min(255, Math.round(r * boost + 30)),
+              Math.min(255, Math.round(g * boost + 25)),
+              Math.min(255, Math.round(b * boost + 40))
+            ];
+          }
+          return [r, g, b];
+        }
+
+        const c1 = boostLuminance(getRGB(2, 2));
+        const c2 = boostLuminance(getRGB(13, 2));
+        const c3 = boostLuminance(getRGB(2, 13));
+        const c4 = boostLuminance(getRGB(13, 13));
+
+        const palette = {
+          c1: `rgba(${c1[0]}, ${c1[1]}, ${c1[2]}, 0.45)`,
+          c2: `rgba(${c2[0]}, ${c2[1]}, ${c2[2]}, 0.40)`,
+          c3: `rgba(${c3[0]}, ${c3[1]}, ${c3[2]}, 0.35)`,
+          c4: `rgba(${c4[0]}, ${c4[1]}, ${c4[2]}, 0.35)`,
+          primaryR: c1[0],
+          primaryG: c1[1],
+          primaryB: c1[2]
+        };
+
+        artworkPaletteCache.set(coverUrl, palette);
+        if (typeof callback === 'function') callback(palette);
+      } catch (e) {
+        if (typeof callback === 'function') callback(null);
+      }
+    };
+    img.onerror = () => {
+      if (typeof callback === 'function') callback(null);
+    };
+    img.src = coverUrl;
+  } catch (e) {
+    if (typeof callback === 'function') callback(null);
+  }
+}
+
 function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
   if (window.__DEJA_INITIALIZED__ || window.__SONORA_INITIALIZED__) return;
   window.__DEJA_INITIALIZED__ = true;
@@ -31,6 +111,7 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
     setupPlayerHooks();
     setupIpcListeners();
     setupKeyboardShortcuts();
+    setupNavigationHooks();
   }
 
   function setSafeHTML(element, html) {
@@ -337,7 +418,7 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
         aura.className = 'deja-player-ambient-aura sonora-player-ambient-aura';
         setSafeHTML(aura, `
           <div class="deja-ambient-art-blur" id="deja-ambient-art-blur"></div>
-          <div class="deja-ambient-mesh-overlay"></div>
+          <div class="deja-ambient-mesh-overlay" id="deja-ambient-mesh-overlay"></div>
         `);
         if (typeof playerPage.prepend === 'function') {
           playerPage.prepend(aura);
@@ -351,6 +432,27 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
         if (blurEl.style.backgroundImage !== bgVal) {
           blurEl.style.backgroundImage = bgVal;
         }
+      }
+
+      // Extract colors from artwork and dynamically tint the ambient aura mesh
+      if (coverUrl) {
+        extractArtworkPalette(coverUrl, (palette) => {
+          if (!palette) return;
+          if (aura && aura.style && typeof aura.style.setProperty === 'function') {
+            aura.style.setProperty('--deja-aura-c1', palette.c1);
+            aura.style.setProperty('--deja-aura-c2', palette.c2);
+            aura.style.setProperty('--deja-aura-c3', palette.c3);
+            aura.style.setProperty('--deja-aura-c4', palette.c4);
+            aura.style.setProperty('--deja-aura-r', String(palette.primaryR));
+            aura.style.setProperty('--deja-aura-g', String(palette.primaryG));
+            aura.style.setProperty('--deja-aura-b', String(palette.primaryB));
+          }
+          if (typeof document !== 'undefined' && document.documentElement && document.documentElement.style && typeof document.documentElement.style.setProperty === 'function') {
+            document.documentElement.style.setProperty('--deja-aura-r', String(palette.primaryR));
+            document.documentElement.style.setProperty('--deja-aura-g', String(palette.primaryG));
+            document.documentElement.style.setProperty('--deja-aura-b', String(palette.primaryB));
+          }
+        });
       }
     }
 
@@ -366,36 +468,100 @@ function initDejaApplePlayer(api = (window.dejaAPI || window.sonoraAPI)) {
 
   function updateSidebarActiveState() {
     if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
-    const currentPath = (typeof window !== 'undefined' && window.location && window.location.pathname) || '';
+    const currentPath = ((typeof window !== 'undefined' && window.location && window.location.pathname) || '').toLowerCase();
+    const cleanPath = currentPath.replace(/^\/+|\/+$/g, '');
+
+    const isHomeRoute = cleanPath === '' || cleanPath === 'home' || cleanPath.includes('femusic_home');
+    const isExploreRoute = cleanPath.includes('explore') || cleanPath.includes('femusic_explore');
+    const isLibraryRoute = cleanPath.includes('library') || cleanPath.includes('femusic_library');
+
     const entries = document.querySelectorAll('ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer');
     if (!entries || !entries.forEach) return;
 
     entries.forEach(entry => {
       const link = entry.querySelector ? entry.querySelector('a') : null;
-      const href = link ? (link.getAttribute('href') || link.pathname || '') : '';
+      const rawHref = link ? (link.getAttribute('href') || link.pathname || '') : '';
+      const cleanHref = rawHref.replace(/^\/+|\/+$/g, '').toLowerCase();
       const text = (entry.textContent || '').trim().toLowerCase();
 
       let isActive = false;
-      if (href) {
-        if (href === '/' || href === '') {
-          isActive = (currentPath === '/' || currentPath === '');
-        } else if (currentPath.startsWith(href)) {
+      if (cleanHref) {
+        if (cleanHref === '' || cleanHref === 'home' || cleanHref.includes('femusic_home')) {
+          isActive = isHomeRoute;
+        } else if (cleanHref.includes('explore') || cleanHref.includes('femusic_explore')) {
+          isActive = isExploreRoute;
+        } else if (cleanHref.includes('library') || cleanHref.includes('femusic_library')) {
+          isActive = isLibraryRoute;
+        } else if (cleanPath && (cleanPath === cleanHref || cleanPath.startsWith(cleanHref))) {
           isActive = true;
         }
       } else {
-        if (text.includes('home') && (currentPath === '/' || currentPath === '')) {
-          isActive = true;
-        } else if (text.includes('explore') && currentPath.includes('/explore')) {
-          isActive = true;
-        } else if (text.includes('library') && currentPath.includes('/library')) {
-          isActive = true;
+        if (text.includes('home')) {
+          isActive = isHomeRoute;
+        } else if (text.includes('explore')) {
+          isActive = isExploreRoute;
+        } else if (text.includes('library')) {
+          isActive = isLibraryRoute;
         }
       }
 
       if (entry.classList && typeof entry.classList.toggle === 'function') {
         entry.classList.toggle('deja-active', isActive);
       }
+      if (typeof entry.setAttribute === 'function') {
+        if (isActive) {
+          entry.setAttribute('aria-selected', 'true');
+        } else if (entry.classList && !entry.classList.contains('iron-selected')) {
+          entry.removeAttribute('aria-selected');
+        }
+      }
     });
+  }
+
+  function setupNavigationHooks() {
+    updateSidebarActiveState();
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('popstate', () => {
+        setTimeout(updateSidebarActiveState, 50);
+      });
+      window.addEventListener('yt-navigate-finish', () => {
+        setTimeout(updateSidebarActiveState, 50);
+      });
+
+      // Hook history.pushState and history.replaceState
+      try {
+        if (window.history) {
+          const origPushState = window.history.pushState;
+          if (typeof origPushState === 'function') {
+            window.history.pushState = function(...args) {
+              const ret = origPushState.apply(this, args);
+              setTimeout(updateSidebarActiveState, 50);
+              return ret;
+            };
+          }
+          const origReplaceState = window.history.replaceState;
+          if (typeof origReplaceState === 'function') {
+            window.history.replaceState = function(...args) {
+              const ret = origReplaceState.apply(this, args);
+              setTimeout(updateSidebarActiveState, 50);
+              return ret;
+            };
+          }
+        }
+      } catch (e) {}
+
+      // Listen for clicks on guide entries
+      if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+        document.addEventListener('click', (e) => {
+          const guideEntry = e.target && e.target.closest ? e.target.closest('ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer') : null;
+          if (guideEntry) {
+            setTimeout(updateSidebarActiveState, 80);
+            setTimeout(updateSidebarActiveState, 300);
+          }
+        }, true);
+      }
+    }
   }
 
   function updateAccountAvatar() {
@@ -724,9 +890,11 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = initDejaApplePlayer;
   module.exports.initDejaApplePlayer = initDejaApplePlayer;
   module.exports.initSonoraApplePlayer = initSonoraApplePlayer;
+  module.exports.extractArtworkPalette = extractArtworkPalette;
 }
 
 if (typeof window !== 'undefined') {
   window.initDejaApplePlayer = initDejaApplePlayer;
   window.initSonoraApplePlayer = initSonoraApplePlayer;
+  window.extractArtworkPalette = extractArtworkPalette;
 }

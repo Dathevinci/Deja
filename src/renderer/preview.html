@@ -215,7 +215,7 @@
   <footer class="apple-player-bar" id="apple-player-bar">
     <!-- Left Track Information -->
     <div class="player-left">
-      <div class="artwork-wrapper">
+      <div class="artwork-wrapper" id="player-artwork-wrapper" title="Click to expand Now Playing">
         <img src="" alt="Album Artwork" id="player-artwork" class="player-artwork">
         <div class="artwork-overlay">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
@@ -322,6 +322,32 @@
       </div>
     </div>
   </footer>
+
+  <!-- Apple Music Expanded Now Playing Page -->
+  <div class="deja-expanded-player-view" id="expanded-player-view">
+    <div class="deja-player-ambient-aura" id="preview-ambient-aura">
+      <div class="deja-ambient-art-blur" id="preview-ambient-art-blur"></div>
+      <div class="deja-ambient-mesh-overlay" id="preview-ambient-mesh-overlay"></div>
+    </div>
+    <div class="expanded-player-header">
+      <button class="btn-collapse-player" id="btn-collapse-player" title="Collapse Now Playing">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+      <span class="expanded-header-title">Now Playing</span>
+      <div style="width: 36px;"></div>
+    </div>
+    <div class="expanded-player-content">
+      <div class="expanded-artwork-container" id="expanded-artwork-container">
+        <img src="" alt="Album Artwork" id="expanded-artwork-img" class="expanded-artwork-img">
+      </div>
+      <div class="expanded-track-details">
+        <h2 class="expanded-track-title" id="expanded-track-title">Midnight Reverie</h2>
+        <h4 class="expanded-track-artist" id="expanded-track-artist">Aura Soundscapes • Deja Originals</h4>
+      </div>
+    </div>
+  </div>
 
   <!-- Apple Music Synced Lyrics Drawer -->
   <aside class="apple-lyrics-drawer" id="apple-lyrics-drawer">

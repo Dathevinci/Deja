@@ -134,6 +134,29 @@ function loadTrack(idx) {
   document.getElementById('lyrics-artist-name').innerText = track.artist;
   document.getElementById('lyrics-aura').style.backgroundImage = `url('${track.cover}')`;
 
+  // Update Expanded Now Playing Page
+  const expandedTitle = document.getElementById('expanded-track-title');
+  const expandedArtist = document.getElementById('expanded-track-artist');
+  const expandedArtwork = document.getElementById('expanded-artwork-img');
+  const previewArtBlur = document.getElementById('preview-ambient-art-blur');
+  const previewAura = document.getElementById('preview-ambient-aura');
+  if (expandedTitle) expandedTitle.innerText = track.title;
+  if (expandedArtist) expandedArtist.innerText = `${track.artist} • ${track.album}`;
+  if (expandedArtwork) expandedArtwork.src = track.cover;
+  if (previewArtBlur) previewArtBlur.style.backgroundImage = `url('${track.cover}')`;
+
+  // Dynamic ambient palette tint
+  extractTrackPalette(track.cover, (palette) => {
+    if (!palette || !previewAura) return;
+    previewAura.style.setProperty('--deja-aura-c1', palette.c1);
+    previewAura.style.setProperty('--deja-aura-c2', palette.c2);
+    previewAura.style.setProperty('--deja-aura-c3', palette.c3);
+    previewAura.style.setProperty('--deja-aura-c4', palette.c4);
+    previewAura.style.setProperty('--deja-aura-r', String(palette.primaryR));
+    previewAura.style.setProperty('--deja-aura-g', String(palette.primaryG));
+    previewAura.style.setProperty('--deja-aura-b', String(palette.primaryB));
+  });
+
   renderLyrics(track.lyrics);
 
   // Notify Electron Main process
@@ -189,6 +212,21 @@ function setupEvents() {
     lyricsDrawer.classList.remove('visible');
     document.getElementById('btn-lyrics-panel').classList.remove('active');
   };
+
+  // Expanded Now Playing view toggle
+  const expandedView = document.getElementById('expanded-player-view');
+  const artworkWrapper = document.getElementById('player-artwork-wrapper');
+  const btnCollapsePlayer = document.getElementById('btn-collapse-player');
+  if (artworkWrapper && expandedView) {
+    artworkWrapper.onclick = () => {
+      expandedView.classList.toggle('visible');
+    };
+  }
+  if (btnCollapsePlayer && expandedView) {
+    btnCollapsePlayer.onclick = () => {
+      expandedView.classList.remove('visible');
+    };
+  }
 
   // Settings modal
   const settingsModal = document.getElementById('settings-modal');
@@ -433,4 +471,80 @@ function formatTime(sec) {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+const previewPaletteCache = new Map();
+
+function extractTrackPalette(coverUrl, callback) {
+  if (!coverUrl || typeof Image === 'undefined') {
+    if (typeof callback === 'function') callback(null);
+    return;
+  }
+  if (previewPaletteCache.has(coverUrl)) {
+    if (typeof callback === 'function') callback(previewPaletteCache.get(coverUrl));
+    return;
+  }
+
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 16;
+        canvas.height = 16;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) {
+          if (typeof callback === 'function') callback(null);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, 16, 16);
+        const data = ctx.getImageData(0, 0, 16, 16).data;
+
+        function getRGB(x, y) {
+          const idx = (y * 16 + x) * 4;
+          return [data[idx] || 0, data[idx + 1] || 0, data[idx + 2] || 0];
+        }
+
+        function boost(c) {
+          const max = Math.max(...c);
+          if (max < 45) {
+            const factor = 55 / (max || 1);
+            return [
+              Math.min(255, Math.round(c[0] * factor + 30)),
+              Math.min(255, Math.round(c[1] * factor + 25)),
+              Math.min(255, Math.round(c[2] * factor + 40))
+            ];
+          }
+          return c;
+        }
+
+        const c1 = boost(getRGB(2, 2));
+        const c2 = boost(getRGB(13, 2));
+        const c3 = boost(getRGB(2, 13));
+        const c4 = boost(getRGB(13, 13));
+
+        const palette = {
+          c1: `rgba(${c1[0]}, ${c1[1]}, ${c1[2]}, 0.45)`,
+          c2: `rgba(${c2[0]}, ${c2[1]}, ${c2[2]}, 0.40)`,
+          c3: `rgba(${c3[0]}, ${c3[1]}, ${c3[2]}, 0.35)`,
+          c4: `rgba(${c4[0]}, ${c4[1]}, ${c4[2]}, 0.35)`,
+          primaryR: c1[0],
+          primaryG: c1[1],
+          primaryB: c1[2]
+        };
+
+        previewPaletteCache.set(coverUrl, palette);
+        if (typeof callback === 'function') callback(palette);
+      } catch (e) {
+        if (typeof callback === 'function') callback(null);
+      }
+    };
+    img.onerror = () => {
+      if (typeof callback === 'function') callback(null);
+    };
+    img.src = coverUrl;
+  } catch (e) {
+    if (typeof callback === 'function') callback(null);
+  }
 }

@@ -583,14 +583,41 @@ ytmusic-guide-entry-renderer:hover tp-yt-iron-icon {
   fill: #FFFFFF !important;
 }
 
+/* Reset nested Polymer paper items to prevent chunky rectangular boxes inside pills */
+ytmusic-guide-entry-renderer tp-yt-paper-item,
+ytmusic-guide-entry-renderer tp-yt-paper-item.iron-selected,
+ytmusic-guide-entry-renderer .ytmusic-guide-entry-renderer,
+ytmusic-mini-guide-entry-renderer tp-yt-paper-item,
+ytmusic-mini-guide-entry-renderer tp-yt-paper-item.iron-selected {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: inherit !important;
+  padding: 0 !important;
+  min-height: unset !important;
+  height: 100% !important;
+  outline: none !important;
+}
+
+ytmusic-guide-entry-renderer a,
+ytmusic-mini-guide-entry-renderer a {
+  text-decoration: none !important;
+  color: inherit !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  background: transparent !important;
+}
+
 /* Soft, refined active state (subtle rounded pill highlight with var(--apple-accent) icon/text, no harsh chunky red boxes) */
 ytmusic-guide-entry-renderer[aria-selected="true"],
 ytmusic-guide-entry-renderer[is-active],
 ytmusic-guide-entry-renderer.iron-selected,
 ytmusic-guide-entry-renderer.deja-active,
 ytmusic-guide-entry-renderer[selected],
-ytmusic-guide-entry-renderer.active,
-tp-yt-paper-item.iron-selected {
+ytmusic-guide-entry-renderer.active {
   background: rgba(250, 45, 72, 0.14) !important;
   border: none !important;
   box-shadow: 0 2px 10px rgba(250, 45, 72, 0.15) !important;
@@ -815,11 +842,22 @@ ytmusic-player-bar .thumbnail-container-ytmusic-player-bar {
 
 /* Eliminate floating thumbnail artifact and redundant hovering tooltips */
 ytmusic-player-bar #preview,
+ytmusic-player-bar #hover,
 ytmusic-player-bar .thumbnail-preview,
 ytmusic-player-bar paper-slider #sliderKnob .thumbnail-container,
 ytmusic-player-bar #hover.paper-progress,
 ytmusic-player-bar tp-yt-paper-tooltip,
-ytmusic-player-bar #thumbnail.preview {
+ytmusic-player-bar #thumbnail.preview,
+ytmusic-player-bar #hover-time,
+ytmusic-player-bar .hover-time,
+ytmusic-player-bar #hover-container,
+ytmusic-player-bar .hover-container,
+ytmusic-player-bar #preview-container,
+ytmusic-player-bar .thumbnail-wrapper.preview,
+ytmusic-player-bar #progress-bar #preview,
+ytmusic-player-bar #progress-bar #hover,
+#progress-bar.ytmusic-player-bar #preview,
+#progress-bar.ytmusic-player-bar #hover {
   display: none !important;
   opacity: 0 !important;
   pointer-events: none !important;
@@ -861,6 +899,8 @@ ytmusic-player-bar .thumbnail-container-ytmusic-player-bar {
 }
 
 ytmusic-player-bar .thumbnail-image-wrapper img,
+ytmusic-player-bar #thumbnail-container img,
+ytmusic-player-bar .thumbnail-container-ytmusic-player-bar img,
 ytmusic-player-bar .image.ytmusic-player-bar,
 ytmusic-player-bar img.image {
   width: 100% !important;
@@ -868,14 +908,20 @@ ytmusic-player-bar img.image {
   border-radius: 12px !important;
   object-fit: cover !important;
   display: block !important;
+  box-shadow: none !important;
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 /* Smooth spring/cubic-bezier scale when playing with dynamic deep shadow and ruby glow */
 body.deja-playing ytmusic-player-bar .thumbnail-image-wrapper,
 body.deja-playing ytmusic-player-bar #thumbnail-container,
+body.deja-playing ytmusic-player-bar .thumbnail-container-ytmusic-player-bar,
 ytmusic-player-bar.is-playing .thumbnail-image-wrapper,
-ytmusic-player-bar[playing] .thumbnail-image-wrapper {
+ytmusic-player-bar.is-playing #thumbnail-container,
+ytmusic-player-bar.is-playing .thumbnail-container-ytmusic-player-bar,
+ytmusic-player-bar[playing] .thumbnail-image-wrapper,
+ytmusic-player-bar[playing] #thumbnail-container,
+ytmusic-player-bar[playing] .thumbnail-container-ytmusic-player-bar {
   transform: scale(1.05) !important;
   box-shadow: 0 8px 24px -2px rgba(0, 0, 0, 0.65), 0 0 16px var(--apple-accent-glow) !important;
 }
@@ -1150,11 +1196,32 @@ ytmusic-player-page,
 
 .deja-ambient-mesh-overlay {
   position: absolute !important;
-  inset: 0 !important;
-  background: radial-gradient(circle at 25% 25%, rgba(var(--deja-aura-r, 250), var(--deja-aura-g, 45), var(--deja-aura-b, 72), 0.35) 0%, transparent 60%),
-              radial-gradient(circle at 80% 70%, rgba(140, 40, 220, 0.3) 0%, transparent 65%),
-              radial-gradient(circle at 50% 50%, rgba(18, 18, 22, 0.4) 0%, rgba(14, 14, 16, 0.85) 100%) !important;
+  inset: -10% !important;
+  width: 120% !important;
+  height: 120% !important;
+  background: radial-gradient(circle at 20% 25%, var(--deja-aura-c1, rgba(250, 45, 72, 0.45)) 0%, transparent 60%),
+              radial-gradient(circle at 80% 20%, var(--deja-aura-c2, rgba(140, 40, 220, 0.40)) 0%, transparent 65%),
+              radial-gradient(circle at 25% 80%, var(--deja-aura-c3, rgba(40, 160, 220, 0.35)) 0%, transparent 60%),
+              radial-gradient(circle at 75% 75%, var(--deja-aura-c4, rgba(250, 140, 45, 0.35)) 0%, transparent 65%),
+              radial-gradient(circle at 50% 50%, rgba(18, 18, 22, 0.30) 0%, rgba(14, 14, 16, 0.88) 100%) !important;
   mix-blend-mode: overlay !important;
+  animation: dejaMeshDrift 24s infinite alternate ease-in-out !important;
+  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes dejaMeshDrift {
+  0% {
+    transform: scale(1) translate(0, 0) rotate(0deg);
+  }
+  33% {
+    transform: scale(1.08) translate(-3%, 2%) rotate(2deg);
+  }
+  66% {
+    transform: scale(1.05) translate(2%, -2%) rotate(-2deg);
+  }
+  100% {
+    transform: scale(1.1) translate(-2%, 3%) rotate(1deg);
+  }
 }
 
 @keyframes dejaAuraDrift {
@@ -1195,39 +1262,45 @@ ytmusic-player-page #side-panel {
   overflow: hidden !important;
 }
 
-/* Album artwork & video container on player page: large, squircle with 18px radius */
-ytmusic-player-page #player,
-ytmusic-player-page ytmusic-player,
-ytmusic-player-page #song-video,
-ytmusic-player-page #song-image,
-ytmusic-player-page .song-media-window,
+/* Album artwork & media container on player page: large, squircle with 18px radius */
 ytmusic-player-page #main-panel #player,
-ytmusic-player-page #thumbnail,
-ytmusic-player-page img.ytmusic-player-page {
+ytmusic-player-page .song-media-window {
   border-radius: 18px !important;
   overflow: hidden !important;
   transform-origin: center center !important;
   transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
+/* Inner media elements fill without duplicating transform or shadows */
+ytmusic-player-page #main-panel #player img,
+ytmusic-player-page #main-panel #player video,
+ytmusic-player-page #song-video,
+ytmusic-player-page #song-image,
+ytmusic-player-page #thumbnail,
+ytmusic-player-page img.ytmusic-player-page {
+  border-radius: inherit !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
 /* Paused state on player page */
-body:not(.deja-playing) ytmusic-player-page #player,
-body:not(.deja-playing) ytmusic-player-page ytmusic-player,
-body:not(.deja-playing) ytmusic-player-page .song-media-window,
-body:not(.deja-playing) ytmusic-player-page #song-image {
+body:not(.deja-playing) ytmusic-player-page #main-panel #player,
+body:not(.deja-playing) ytmusic-player-page .song-media-window {
   transform: scale(0.94) !important;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6) !important;
+  animation: none !important;
 }
 
 /* Playing state on player page: prominent, multi-layer drop shadows, breathing/scale */
-body.deja-playing ytmusic-player-page #player,
-body.deja-playing ytmusic-player-page ytmusic-player,
-body.deja-playing ytmusic-player-page .song-media-window,
-body.deja-playing ytmusic-player-page #song-image {
+body.deja-playing ytmusic-player-page #main-panel #player,
+body.deja-playing ytmusic-player-page .song-media-window {
   transform: scale(1.02) !important;
   box-shadow: 0 24px 70px -10px rgba(0, 0, 0, 0.8),
               0 0 50px var(--apple-accent-glow),
-              0 0 90px rgba(250, 45, 72, 0.22) !important;
+              0 0 90px rgba(var(--deja-aura-r, 250), var(--deja-aura-g, 45), var(--deja-aura-b, 72), 0.22) !important;
   animation: dejaArtworkBreathing 7s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95) !important;
 }
 
@@ -1236,7 +1309,7 @@ body.deja-playing ytmusic-player-page #song-image {
     transform: scale(1.02);
   }
   50% {
-    transform: scale(1.04);
+    transform: scale(1.045);
   }
   100% {
     transform: scale(1.02);
@@ -1286,6 +1359,12 @@ body.deja-playing ytmusic-player-page #song-image {
 
 ::-webkit-scrollbar-thumb,
 *::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-corner,
+*::-webkit-scrollbar-corner {
   display: none !important;
   background: transparent !important;
 }

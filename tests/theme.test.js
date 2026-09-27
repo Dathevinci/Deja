@@ -37,14 +37,22 @@ function runThemeTests() {
 
   // Verify Fluid Micro-interactions & Scrollbar Elimination
   assert.ok(css.includes('scrollbar-width: none !important'), 'Must eliminate native browser scrollbars');
+  assert.ok(css.includes('*, *::before, *::after'), 'Must apply scrollbar hiding universally');
   assert.ok(css.includes('cubic-bezier(0.16, 1, 0.3, 1)'), 'Must use Apple fluid spring cubic-bezier curves');
+
+  // Verify Sidebar Refined Pill & Paper-Item Reset
+  assert.ok(css.includes('ytmusic-guide-entry-renderer tp-yt-paper-item'), 'Must reset Polymer paper-item inside sidebar entries');
+  assert.ok(css.includes('background: transparent !important'), 'Paper items must have transparent background');
 
   // Verify Apple Squircle & Cover Art After Playing
   assert.ok(css.includes('scale(1.05)'), 'Album art must scale smoothly to 1.05 when playing');
   assert.ok(css.includes('#hover.paper-progress'), 'Must eliminate floating thumbnail tooltip artifacts');
+  assert.ok(css.includes('ytmusic-player-bar #preview'), 'Must eliminate preview thumbnail tooltips');
 
   // Verify Now Playing Dynamic Ambient Aura & 18px Squircle
   assert.ok(css.includes('.deja-player-ambient-aura'), 'Must wrap now playing view with Apple dynamic ambient aura');
+  assert.ok(css.includes('--deja-aura-c1'), 'Must support dynamic color extraction variables');
+  assert.ok(css.includes('dejaMeshDrift'), 'Must include animated mesh drift keyframes');
   assert.ok(css.includes('18px !important'), 'Artwork on player page must have 18px squircle radius');
   assert.ok(css.includes('dejaArtworkBreathing'), 'Artwork must have smooth play/pause breathing animation');
 
