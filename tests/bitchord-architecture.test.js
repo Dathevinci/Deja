@@ -419,6 +419,19 @@ function runBitChordArchitectureTests() {
     previewModule.updateSyncedLyrics();
     assert.ok(lyricSnippet.innerText !== '♪', 'Preview snippet text must never be bare ♪');
     assert.ok(lyricSnippet.innerText.length > 0, 'Preview snippet text must be populated');
+
+    // Test toggleQueue: 1st invocation displays queue drawer, 2nd hides queue drawer
+    previewModule.toggleQueue();
+    assert.ok(queueDrawer.classList.contains('visible'), 'Queue drawer must be visible after 1st toggle');
+    assert.ok(expBtnQueue.classList.contains('active'), 'Queue button must be active after 1st toggle');
+    assert.strictEqual(expBtnQueue.style.color, '#FA2D48', 'Queue button must have red active color');
+    assert.strictEqual(expBtnQueue.style.backgroundColor, 'rgba(250, 45, 72, 0.18)', 'Queue button must have active pill background');
+
+    previewModule.toggleQueue();
+    assert.ok(!queueDrawer.classList.contains('visible'), 'Queue drawer must be hidden after 2nd toggle');
+    assert.ok(!expBtnQueue.classList.contains('active'), 'Queue button must be inactive after 2nd toggle');
+    assert.strictEqual(expBtnQueue.style.color, '', 'Queue button color must be cleared after 2nd toggle');
+    assert.strictEqual(expBtnQueue.style.backgroundColor, '', 'Queue button background must be cleared after 2nd toggle');
   } finally {
     global.document = originalDoc;
   }
@@ -554,6 +567,7 @@ function runBitChordArchitectureTests() {
   assert.ok(css.includes('transform: translate3d(0, 100%, 0)'), 'CSS must use hardware-accelerated translate3d for Now Playing slide-up view');
   assert.ok(css.includes('z-index: 100050'), 'Modal backdrop must be elevated above expanded player view');
   assert.ok(css.includes('z-index: 10002'), 'Queue drawer must be layered above expanded player view');
+  assert.ok(css.includes('z-index: 100020 !important'), 'Queue drawer must have z-index: 100020 !important to sit above expanded player view');
   assert.ok(css.includes('z-index: 100010'), 'Options menu must have z-index: 100010 to sit above artwork');
   assert.ok(css.includes('z-index: 100000'), 'Expanded player header must have elevated z-index');
   assert.ok(css.includes('contain: layout paint;'), 'CSS must include contain: layout paint to prevent layout thrashing');
@@ -563,6 +577,7 @@ function runBitChordArchitectureTests() {
   const appleThemePath = path.join(__dirname, '../src/preload/apple-theme.css');
   const appleThemeCss = fs.readFileSync(appleThemePath, 'utf8');
   assert.ok(!appleThemeCss.includes('animation: dejaArtworkBreathing 7s infinite'), 'apple-theme.css must not run infinite artwork breathing animation');
+  assert.ok(appleThemeCss.includes('z-index: 100020 !important'), 'apple-theme.css must enforce z-index: 100020 !important for queue drawer');
 
   // 9.2 Independent Google Login Window Architecture
   assert.ok(!mainCode.includes('parent: mainWindow, modal: true'), 'Login window must NOT use parent or modal to prevent Google embedded webview detection');
@@ -586,6 +601,8 @@ function runBitChordArchitectureTests() {
   assert.ok(mainCode.includes('isEmbedOrMedia'), 'main.js must only mutate response headers on player media streaming and embed iframes');
   assert.ok(!mainCode.includes('header.innerHTML ='), 'main.js must not set innerHTML on login header to strictly comply with Trusted Types');
   assert.ok(mainCode.includes('sandbox: true'), 'main.js must enforce sandbox: true on login window webPreferences');
+  assert.ok(mainCode.includes('CHROME_METADATA'), 'main.js must define CHROME_METADATA matching standard Windows Chrome 131');
+  assert.ok(mainCode.includes('DEJA_LOAD_YTM'), 'main.js must handle DEJA_LOAD_YTM to cleanly load music.youtube.com from header button');
 
   // 9.3 HTML Custom Playlists Components
   assert.ok(html.includes('id="btn-sidebar-new-playlist"'), 'HTML must provide "+ New Playlist" button in sidebar');

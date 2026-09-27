@@ -190,11 +190,13 @@ function runEdgeCaseTests() {
 
   // Queue drawer mutual exclusion
   const mockQueueDrawer = { id: 'apple-queue-drawer', classList: mockClassList(['visible', 'active']) };
-  const mockBtnQueuePanel = { id: 'btn-queue-panel', classList: mockClassList(['active']) };
+  const mockBtnQueuePanel = { id: 'btn-queue-panel', classList: mockClassList(['active']), style: {} };
+  const mockExpBtnQueue = { id: 'exp-btn-queue', classList: mockClassList(['active']), style: {} };
   const prevGetElementById = global.document.getElementById;
   global.document.getElementById = (id) => {
     if (id === 'apple-queue-drawer') return mockQueueDrawer;
     if (id === 'btn-queue-panel') return mockBtnQueuePanel;
+    if (id === 'exp-btn-queue') return mockExpBtnQueue;
     return prevGetElementById(id);
   };
 
@@ -202,6 +204,17 @@ function runEdgeCaseTests() {
   assert.strictEqual(mockQueueDrawer.classList.contains('visible'), false, 'Opening lyrics drawer must close queue drawer');
   assert.strictEqual(mockBtnQueuePanel.classList.contains('active'), false, 'Opening lyrics drawer must deactivate queue button');
   preview.closeLyricsDrawer();
+
+  // Test opening queue drawer closes lyrics drawer
+  mockDrawer.classList.add('visible', 'active');
+  preview.openQueueDrawer();
+  assert.strictEqual(mockDrawer.classList.contains('visible'), false, 'Opening queue drawer must close lyrics drawer');
+  assert.strictEqual(mockQueueDrawer.classList.contains('visible'), true, 'Queue drawer must be opened');
+  assert.strictEqual(mockExpBtnQueue.style.color, '#FA2D48', 'Queue button must be styled active');
+
+  preview.closeQueueDrawer();
+  assert.strictEqual(mockQueueDrawer.classList.contains('visible'), false, 'Closing queue drawer must hide it');
+  assert.strictEqual(mockExpBtnQueue.style.color, '', 'Closing queue drawer must clear style');
 
   // Clean up global mock
   delete global.document;

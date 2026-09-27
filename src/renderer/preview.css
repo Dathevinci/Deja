@@ -1986,7 +1986,7 @@ body.deja-playing .now-playing-art-wrap,
   backdrop-filter: blur(32px) saturate(200%);
   -webkit-backdrop-filter: blur(32px) saturate(200%);
   border-left: 1px solid var(--border-subtle);
-  z-index: 10002;
+  z-index: 100020 !important;
   display: flex;
   flex-direction: column;
   transform: translate3d(100%, 0, 0) !important;
@@ -1997,6 +1997,13 @@ body.deja-playing .now-playing-art-wrap,
   overflow: hidden;
   box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
   pointer-events: none;
+}
+
+.deja-expanded-player-view.visible ~ .deja-queue-drawer,
+body:has(.deja-expanded-player-view.visible) .deja-queue-drawer {
+  top: 0 !important;
+  bottom: 0 !important;
+  height: 100vh !important;
 }
 
 .deja-queue-drawer.visible,

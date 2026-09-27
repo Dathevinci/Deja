@@ -3592,7 +3592,7 @@ function toggleNowPlayingLyrics() {
   if (typeof document === 'undefined') return;
   const artContainer = document.getElementById('now-playing-art-wrap') || document.getElementById('expanded-artwork-container');
   const lyricsContainer = document.getElementById('expanded-lyrics-container');
-  const expBtnLyrics = document.getElementById('exp-btn-lyrics') || document.querySelector('.exp-lyrics-btn');
+  const expBtnLyrics = document.getElementById('exp-btn-lyrics') || (typeof document.querySelector === 'function' ? document.querySelector('.exp-lyrics-btn') : null);
   if (!lyricsContainer) return;
 
   const isShowingLyrics = lyricsContainer.style.display !== 'none';
@@ -3618,10 +3618,17 @@ function toggleNowPlayingLyrics() {
     const queueDrawer = document.getElementById('apple-queue-drawer');
     if (queueDrawer && (queueDrawer.classList.contains('visible') || queueDrawer.classList.contains('active'))) {
       queueDrawer.classList.remove('visible', 'active');
-      const expBtnQueue = document.getElementById('exp-btn-queue') || document.querySelector('.exp-queue-btn');
+      const expBtnQueue = document.getElementById('exp-btn-queue') || (typeof document.querySelector === 'function' ? document.querySelector('.exp-queue-btn') : null);
       const btnQueuePanel = document.getElementById('btn-queue-panel');
-      if (expBtnQueue) expBtnQueue.classList.remove('active');
-      if (btnQueuePanel) btnQueuePanel.classList.remove('active');
+      if (expBtnQueue) {
+        expBtnQueue.classList.remove('active');
+        expBtnQueue.style.color = '';
+        expBtnQueue.style.backgroundColor = '';
+      }
+      if (btnQueuePanel) {
+        btnQueuePanel.classList.remove('active');
+        btnQueuePanel.style.color = '';
+      }
     }
     const track = CATALOGUE_TRACKS[currentIndex];
     if (track) {
@@ -3699,10 +3706,76 @@ function toggleLyricsDrawer() {
   }
 }
 
+/**
+ * Toggles the BitChord Up Next Queue Drawer cleanly
+ */
+function toggleQueue(e) {
+  if (e && typeof e.preventDefault === 'function') {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  if (typeof document === 'undefined') return;
+  const queueDrawer = document.getElementById('apple-queue-drawer');
+  const btnQueuePanel = document.getElementById('btn-queue-panel');
+  const expBtnQueue = document.getElementById('exp-btn-queue') || (typeof document.querySelector === 'function' ? document.querySelector('.exp-queue-btn') : null);
+  if (!queueDrawer) return;
+
+  const willBeVis = !queueDrawer.classList.contains('visible');
+  queueDrawer.classList.toggle('visible', willBeVis);
+  queueDrawer.classList.toggle('active', willBeVis);
+
+  if (btnQueuePanel) {
+    btnQueuePanel.classList.toggle('active', willBeVis);
+    btnQueuePanel.style.color = willBeVis ? '#FA2D48' : '';
+  }
+  if (expBtnQueue) {
+    expBtnQueue.classList.toggle('active', willBeVis);
+    expBtnQueue.style.color = willBeVis ? '#FA2D48' : '';
+    expBtnQueue.style.backgroundColor = willBeVis ? 'rgba(250, 45, 72, 0.18)' : '';
+  }
+
+  if (willBeVis) {
+    closeLyricsDrawer();
+    const npLyrics = document.getElementById('expanded-lyrics-container');
+    const npArt = document.getElementById('now-playing-art-wrap') || document.getElementById('expanded-artwork-container');
+    const expBtnLyrics = document.getElementById('exp-btn-lyrics') || (typeof document.querySelector === 'function' ? document.querySelector('.exp-lyrics-btn') : null);
+    if (npLyrics && npLyrics.style.display !== 'none') {
+      npLyrics.style.display = 'none';
+      if (npArt) npArt.style.display = 'block';
+      if (expBtnLyrics) {
+        expBtnLyrics.classList.remove('active');
+        expBtnLyrics.style.color = '';
+        expBtnLyrics.style.backgroundColor = '';
+        expBtnLyrics.title = 'Synced Lyrics';
+      }
+    }
+    renderPreviewQueue();
+  }
+}
+
+function openQueueDrawer() {
+  if (typeof document === 'undefined') return;
+  const queueDrawer = document.getElementById('apple-queue-drawer');
+  if (queueDrawer && !queueDrawer.classList.contains('visible')) {
+    toggleQueue();
+  }
+}
+
+function closeQueueDrawer() {
+  if (typeof document === 'undefined') return;
+  const queueDrawer = document.getElementById('apple-queue-drawer');
+  if (queueDrawer && (queueDrawer.classList.contains('visible') || queueDrawer.classList.contains('active'))) {
+    toggleQueue();
+  }
+}
+
 if (typeof window !== 'undefined') {
   window.openLyricsDrawer = openLyricsDrawer;
   window.closeLyricsDrawer = closeLyricsDrawer;
   window.toggleLyrics = toggleLyricsDrawer;
+  window.toggleQueue = toggleQueue;
+  window.openQueueDrawer = openQueueDrawer;
+  window.closeQueueDrawer = closeQueueDrawer;
 }
 
 function updatePlayButton() {
@@ -4086,26 +4159,12 @@ function setupEvents() {
   const btnQueuePanel = document.getElementById('btn-queue-panel');
   const expBtnQueue = document.getElementById('exp-btn-queue') || document.querySelector('.exp-queue-btn');
   const btnCloseQueue = document.getElementById('btn-close-queue');
-  const toggleQueue = (e) => {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    if (!queueDrawer) return;
-    queueDrawer.classList.toggle('visible');
-    const isVis = queueDrawer.classList.contains('visible');
-    if (btnQueuePanel) btnQueuePanel.classList.toggle('active', isVis);
-    if (expBtnQueue) expBtnQueue.classList.toggle('active', isVis);
-    if (isVis) {
-      closeLyricsDrawer();
-      renderPreviewQueue();
-    }
-  };
-  if (btnQueuePanel) btnQueuePanel.onclick = toggleQueue;
+
+  if (btnQueuePanel) btnQueuePanel.onclick = (e) => toggleQueue(e);
   if (expBtnQueue) {
-    expBtnQueue.onclick = (e) => {
-      if (e) { e.preventDefault(); e.stopPropagation(); }
-      toggleQueue(e);
-    };
+    expBtnQueue.onclick = (e) => toggleQueue(e);
   }
-  if (btnCloseQueue) btnCloseQueue.onclick = toggleQueue;
+  if (btnCloseQueue) btnCloseQueue.onclick = (e) => toggleQueue(e);
 
   // Lyrics toggle & dismissing
   const lyricsDrawer = document.getElementById('apple-lyrics-drawer');
@@ -4138,6 +4197,20 @@ function setupEvents() {
     if (btnLyricsPanel && (btnLyricsPanel === e.target || btnLyricsPanel.contains(e.target))) return;
 
     closeLyricsDrawer();
+  });
+
+  // Click-outside handler: clicking outside the queue drawer closes it cleanly
+  document.addEventListener('pointerdown', (e) => {
+    const qDrawer = document.getElementById('apple-queue-drawer');
+    if (!qDrawer) return;
+    const isQOpen = qDrawer.classList.contains('visible') || qDrawer.classList.contains('active');
+    if (!isQOpen) return;
+
+    if (qDrawer.contains(e.target)) return;
+    if (btnQueuePanel && (btnQueuePanel === e.target || btnQueuePanel.contains(e.target))) return;
+    if (expBtnQueue && (expBtnQueue === e.target || expBtnQueue.contains(e.target))) return;
+
+    closeQueueDrawer();
   });
 
   // Expanded Now Playing view toggle & interactions
@@ -4176,6 +4249,12 @@ function setupEvents() {
       expLyricsBtn.style.color = '';
       expLyricsBtn.style.backgroundColor = '';
       expLyricsBtn.title = 'Synced Lyrics';
+    }
+    const expQueueBtn = document.getElementById('exp-btn-queue') || document.querySelector('.exp-queue-btn');
+    if (expQueueBtn) {
+      expQueueBtn.classList.remove('active');
+      expQueueBtn.style.color = '';
+      expQueueBtn.style.backgroundColor = '';
     }
     ['pipeline-modal', 'sleep-modal', 'eq-modal', 'add-to-playlist-modal'].forEach(id => {
       const el = document.getElementById(id);
@@ -4629,6 +4708,9 @@ if (typeof module !== 'undefined' && module.exports) {
     openLyricsDrawer,
     closeLyricsDrawer,
     toggleLyricsDrawer,
+    toggleQueue,
+    openQueueDrawer,
+    closeQueueDrawer,
     seekTo,
     updateAccountUI,
     updateSidebarPlaylistsUI,

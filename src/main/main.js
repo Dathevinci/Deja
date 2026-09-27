@@ -30,6 +30,26 @@ if (!gotTheLock) {
 
 // User Agent spoofing for Google Login compatibility
 const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+const CHROME_METADATA = {
+  brands: [
+    { brand: 'Google Chrome', version: '131' },
+    { brand: 'Chromium', version: '131' },
+    { brand: 'Not_A Brand', version: '24' }
+  ],
+  fullVersionList: [
+    { brand: 'Google Chrome', version: '131.0.6778.86' },
+    { brand: 'Chromium', version: '131.0.6778.86' },
+    { brand: 'Not_A Brand', version: '24.0.0.0' }
+  ],
+  fullVersion: '131.0.6778.86',
+  platform: 'Windows',
+  platformVersion: '10.0.0',
+  architecture: 'x86',
+  model: '',
+  mobile: false,
+  bitness: '64',
+  wow64: false
+};
 app.userAgentFallback = CHROME_UA;
 
 // Chromium autoplay policy: allow immediate audio playback without prior user gesture
@@ -492,7 +512,11 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       }
 
       const ses = session.fromPartition('persist:ytmusic');
-      ses.setUserAgent(CHROME_UA);
+      try {
+        ses.setUserAgent(CHROME_UA, CHROME_METADATA);
+      } catch {
+        ses.setUserAgent(CHROME_UA);
+      }
       // Independent normal window (no parent / modal to avoid Google embedded browser detection)
       const loginWin = new BrowserWindow({
         width: 800,
@@ -514,7 +538,11 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       activeLoginWin = loginWin;
 
       // Clean Chrome 131 User-Agent with no Electron tokens
-      loginWin.webContents.setUserAgent(CHROME_UA);
+      try {
+        loginWin.webContents.setUserAgent(CHROME_UA, CHROME_METADATA);
+      } catch {
+        loginWin.webContents.setUserAgent(CHROME_UA);
+      }
 
       // Handle popup windows during Google Auth (e.g. 2FA, Security Keys)
       loginWin.webContents.setWindowOpenHandler(({ url }) => {
@@ -608,7 +636,15 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
               btnLoad.onmouseenter = () => { btnLoad.style.background = 'rgba(255,255,255,0.16)'; };
               btnLoad.onmouseleave = () => { btnLoad.style.background = 'rgba(255,255,255,0.08)'; };
               btnLoad.onclick = () => {
-                window.location.href = 'https://music.youtube.com';
+                btnLoad.textContent = 'Loading...';
+                document.title = 'DEJA_LOAD_YTM_' + Date.now();
+                console.log('DEJA_LOAD_YTM_' + Date.now());
+                try {
+                  window.location.href = 'https://music.youtube.com';
+                } catch (e) {}
+                setTimeout(() => {
+                  if (btnLoad) btnLoad.textContent = 'Load music.youtube.com';
+                }, 3000);
               };
 
               const btnSync = document.createElement('button');
@@ -634,6 +670,22 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
               header.appendChild(rightDiv);
 
               (document.body || document.documentElement).appendChild(header);
+            }
+
+            // Detect Google "This browser or app may not be secure" block and highlight the Load music.youtube.com button
+            const bodyText = (document.body ? document.body.innerText : '') || (document.documentElement ? document.documentElement.innerText : '');
+            if (isGoogle && (bodyText.includes('may not be secure') || bodyText.includes("Couldn't sign you in"))) {
+              const headTitle = document.querySelector('#deja-login-header span');
+              const headBtnLoad = document.getElementById('deja-btn-load-ytm');
+              if (headTitle) {
+                headTitle.textContent = 'Sign-in blocked by Google - Click "Load music.youtube.com"';
+              }
+              if (headBtnLoad) {
+                headBtnLoad.style.background = '#FA2D48';
+                headBtnLoad.style.color = '#FFFFFF';
+                headBtnLoad.style.fontWeight = '600';
+                headBtnLoad.style.boxShadow = '0 0 12px rgba(250, 45, 72, 0.6)';
+              }
             }
 
             if (document.body && !document.body.dataset.dejaHeaderShifted) {
@@ -717,8 +769,23 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         }
       };
 
-      // Listen for title updates and console messages triggered by header sync button
+      const handleLoadYtm = () => {
+        if (loginWin && !loginWin.isDestroyed()) {
+          loginWin.loadURL('https://music.youtube.com', {
+            userAgent: CHROME_UA
+          }).catch(err => {
+            console.warn('[Auth] Error loading music.youtube.com:', err.message);
+          });
+        }
+      };
+
+      // Listen for title updates and console messages triggered by header buttons
       loginWin.webContents.on('page-title-updated', (e, title) => {
+        if (title.startsWith('DEJA_LOAD_YTM')) {
+          e.preventDefault();
+          handleLoadYtm();
+          return;
+        }
         if (title.startsWith('DEJA_SYNC_TRIGGER')) {
           e.preventDefault();
           checkLoginSuccess(null, true);
@@ -726,8 +793,14 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       });
 
       loginWin.webContents.on('console-message', (e) => {
-        if (e && e.message && e.message.startsWith('DEJA_SYNC_TRIGGER')) {
-          checkLoginSuccess(null, true);
+        if (e && e.message) {
+          if (e.message.startsWith('DEJA_LOAD_YTM')) {
+            handleLoadYtm();
+            return;
+          }
+          if (e.message.startsWith('DEJA_SYNC_TRIGGER')) {
+            checkLoginSuccess(null, true);
+          }
         }
       });
 
@@ -801,7 +874,10 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       });
 
       const googleLoginUrl = 'https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F';
-      const initialUrl = (targetMethod === 'google')
+      // Load https://music.youtube.com as the primary initial URL in loginWin.
+      // On music.youtube.com, clicking native "Sign In" performs first-party authentication
+      // which Google allows without the "This browser or app may not be secure" block.
+      const initialUrl = (targetMethod === 'direct-google')
         ? googleLoginUrl
         : 'https://music.youtube.com';
 
@@ -1055,17 +1131,6 @@ app.whenReady().then(() => {
         }
       }
 
-      // In ses.webRequest.onBeforeSendHeaders, if the URL contains accounts.google.com or accounts.youtube.com, DO NOT modify, inject, or rewrite ANY headers at all. Let Chromium send natural Chrome 131 headers.
-      if (
-        details.url.includes('accounts.google.com') ||
-        details.url.includes('accounts.youtube.com') ||
-        details.url.includes('accounts.google.') ||
-        details.url.includes('accounts.youtube.') ||
-        isGoogleAuthRequest(details.url, details.initiator)
-      ) {
-        return callback({ cancel: false, requestHeaders });
-      }
-
       // Remove any lowercase/variant header keys before explicitly setting clean canonical headers
       for (const k of Object.keys(requestHeaders)) {
         const lower = k.toLowerCase();
@@ -1081,11 +1146,19 @@ app.whenReady().then(() => {
         }
       }
 
-      const isGoogleAuth = details.url.includes('accounts.google.com') || details.url.includes('accounts.youtube.com');
-      const isYtOrGv = (
-        details.url.includes('youtube.com') ||
-        details.url.includes('youtube-nocookie.com') ||
-        details.url.includes('googlevideo.com')
+      // Enforce clean standard Chrome 131 User-Agent and consistent Client Hints
+      requestHeaders['User-Agent'] = CHROME_UA;
+      requestHeaders['Sec-Ch-Ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+      requestHeaders['Sec-Ch-Ua-Mobile'] = '?0';
+      requestHeaders['Sec-Ch-Ua-Platform'] = '"Windows"';
+      requestHeaders['Sec-Ch-Ua-Full-Version-List'] = '"Google Chrome";v="131.0.6778.86", "Chromium";v="131.0.6778.86", "Not_A Brand";v="24.0.0.0"';
+
+      const isGoogleAuth = (
+        details.url.includes('accounts.google.com') ||
+        details.url.includes('accounts.youtube.com') ||
+        details.url.includes('accounts.google.') ||
+        details.url.includes('accounts.youtube.') ||
+        isGoogleAuthRequest(details.url, details.initiator)
       );
 
       // Clean file:// origin/referer for Google OAuth & auth endpoints
@@ -1100,7 +1173,16 @@ app.whenReady().then(() => {
           delete requestHeaders['Referer'];
           delete requestHeaders['referer'];
         }
-      } else if (isYtOrGv) {
+        return callback({ cancel: false, requestHeaders });
+      }
+
+      const isYtOrGv = (
+        details.url.includes('youtube.com') ||
+        details.url.includes('youtube-nocookie.com') ||
+        details.url.includes('googlevideo.com')
+      );
+
+      if (isYtOrGv) {
         const origin = requestHeaders['Origin'] || requestHeaders['origin'] || '';
         const referer = requestHeaders['Referer'] || requestHeaders['referer'] || '';
         if (!origin || origin.startsWith('file://')) {
@@ -1110,13 +1192,6 @@ app.whenReady().then(() => {
           requestHeaders['Referer'] = 'https://music.youtube.com/';
         }
       }
-
-      // Enforce clean standard Chrome 131 User-Agent and consistent Client Hints
-      requestHeaders['User-Agent'] = CHROME_UA;
-      requestHeaders['Sec-Ch-Ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
-      requestHeaders['Sec-Ch-Ua-Mobile'] = '?0';
-      requestHeaders['Sec-Ch-Ua-Platform'] = '"Windows"';
-      requestHeaders['Sec-Ch-Ua-Full-Version-List'] = '"Google Chrome";v="131.0.6778.86", "Chromium";v="131.0.6778.86", "Not_A Brand";v="24.0.0.0"';
 
       callback({ cancel: false, requestHeaders });
     });

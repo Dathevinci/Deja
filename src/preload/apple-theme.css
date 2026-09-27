@@ -1853,17 +1853,28 @@ body.mini-player-mode ytmusic-player-bar {
   backdrop-filter: blur(32px) saturate(200%) !important;
   -webkit-backdrop-filter: blur(32px) saturate(200%) !important;
   border-left: 1px solid var(--apple-border) !important;
-  z-index: 9997 !important;
+  z-index: 100020 !important;
   display: flex !important;
   flex-direction: column !important;
   transform: translateX(100%) !important;
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
   overflow: hidden !important;
   box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6) !important;
+  pointer-events: none;
 }
 
-.deja-queue-drawer.visible {
+ytmusic-player-page[player-ui-state="FULLSCREEN"] ~ .deja-queue-drawer,
+ytmusic-player-page[player-ui-state="PLAYER_PAGE_OPEN"] ~ .deja-queue-drawer,
+.deja-expanded-player-view.visible ~ .deja-queue-drawer {
+  top: 0 !important;
+  bottom: 0 !important;
+  height: 100vh !important;
+}
+
+.deja-queue-drawer.visible,
+.deja-queue-drawer.active {
   transform: translateX(0) !important;
+  pointer-events: auto !important;
 }
 
 .deja-queue-header {
