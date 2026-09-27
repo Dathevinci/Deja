@@ -104,6 +104,9 @@ function runBitChordArchitectureTests() {
   assert.ok(css.includes('.expanded-lyrics-container'), 'CSS must style expanded lyrics container');
   assert.ok(css.includes('.lyrics-backdrop'), 'CSS must style lyrics drawer backdrop');
   assert.ok(css.includes('.btn-close-lyrics'), 'CSS must style lyrics drawer close button');
+  assert.ok(css.includes('.apple-lyrics-drawer') && css.includes('transform: translate3d(100%, 0, 0) !important'), 'CSS must enforce off-screen translation with !important on lyrics drawer');
+  assert.ok(css.includes('.deja-queue-drawer') && css.includes('transform: translate3d(100%, 0, 0) !important'), 'CSS must enforce off-screen translation with !important on queue drawer');
+  assert.ok(!css.includes('.apple-lyrics-drawer,\n.deja-lyrics-drawer'), 'CSS must not override lyrics drawer translation with translateZ(0)');
   assert.ok(css.includes('.apple-lyric-line'), 'CSS must style apple-lyric-line');
   assert.ok(css.includes('text-shadow: 0 4px 20px rgba(255, 255, 255, 0.4)'), 'CSS must style active lyric line glowing text shadow');
   assert.ok(css.includes('filter: blur(0.4px)'), 'CSS must style dimmed inactive lyric lines with blur');

@@ -188,6 +188,21 @@ function runEdgeCaseTests() {
   preview.toggleLyricsDrawer();
   assert.strictEqual(mockDrawer.classList.contains('visible'), false);
 
+  // Queue drawer mutual exclusion
+  const mockQueueDrawer = { id: 'apple-queue-drawer', classList: mockClassList(['visible', 'active']) };
+  const mockBtnQueuePanel = { id: 'btn-queue-panel', classList: mockClassList(['active']) };
+  const prevGetElementById = global.document.getElementById;
+  global.document.getElementById = (id) => {
+    if (id === 'apple-queue-drawer') return mockQueueDrawer;
+    if (id === 'btn-queue-panel') return mockBtnQueuePanel;
+    return prevGetElementById(id);
+  };
+
+  preview.openLyricsDrawer();
+  assert.strictEqual(mockQueueDrawer.classList.contains('visible'), false, 'Opening lyrics drawer must close queue drawer');
+  assert.strictEqual(mockBtnQueuePanel.classList.contains('active'), false, 'Opening lyrics drawer must deactivate queue button');
+  preview.closeLyricsDrawer();
+
   // Clean up global mock
   delete global.document;
 

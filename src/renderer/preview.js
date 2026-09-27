@@ -3741,7 +3741,10 @@ function setupEvents() {
     const isVis = queueDrawer.classList.contains('visible');
     if (btnQueuePanel) btnQueuePanel.classList.toggle('active', isVis);
     if (expBtnQueue) expBtnQueue.classList.toggle('active', isVis);
-    if (isVis) renderPreviewQueue();
+    if (isVis) {
+      closeLyricsDrawer();
+      renderPreviewQueue();
+    }
   };
   if (btnQueuePanel) btnQueuePanel.onclick = toggleQueue;
   if (expBtnQueue) expBtnQueue.onclick = toggleQueue;

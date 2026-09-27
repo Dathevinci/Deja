@@ -539,6 +539,9 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         loginWin.webContents.executeJavaScript(`
           try {
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            if (!window.chrome) {
+              window.chrome = { app: { isInstalled: false }, csi: () => {}, loadTimes: () => {} };
+            }
           } catch (e) {}
         `).catch(() => {});
       };
@@ -547,6 +550,12 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         if (!loginWin || loginWin.isDestroyed()) return;
         loginWin.webContents.executeJavaScript(`
           try {
+            const cur = window.location.href;
+            if (cur.includes('music.youtube.com')) {
+              const oldBanner = document.getElementById('deja-stealth-banner');
+              if (oldBanner) oldBanner.remove();
+              return;
+            }
             if (document.body && !document.getElementById('deja-stealth-banner')) {
               const b = document.createElement('div');
               b.id = 'deja-stealth-banner';
@@ -562,11 +571,19 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
             }
             const bodyText = document.body ? document.body.innerText : '';
             if (bodyText.includes('This browser or app may not be secure') || bodyText.includes("Couldn't sign you in")) {
-              const btn = document.getElementById('btn-switch-ytm-signin');
-              if (btn) {
-                btn.style.boxShadow = '0 0 10px #FA2D48';
-                btn.style.fontWeight = '700';
+              const banner = document.getElementById('deja-stealth-banner');
+              if (banner) {
+                banner.innerHTML = '<span style="font-weight:600;color:#ff6b6b;">Google blocked embedded login. Redirecting directly to YouTube Music sign-in...</span><button id="btn-switch-ytm-signin" style="background:#FA2D48;color:#FFFFFF;border:none;padding:5px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-size:11px;outline:none;">Go Now</button>';
+                const btn = document.getElementById('btn-switch-ytm-signin');
+                if (btn) {
+                  btn.onclick = () => { window.location.href = 'https://music.youtube.com'; };
+                }
               }
+              setTimeout(() => {
+                if (window.location.href.includes('accounts.google.')) {
+                  window.location.href = 'https://music.youtube.com';
+                }
+              }, 1200);
             }
           } catch (e) {}
         `).catch(() => {});
@@ -579,20 +596,18 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           if (!loginWin || loginWin.isDestroyed()) return;
           const curUrl = loginWin.webContents.getURL() || targetUrl || '';
 
-          // Check for YouTube Music and Google authentication cookies
+          // Actively poll cookies on .youtube.com and music.youtube.com
           const cookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
           const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
           const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
-          const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
-          const allCookies = [...cookies, ...ytDomainCookies, ...musicCookies, ...googleCookies];
+          const allCookies = [...cookies, ...ytDomainCookies, ...musicCookies];
           const cookieNames = new Set(allCookies.map(c => c.name));
 
           // Verify required Google authentication cookies are present (SAPISID, __Secure-3PAPISID, SID, or LOGIN_INFO)
           const hasAuthCookie = cookieNames.has('SAPISID') ||
                                 cookieNames.has('__Secure-3PAPISID') ||
                                 cookieNames.has('SID') ||
-                                cookieNames.has('LOGIN_INFO') ||
-                                cookieNames.has('__Secure-1PAPISID');
+                                cookieNames.has('LOGIN_INFO');
 
           // Do NOT close window or resolve prematurely while user is still entering credentials on Google
           if (curUrl.includes('accounts.google.') && !hasAuthCookie) {
