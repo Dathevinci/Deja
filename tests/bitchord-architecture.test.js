@@ -411,7 +411,10 @@ function runBitChordArchitectureTests() {
   assert.ok(preloadCode.includes("openGoogleLogin: (targetMethod) =>"), 'preload.js must forward targetMethod parameter in openGoogleLogin bridge');
   assert.ok(mainCode.includes('isGoogleAuthRequest'), 'main.js must implement isGoogleAuthRequest to safeguard all Google auth endpoints');
   assert.ok(mainCode.includes('gstatic.com') && mainCode.includes('googleapis.com'), 'main.js must safeguard gstatic and googleapis subresources for Google auth');
+  assert.ok(mainCode.includes('youtube.com/signin') && mainCode.includes('consent.youtube.'), 'main.js must safeguard youtube signin and consent endpoints');
+  assert.ok(mainCode.includes('isEmbedOrMedia'), 'main.js must only mutate response headers on player media streaming and embed iframes');
   assert.ok(!mainCode.includes('header.innerHTML ='), 'main.js must not set innerHTML on login header to strictly comply with Trusted Types');
+  assert.ok(mainCode.includes('sandbox: true'), 'main.js must enforce sandbox: true on login window webPreferences');
 
   // 9.3 HTML Custom Playlists Components
   assert.ok(html.includes('id="btn-sidebar-new-playlist"'), 'HTML must provide "+ New Playlist" button in sidebar');

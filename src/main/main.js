@@ -506,7 +506,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           partition: 'persist:ytmusic',
           nodeIntegration: false,
           contextIsolation: true,
-          sandbox: false,
+          sandbox: true,
           webSecurity: true,
           allowRunningInsecureContent: false
         }
@@ -532,7 +532,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
               partition: 'persist:ytmusic',
               nodeIntegration: false,
               contextIsolation: true,
-              sandbox: false,
+              sandbox: true,
               webSecurity: true,
               allowRunningInsecureContent: false
             }
@@ -548,7 +548,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         if (!loginWin || loginWin.isDestroyed()) return;
         loginWin.webContents.executeJavaScript(`
           try {
-            if (navigator.webdriver !== undefined) {
+            if (navigator.webdriver === true) {
               Object.defineProperty(navigator, 'webdriver', { get: () => undefined, configurable: true });
             }
             if (!window.chrome) {
@@ -641,15 +641,6 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
               document.body.style.boxSizing = 'border-box';
               document.body.dataset.dejaHeaderShifted = 'true';
             }
-
-            const bodyText = document.body ? document.body.innerText : '';
-            if (bodyText.includes('This browser or app may not be secure') || bodyText.includes("Couldn't sign you in")) {
-              setTimeout(() => {
-                if (window.location.href.includes('accounts.google.')) {
-                  window.location.href = 'https://music.youtube.com';
-                }
-              }, 1200);
-            }
           } catch (e) {}
         `).catch(() => {});
       };
@@ -683,8 +674,8 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
                                       googleCookieNames.has('SSID');
           const hasAuthCookie = hasYtAuthCookie || hasGoogleAuthCookie;
 
-          // Prevent premature closing while user is still on Google auth flow (typing email, pwd, 2FA)
-          if (curUrl.includes('accounts.google.') && !forceSync) {
+          // Prevent premature closing while user is still on Google/YouTube auth flow (typing email, pwd, 2FA)
+          if ((curUrl.includes('accounts.google.') || curUrl.includes('accounts.youtube.') || curUrl.includes('myaccount.google.')) && !forceSync) {
             return;
           }
 
@@ -1007,7 +998,9 @@ app.whenReady().then(() => {
       if (
         init.includes('accounts.google.') ||
         init.includes('accounts.youtube.') ||
-        init.includes('myaccount.google.')
+        init.includes('myaccount.google.') ||
+        init.includes('consent.youtube.') ||
+        init.includes('consent.google.')
       ) {
         return true;
       }
@@ -1018,11 +1011,15 @@ app.whenReady().then(() => {
         u.includes('accounts.youtube.com') ||
         u.includes('accounts.google.') ||
         u.includes('accounts.youtube.') ||
+        u.includes('myaccount.google.') ||
+        u.includes('consent.youtube.') ||
+        u.includes('consent.google.') ||
+        u.includes('youtube.com/signin') ||
         u.includes('gstatic.com') ||
         u.includes('googleapis.com') ||
         u.includes('googleusercontent.com') ||
         u.includes('play.google.com') ||
-        u.includes('myaccount.google.com')
+        u.includes('google.com/recaptcha')
       ) {
         return true;
       }
@@ -1032,17 +1029,6 @@ app.whenReady().then(() => {
 
     // Intercept headers: emulate genuine YouTube Music client and eliminate Error 150 / 101 embed blocks
     ses.webRequest.onBeforeSendHeaders((details, callback) => {
-      // In ses.webRequest.onBeforeSendHeaders, if the URL contains accounts.google.com or accounts.youtube.com, DO NOT modify, inject, or rewrite ANY headers at all. Let Chromium send natural Chrome 131 headers.
-      if (
-        details.url.includes('accounts.google.com') ||
-        details.url.includes('accounts.youtube.com') ||
-        details.url.includes('accounts.google.') ||
-        details.url.includes('accounts.youtube.') ||
-        isGoogleAuthRequest(details.url, details.initiator)
-      ) {
-        return callback({ cancel: false });
-      }
-
       const requestHeaders = details.requestHeaders || {};
 
       // 1. Strip any Electron and app tokens across all headers to prevent Google's "browser or app may not be secure" block
@@ -1067,6 +1053,17 @@ app.whenReady().then(() => {
               .trim();
           }
         }
+      }
+
+      // In ses.webRequest.onBeforeSendHeaders, if the URL contains accounts.google.com or accounts.youtube.com, DO NOT modify, inject, or rewrite ANY headers at all. Let Chromium send natural Chrome 131 headers.
+      if (
+        details.url.includes('accounts.google.com') ||
+        details.url.includes('accounts.youtube.com') ||
+        details.url.includes('accounts.google.') ||
+        details.url.includes('accounts.youtube.') ||
+        isGoogleAuthRequest(details.url, details.initiator)
+      ) {
+        return callback({ cancel: false, requestHeaders });
       }
 
       // Remove any lowercase/variant header keys before explicitly setting clean canonical headers
@@ -1134,6 +1131,17 @@ app.whenReady().then(() => {
         details.url.includes('accounts.youtube.') ||
         isGoogleAuthRequest(details.url, details.initiator)
       ) {
+        return callback({ cancel: false });
+      }
+
+      // Only strip iframe restrictions or enable CORS for player media streaming and embed iframes
+      const isEmbedOrMedia = (
+        details.url.includes('googlevideo.com') ||
+        details.url.includes('youtube.com/embed/') ||
+        details.url.includes('youtube-nocookie.com/embed/')
+      );
+
+      if (!isEmbedOrMedia) {
         return callback({ cancel: false });
       }
 
