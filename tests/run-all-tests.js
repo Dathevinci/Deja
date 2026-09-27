@@ -53,7 +53,7 @@ try {
   console.log('====================================================');
   process.exit(0);
 } catch (err) {
-  console.error('\n❌ Test suite failed with error:');
+  console.error('\n[FAIL] Test suite failed with error:');
   console.error(err);
   process.exit(1);
 }

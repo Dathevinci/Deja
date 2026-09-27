@@ -36,7 +36,8 @@ function runCspRuntimeTests() {
     socket.on('close', () => sockets.delete(socket));
   });
 
-  server.listen(48999, '127.0.0.1', () => {
+  server.listen(0, '127.0.0.1', () => {
+    const testPort = server.address().port;
     app.whenReady().then(async () => {
       try {
         const win = new BrowserWindow({
@@ -56,7 +57,7 @@ function runCspRuntimeTests() {
           }
         });
 
-        await win.loadURL('http://127.0.0.1:48999');
+        await win.loadURL(`http://127.0.0.1:${testPort}`);
 
         const domState = await win.webContents.executeJavaScript(`
           ({
@@ -101,7 +102,7 @@ function runCspRuntimeTests() {
         app.exit(0);
         process.exit(0);
       } catch (err) {
-        console.error('❌ CSP Runtime test failed:', err);
+        console.error('[FAIL] CSP Runtime test failed:', err);
         sockets.forEach(s => { try { s.destroy(); } catch {} });
         sockets.clear();
         try { server.close(); } catch {}

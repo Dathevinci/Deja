@@ -64,11 +64,11 @@ class TrayManager {
     if (this.tray && !this.tray.isDestroyed()) {
       let tooltip;
       if (this.currentTrack.isAd) {
-        tooltip = '📢 Advertisement (Google / Free Tier)';
+        tooltip = 'Advertisement (Google / Free Tier)';
       } else {
         tooltip = this.currentTrack.isPlaying
-          ? `▶ ${this.currentTrack.title} — ${this.currentTrack.artist}`
-          : `⏸ ${this.currentTrack.title} — ${this.currentTrack.artist}`;
+          ? `${this.currentTrack.title} — ${this.currentTrack.artist}`
+          : `[Paused] ${this.currentTrack.title} — ${this.currentTrack.artist}`;
       }
       this.tray.setToolTip(tooltip.slice(0, 127));
       this.updateMenu();
@@ -87,7 +87,7 @@ class TrayManager {
     const isPlaying = this.currentTrack.isPlaying;
     let trackLabel;
     if (this.currentTrack.isAd) {
-      trackLabel = '📢 Advertisement (Google / Free Tier)';
+      trackLabel = 'Advertisement (Google / Free Tier)';
     } else {
       trackLabel = (this.currentTrack.title !== 'Deja' && this.currentTrack.title !== 'Deja Music')
         ? `${this.currentTrack.title} • ${this.currentTrack.artist}`
@@ -102,24 +102,24 @@ class TrayManager {
       },
       { type: 'separator' },
       {
-        label: isPlaying ? '⏸  Pause' : '▶  Play',
+        label: isPlaying ? 'Pause' : 'Play',
         click: () => dispatch('togglePlay')
       },
       {
-        label: '⏭  Next Track',
+        label: 'Next Track',
         click: () => dispatch('nextTrack')
       },
       {
-        label: '⏮  Previous Track',
+        label: 'Previous Track',
         click: () => dispatch('prevTrack')
       },
       { type: 'separator' },
       {
-        label: '🎤  Live Lyrics',
+        label: 'Live Lyrics',
         click: () => dispatch('toggleLyrics')
       },
       {
-        label: '🪟  Mini Player',
+        label: 'Mini Player',
         click: () => dispatch('toggleMiniPlayer')
       },
       { type: 'separator' },

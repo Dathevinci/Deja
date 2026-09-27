@@ -2118,7 +2118,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         <button class="deja-lyrics-close sonora-lyrics-close" id="deja-lyrics-close-btn">&times;</button>
       </div>
       <div class="deja-lyrics-body sonora-lyrics-body" id="deja-lyrics-content">
-        <div class="deja-lyric-line sonora-lyric-line active" data-time="0">♪ Loading synchronized lyrics...</div>
+        <div class="deja-lyric-line sonora-lyric-line active" data-time="0">Loading synchronized lyrics...</div>
       </div>
     `);
 

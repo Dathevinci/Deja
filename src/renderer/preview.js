@@ -597,17 +597,17 @@ function openSongMenu(e, track, playlistContextId = null) {
       <span>▶</span> <span>Play Next</span>
     </button>
     <button class="deja-song-menu-item" id="menu-opt-like">
-      <span>${isLoved ? '💔' : '⭐'}</span> <span>${isLoved ? 'Remove from Liked' : 'Like Song'}</span>
+      <span style="display:inline-flex; align-items:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="${isLoved ? '#FA2D48' : 'none'}" stroke="${isLoved ? '#FA2D48' : 'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span> <span>${isLoved ? 'Remove from Liked' : 'Like Song'}</span>
     </button>
     <button class="deja-song-menu-item" id="menu-opt-add-playlist">
-      <span>➕</span> <span>Add to Playlist...</span>
+      <span>+</span> <span>Add to Playlist...</span>
     </button>
   `;
 
   if (playlistContextId && playlistContextId.startsWith('custom-')) {
     html += `
       <button class="deja-song-menu-item danger" id="menu-opt-remove-playlist">
-        <span>🗑️</span> <span>Remove from Playlist</span>
+        <span>×</span> <span>Remove from Playlist</span>
       </button>
     `;
   }
@@ -1558,7 +1558,7 @@ function updateSidebarPlaylistsUI(userPls) {
         <div class="sidebar-yt-playlists-scroll" style="display: flex; flex-direction: column; gap: 2px;">
           ${pls.map(p => `
             <button class="sidebar-link live-user-playlist-link" data-browse-id="${escapeHTML(p.browseId || '')}" data-cover="${escapeHTML(p.cover || '')}" data-subtitle="${escapeHTML(p.subtitle || 'YouTube Music Playlist')}" title="${escapeHTML(p.title || '')}">
-              <span style="font-size: 13px;">📁</span>
+              <span class="sidebar-pl-icon" style="display:inline-flex; align-items:center; opacity:0.7;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg></span>
               <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(p.title || 'Playlist')}</span>
             </button>
           `).join('')}
@@ -1570,7 +1570,7 @@ function updateSidebarPlaylistsUI(userPls) {
           const bId = btn.getAttribute('data-browse-id');
           const cover = btn.getAttribute('data-cover') || '';
           const subtitle = btn.getAttribute('data-subtitle') || 'YouTube Music Playlist';
-          const title = btn.innerText.replace('📁', '').trim();
+          const title = btn.getAttribute('title') || (btn.querySelector('span:last-child') ? btn.querySelector('span:last-child').innerText.trim() : btn.innerText.trim());
           if (bId) openBrowseDetail(bId, title, cover, subtitle);
         };
       });
@@ -1596,14 +1596,14 @@ function updateSidebarPlaylistsUI(userPls) {
       <span class="sidebar-heading">My Playlists</span>
       <button class="sidebar-add-playlist-btn" id="btn-sidebar-new-playlist" title="New Playlist">+</button>
     </div>
-    <button class="sidebar-link" data-playlist="favorites">⭐ Liked Songs</button>
+    <button class="sidebar-link" data-playlist="favorites">Liked Songs</button>
   `;
 
   if (customPlaylists && customPlaylists.length > 0) {
     customPlaylists.forEach(pl => {
       html += `
         <button class="sidebar-link custom-playlist-link" data-playlist="${escapeHTML(pl.id)}" title="${escapeHTML(pl.title)}">
-          🎵 ${escapeHTML(pl.title)}
+          ${escapeHTML(pl.title)}
         </button>
       `;
     });
@@ -1613,7 +1613,7 @@ function updateSidebarPlaylistsUI(userPls) {
     pls.forEach(p => {
       html += `
         <button class="sidebar-link live-user-playlist-link" data-browse-id="${escapeHTML(p.browseId || '')}" data-cover="${escapeHTML(p.cover || '')}" data-subtitle="${escapeHTML(p.subtitle || 'YouTube Music Playlist')}" title="${escapeHTML(p.title || '')}">
-          📁 ${escapeHTML(p.title || 'Playlist')}
+          ${escapeHTML(p.title || 'Playlist')}
         </button>
       `;
     });
@@ -1636,7 +1636,7 @@ function updateSidebarPlaylistsUI(userPls) {
   myPlaylistsGroup.querySelectorAll('.live-user-playlist-link').forEach(l => {
     l.onclick = () => {
       const bId = l.getAttribute('data-browse-id');
-      const title = l.innerText.replace('📁 ', '').trim();
+      const title = l.getAttribute('title') || l.innerText.trim();
       if (bId) openBrowseDetail(bId, title);
     };
   });
@@ -2703,29 +2703,29 @@ function renderLibraryView(container) {
               </svg>
             </div>
           </div>
-          <div class="card-title">⭐ Liked Songs</div>
+          <div class="card-title">Liked Songs</div>
           <div class="card-subtitle">${lovedTrackIds.size || (liveLikedSongs && liveLikedSongs.length) || 0} tracks • Favorites</div>
         </div>
 
         <div class="apple-music-card" onclick="navigateTo('playlists')" style="cursor: pointer;">
-          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center;">
-            <span style="font-size: 36px;">📁</span>
+          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color: var(--text-secondary);">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
           </div>
           <div class="card-title">Playlists</div>
           <div class="card-subtitle">${liveUserPlaylists.length + (customPlaylists ? customPlaylists.length : 0)} playlists</div>
         </div>
 
         <div class="apple-music-card" onclick="navigateTo('albums')" style="cursor: pointer;">
-          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center;">
-            <span style="font-size: 36px;">💿</span>
+          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color: var(--text-secondary);">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
           </div>
           <div class="card-title">Albums</div>
           <div class="card-subtitle">${liveLibraryAlbums.length || 'Collection'} albums</div>
         </div>
 
         <div class="apple-music-card" onclick="navigateTo('artists')" style="cursor: pointer;">
-          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center;">
-            <span style="font-size: 36px;">👤</span>
+          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color: var(--text-secondary);">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </div>
           <div class="card-title">Artists</div>
           <div class="card-subtitle">${liveLibraryArtists.length || liveArtists.length || 'Collection'} artists</div>
@@ -2911,7 +2911,9 @@ function renderSinglePlaylistView(container, playlistId) {
         </div>
       ` : `
         <div style="text-align: center; padding: 48px 20px; color: var(--text-secondary);">
-          <div style="font-size: 36px; margin-bottom: 12px;">🎵</div>
+          <div style="display:flex; justify-content:center; margin-bottom: 12px; opacity:0.4;">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          </div>
           <h3 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">This playlist is empty</h3>
           <p style="font-size: 13.5px; max-width: 400px; margin: 0 auto;">Add tracks from the Songs view, Listen Now, or search results by clicking the (•••) menu on any song.</p>
         </div>

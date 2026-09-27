@@ -605,7 +605,7 @@ function startSyncServer() {
               const isDirectBrowser = req.headers['sec-fetch-dest'] === 'document' || req.headers['accept']?.includes('text/html');
               if (isDirectBrowser) {
                 res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-                res.end(`<!DOCTYPE html><html><body style="font-family:system-ui;background:#0d0d12;color:#fff;text-align:center;padding-top:60px;"><h2 style="color:#34C759;">🎉 Connected to Deja Successfully!</h2><p>You can close this tab now and return to Deja.</p><script>setTimeout(() => window.close(), 1800);</script></body></html>`);
+                res.end(`<!DOCTYPE html><html><body style="font-family:system-ui;background:#0d0d12;color:#fff;text-align:center;padding-top:60px;"><h2 style="color:#34C759;">Connected to Deja Successfully</h2><p>You can close this tab now and return to Deja.</p><script>setTimeout(() => window.close(), 1800);</script></body></html>`);
               } else {
                 res.writeHead(200, {
                   'Content-Type': 'application/json',

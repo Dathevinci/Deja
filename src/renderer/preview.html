@@ -519,7 +519,7 @@
           </button>
         </div>
 
-        <!-- Bottom Row: Volume Slider with speaker icons, Repeat 🔁, Shuffle 🔀, Synced Lyrics 💬, Up Next Queue ≡ -->
+        <!-- Bottom Row: Volume Slider, Repeat, Shuffle, Synced Lyrics, Up Next Queue -->
         <div class="expanded-bottom-row">
           <div class="exp-volume-section">
             <svg class="exp-vol-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -830,16 +830,20 @@
       <div class="modal-body" id="account-modal-body">
         <!-- Segmented Tab Navigation for Logged-out state -->
         <div class="apple-segmented-control" id="login-modal-tabs">
-          <button class="segmented-tab active" id="tab-btn-browser" data-tab="browser">⚡ 1-Click Browser Sync</button>
-          <button class="segmented-tab" id="tab-btn-cookies" data-tab="cookies">📋 Paste Cookie / Token</button>
-          <button class="segmented-tab" id="tab-btn-inapp" data-tab="inapp">🪟 In-App Window</button>
+          <button class="segmented-tab active" id="tab-btn-browser" data-tab="browser">1-Click Browser Sync</button>
+          <button class="segmented-tab" id="tab-btn-cookies" data-tab="cookies">Paste Cookie / Token</button>
+          <button class="segmented-tab" id="tab-btn-inapp" data-tab="inapp">In-App Window</button>
         </div>
 
         <!-- Tab 1: 1-Click Browser Sync (Recommended) -->
         <div class="login-tab-content" id="tab-content-browser">
           <div class="browser-connect-inner">
             <div class="connect-banner-highlight">
-              <div class="connect-banner-icon">⚡</div>
+              <div class="connect-banner-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+              </div>
               <div class="connect-banner-text">
                 <strong>Fastest & 100% Reliable:</strong> Google blocks password entry inside desktop app windows with <em>"Browser or app may not be secure"</em>. Browser Sync bypasses this by safely importing your active session from Chrome, Edge, Brave, or Firefox in 5 seconds!
               </div>
@@ -916,7 +920,7 @@
             </div>
             <h3 class="login-prompt-title">In-App Google Sign In</h3>
             <div class="google-warning-box">
-              <strong>⚠️ Google Restriction:</strong> Google actively blocks embedded desktop windows with <em>"This browser or app may not be secure"</em> after entering your email. If Google blocks you, please switch to <strong>1-Click Browser Sync</strong> instead.
+              <strong>Google Restriction:</strong> Google actively blocks embedded desktop windows with <em>"This browser or app may not be secure"</em> after entering your email. If Google blocks you, please switch to <strong>1-Click Browser Sync</strong> instead.
             </div>
             <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
               <button class="btn-apple-primary login-action-btn" id="btn-modal-open-login">
