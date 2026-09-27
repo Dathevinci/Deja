@@ -385,6 +385,10 @@ function runBitChordArchitectureTests() {
   assert.ok(css.includes('contain: layout paint;'), 'CSS must include contain: layout paint to prevent layout thrashing');
   assert.ok(html.includes('now-playing-options-menu'), 'preview.html must include now-playing-options-menu class');
   assert.ok(html.includes('now-playing-art-wrap'), 'preview.html must include now-playing-art-wrap class');
+  assert.ok(html.includes('id="now-playing-art-wrap"'), 'preview.html must include id="now-playing-art-wrap"');
+  const appleThemePath = path.join(__dirname, '../src/preload/apple-theme.css');
+  const appleThemeCss = fs.readFileSync(appleThemePath, 'utf8');
+  assert.ok(!appleThemeCss.includes('animation: dejaArtworkBreathing 7s infinite'), 'apple-theme.css must not run infinite artwork breathing animation');
 
   // 9.2 Independent Google Login Window Architecture
   assert.ok(!mainCode.includes('parent: mainWindow, modal: true'), 'Login window must NOT use parent or modal to prevent Google embedded webview detection');

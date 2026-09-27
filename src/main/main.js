@@ -583,6 +583,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
                   btnSync.innerText = 'Syncing...';
                   document.title = 'DEJA_SYNC_TRIGGER_' + Date.now();
                   window.location.hash = 'deja-sync';
+                  console.log('DEJA_SYNC_TRIGGER_' + Date.now());
                   setTimeout(() => {
                     if (btnSync) btnSync.innerText = 'Done / Sync My Account';
                   }, 3000);
@@ -614,19 +615,18 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           if (!loginWin || loginWin.isDestroyed()) return;
           const curUrl = loginWin.webContents.getURL() || targetUrl || '';
 
-          // Actively poll cookies on .youtube.com and music.youtube.com
+          // Check for cookies specifically on .youtube.com and music.youtube.com
           const cookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
           const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
           const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
-          const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
-          const allCookies = [...cookies, ...ytDomainCookies, ...musicCookies, ...googleCookies];
-          const cookieNames = new Set(allCookies.map(c => c.name));
+          const ytAllCookies = [...cookies, ...ytDomainCookies, ...musicCookies];
+          const ytCookieNames = new Set(ytAllCookies.map(c => c.name));
 
-          // Check for cookies on .youtube.com and music.youtube.com: if SAPISID or LOGIN_INFO is present, the user has completed login, regardless of URL.
-          const hasAuthCookie = cookieNames.has('SAPISID') ||
-                                cookieNames.has('LOGIN_INFO') ||
-                                cookieNames.has('__Secure-3PAPISID') ||
-                                cookieNames.has('SID');
+          // If SAPISID or LOGIN_INFO is present on .youtube.com / music.youtube.com, the user has completed login, regardless of URL.
+          const hasAuthCookie = ytCookieNames.has('SAPISID') ||
+                                ytCookieNames.has('LOGIN_INFO') ||
+                                ytCookieNames.has('__Secure-3PAPISID') ||
+                                ytCookieNames.has('SID');
 
           // Prevent premature closing only if user is still on Google auth and has no auth cookies yet
           if (curUrl.includes('accounts.google.') && !hasAuthCookie && !forceSync) {
@@ -666,10 +666,16 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         }
       };
 
-      // Listen for title updates triggered by header sync button
+      // Listen for title updates and console messages triggered by header sync button
       loginWin.webContents.on('page-title-updated', (e, title) => {
         if (title.startsWith('DEJA_SYNC_TRIGGER')) {
           e.preventDefault();
+          checkLoginSuccess(null, true);
+        }
+      });
+
+      loginWin.webContents.on('console-message', (e) => {
+        if (e && e.message && e.message.startsWith('DEJA_SYNC_TRIGGER')) {
           checkLoginSuccess(null, true);
         }
       });

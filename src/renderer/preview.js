@@ -3277,7 +3277,7 @@ function updateLiveLyrics(forceScroll = false) {
  */
 function toggleNowPlayingLyrics() {
   if (typeof document === 'undefined') return;
-  const artContainer = document.getElementById('expanded-artwork-container');
+  const artContainer = document.getElementById('now-playing-art-wrap') || document.getElementById('expanded-artwork-container');
   const lyricsContainer = document.getElementById('expanded-lyrics-container');
   const expBtnLyrics = document.getElementById('exp-btn-lyrics');
   if (!lyricsContainer) return;
@@ -3807,10 +3807,14 @@ function setupEvents() {
     expandedView.classList.remove('visible');
     if (expOptionsDropdown) expOptionsDropdown.style.display = 'none';
     const lyricsContainer = document.getElementById('expanded-lyrics-container');
-    const artContainer = document.getElementById('expanded-artwork-container');
+    const artContainer = document.getElementById('now-playing-art-wrap') || document.getElementById('expanded-artwork-container');
     if (lyricsContainer) lyricsContainer.style.display = 'none';
     if (artContainer) artContainer.style.display = 'block';
     if (expBtnLyrics) expBtnLyrics.classList.remove('active');
+    ['pipeline-modal', 'sleep-modal', 'eq-modal', 'add-to-playlist-modal'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
   };
 
   if (artworkWrapper) artworkWrapper.onclick = openExpandedView;
@@ -4112,22 +4116,40 @@ function setupEvents() {
         return;
       }
 
-      // 2. Otherwise, if expanded player view is visible, collapse it
+      // 2. If any modal is currently visible, dismiss it first
+      const openModal = ['pipeline-modal', 'sleep-modal', 'eq-modal', 'create-playlist-modal', 'add-to-playlist-modal', 'settings-modal'].find(id => {
+        const el = document.getElementById(id);
+        return el && el.style.display && el.style.display !== 'none';
+      });
+      if (openModal) {
+        const el = document.getElementById(openModal);
+        if (el) el.style.display = 'none';
+        pendingTrackToAddToPlaylist = null;
+        return;
+      }
+
+      // 3. If lyrics drawer, song menu, or queue drawer is open, dismiss it
+      const lyricsDrawer = document.getElementById('lyrics-drawer');
+      if (lyricsDrawer && lyricsDrawer.classList.contains('visible')) {
+        closeLyricsDrawer();
+        return;
+      }
+      const songMenu = document.getElementById('song-context-menu');
+      if (songMenu && songMenu.style.display !== 'none') {
+        closeSongMenu();
+        return;
+      }
+      const queueDrawer = document.getElementById('apple-queue-drawer');
+      if (queueDrawer && (queueDrawer.classList.contains('visible') || queueDrawer.classList.contains('active'))) {
+        queueDrawer.classList.remove('visible', 'active');
+        return;
+      }
+
+      // 4. Otherwise, if expanded player view is visible, collapse it
       if (expandedView && expandedView.classList.contains('visible')) {
         closeExpandedView();
         return;
       }
-
-      // 3. Otherwise, dismiss drawers and modals
-      closeLyricsDrawer();
-      closeSongMenu();
-      ['settings-modal', 'pipeline-modal', 'sleep-modal', 'eq-modal', 'create-playlist-modal', 'add-to-playlist-modal'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-      });
-      pendingTrackToAddToPlaylist = null;
-      const queueDrawer = document.getElementById('apple-queue-drawer');
-      if (queueDrawer) queueDrawer.classList.remove('visible', 'active');
       return;
     }
 

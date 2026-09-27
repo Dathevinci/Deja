@@ -61,8 +61,8 @@ const LYRICS_STYLES = `
     bottom: 80px;
     width: 480px;
     background: rgba(18, 18, 20, 0.92);
-    backdrop-filter: blur(50px) saturate(200%);
-    -webkit-backdrop-filter: blur(50px) saturate(200%);
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
     border-left: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 9999;
     display: flex;
