@@ -1,4 +1,5 @@
 const assert = require('assert');
+const path = require('path');
 const preview = require('../src/renderer/preview.js');
 
 function runEdgeCaseTests() {
@@ -221,9 +222,26 @@ function runEdgeCaseTests() {
 
   // 12. Session Cookie Parser Edge Cases (testing real parseCookiePairs from cookie-utils.js)
   const { execFileSync } = require('child_process');
-  assert.doesNotThrow(() => {
-    execFileSync(process.execPath, ['--check', require.resolve('../src/main/main.js')]);
-  }, 'src/main/main.js must have zero syntax errors or duplicate declarations');
+  const fs = require('fs');
+  const srcFiles = [
+    '../src/main/main.js',
+    '../src/main/cookie-utils.js',
+    '../src/main/config.js',
+    '../src/main/discord.js',
+    '../src/main/innertube.js',
+    '../src/main/menu.js',
+    '../src/main/shortcuts.js',
+    '../src/main/tray.js',
+    '../src/preload/preload.js',
+    '../src/preload/apple-player.js',
+    '../src/renderer/preview.js'
+  ];
+  for (const relPath of srcFiles) {
+    const fullPath = path.resolve(__dirname, relPath);
+    assert.doesNotThrow(() => {
+      execFileSync(process.execPath, ['--check', fullPath]);
+    }, `${relPath} must have zero syntax errors or duplicate declarations`);
+  }
 
   const { parseCookiePairs } = require('../src/main/cookie-utils.js');
 
@@ -236,21 +254,58 @@ function runEdgeCaseTests() {
     { name: '__Secure-3PAPISID', value: 'RAW_SAPISID_TOKEN_ABC123' },
     { name: '__Secure-1PAPISID', value: 'RAW_SAPISID_TOKEN_ABC123' }
   ]);
+  assert.deepStrictEqual(parseCookiePairs('"QUOTED_BARE_TOKEN"'), [
+    { name: 'SAPISID', value: 'QUOTED_BARE_TOKEN' },
+    { name: '__Secure-3PAPISID', value: 'QUOTED_BARE_TOKEN' },
+    { name: '__Secure-1PAPISID', value: 'QUOTED_BARE_TOKEN' }
+  ]);
   assert.deepStrictEqual(parseCookiePairs('SAPISID="quoted_token"; LOGIN_INFO=live_info_token'), [
     { name: 'SAPISID', value: 'quoted_token' },
     { name: 'LOGIN_INFO', value: 'live_info_token' },
     { name: '__Secure-3PAPISID', value: 'quoted_token' },
     { name: '__Secure-1PAPISID', value: 'quoted_token' }
   ]);
+  assert.deepStrictEqual(parseCookiePairs('Cookie: SAPISID=foo; SID=bar'), [
+    { name: 'SAPISID', value: 'foo' },
+    { name: 'SID', value: 'bar' },
+    { name: '__Secure-3PAPISID', value: 'foo' },
+    { name: '__Secure-1PAPISID', value: 'foo' }
+  ]);
   assert.deepStrictEqual(parseCookiePairs('SID=123;\nHSID=456;\r\nSSID=789'), [
     { name: 'SID', value: '123' },
     { name: 'HSID', value: '456' },
     { name: 'SSID', value: '789' }
   ]);
-  // When __Secure-3PAPISID is already present, do not overwrite or duplicate
+  // When __Secure-3PAPISID is already present, do not overwrite or duplicate; populate missing __Secure-1PAPISID
   const withExisting3P = parseCookiePairs('SAPISID=token1; __Secure-3PAPISID=token2');
   assert.strictEqual(withExisting3P.filter(c => c.name === '__Secure-3PAPISID').length, 1);
   assert.strictEqual(withExisting3P.find(c => c.name === '__Secure-3PAPISID').value, 'token2');
+  assert.strictEqual(withExisting3P.find(c => c.name === '__Secure-1PAPISID').value, 'token1');
+
+  // When __Secure-1PAPISID is already present, do not overwrite or duplicate; populate missing __Secure-3PAPISID
+  const withExisting1P = parseCookiePairs('SAPISID=token1; __Secure-1PAPISID=token3');
+  assert.strictEqual(withExisting1P.filter(c => c.name === '__Secure-1PAPISID').length, 1);
+  assert.strictEqual(withExisting1P.find(c => c.name === '__Secure-1PAPISID').value, 'token3');
+  assert.strictEqual(withExisting1P.find(c => c.name === '__Secure-3PAPISID').value, 'token1');
+
+  // Strip cookie directives (Path, Domain, SameSite, Secure, HttpOnly)
+  const withDirectives = parseCookiePairs('SAPISID=token1; Path=/; Domain=.google.com; Secure; HttpOnly; SameSite=None');
+  assert.strictEqual(withDirectives.some(c => c.name.toLowerCase() === 'path'), false);
+  assert.strictEqual(withDirectives.some(c => c.name.toLowerCase() === 'domain'), false);
+  assert.strictEqual(withDirectives.some(c => c.name.toLowerCase() === 'samesite'), false);
+
+  // Support JSON-exported cookies from Cookie-Editor / EditThisCookie
+  const jsonInput = JSON.stringify([
+    { name: 'SAPISID', value: 'json_sapisid_val' },
+    { name: 'LOGIN_INFO', value: 'json_login_info_val' },
+    { name: 'Path', value: '/' }
+  ]);
+  const parsedJson = parseCookiePairs(jsonInput);
+  assert.strictEqual(parsedJson.find(c => c.name === 'SAPISID').value, 'json_sapisid_val');
+  assert.strictEqual(parsedJson.find(c => c.name === 'LOGIN_INFO').value, 'json_login_info_val');
+  assert.strictEqual(parsedJson.find(c => c.name === '__Secure-3PAPISID').value, 'json_sapisid_val');
+  assert.strictEqual(parsedJson.find(c => c.name === '__Secure-1PAPISID').value, 'json_sapisid_val');
+  assert.strictEqual(parsedJson.some(c => c.name.toLowerCase() === 'path'), false);
 
   // 13. InnerTube getAccountInfo Fallback when account_menu endpoint fails
   const mockFallbackSes = {
