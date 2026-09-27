@@ -30,7 +30,7 @@ function runCspRuntimeTests() {
     `);
   });
 
-  server.listen(48999, () => {
+  server.listen(48999, '127.0.0.1', () => {
     app.whenReady().then(async () => {
       try {
         const win = new BrowserWindow({
@@ -50,7 +50,7 @@ function runCspRuntimeTests() {
           }
         });
 
-        await win.loadURL('http://localhost:48999');
+        await win.loadURL('http://127.0.0.1:48999');
 
         const domState = await win.webContents.executeJavaScript(`
           ({
@@ -86,12 +86,16 @@ function runCspRuntimeTests() {
         assert.strictEqual(cspViolations.length, 0, `Must have 0 CSP violations, got: ${JSON.stringify(cspViolations)}`);
 
         console.log('✓ Preload & Apple UI Runtime under Strict CSP tests passed successfully.');
+        try { win.destroy(); } catch {}
+        try { if (typeof server.closeAllConnections === 'function') server.closeAllConnections(); } catch {}
         try { server.close(); } catch {}
         app.exit(0);
+        process.exit(0);
       } catch (err) {
         console.error('❌ CSP Runtime test failed:', err);
         try { server.close(); } catch {}
         app.exit(1);
+        process.exit(1);
       }
     });
   });

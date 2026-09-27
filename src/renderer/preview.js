@@ -3914,8 +3914,20 @@ function openQueueDrawer() {
 function closeQueueDrawer() {
   if (typeof document === 'undefined') return;
   const queueDrawer = document.getElementById('apple-queue-drawer');
-  if (queueDrawer && (queueDrawer.classList.contains('visible') || queueDrawer.classList.contains('active'))) {
-    toggleQueue();
+  const btnQueuePanel = document.getElementById('btn-queue-panel');
+  const expBtnQueue = document.getElementById('exp-btn-queue') || (typeof document.querySelector === 'function' ? document.querySelector('.exp-queue-btn') : null);
+
+  if (queueDrawer) {
+    queueDrawer.classList.remove('visible', 'active');
+  }
+  if (btnQueuePanel) {
+    btnQueuePanel.classList.remove('active');
+    btnQueuePanel.style.color = '';
+  }
+  if (expBtnQueue) {
+    expBtnQueue.classList.remove('active');
+    expBtnQueue.style.color = '';
+    expBtnQueue.style.backgroundColor = '';
   }
 }
 
@@ -4305,7 +4317,12 @@ function setupEvents() {
   if (expBtnQueue) {
     expBtnQueue.onclick = (e) => toggleQueue(e);
   }
-  if (btnCloseQueue) btnCloseQueue.onclick = (e) => toggleQueue(e);
+  if (btnCloseQueue) {
+    btnCloseQueue.onclick = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      closeQueueDrawer();
+    };
+  }
 
   // Lyrics toggle & dismissing
   const lyricsDrawer = document.getElementById('apple-lyrics-drawer');

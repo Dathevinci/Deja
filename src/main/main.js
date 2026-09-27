@@ -6,6 +6,7 @@ const TrayManager = require('./tray');
 const discord = require('./discord');
 const { buildAppMenu } = require('./menu');
 const innertube = require('./innertube');
+const { parseCookiePairs } = require('./cookie-utils');
 
 // Set Windows App User Model ID for notifications and taskbar
 if (process.platform === 'win32') {
@@ -576,6 +577,8 @@ function startSyncServer() {
 
     syncServer.on('error', (err) => {
       console.warn('[SyncServer] HTTP sync server notice:', err.message);
+      try { syncServer.close(); } catch {}
+      syncServer = null;
     });
 
     syncServer.listen(3728, '127.0.0.1', () => {
@@ -587,20 +590,21 @@ function startSyncServer() {
     }
   } catch (err) {
     console.warn('[SyncServer] Could not initialize sync server:', err.message);
+    syncServer = null;
   }
 }
 
 /**
- * Parses and sets session cookies for YouTube and Google domains into the session partition,
- * then validates via innertube.getAccountInfo(ses).
+ * Parses raw cookie input into an array of { name, value } objects.
+ * Handles both key=value cookie pairs and bare SAPISID tokens.
  */
-async function applySessionCookies(rawCookieInput, ses) {
+function parseCookiePairs(rawCookieInput) {
   if (!rawCookieInput || typeof rawCookieInput !== 'string') {
-    return { success: false, error: 'Cookie string is empty.' };
+    return [];
   }
   const cleanInput = rawCookieInput.trim();
   if (!cleanInput) {
-    return { success: false, error: 'Cookie string is empty.' };
+    return [];
   }
 
   const cookiePairs = [];
@@ -629,6 +633,23 @@ async function applySessionCookies(rawCookieInput, ses) {
     }
   }
 
+  // If SAPISID is provided but __Secure-3PAPISID / __Secure-1PAPISID are missing, populate them
+  const hasSecure3P = cookiePairs.some(c => c.name === '__Secure-3PAPISID');
+  const sapisidItem = cookiePairs.find(c => c.name === 'SAPISID');
+  if (sapisidItem && !hasSecure3P) {
+    cookiePairs.push({ name: '__Secure-3PAPISID', value: sapisidItem.value });
+    cookiePairs.push({ name: '__Secure-1PAPISID', value: sapisidItem.value });
+  }
+
+  return cookiePairs;
+}
+
+/**
+ * Parses and sets session cookies for YouTube and Google domains into the session partition,
+ * then validates via innertube.getAccountInfo(ses).
+ */
+async function applySessionCookies(rawCookieInput, ses) {
+  const cookiePairs = parseCookiePairs(rawCookieInput);
   if (cookiePairs.length === 0) {
     return { success: false, error: 'No valid cookies found in input.' };
   }
@@ -782,7 +803,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           const curUrl = loginWin.webContents.getURL() || targetUrl || '';
 
           // Prevent checking while user is still on Google auth flow
-          if (curUrl.includes('accounts.google.') || curUrl.includes('accounts.youtube.') || curUrl.includes('myaccount.google.')) {
+          if (curUrl.includes('accounts.google.') || curUrl.includes('accounts.youtube.')) {
             return;
           }
 
@@ -1308,6 +1329,10 @@ app.whenReady().then(() => {
 });
 
 app.on('will-quit', () => {
+  if (syncServer) {
+    try { syncServer.close(); } catch {}
+    syncServer = null;
+  }
   if (shortcutManager) {
     shortcutManager.unregisterAll();
   }
@@ -1324,3 +1349,11 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    startSyncServer,
+    applySessionCookies,
+    parseCookiePairs
+  };
+}

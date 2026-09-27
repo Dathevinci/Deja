@@ -330,8 +330,8 @@ function runBitChordArchitectureTests() {
         className: classNames,
         classList: {
           contains: (cls) => classes.has(cls),
-          add: (cls) => classes.add(cls),
-          remove: (cls) => classes.delete(cls),
+          add: (...clsList) => clsList.forEach(cls => classes.add(cls)),
+          remove: (...clsList) => clsList.forEach(cls => classes.delete(cls)),
           toggle: (cls, force) => {
             const shouldAdd = force !== undefined ? !!force : !classes.has(cls);
             if (shouldAdd) classes.add(cls); else classes.delete(cls);
@@ -423,15 +423,25 @@ function runBitChordArchitectureTests() {
     // Test toggleQueue: 1st invocation displays queue drawer, 2nd hides queue drawer
     previewModule.toggleQueue();
     assert.ok(queueDrawer.classList.contains('visible'), 'Queue drawer must be visible after 1st toggle');
+    assert.ok(queueDrawer.classList.contains('active'), 'Queue drawer must be active after 1st toggle');
     assert.ok(expBtnQueue.classList.contains('active'), 'Queue button must be active after 1st toggle');
     assert.strictEqual(expBtnQueue.style.color, '#FA2D48', 'Queue button must have red active color');
     assert.strictEqual(expBtnQueue.style.backgroundColor, 'rgba(250, 45, 72, 0.18)', 'Queue button must have active pill background');
 
     previewModule.toggleQueue();
     assert.ok(!queueDrawer.classList.contains('visible'), 'Queue drawer must be hidden after 2nd toggle');
+    assert.ok(!queueDrawer.classList.contains('active'), 'Queue drawer must not have active class after 2nd toggle');
     assert.ok(!expBtnQueue.classList.contains('active'), 'Queue button must be inactive after 2nd toggle');
     assert.strictEqual(expBtnQueue.style.color, '', 'Queue button color must be cleared after 2nd toggle');
     assert.strictEqual(expBtnQueue.style.backgroundColor, '', 'Queue button background must be cleared after 2nd toggle');
+
+    // Test closeQueueDrawer explicit function
+    previewModule.toggleQueue();
+    assert.ok(queueDrawer.classList.contains('visible'));
+    previewModule.closeQueueDrawer();
+    assert.ok(!queueDrawer.classList.contains('visible'), 'closeQueueDrawer must dismiss queue drawer');
+    assert.ok(!queueDrawer.classList.contains('active'), 'closeQueueDrawer must remove active class');
+    assert.strictEqual(expBtnQueue.style.color, '');
   } finally {
     global.document = originalDoc;
   }
@@ -607,6 +617,19 @@ function runBitChordArchitectureTests() {
   assert.ok(html.includes('id="sync-console-snippet"'), 'preview.html must include 1-line browser sync snippet');
   assert.ok(html.includes('id="input-session-cookies"'), 'preview.html must include cookie input textarea');
   assert.ok(html.includes('id="sidebar-account-btn"'), 'preview.html must include sidebar account button');
+
+  // Verify modal hierarchy: #add-to-playlist-modal must be closed before #account-login-modal starts
+  const addPlIndex = html.indexOf('id="add-to-playlist-modal"');
+  const accLoginIndex = html.indexOf('id="account-login-modal"');
+  assert.ok(addPlIndex !== -1 && accLoginIndex !== -1 && addPlIndex < accLoginIndex, 'Modals must exist in order');
+  const betweenModals = html.substring(addPlIndex, accLoginIndex);
+  const addPlOpens = (betweenModals.match(/<div(\s|>)/g) || []).length;
+  const addPlCloses = (betweenModals.match(/<\/div>/g) || []).length;
+  assert.strictEqual(addPlOpens, addPlCloses, 'add-to-playlist-modal must be fully closed before account-login-modal starts (no nesting)');
+
+  // Verify queue drawer z-index and pointer-events in CSS
+  assert.ok(css.includes('.deja-queue-drawer.visible') && css.includes('z-index: 100020 !important'), 'CSS must enforce z-index: 100020 on visible queue drawer');
+  assert.ok(css.includes('pointer-events: auto !important'), 'CSS must enforce pointer-events: auto !important on visible queue drawer');
 
   // 9.3 HTML Custom Playlists Components
   assert.ok(html.includes('id="btn-sidebar-new-playlist"'), 'HTML must provide "+ New Playlist" button in sidebar');

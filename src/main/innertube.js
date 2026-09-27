@@ -161,6 +161,16 @@ async function getAccountInfo(ses) {
   } catch (err) {
     console.warn('[InnerTube] getAccountInfo error:', err.message);
     const auth = await getAuthContext(ses).catch(() => ({ isLoggedIn: false }));
+    if (auth && auth.isLoggedIn) {
+      return {
+        isLoggedIn: true,
+        name: 'Google User',
+        channelTitle: 'Google User',
+        handle: '@user',
+        avatarUrl: '',
+        photoUrl: ''
+      };
+    }
     return {
       isLoggedIn: false,
       name: '',

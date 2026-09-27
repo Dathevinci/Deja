@@ -219,51 +219,49 @@ function runEdgeCaseTests() {
   // Clean up global mock
   delete global.document;
 
-  // 12. Session Cookie Parser Edge Cases
-  function parseCookiePairs(rawInput) {
-    if (!rawInput || typeof rawInput !== 'string') return [];
-    const clean = rawInput.trim();
-    if (!clean) return [];
-    const pairs = [];
-    if (!clean.includes('=') && !clean.includes(';')) {
-      pairs.push({ name: 'SAPISID', value: clean });
-    } else {
-      const items = clean.split(/[\r\n;]+/);
-      for (const item of items) {
-        const trimmed = item.trim();
-        if (!trimmed) continue;
-        const eqIdx = trimmed.indexOf('=');
-        if (eqIdx > 0) {
-          const name = trimmed.substring(0, eqIdx).trim();
-          let value = trimmed.substring(eqIdx + 1).trim();
-          if (value.startsWith('"') && value.endsWith('"')) {
-            value = value.slice(1, -1);
-          }
-          if (name && value) {
-            pairs.push({ name, value });
-          }
-        }
-      }
-    }
-    return pairs;
-  }
+  // 12. Session Cookie Parser Edge Cases (testing real parseCookiePairs from cookie-utils.js)
+  const { parseCookiePairs } = require('../src/main/cookie-utils.js');
 
   assert.deepStrictEqual(parseCookiePairs(''), []);
   assert.deepStrictEqual(parseCookiePairs(null), []);
   assert.deepStrictEqual(parseCookiePairs(undefined), []);
   assert.deepStrictEqual(parseCookiePairs('   '), []);
   assert.deepStrictEqual(parseCookiePairs('RAW_SAPISID_TOKEN_ABC123'), [
-    { name: 'SAPISID', value: 'RAW_SAPISID_TOKEN_ABC123' }
+    { name: 'SAPISID', value: 'RAW_SAPISID_TOKEN_ABC123' },
+    { name: '__Secure-3PAPISID', value: 'RAW_SAPISID_TOKEN_ABC123' },
+    { name: '__Secure-1PAPISID', value: 'RAW_SAPISID_TOKEN_ABC123' }
   ]);
   assert.deepStrictEqual(parseCookiePairs('SAPISID="quoted_token"; LOGIN_INFO=live_info_token'), [
     { name: 'SAPISID', value: 'quoted_token' },
-    { name: 'LOGIN_INFO', value: 'live_info_token' }
+    { name: 'LOGIN_INFO', value: 'live_info_token' },
+    { name: '__Secure-3PAPISID', value: 'quoted_token' },
+    { name: '__Secure-1PAPISID', value: 'quoted_token' }
   ]);
   assert.deepStrictEqual(parseCookiePairs('SID=123;\nHSID=456;\r\nSSID=789'), [
     { name: 'SID', value: '123' },
     { name: 'HSID', value: '456' },
     { name: 'SSID', value: '789' }
   ]);
+  // When __Secure-3PAPISID is already present, do not overwrite or duplicate
+  const withExisting3P = parseCookiePairs('SAPISID=token1; __Secure-3PAPISID=token2');
+  assert.strictEqual(withExisting3P.filter(c => c.name === '__Secure-3PAPISID').length, 1);
+  assert.strictEqual(withExisting3P.find(c => c.name === '__Secure-3PAPISID').value, 'token2');
+
+  // 13. InnerTube getAccountInfo Fallback when account_menu endpoint fails
+  const mockFallbackSes = {
+    cookies: {
+      get: async (opts) => {
+        if (opts && opts.domain && opts.domain.includes('youtube')) {
+          return [{ name: 'SAPISID', value: 'valid_fallback_sapisid' }];
+        }
+        return [];
+      }
+    }
+  };
+  innertube.getAccountInfo(mockFallbackSes).then(info => {
+    assert.strictEqual(info.isLoggedIn, true, 'getAccountInfo must preserve logged-in state when authentic YouTube session exists');
+    assert.strictEqual(info.name, 'Google User');
+  });
 
   console.log('✓ Edge cases and security tests passed successfully.');
 }
