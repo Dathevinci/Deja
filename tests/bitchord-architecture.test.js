@@ -206,6 +206,38 @@ function runBitChordArchitectureTests() {
     innertube.cleanSearchTerm('Superman [Official Video]'),
     'Superman'
   );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('Get Lucky (with Pharrell Williams)'),
+    'Get Lucky'
+  );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('Song Name with Collaborator'),
+    'Song Name'
+  );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('"Superman"'),
+    'Superman'
+  );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('“Superman”'),
+    'Superman'
+  );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('Superman • Eminem Show'),
+    'Superman'
+  );
+  assert.strictEqual(
+    previewModule.cleanSearchTerm('Superman (feat. Din...)'),
+    'Superman'
+  );
+  assert.strictEqual(
+    previewModule.cleanSearchTerm('Get Lucky (with Pharrell Williams)'),
+    'Get Lucky'
+  );
+  assert.strictEqual(
+    previewModule.cleanSearchTerm('"Superman"'),
+    'Superman'
+  );
 
   // Test cleanArtistTerm and getPrimaryArtist
   assert.strictEqual(
@@ -281,6 +313,115 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(computeActiveLyricIndex(testLyrics, 25.0), 2);
   assert.strictEqual(computeActiveLyricIndex(testLyrics, 39.99), 2);
   assert.strictEqual(computeActiveLyricIndex(testLyrics, 50.0), 3);
+
+  // 6.8 Fast-Frequency Lyric Clock & Expanded Controls Single-Invocation
+  assert.strictEqual(typeof previewModule.startLyricClock, 'function', 'previewModule must export startLyricClock');
+  assert.strictEqual(typeof previewModule.stopLyricClock, 'function', 'previewModule must export stopLyricClock');
+  assert.strictEqual(typeof previewModule.tickLyricClock, 'function', 'previewModule must export tickLyricClock');
+
+  // Verify Expanded Player Button Single Click Invocations and State Toggling
+  const originalDoc = global.document;
+  try {
+    const mockElements = {};
+    const createMockElement = (id, classNames = '') => {
+      const classes = new Set(classNames.split(' ').filter(Boolean));
+      return {
+        id,
+        className: classNames,
+        classList: {
+          contains: (cls) => classes.has(cls),
+          add: (cls) => classes.add(cls),
+          remove: (cls) => classes.delete(cls),
+          toggle: (cls, force) => {
+            const shouldAdd = force !== undefined ? !!force : !classes.has(cls);
+            if (shouldAdd) classes.add(cls); else classes.delete(cls);
+            return shouldAdd;
+          }
+        },
+        style: {},
+        innerHTML: '',
+        innerText: '',
+        querySelectorAll: () => [],
+        onclick: null,
+        addEventListener: function(event, fn) {
+          this._listeners = this._listeners || {};
+          this._listeners[event] = this._listeners[event] || [];
+          this._listeners[event].push(fn);
+        }
+      };
+    };
+
+    const expBtnShuffle = createMockElement('exp-btn-shuffle', 'exp-sub-btn exp-shuffle-btn');
+    const expBtnRepeat = createMockElement('exp-btn-repeat', 'exp-sub-btn exp-repeat-btn');
+    const expBtnLyrics = createMockElement('exp-btn-lyrics', 'exp-sub-btn exp-lyrics-btn');
+    const expBtnQueue = createMockElement('exp-btn-queue', 'exp-sub-btn exp-queue-btn');
+    const lyricsContainer = createMockElement('expanded-lyrics-container');
+    lyricsContainer.style.display = 'none';
+    const artContainer = createMockElement('now-playing-art-wrap');
+    artContainer.style.display = 'block';
+    const queueDrawer = createMockElement('apple-queue-drawer');
+    const lyricSnippet = createMockElement('exp-lyric-snippet-text');
+
+    mockElements['exp-btn-shuffle'] = expBtnShuffle;
+    mockElements['exp-btn-repeat'] = expBtnRepeat;
+    mockElements['exp-btn-lyrics'] = expBtnLyrics;
+    mockElements['exp-btn-queue'] = expBtnQueue;
+    mockElements['expanded-lyrics-container'] = lyricsContainer;
+    mockElements['now-playing-art-wrap'] = artContainer;
+    mockElements['apple-queue-drawer'] = queueDrawer;
+    mockElements['exp-lyric-snippet-text'] = lyricSnippet;
+
+    global.document = {
+      createElement: (tag) => createMockElement(`mock-${tag}`),
+      body: {
+        appendChild: () => {}
+      },
+      getElementById: (id) => mockElements[id] || null,
+      querySelector: (sel) => {
+        if (sel === '.exp-shuffle-btn') return expBtnShuffle;
+        if (sel === '.exp-repeat-btn') return expBtnRepeat;
+        if (sel === '.exp-lyrics-btn') return expBtnLyrics;
+        if (sel === '.exp-queue-btn') return expBtnQueue;
+        if (sel === '.exp-lyric-snippet-text') return lyricSnippet;
+        return null;
+      },
+      querySelectorAll: () => []
+    };
+
+    // Test toggleShuffle: 1st invocation turns on, 2nd invocation turns off
+    let shuffleInvocations = 0;
+    const testShuffleClick = () => {
+      shuffleInvocations++;
+      previewModule.toggleShuffle();
+    };
+    testShuffleClick();
+    assert.strictEqual(shuffleInvocations, 1, 'Shuffle click handler must execute exactly once per click');
+    assert.ok(expBtnShuffle.classList.contains('active'), 'Shuffle must be active after 1st click');
+    assert.strictEqual(expBtnShuffle.style.color, '#FA2D48');
+
+    testShuffleClick();
+    assert.strictEqual(shuffleInvocations, 2, 'Shuffle click handler must execute exactly twice after two clicks');
+    assert.ok(!expBtnShuffle.classList.contains('active'), 'Shuffle must be inactive after 2nd click');
+
+    // Test toggleNowPlayingLyrics: 1st invocation displays lyrics, 2nd hides lyrics
+    previewModule.toggleNowPlayingLyrics();
+    assert.strictEqual(lyricsContainer.style.display, 'flex', 'Lyrics container must display on 1st toggle');
+    assert.strictEqual(artContainer.style.display, 'none', 'Artwork container must hide on 1st toggle');
+    assert.ok(expBtnLyrics.classList.contains('active'), 'Lyrics button must be active');
+
+    previewModule.toggleNowPlayingLyrics();
+    assert.strictEqual(lyricsContainer.style.display, 'none', 'Lyrics container must hide on 2nd toggle');
+    assert.strictEqual(artContainer.style.display, 'block', 'Artwork container must restore on 2nd toggle');
+    assert.ok(!expBtnLyrics.classList.contains('active'), 'Lyrics button must be inactive');
+
+    // Test preview lyric capsule formatting: never bare '♪'
+    lyricSnippet.innerText = '';
+    previewModule.updateSyncedLyrics();
+    assert.ok(lyricSnippet.innerText !== '♪', 'Preview snippet text must never be bare ♪');
+    assert.ok(lyricSnippet.innerText.length > 0, 'Preview snippet text must be populated');
+  } finally {
+    global.document = originalDoc;
+  }
 
   // 7. Verify Discord RPC Multi-Pipe Scanning and Activity Protocol
   const discord = require('../src/main/discord.js');

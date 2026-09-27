@@ -1870,6 +1870,10 @@ body.deja-playing .now-playing-art-wrap,
   background: rgba(250, 45, 72, 0.18);
 }
 
+.exp-sub-btn svg {
+  pointer-events: none;
+}
+
 /* --------------------------------------------------------------------------
    BitChord Complete Suite: Audio Pipeline, Sleep Timer, EQ, Queue Drawer
    -------------------------------------------------------------------------- */
