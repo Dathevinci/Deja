@@ -18,12 +18,21 @@ function runPlayerControllerTests() {
       this.tagName = tagName.toUpperCase();
       this.id = id;
       this.className = className;
-      this.style = {};
+      this.style = {
+        setProperty: (k, v) => { this.style[k] = v; }
+      };
       this.children = [];
       this.parentElement = null;
+      this.shadowRoot = null;
       this.textContent = '';
       this.attributes = {};
       this.onclick = null;
+    }
+
+    attachShadow(opts = {}) {
+      this.shadowRoot = new MockElement('SHADOW-ROOT');
+      this.shadowRoot.host = this;
+      return this.shadowRoot;
     }
 
     setAttribute(name, val) { this.attributes[name] = val; }
@@ -61,19 +70,50 @@ function runPlayerControllerTests() {
     }
 
     querySelector(sel) {
-      if (sel === '.title.ytmusic-player-bar' || sel === '.content-info-wrapper .title') {
-        return this._find(el => el.className && el.className.includes('title'));
-      }
-      if (sel === '.byline.ytmusic-player-bar' || sel === '.content-info-wrapper .byline') {
-        return this._find(el => el.className && el.className.includes('byline'));
-      }
-      if (sel === 'img.image.ytmusic-player-bar' || sel === 'ytmusic-player-bar img') {
-        return this._find(el => el.tagName === 'IMG');
-      }
       if (sel === 'a') {
         return this._find(el => el.tagName === 'A');
       }
-      return null;
+      if (sel.includes('.title')) {
+        return this._find(el => el.className && el.className.includes('title'));
+      }
+      if (sel.includes('.byline')) {
+        return this._find(el => el.className && el.className.includes('byline'));
+      }
+      if (sel.includes('img') || sel.includes('IMG')) {
+        return this._find(el => el.tagName === 'IMG');
+      }
+      if (sel.startsWith('.')) {
+        const classes = sel.split('.').filter(Boolean);
+        return this._find(el => classes.every(c => el.className && el.className.split(/\s+/).includes(c)));
+      }
+      if (sel.startsWith('#')) {
+        const id = sel.slice(1);
+        return this._find(el => el.id === id);
+      }
+      return this._find(el => el.tagName === sel.toUpperCase());
+    }
+
+    querySelectorAll(sel) {
+      const res = [];
+      const match = (el) => {
+        if (sel.startsWith('.')) {
+          const classes = sel.split('.').filter(Boolean);
+          return classes.every(c => el.className && el.className.split(/\s+/).includes(c));
+        }
+        if (sel.startsWith('#')) {
+          const id = sel.slice(1);
+          return el.id === id;
+        }
+        return el.tagName === sel.toUpperCase();
+      };
+      const collect = (node) => {
+        for (const child of node.children) {
+          if (match(child)) res.push(child);
+          collect(child);
+        }
+      };
+      collect(this);
+      return res;
     }
 
     _find(predicate) {
@@ -178,12 +218,18 @@ function runPlayerControllerTests() {
   elements['mock-video'] = mockVideo;
 
   const mockPlayerBar = new MockElement('YTMUSIC-PLAYER-BAR', 'mock-player-bar');
+  const middleControls = new MockElement('DIV', '', 'middle-controls');
   const titleEl = new MockElement('SPAN', '', 'title ytmusic-player-bar');
   titleEl.textContent = 'Blinding Lights';
   const bylineEl = new MockElement('SPAN', '', 'byline ytmusic-player-bar');
   bylineEl.textContent = 'The Weeknd • After Hours';
-  mockPlayerBar.appendChild(titleEl);
-  mockPlayerBar.appendChild(bylineEl);
+  middleControls.appendChild(titleEl);
+  middleControls.appendChild(bylineEl);
+  const leftControls = new MockElement('DIV', '', 'left-controls');
+  const rightControls = new MockElement('DIV', '', 'right-controls');
+  mockPlayerBar.appendChild(middleControls);
+  mockPlayerBar.appendChild(leftControls);
+  mockPlayerBar.appendChild(rightControls);
   elements['mock-player-bar'] = mockPlayerBar;
 
   const entryHome = new MockElement('YTMUSIC-GUIDE-ENTRY-RENDERER', 'entry-home');
@@ -328,7 +374,39 @@ function runPlayerControllerTests() {
 
   // 12. Verify BitChord Shadow CSS Exports for Polymer Components
   assert.ok(playerModule.SHADOW_PLAYER_BAR_CSS.includes('.left-controls'), 'SHADOW_PLAYER_BAR_CSS must style .left-controls');
+  assert.ok(playerModule.SHADOW_PLAYER_BAR_CSS.includes('.deja-player-lyrics-btn'), 'SHADOW_PLAYER_BAR_CSS must style .deja-player-lyrics-btn');
+  assert.ok(playerModule.SHADOW_PLAYER_BAR_CSS.includes('.deja-audio-pipeline-badge'), 'SHADOW_PLAYER_BAR_CSS must style .deja-audio-pipeline-badge');
   assert.ok(playerModule.SHADOW_UNIVERSAL_SCROLLBAR_CSS.includes('scrollbar-width: none'), 'SHADOW_UNIVERSAL_SCROLLBAR_CSS must eliminate scrollbars');
+  assert.ok(playerModule.SHADOW_UNIVERSAL_SCROLLBAR_CSS.includes(':host::-webkit-scrollbar'), 'SHADOW_UNIVERSAL_SCROLLBAR_CSS must eliminate :host scrollbars');
+  assert.ok(playerModule.SHADOW_PLAYER_PAGE_CSS.includes('.deja-player-ambient-aura'), 'SHADOW_PLAYER_PAGE_CSS must style ambient aura');
+  assert.ok(playerModule.SHADOW_PLAYER_PAGE_CSS.includes('dejaMeshDrift'), 'SHADOW_PLAYER_PAGE_CSS must include dejaMeshDrift keyframes');
+  assert.ok(playerModule.SHADOW_GUIDE_CSS.includes('.deja-active'), 'SHADOW_GUIDE_CSS must style .deja-active');
+  assert.ok(playerModule.SHADOW_CHIP_CSS.includes('#left-arrow-button'), 'SHADOW_CHIP_CSS must hide arrow buttons');
+
+  // 13. Verify BitChord Player Bar Injected Controls in Right Controls
+  assert.ok(rightControls.querySelector('.deja-audio-pipeline-badge'), 'Audio pipeline badge must be injected into right controls');
+  assert.ok(rightControls.querySelector('.deja-sleep-timer-btn'), 'Sleep timer button must be injected into right controls');
+  assert.ok(rightControls.querySelector('.deja-eq-btn'), 'EQ button must be injected into right controls');
+  assert.ok(rightControls.querySelector('.deja-player-lyrics-btn'), 'Lyrics button must be injected into right controls');
+  assert.ok(rightControls.querySelector('.deja-queue-btn'), 'Queue button must be injected into right controls');
+
+  // 14. Verify querySelectorAllDeep across Shadow DOM boundaries
+  const querySelectorAllDeep = playerModule.querySelectorAllDeep;
+  assert.strictEqual(typeof querySelectorAllDeep, 'function', 'querySelectorAllDeep must be exported');
+  const testHost = new MockElement('DIV', 'test-host');
+  const shadow = testHost.attachShadow();
+  const shadowChild = new MockElement('SPAN', 'shadow-span', 'deep-target');
+  shadow.appendChild(shadowChild);
+  const deepFound = querySelectorAllDeep('.deep-target', testHost);
+  assert.strictEqual(deepFound.length, 1, 'querySelectorAllDeep must penetrate shadow root');
+  assert.strictEqual(deepFound[0], shadowChild, 'querySelectorAllDeep must return matching element from shadow root');
+
+  // 15. Verify SleepTimer startAfterTrack
+  SleepTimer.startAfterTrack();
+  assert.strictEqual(SleepTimer.isRunning(), true, 'SleepTimer must be running with afterTrack');
+  assert.strictEqual(SleepTimer.afterTrack, true, 'SleepTimer.afterTrack must be true');
+  SleepTimer.cancel();
+  assert.strictEqual(SleepTimer.isRunning(), false, 'SleepTimer must be inactive after cancel');
 
   // Cleanup controller timers
   controller?.destroy?.();

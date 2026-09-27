@@ -112,21 +112,26 @@ function extractArtworkPalette(coverUrl, callback) {
  * Eliminates Windows scrollbars (< > arrow buttons) everywhere across shadow trees
  */
 const SHADOW_UNIVERSAL_SCROLLBAR_CSS = `
-  *, *::before, *::after {
+  :host, *, *::before, *::after {
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
   }
+  :host::-webkit-scrollbar,
   ::-webkit-scrollbar {
     display: none !important;
     width: 0 !important;
     height: 0 !important;
     background: transparent !important;
   }
+  :host::-webkit-scrollbar-button,
   ::-webkit-scrollbar-button {
     display: none !important;
     width: 0 !important;
     height: 0 !important;
   }
+  :host::-webkit-scrollbar-track,
+  :host::-webkit-scrollbar-thumb,
+  :host::-webkit-scrollbar-corner,
   ::-webkit-scrollbar-track,
   ::-webkit-scrollbar-thumb,
   ::-webkit-scrollbar-corner {
@@ -153,6 +158,8 @@ const SHADOW_PLAYER_BAR_CSS = `
     align-items: center !important;
     justify-content: space-between !important;
     height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
     background: rgba(28, 28, 30, 0.88) !important;
     backdrop-filter: blur(30px) saturate(190%) !important;
     -webkit-backdrop-filter: blur(30px) saturate(190%) !important;
@@ -210,7 +217,16 @@ const SHADOW_PLAYER_BAR_CSS = `
   #thumbnail.preview,
   tp-yt-paper-tooltip,
   .paper-progress #hover,
-  ytmusic-player-preview {
+  ytmusic-player-preview,
+  ytmusic-thumbnail-preview,
+  #sliderKnob .thumbnail-container,
+  #sliderKnob img,
+  #sliderKnob yt-img-shadow,
+  #sliderKnob [id*="preview"],
+  #sliderKnob [id*="hover"],
+  [id*="preview"],
+  [id*="hover"],
+  [class*="thumbnail-preview"] {
     display: none !important;
     opacity: 0 !important;
     visibility: hidden !important;
@@ -236,6 +252,9 @@ const SHADOW_PLAYER_BAR_CSS = `
   }
 
   /* 52px Squircle album artwork (smooth scale + glow when playing) */
+  .middle-controls .thumbnail-image-wrapper,
+  .middle-controls #thumbnail-container,
+  .middle-controls yt-img-shadow,
   .middle-controls .thumbnail,
   .middle-controls #thumbnail,
   .middle-controls .image.ytmusic-player-bar,
@@ -244,12 +263,17 @@ const SHADOW_PLAYER_BAR_CSS = `
     height: 52px !important;
     min-width: 52px !important;
     min-height: 52px !important;
-    border-radius: 10px !important;
+    max-width: 52px !important;
+    max-height: 52px !important;
+    border-radius: 12px !important;
     object-fit: cover !important;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
     transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease !important;
   }
 
+  :host([playing]) .middle-controls .thumbnail-image-wrapper,
+  :host([playing]) .middle-controls #thumbnail-container,
+  :host([playing]) .middle-controls yt-img-shadow,
   :host([playing]) .middle-controls .thumbnail,
   :host([playing]) .middle-controls #thumbnail,
   :host([playing]) .middle-controls img,
@@ -356,7 +380,375 @@ const SHADOW_PLAYER_BAR_CSS = `
     margin: 0 !important;
     padding: 0 !important;
   }
+
+  /* BitChord Controls inside player bar shadowRoot */
+  .deja-audio-pipeline-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 9999px !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    padding: 4px 10px !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    user-select: none !important;
+    flex-shrink: 0 !important;
+  }
+
+  .deja-audio-pipeline-badge:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #FFFFFF !important;
+    border-color: rgba(250, 45, 72, 0.4) !important;
+    box-shadow: 0 0 12px rgba(250, 45, 72, 0.25) !important;
+    transform: scale(1.04) !important;
+  }
+
+  .deja-audio-pipeline-badge .badge-dot {
+    width: 6px !important;
+    height: 6px !important;
+    border-radius: 50% !important;
+    background: #34C759 !important;
+    box-shadow: 0 0 6px rgba(52, 199, 89, 0.6) !important;
+  }
+
+  .deja-sleep-timer-btn,
+  .deja-eq-btn,
+  .deja-player-lyrics-btn,
+  .deja-queue-btn {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  .deja-sleep-timer-btn:hover,
+  .deja-eq-btn:hover,
+  .deja-player-lyrics-btn:hover,
+  .deja-queue-btn:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #FFFFFF !important;
+    transform: scale(1.08) !important;
+  }
+
+  .deja-sleep-timer-btn.active,
+  .deja-eq-btn.active,
+  .deja-player-lyrics-btn.active,
+  .deja-queue-btn.active {
+    background: rgba(250, 45, 72, 0.18) !important;
+    color: #FA2D48 !important;
+    border-color: rgba(250, 45, 72, 0.4) !important;
+  }
+
+  .deja-sleep-timer-btn.has-timer {
+    width: auto !important;
+    padding: 0 10px !important;
+    border-radius: 9999px !important;
+    gap: 5px !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  .deja-sleep-timer-btn svg,
+  .deja-eq-btn svg,
+  .deja-player-lyrics-btn svg,
+  .deja-queue-btn svg {
+    stroke: currentColor !important;
+  }
 `;
+
+/**
+ * Now Playing / Player Page Shadow DOM CSS
+ * Eliminates solid black void backgrounds inside ytmusic-player-page.shadowRoot
+ */
+const SHADOW_PLAYER_PAGE_CSS = `
+  ${SHADOW_UNIVERSAL_SCROLLBAR_CSS}
+
+  :host {
+    position: relative !important;
+    overflow: hidden !important;
+    background: transparent !important;
+  }
+
+  #background,
+  #player-page-background,
+  #main-panel,
+  #side-panel,
+  #player,
+  ytmusic-player,
+  #song-video,
+  #song-media-window,
+  .main-panel,
+  .side-panel {
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  #main-panel {
+    position: relative !important;
+    z-index: 2 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  #side-panel {
+    position: relative !important;
+    z-index: 2 !important;
+  }
+
+  /* Album artwork & media container on player page */
+  #main-panel #player,
+  .song-media-window {
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7) !important;
+  }
+
+  #main-panel #player img,
+  #main-panel #player video,
+  #song-video,
+  #song-image,
+  #thumbnail,
+  img.ytmusic-player-page {
+    border-radius: inherit !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  /* BitChord Dynamic Mesh Gradient Backdrop (MeshGradient.kt, ArtworkMeshBackdrop.kt) */
+  .deja-player-ambient-aura {
+    position: absolute !important;
+    inset: -25% !important;
+    width: 150% !important;
+    height: 150% !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    opacity: 0.88 !important;
+    transition: opacity 1.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .deja-ambient-art-blur {
+    position: absolute !important;
+    inset: 0 !important;
+    background-size: cover !important;
+    background-position: center !important;
+    filter: blur(85px) saturate(240%) brightness(0.48) !important;
+    animation: dejaAuraDrift 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transform: scale(1.08) !important;
+    transition: opacity 1.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .deja-ambient-mesh-overlay {
+    position: absolute !important;
+    inset: -10% !important;
+    width: 120% !important;
+    height: 120% !important;
+    background: radial-gradient(circle at 20% 25%, var(--deja-aura-c1, rgba(250, 45, 72, 0.50)) 0%, transparent 60%),
+                radial-gradient(circle at 80% 20%, var(--deja-aura-c2, rgba(140, 40, 220, 0.45)) 0%, transparent 65%),
+                radial-gradient(circle at 25% 80%, var(--deja-aura-c3, rgba(40, 160, 220, 0.40)) 0%, transparent 60%),
+                radial-gradient(circle at 75% 75%, var(--deja-aura-c4, rgba(250, 140, 45, 0.40)) 0%, transparent 65%),
+                radial-gradient(circle at 50% 50%, rgba(18, 18, 22, 0.30) 0%, rgba(14, 14, 16, 0.88) 100%) !important;
+    mix-blend-mode: overlay !important;
+    animation: dejaMeshDrift 24s infinite alternate ease-in-out !important;
+    transition: opacity 1.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  @keyframes dejaMeshDrift {
+    0% { transform: scale(1) translate(0, 0) rotate(0deg); }
+    33% { transform: scale(1.08) translate(-3%, 2%) rotate(2deg); }
+    66% { transform: scale(1.05) translate(2%, -2%) rotate(-2deg); }
+    100% { transform: scale(1.1) translate(-2%, 3%) rotate(1deg); }
+  }
+
+  @keyframes dejaAuraDrift {
+    0% { transform: scale(1.05) translate(0, 0) rotate(0deg); }
+    33% { transform: scale(1.15) translate(-3%, 2%) rotate(2deg); }
+    66% { transform: scale(1.1) translate(2%, -2%) rotate(-1.5deg); }
+    100% { transform: scale(1.18) translate(-1%, 3%) rotate(1deg); }
+  }
+`;
+
+/**
+ * Sidebar Guide Renderer Shadow DOM CSS
+ * Eliminates chunky maroon buttons and scrollbars in ytmusic-guide-renderer.shadowRoot
+ */
+const SHADOW_GUIDE_CSS = `
+  ${SHADOW_UNIVERSAL_SCROLLBAR_CSS}
+
+  :host,
+  #guide-wrapper,
+  #guide-content,
+  #items,
+  #sections {
+    background: transparent !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  ytmusic-guide-entry-renderer,
+  ytmusic-mini-guide-entry-renderer {
+    border-radius: 10px !important;
+    margin: 2px 8px !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  ytmusic-guide-entry-renderer tp-yt-paper-item,
+  ytmusic-mini-guide-entry-renderer tp-yt-paper-item,
+  .paper-item,
+  #item {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  ytmusic-guide-entry-renderer:not(.deja-active):not(.sonora-active),
+  ytmusic-mini-guide-entry-renderer:not(.deja-active):not(.sonora-active) {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  ytmusic-guide-entry-renderer.deja-active,
+  ytmusic-guide-entry-renderer.sonora-active,
+  ytmusic-mini-guide-entry-renderer.deja-active,
+  ytmusic-mini-guide-entry-renderer.sonora-active {
+    background: rgba(250, 45, 72, 0.12) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 10px rgba(250, 45, 72, 0.12) !important;
+  }
+
+  ytmusic-guide-entry-renderer.deja-active yt-formatted-string,
+  ytmusic-guide-entry-renderer.deja-active .title,
+  ytmusic-guide-entry-renderer.sonora-active yt-formatted-string,
+  ytmusic-guide-entry-renderer.sonora-active .title {
+    color: #FA2D48 !important;
+    font-weight: 600 !important;
+  }
+
+  ytmusic-guide-entry-renderer.deja-active yt-icon,
+  ytmusic-guide-entry-renderer.sonora-active yt-icon,
+  ytmusic-guide-entry-renderer.deja-active tp-yt-iron-icon,
+  ytmusic-guide-entry-renderer.sonora-active tp-yt-iron-icon {
+    color: #FA2D48 !important;
+    fill: #FA2D48 !important;
+  }
+`;
+
+/**
+ * Chip Cloud Shadow DOM CSS
+ * Eliminates Windows scrollbars and < > arrow buttons inside ytmusic-chip-cloud-renderer.shadowRoot
+ */
+const SHADOW_CHIP_CSS = `
+  ${SHADOW_UNIVERSAL_SCROLLBAR_CSS}
+
+  :host,
+  #chips,
+  #chips-container,
+  #chips-wrapper {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  #left-arrow-button,
+  #right-arrow-button,
+  #left-arrow,
+  #right-arrow,
+  .arrow-button,
+  ytmusic-scroll-button-renderer {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+`;
+
+/**
+ * Query all matching elements deep across the main document AND all open shadow trees.
+ */
+function querySelectorAllDeep(selector, root = (typeof document !== 'undefined' ? document : null)) {
+  if (!root) return [];
+  const results = [];
+  try {
+    if (root.querySelectorAll) {
+      const matched = root.querySelectorAll(selector);
+      for (let i = 0; i < matched.length; i++) {
+        results.push(matched[i]);
+      }
+    }
+  } catch (e) {}
+
+  function walk(node) {
+    if (!node) return;
+    if (node.shadowRoot) {
+      try {
+        if (node.shadowRoot.querySelectorAll) {
+          const shadowMatched = node.shadowRoot.querySelectorAll(selector);
+          for (let i = 0; i < shadowMatched.length; i++) {
+            if (!results.includes(shadowMatched[i])) {
+              results.push(shadowMatched[i]);
+            }
+          }
+        }
+      } catch (e) {}
+      walk(node.shadowRoot);
+    }
+    const children = node.children || [];
+    for (let i = 0; i < children.length; i++) {
+      walk(children[i]);
+    }
+  }
+
+  const start = (root === document) ? (document.body || document.documentElement) : root;
+  walk(start);
+  return results;
+}
+
+// Hook Element.prototype.attachShadow immediately so EVERY Polymer / Lit component
+// is styled the instant its shadowRoot is created
+if (typeof Element !== 'undefined' && Element.prototype && Element.prototype.attachShadow) {
+  if (!Element.prototype.__dejaShadowHooked__) {
+    Element.prototype.__dejaShadowHooked__ = true;
+    const origAttachShadow = Element.prototype.attachShadow;
+    Element.prototype.attachShadow = function(...args) {
+      const shadowRoot = origAttachShadow.apply(this, args);
+      try {
+        injectShadowStyles(shadowRoot);
+        if (typeof MutationObserver !== 'undefined') {
+          const shadowObs = new MutationObserver(() => {
+            scanAndInjectAllShadowRoots(shadowRoot);
+          });
+          shadowObs.observe(shadowRoot, { childList: true, subtree: true });
+        }
+      } catch (e) {}
+      return shadowRoot;
+    };
+  }
+}
 
 /**
  * BitChord Sleep Timer Engine (SleepTimer.kt)
@@ -448,8 +840,8 @@ const SleepTimer = {
   },
 
   updateUI() {
-    if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
-    const buttons = document.querySelectorAll('.deja-sleep-timer-btn');
+    if (typeof document === 'undefined') return;
+    const buttons = querySelectorAllDeep('.deja-sleep-timer-btn');
     buttons.forEach(btn => {
       if (this.afterTrack) {
         btn.classList.add('active', 'has-timer');
@@ -819,15 +1211,44 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
      ------------------------------------------------------------- */
   function injectShadowStyles(shadowRoot) {
     if (!shadowRoot) return;
-    const isPlayerBar = shadowRoot.host && (shadowRoot.host.tagName === 'YTMUSIC-PLAYER-BAR' || shadowRoot.host.id === 'player-bar');
-    const styleId = isPlayerBar ? 'deja-player-bar-shadow-style' : 'deja-universal-shadow-style';
+    const host = shadowRoot.host;
+    const tagName = host ? (host.tagName || '').toUpperCase() : '';
+    const hostId = host ? (host.id || '') : '';
+
+    let customCss = SHADOW_UNIVERSAL_SCROLLBAR_CSS;
+    let styleId = 'deja-universal-shadow-style';
+
+    if (tagName === 'YTMUSIC-PLAYER-BAR' || hostId === 'player-bar') {
+      customCss = SHADOW_PLAYER_BAR_CSS;
+      styleId = 'deja-player-bar-shadow-style';
+    } else if (tagName === 'YTMUSIC-PLAYER-PAGE' || hostId === 'player-page') {
+      customCss = SHADOW_PLAYER_PAGE_CSS;
+      styleId = 'deja-player-page-shadow-style';
+    } else if (tagName === 'YTMUSIC-GUIDE-RENDERER' || tagName === 'YTMUSIC-MINI-GUIDE-RENDERER' || hostId === 'guide' || hostId === 'mini-guide') {
+      customCss = SHADOW_GUIDE_CSS;
+      styleId = 'deja-guide-shadow-style';
+    } else if (tagName === 'YTMUSIC-CHIP-CLOUD-RENDERER' || hostId === 'chips') {
+      customCss = SHADOW_CHIP_CSS;
+      styleId = 'deja-chip-shadow-style';
+    }
+
+    if (typeof CSSStyleSheet !== 'undefined' && 'adoptedStyleSheets' in shadowRoot) {
+      try {
+        if (!shadowRoot.__dejaStyleSheetsAdopted__) {
+          const sheet = new CSSStyleSheet();
+          sheet.replaceSync(customCss);
+          shadowRoot.adoptedStyleSheets = [...(shadowRoot.adoptedStyleSheets || []), sheet];
+          shadowRoot.__dejaStyleSheetsAdopted__ = true;
+        }
+      } catch (e) {}
+    }
 
     let styleEl = shadowRoot.getElementById ? shadowRoot.getElementById(styleId) : (shadowRoot.querySelector ? shadowRoot.querySelector(`#${styleId}`) : null);
     if (!styleEl && typeof document !== 'undefined' && typeof document.createElement === 'function') {
-      styleEl = document.createElement('style');
-      styleEl.id = styleId;
-      styleEl.textContent = isPlayerBar ? SHADOW_PLAYER_BAR_CSS : SHADOW_UNIVERSAL_SCROLLBAR_CSS;
       try {
+        styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        styleEl.textContent = customCss;
         shadowRoot.appendChild(styleEl);
       } catch (e) {}
     }
@@ -878,12 +1299,38 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     const playerBar = document.querySelector('ytmusic-player-bar');
     if (!playerBar) return;
 
-    // Try finding right-controls inside shadowRoot first, or light DOM
-    const rightControls = (playerBar.shadowRoot ? playerBar.shadowRoot.querySelector('.right-controls') : null) || playerBar.querySelector('.right-controls');
-    if (!rightControls) return;
+    // Enforce flex order directly on the elements as double guarantee
+    const root = playerBar.shadowRoot || playerBar;
+    const middle = root.querySelector ? root.querySelector('.middle-controls') : null;
+    const left = root.querySelector ? root.querySelector('.left-controls') : null;
+    const right = root.querySelector ? root.querySelector('.right-controls') : null;
+    if (middle && middle.style && typeof middle.style.setProperty === 'function') {
+      middle.style.setProperty('order', '1', 'important');
+    }
+    if (left && left.style && typeof left.style.setProperty === 'function') {
+      left.style.setProperty('order', '2', 'important');
+    }
+    if (right && right.style && typeof right.style.setProperty === 'function') {
+      right.style.setProperty('order', '3', 'important');
+    }
+
+    // Hide any floating hover/preview thumbnail artifacts inside the progress bar or shadowRoot
+    const previewArtifacts = root.querySelectorAll ? root.querySelectorAll('#preview, #hover, #hover-time, .thumbnail-preview, #sliderKnob .thumbnail-container, #sliderKnob img, tp-yt-paper-tooltip, ytmusic-player-preview') : [];
+    if (previewArtifacts && previewArtifacts.forEach) {
+      previewArtifacts.forEach(el => {
+        if (el && el.style && typeof el.style.setProperty === 'function') {
+          el.style.setProperty('display', 'none', 'important');
+          el.style.setProperty('visibility', 'hidden', 'important');
+          el.style.setProperty('opacity', '0', 'important');
+          el.style.setProperty('pointer-events', 'none', 'important');
+        }
+      });
+    }
+
+    if (!right) return;
 
     // 1. Stats for Nerds / Audio Pipeline Badge
-    if (!rightControls.querySelector('.deja-audio-pipeline-badge')) {
+    if (!right.querySelector('.deja-audio-pipeline-badge')) {
       const badge = document.createElement('div');
       badge.className = 'deja-audio-pipeline-badge';
       badge.title = 'BitChord Audio Pipeline & Stats for Nerds';
@@ -892,11 +1339,11 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         e.stopPropagation();
         openAudioPipelineModal();
       };
-      rightControls.prepend(badge);
+      right.prepend(badge);
     }
 
     // 2. Sleep Timer Button
-    if (!rightControls.querySelector('.deja-sleep-timer-btn')) {
+    if (!right.querySelector('.deja-sleep-timer-btn')) {
       const sleepBtn = document.createElement('button');
       sleepBtn.className = 'deja-sleep-timer-btn';
       sleepBtn.title = 'BitChord Sleep Timer';
@@ -905,11 +1352,11 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         e.stopPropagation();
         openSleepTimerModal();
       };
-      rightControls.appendChild(sleepBtn);
+      right.appendChild(sleepBtn);
     }
 
     // 3. Equalizer Button
-    if (!rightControls.querySelector('.deja-eq-btn')) {
+    if (!right.querySelector('.deja-eq-btn')) {
       const eqBtn = document.createElement('button');
       eqBtn.className = 'deja-eq-btn';
       eqBtn.title = 'BitChord Equalizer Presets';
@@ -918,11 +1365,24 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         e.stopPropagation();
         openEqualizerModal();
       };
-      rightControls.appendChild(eqBtn);
+      right.appendChild(eqBtn);
     }
 
-    // 4. Up Next Queue Drawer Button
-    if (!rightControls.querySelector('.deja-queue-btn')) {
+    // 4. Word-Synced Lyrics Button
+    if (!right.querySelector('.deja-player-lyrics-btn')) {
+      const lyricsBtn = document.createElement('button');
+      lyricsBtn.className = 'deja-icon-btn deja-player-lyrics-btn';
+      lyricsBtn.title = 'Word-Synced Live Lyrics';
+      lyricsBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M8 9h8"></path><path d="M8 13h6"></path></svg>`;
+      lyricsBtn.onclick = (e) => {
+        e.stopPropagation();
+        toggleLyricsDrawer();
+      };
+      right.appendChild(lyricsBtn);
+    }
+
+    // 5. Up Next Queue Drawer Button
+    if (!right.querySelector('.deja-queue-btn')) {
       const queueBtn = document.createElement('button');
       queueBtn.className = 'deja-queue-btn';
       queueBtn.title = 'Up Next Queue';
@@ -931,7 +1391,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         e.stopPropagation();
         toggleQueueDrawer();
       };
-      rightControls.appendChild(queueBtn);
+      right.appendChild(queueBtn);
     }
   }
 
@@ -1034,15 +1494,15 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
   }
 
   function dismissMealbarsAndPromos() {
-    if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
-    const promos = document.querySelectorAll('ytmusic-mealbar-promo-renderer, tp-yt-paper-tooltip');
+    if (typeof document === 'undefined') return;
+    const promos = querySelectorAllDeep('ytmusic-mealbar-promo-renderer, tp-yt-paper-tooltip');
     promos.forEach(p => {
       try {
         if (p.style) {
-          p.style.display = 'none';
-          p.style.opacity = '0';
-          p.style.visibility = 'hidden';
-          p.style.pointerEvents = 'none';
+          p.style.setProperty('display', 'none', 'important');
+          p.style.setProperty('opacity', '0', 'important');
+          p.style.setProperty('visibility', 'hidden', 'important');
+          p.style.setProperty('pointer-events', 'none', 'important');
         }
       } catch (e) {}
     });
@@ -1056,14 +1516,23 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return;
     const playerPage = document.querySelector('ytmusic-player-page') || document.getElementById('player-page');
     if (playerPage) {
-      // Enforce complete transparency on native player containers to avoid black void
-      if (playerPage.style) playerPage.style.backgroundColor = 'transparent';
-      const bgElements = playerPage.querySelectorAll ? playerPage.querySelectorAll('#background, #player-page-background, #main-panel, #player') : [];
-      if (bgElements && bgElements.forEach) {
+      // Enforce complete transparency on native player containers to avoid black void in light and shadow roots
+      const roots = [playerPage];
+      if (playerPage.shadowRoot) roots.push(playerPage.shadowRoot);
+      roots.forEach(root => {
+        if (root.style) {
+          root.style.setProperty('background', 'transparent', 'important');
+          root.style.setProperty('background-color', 'transparent', 'important');
+        }
+        const bgElements = root.querySelectorAll ? root.querySelectorAll('#background, #player-page-background, #main-panel, #side-panel, #player, ytmusic-player, #song-video, #song-media-window, .main-panel, .side-panel') : [];
         bgElements.forEach(el => {
-          if (el.style) el.style.backgroundColor = 'transparent';
+          if (el.style) {
+            el.style.setProperty('background', 'transparent', 'important');
+            el.style.setProperty('background-color', 'transparent', 'important');
+            el.style.setProperty('box-shadow', 'none', 'important');
+          }
         });
-      }
+      });
 
       let aura = getEl('deja-player-ambient-aura', 'sonora-player-ambient-aura');
       if (!aura && typeof document.createElement === 'function') {
@@ -1081,6 +1550,20 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         }
       }
 
+      // Also inject into playerPage.shadowRoot if present and missing
+      if (playerPage.shadowRoot && !playerPage.shadowRoot.getElementById?.('deja-player-ambient-aura-shadow')) {
+        try {
+          const shadowAura = document.createElement('div');
+          shadowAura.id = 'deja-player-ambient-aura-shadow';
+          shadowAura.className = 'deja-player-ambient-aura';
+          setSafeHTML(shadowAura, `
+            <div class="deja-ambient-art-blur" id="deja-shadow-art-blur"></div>
+            <div class="deja-ambient-mesh-overlay" id="deja-shadow-mesh-overlay"></div>
+          `);
+          playerPage.shadowRoot.prepend(shadowAura);
+        } catch (e) {}
+      }
+
       const blurEl = getEl('deja-ambient-art-blur', 'sonora-ambient-art-blur');
       if (blurEl && coverUrl && blurEl.style) {
         const bgVal = `url("${coverUrl}")`;
@@ -1089,19 +1572,30 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         }
       }
 
+      const shadowBlurEl = playerPage.shadowRoot?.getElementById?.('deja-shadow-art-blur');
+      if (shadowBlurEl && coverUrl && shadowBlurEl.style) {
+        const bgVal = `url("${coverUrl}")`;
+        if (shadowBlurEl.style.backgroundImage !== bgVal) {
+          shadowBlurEl.style.backgroundImage = bgVal;
+        }
+      }
+
       // Sample 4 vibrant colors from artwork and dynamically paint luminous mesh
       if (coverUrl) {
         extractArtworkPalette(coverUrl, (palette) => {
           if (!palette) return;
-          if (aura && aura.style && typeof aura.style.setProperty === 'function') {
-            aura.style.setProperty('--deja-aura-c1', palette.c1);
-            aura.style.setProperty('--deja-aura-c2', palette.c2);
-            aura.style.setProperty('--deja-aura-c3', palette.c3);
-            aura.style.setProperty('--deja-aura-c4', palette.c4);
-            aura.style.setProperty('--deja-aura-r', String(palette.primaryR));
-            aura.style.setProperty('--deja-aura-g', String(palette.primaryG));
-            aura.style.setProperty('--deja-aura-b', String(palette.primaryB));
-          }
+          const auras = [aura, playerPage.shadowRoot?.getElementById?.('deja-player-ambient-aura-shadow')].filter(Boolean);
+          auras.forEach(a => {
+            if (a && a.style && typeof a.style.setProperty === 'function') {
+              a.style.setProperty('--deja-aura-c1', palette.c1);
+              a.style.setProperty('--deja-aura-c2', palette.c2);
+              a.style.setProperty('--deja-aura-c3', palette.c3);
+              a.style.setProperty('--deja-aura-c4', palette.c4);
+              a.style.setProperty('--deja-aura-r', String(palette.primaryR));
+              a.style.setProperty('--deja-aura-g', String(palette.primaryG));
+              a.style.setProperty('--deja-aura-b', String(palette.primaryB));
+            }
+          });
           if (typeof document !== 'undefined' && document.documentElement && document.documentElement.style && typeof document.documentElement.style.setProperty === 'function') {
             document.documentElement.style.setProperty('--deja-aura-c1', palette.c1);
             document.documentElement.style.setProperty('--deja-aura-c2', palette.c2);
@@ -1130,7 +1624,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
      Eliminates multiple chunky highlights on Home, Explore, Library
      ------------------------------------------------------------- */
   function updateSidebarActiveState() {
-    if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
+    if (typeof document === 'undefined') return;
     const currentPath = ((typeof window !== 'undefined' && window.location && window.location.pathname) || '').toLowerCase();
     const cleanPath = currentPath.replace(/^\/+|\/+$/g, '');
 
@@ -1138,7 +1632,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     const isExploreRoute = cleanPath.includes('explore') || cleanPath.includes('femusic_explore');
     const isLibraryRoute = cleanPath.includes('library') || cleanPath.includes('femusic_library');
 
-    const entries = document.querySelectorAll('ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer');
+    const entries = querySelectorAllDeep('ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer');
     if (!entries || !entries.forEach) return;
 
     let activeEntry = null;
@@ -1190,6 +1684,19 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
           if (entry.classList && typeof entry.classList.remove === 'function') {
             entry.classList.remove('iron-selected', 'active');
           }
+        }
+      }
+
+      // Also clean any child paper-item
+      const paperItem = entry.querySelector ? entry.querySelector('tp-yt-paper-item, .paper-item') : null;
+      if (paperItem) {
+        if (paperItem.style) {
+          paperItem.style.setProperty('background', 'transparent', 'important');
+          paperItem.style.setProperty('box-shadow', 'none', 'important');
+        }
+        if (!isActive) {
+          paperItem.removeAttribute?.('aria-selected');
+          paperItem.classList?.remove?.('iron-selected', 'active');
         }
       }
     });
@@ -1495,7 +2002,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     drawer.className = 'deja-queue-drawer visible';
 
     // Extract native queue tracks if present
-    const nativeQueueItems = document.querySelectorAll('ytmusic-player-queue-item');
+    const nativeQueueItems = querySelectorAllDeep('ytmusic-player-queue-item');
     const queueTracks = [];
     if (nativeQueueItems && nativeQueueItems.length > 0) {
       nativeQueueItems.forEach(item => {
@@ -1837,8 +2344,12 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports.SleepTimer = SleepTimer;
   module.exports.AudioPipeline = AudioPipeline;
   module.exports.AudioEqualizer = AudioEqualizer;
+  module.exports.querySelectorAllDeep = querySelectorAllDeep;
   module.exports.SHADOW_PLAYER_BAR_CSS = SHADOW_PLAYER_BAR_CSS;
   module.exports.SHADOW_UNIVERSAL_SCROLLBAR_CSS = SHADOW_UNIVERSAL_SCROLLBAR_CSS;
+  module.exports.SHADOW_PLAYER_PAGE_CSS = SHADOW_PLAYER_PAGE_CSS;
+  module.exports.SHADOW_GUIDE_CSS = SHADOW_GUIDE_CSS;
+  module.exports.SHADOW_CHIP_CSS = SHADOW_CHIP_CSS;
 }
 
 if (typeof window !== 'undefined') {
@@ -1848,4 +2359,10 @@ if (typeof window !== 'undefined') {
   window.SleepTimer = SleepTimer;
   window.AudioPipeline = AudioPipeline;
   window.AudioEqualizer = AudioEqualizer;
+  window.querySelectorAllDeep = querySelectorAllDeep;
+  window.SHADOW_PLAYER_BAR_CSS = SHADOW_PLAYER_BAR_CSS;
+  window.SHADOW_UNIVERSAL_SCROLLBAR_CSS = SHADOW_UNIVERSAL_SCROLLBAR_CSS;
+  window.SHADOW_PLAYER_PAGE_CSS = SHADOW_PLAYER_PAGE_CSS;
+  window.SHADOW_GUIDE_CSS = SHADOW_GUIDE_CSS;
+  window.SHADOW_CHIP_CSS = SHADOW_CHIP_CSS;
 }

@@ -74,6 +74,72 @@ body, ytmusic-app {
   background: transparent !important;
 }
 
+/* Specific Light DOM Scrollable Containers */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+ytmusic-app::-webkit-scrollbar,
+ytmusic-browse-response::-webkit-scrollbar,
+ytmusic-guide-renderer::-webkit-scrollbar,
+ytmusic-mini-guide-renderer::-webkit-scrollbar,
+ytmusic-player-page::-webkit-scrollbar,
+ytmusic-player-bar::-webkit-scrollbar,
+ytmusic-chip-cloud-renderer::-webkit-scrollbar,
+#chips::-webkit-scrollbar,
+#chips-container::-webkit-scrollbar,
+#side-panel::-webkit-scrollbar,
+#main-panel::-webkit-scrollbar,
+#guide-wrapper::-webkit-scrollbar,
+#guide-content::-webkit-scrollbar,
+#items::-webkit-scrollbar,
+#sections::-webkit-scrollbar,
+ytmusic-tab-renderer::-webkit-scrollbar,
+ytmusic-section-list-renderer::-webkit-scrollbar,
+iron-list::-webkit-scrollbar,
+tp-yt-paper-listbox::-webkit-scrollbar,
+tp-yt-app-drawer::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+html::-webkit-scrollbar-button,
+body::-webkit-scrollbar-button,
+ytmusic-app::-webkit-scrollbar-button,
+ytmusic-browse-response::-webkit-scrollbar-button,
+ytmusic-guide-renderer::-webkit-scrollbar-button,
+ytmusic-mini-guide-renderer::-webkit-scrollbar-button,
+ytmusic-player-page::-webkit-scrollbar-button,
+ytmusic-player-bar::-webkit-scrollbar-button,
+ytmusic-chip-cloud-renderer::-webkit-scrollbar-button,
+#chips::-webkit-scrollbar-button,
+#chips-container::-webkit-scrollbar-button,
+#side-panel::-webkit-scrollbar-button,
+#main-panel::-webkit-scrollbar-button,
+#guide-wrapper::-webkit-scrollbar-button,
+#guide-content::-webkit-scrollbar-button,
+#items::-webkit-scrollbar-button,
+#sections::-webkit-scrollbar-button,
+ytmusic-tab-renderer::-webkit-scrollbar-button,
+ytmusic-section-list-renderer::-webkit-scrollbar-button,
+iron-list::-webkit-scrollbar-button,
+tp-yt-paper-listbox::-webkit-scrollbar-button,
+tp-yt-app-drawer::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track,
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+html::-webkit-scrollbar-corner,
+body::-webkit-scrollbar-corner {
+  display: none !important;
+  background: transparent !important;
+}
+
 /* Apple Custom Window Top Bar */
 #deja-titlebar,
 #sonora-titlebar,
@@ -911,6 +977,11 @@ ytmusic-player-bar #preview,
 ytmusic-player-bar #hover,
 ytmusic-player-bar .thumbnail-preview,
 ytmusic-player-bar paper-slider #sliderKnob .thumbnail-container,
+ytmusic-player-bar #sliderKnob .thumbnail-container,
+ytmusic-player-bar #sliderKnob img,
+ytmusic-player-bar #sliderKnob yt-img-shadow,
+ytmusic-player-bar ytmusic-player-preview,
+ytmusic-player-bar ytmusic-thumbnail-preview,
 ytmusic-player-bar #hover.paper-progress,
 ytmusic-player-bar tp-yt-paper-tooltip,
 ytmusic-player-bar #thumbnail.preview,
@@ -1294,10 +1365,10 @@ ytmusic-player-page,
   inset: -10% !important;
   width: 120% !important;
   height: 120% !important;
-  background: radial-gradient(circle at 20% 25%, var(--deja-aura-c1, rgba(250, 45, 72, 0.45)) 0%, transparent 60%),
-              radial-gradient(circle at 80% 20%, var(--deja-aura-c2, rgba(140, 40, 220, 0.40)) 0%, transparent 65%),
-              radial-gradient(circle at 25% 80%, var(--deja-aura-c3, rgba(40, 160, 220, 0.35)) 0%, transparent 60%),
-              radial-gradient(circle at 75% 75%, var(--deja-aura-c4, rgba(250, 140, 45, 0.35)) 0%, transparent 65%),
+  background: radial-gradient(circle at 20% 25%, var(--deja-aura-c1, rgba(250, 45, 72, 0.50)) 0%, transparent 60%),
+              radial-gradient(circle at 80% 20%, var(--deja-aura-c2, rgba(140, 40, 220, 0.45)) 0%, transparent 65%),
+              radial-gradient(circle at 25% 80%, var(--deja-aura-c3, rgba(40, 160, 220, 0.40)) 0%, transparent 60%),
+              radial-gradient(circle at 75% 75%, var(--deja-aura-c4, rgba(250, 140, 45, 0.40)) 0%, transparent 65%),
               radial-gradient(circle at 50% 50%, rgba(18, 18, 22, 0.30) 0%, rgba(14, 14, 16, 0.88) 100%) !important;
   mix-blend-mode: overlay !important;
   animation: dejaMeshDrift 24s infinite alternate ease-in-out !important;
@@ -1707,6 +1778,7 @@ body.mini-player-mode ytmusic-player-bar {
 /* 2. Sleep Timer Button & Live Countdown Pill */
 .deja-sleep-timer-btn,
 .deja-eq-btn,
+.deja-player-lyrics-btn,
 .deja-queue-btn {
   background: rgba(255, 255, 255, 0.08) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -1725,6 +1797,7 @@ body.mini-player-mode ytmusic-player-bar {
 
 .deja-sleep-timer-btn:hover,
 .deja-eq-btn:hover,
+.deja-player-lyrics-btn:hover,
 .deja-queue-btn:hover {
   background: rgba(255, 255, 255, 0.16) !important;
   color: #FFFFFF !important;
@@ -1733,6 +1806,7 @@ body.mini-player-mode ytmusic-player-bar {
 
 .deja-sleep-timer-btn.active,
 .deja-eq-btn.active,
+.deja-player-lyrics-btn.active,
 .deja-queue-btn.active {
   background: rgba(250, 45, 72, 0.18) !important;
   color: var(--apple-accent) !important;

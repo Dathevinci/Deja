@@ -61,12 +61,18 @@ function runThemeTests() {
   assert.ok(css.includes('ytmusic-chip-cloud-renderer'), 'Must style ytmusic-chip-cloud-renderer');
   assert.ok(css.includes('#left-arrow-button') && css.includes('#right-arrow-button'), 'Must hide scroll arrows on chip cloud renderer');
 
-  // Verify BitChord Signatures (Audio Pipeline, Sleep Timer, EQ, Queue Drawer)
+  // Verify BitChord Signatures (Audio Pipeline, Sleep Timer, EQ, Lyrics, Queue Drawer)
   assert.ok(css.includes('.deja-audio-pipeline-badge'), 'Must style BitChord audio pipeline badge');
   assert.ok(css.includes('.deja-sleep-timer-btn'), 'Must style BitChord sleep timer button');
   assert.ok(css.includes('.deja-eq-btn'), 'Must style BitChord equalizer button');
+  assert.ok(css.includes('.deja-player-lyrics-btn'), 'Must style BitChord player bar lyrics button');
   assert.ok(css.includes('.deja-queue-drawer'), 'Must style BitChord Up Next queue drawer');
   assert.ok(css.includes('.deja-ambient-mesh-overlay'), 'Must include luminous dynamic mesh gradient overlay');
+
+  // Verify Element-Specific Scrollbar Rules
+  assert.ok(css.includes('ytmusic-guide-renderer::-webkit-scrollbar'), 'Must include guide renderer scrollbar rule');
+  assert.ok(css.includes('ytmusic-chip-cloud-renderer::-webkit-scrollbar'), 'Must include chip cloud renderer scrollbar rule');
+  assert.ok(css.includes('ytmusic-player-page::-webkit-scrollbar'), 'Must include player page scrollbar rule');
 
   console.log('✓ Apple Theme CSS tests passed successfully.');
 }
