@@ -895,7 +895,7 @@ function createCatalogueItemFromLive(t) {
   const duration = typeof t.duration === 'number' && t.duration > 0 ? t.duration : 210;
   const cover = t.cover || (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '../../assets/icon.png');
 
-  return {
+  const itemObj = {
     id: t.id || (videoId ? `yt-${videoId}` : `track-${Math.random().toString(36).slice(2, 9)}`),
     videoId: videoId,
     title: title,
@@ -949,7 +949,16 @@ function renderLiveCardHTML(item, globalCardId) {
   `;
 }
 
-async function fetchLiveYouTubeMusic() {
+let fetchLivePromise = null;
+function fetchLiveYouTubeMusic() {
+  if (fetchLivePromise) return fetchLivePromise;
+  fetchLivePromise = _fetchLiveYouTubeMusicInternal().finally(() => {
+    fetchLivePromise = null;
+  });
+  return fetchLivePromise;
+}
+
+async function _fetchLiveYouTubeMusicInternal() {
   const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
   if (!api) return;
   isFetchingLive = true;
@@ -1145,6 +1154,11 @@ function updateAccountUI(acc) {
     if (badge) {
       badge.title = `${displayName} (${acc.handle || 'Connected'})`;
     }
+    const switchLiveBtn = document.getElementById('btn-switch-live');
+    if (switchLiveBtn) {
+      const span = switchLiveBtn.querySelector('span');
+      if (span) span.innerText = 'YouTube Music Connected';
+    }
   } else {
     if (avatarText) {
       avatarText.innerText = 'G';
@@ -1158,6 +1172,11 @@ function updateAccountUI(acc) {
     const badge = document.getElementById('btn-login-status');
     if (badge) {
       badge.title = 'Sign in with Google / YouTube Music';
+    }
+    const switchLiveBtn = document.getElementById('btn-switch-live');
+    if (switchLiveBtn) {
+      const span = switchLiveBtn.querySelector('span');
+      if (span) span.innerText = 'Connect Live YouTube Music';
     }
   }
 }

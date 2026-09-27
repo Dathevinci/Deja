@@ -480,9 +480,15 @@ ipcMain.handle('open-external', (event, url) => {
 });
 
 // Google Account & YouTube Music Authentication Dialog
+let activeLoginWin = null;
 ipcMain.handle('open-google-login', async () => {
   return new Promise((resolve) => {
     try {
+      if (activeLoginWin && !activeLoginWin.isDestroyed()) {
+        activeLoginWin.focus();
+        return resolve(true);
+      }
+
       const ses = session.fromPartition('persist:ytmusic');
       const loginWin = new BrowserWindow({
         width: 580,
@@ -498,6 +504,7 @@ ipcMain.handle('open-google-login', async () => {
           sandbox: true
         }
       });
+      activeLoginWin = loginWin;
 
       // Enforce clean Chrome User Agent with no Electron tokens
       loginWin.webContents.setUserAgent(CHROME_UA);
@@ -508,7 +515,13 @@ ipcMain.handle('open-google-login', async () => {
           action: 'allow',
           overrideBrowserWindowOptions: {
             userAgent: CHROME_UA,
-            autoHideMenuBar: true
+            autoHideMenuBar: true,
+            webPreferences: {
+              partition: 'persist:ytmusic',
+              nodeIntegration: false,
+              contextIsolation: true,
+              sandbox: true
+            }
           }
         };
       });
@@ -524,8 +537,11 @@ ipcMain.handle('open-google-login', async () => {
         if (currentUrl.includes('music.youtube.com') && !currentUrl.includes('accounts.google.com')) {
           try {
             const cookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
+            const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
             const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
-            const allCookies = [...cookies, ...musicCookies];
+            const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
+            const googleDomainCookies = await ses.cookies.get({ domain: 'google.com' }).catch(() => []);
+            const allCookies = [...cookies, ...ytDomainCookies, ...musicCookies, ...googleCookies, ...googleDomainCookies];
             const cookieNames = new Set(allCookies.map(c => c.name));
 
             // Verify required Google authentication cookies are present (SAPISID, SID, or LOGIN_INFO)
@@ -533,7 +549,9 @@ ipcMain.handle('open-google-login', async () => {
                                   cookieNames.has('SID') ||
                                   cookieNames.has('LOGIN_INFO') ||
                                   cookieNames.has('__Secure-3PAPISID') ||
-                                  cookieNames.has('__Secure-1PAPISID');
+                                  cookieNames.has('__Secure-1PAPISID') ||
+                                  cookieNames.has('SSID') ||
+                                  cookieNames.has('HSID');
 
             if (hasAuthCookie) {
               authResolved = true;
@@ -560,30 +578,39 @@ ipcMain.handle('open-google-login', async () => {
       // Listen for navigation events (did-navigate, did-navigate-in-page)
       loginWin.webContents.on('did-navigate', (e, url) => {
         checkLoginSuccess(url);
+        setTimeout(() => checkLoginSuccess(url), 400);
+        setTimeout(() => checkLoginSuccess(url), 1000);
       });
 
       loginWin.webContents.on('did-navigate-in-page', (e, url) => {
         checkLoginSuccess(url);
+        setTimeout(() => checkLoginSuccess(url), 400);
       });
 
       // Cookie change listener to detect login immediately
       const onCookieChanged = (event, cookie, cause, removed) => {
-        if (!removed && (cookie.name === 'SAPISID' || cookie.name === 'SID' || cookie.name === 'LOGIN_INFO')) {
+        if (!removed && (cookie.name === 'SAPISID' || cookie.name === 'SID' || cookie.name === 'LOGIN_INFO' || cookie.name === '__Secure-3PAPISID')) {
           checkLoginSuccess();
         }
       };
       ses.cookies.on('changed', onCookieChanged);
 
       loginWin.on('closed', async () => {
+        activeLoginWin = null;
         ses.cookies.removeListener('changed', onCookieChanged);
-        try {
-          const info = await innertube.getAccountInfo(ses);
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('auth-changed', info);
-            mainWindow.webContents.send('auth-state-changed', info);
-          }
-        } catch {}
-        resolve(true);
+        if (!authResolved) {
+          try {
+            const info = await innertube.getAccountInfo(ses);
+            if (info && info.isLoggedIn) {
+              authResolved = true;
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('auth-changed', info);
+                mainWindow.webContents.send('auth-state-changed', info);
+              }
+            }
+          } catch {}
+        }
+        resolve(authResolved);
       });
 
       loginWin.loadURL('https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F', {
@@ -778,15 +805,42 @@ app.whenReady().then(() => {
       for (const k of Object.keys(requestHeaders)) {
         if (typeof requestHeaders[k] === 'string') {
           if (/electron/i.test(requestHeaders[k])) {
-            requestHeaders[k] = requestHeaders[k].replace(/Electron\/[0-9\.]+\s*/gi, '').trim();
+            requestHeaders[k] = requestHeaders[k]
+              .replace(/Electron\/[0-9\.]+\s*/gi, '')
+              .replace(/"?Electron"?;v="?[0-9\.]+"?\s*,?\s*/gi, '')
+              .replace(/Electron\s*/gi, '')
+              .replace(/,\s*,/g, ', ')
+              .replace(/^[,\s]+|[,\s]+$/g, '')
+              .trim();
           }
           if (/deja/i.test(requestHeaders[k])) {
-            requestHeaders[k] = requestHeaders[k].replace(/Deja\/[0-9\.]+\s*/gi, '').trim();
+            requestHeaders[k] = requestHeaders[k]
+              .replace(/Deja\/[0-9\.]+\s*/gi, '')
+              .replace(/"?Deja"?;v="?[0-9\.]+"?\s*,?\s*/gi, '')
+              .replace(/Deja\s*/gi, '')
+              .replace(/,\s*,/g, ', ')
+              .replace(/^[,\s]+|[,\s]+$/g, '')
+              .trim();
           }
         }
       }
 
-      const isGoogleAuth = details.url.includes('accounts.google.com');
+      // Remove any lowercase/variant header keys before explicitly setting clean canonical headers
+      for (const k of Object.keys(requestHeaders)) {
+        const lower = k.toLowerCase();
+        if (
+          lower === 'user-agent' ||
+          lower === 'sec-ch-ua' ||
+          lower === 'sec-ch-ua-mobile' ||
+          lower === 'sec-ch-ua-platform' ||
+          lower === 'sec-ch-ua-full-version-list' ||
+          lower === 'sec-ch-ua-model'
+        ) {
+          delete requestHeaders[k];
+        }
+      }
+
+      const isGoogleAuth = details.url.includes('accounts.google.com') || details.url.includes('accounts.youtube.com');
       const isYtOrGv = (
         details.url.includes('youtube.com') ||
         details.url.includes('youtube-nocookie.com') ||
@@ -821,14 +875,15 @@ app.whenReady().then(() => {
       requestHeaders['Sec-Ch-Ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
       requestHeaders['Sec-Ch-Ua-Mobile'] = '?0';
       requestHeaders['Sec-Ch-Ua-Platform'] = '"Windows"';
+      requestHeaders['Sec-Ch-Ua-Full-Version-List'] = '"Google Chrome";v="131.0.6778.86", "Chromium";v="131.0.6778.86", "Not_A Brand";v="24.0.0.0"';
 
       callback({ cancel: false, requestHeaders });
     });
 
     // Strip iframe embedding restrictions and enable cross-origin media streaming
     ses.webRequest.onHeadersReceived((details, callback) => {
-      // Do NOT mutate security headers on accounts.google.com (Google security scripts detect altered CSP/CORS)
-      if (details.url.includes('accounts.google.com')) {
+      // Do NOT mutate security headers on accounts.google.com or accounts.youtube.com (Google security scripts detect altered CSP/CORS)
+      if (details.url.includes('accounts.google.com') || details.url.includes('accounts.youtube.com')) {
         return callback({ cancel: false, responseHeaders: details.responseHeaders });
       }
 

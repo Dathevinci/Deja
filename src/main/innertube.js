@@ -24,7 +24,10 @@ async function getAuthContext(ses) {
   try {
     const cookies = await ses.cookies.get({ url: MUSIC_ORIGIN }).catch(() => []);
     const ytCookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
-    const allCookies = [...cookies, ...ytCookies];
+    const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
+    const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
+    const googleDomainCookies = await ses.cookies.get({ domain: 'google.com' }).catch(() => []);
+    const allCookies = [...cookies, ...ytCookies, ...ytDomainCookies, ...googleCookies, ...googleDomainCookies];
     const cookieMap = {};
     allCookies.forEach(c => {
       cookieMap[c.name] = c.value;
@@ -115,18 +118,23 @@ async function getAccountInfo(ses) {
     function walk(node) {
       if (!node || typeof node !== 'object') return;
       if (Array.isArray(node)) { node.forEach(walk); return; }
-      if (node.activeAccountHeaderRenderer) {
-        const h = node.activeAccountHeaderRenderer;
+      const h = node.activeAccountHeaderRenderer || node.accountHeaderRenderer || node.accountItemRenderer;
+      if (h) {
         name = h.accountName?.runs?.[0]?.text ||
                h.channelTitle?.runs?.[0]?.text ||
                h.channelName?.runs?.[0]?.text ||
                h.title?.runs?.[0]?.text ||
+               h.accountName?.simpleText ||
+               h.channelTitle?.simpleText ||
+               h.title?.simpleText ||
                name;
         handle = h.channelHandle?.runs?.[0]?.text ||
                  h.email?.runs?.[0]?.text ||
                  h.byline?.runs?.[0]?.text ||
+                 h.channelHandle?.simpleText ||
+                 h.email?.simpleText ||
                  handle;
-        const thumbs = h.accountPhoto?.thumbnails || h.avatar?.thumbnails || h.thumbnail?.thumbnails || [];
+        const thumbs = h.accountPhoto?.thumbnails || h.avatar?.thumbnails || h.thumbnail?.thumbnails || h.thumbnails || [];
         if (thumbs.length > 0) {
           avatarUrl = thumbs[thumbs.length - 1].url;
         }
@@ -666,6 +674,11 @@ function parseLibraryPlaylistsResponse(data) {
       if (card && card.browseId && !playlists.some(p => p.browseId === card.browseId)) {
         playlists.push(card);
       }
+    } else if (node.musicResponsiveListItemRenderer) {
+      const item = parseResponsiveItem(node.musicResponsiveListItemRenderer);
+      if (item && item.browseId && !playlists.some(p => p.browseId === item.browseId)) {
+        playlists.push(item);
+      }
     }
     Object.values(node).forEach(walk);
   }
@@ -1134,5 +1147,6 @@ module.exports = {
   cleanSearchTerm,
   search,
   rate,
-  sapisidHash
+  sapisidHash,
+  parseLibraryPlaylistsResponse
 };

@@ -295,7 +295,9 @@ function runBitChordArchitectureTests() {
   assert.ok(mainCode.includes("'auth-changed'"), 'main.js must send auth-changed IPC event to mainWindow');
   assert.ok(mainCode.includes("replace(/Electron\\/[0-9\\.]+\\s*/gi"), 'main.js must strip Electron tokens from all request headers');
   assert.ok(mainCode.includes("requestHeaders['Sec-Ch-Ua-Platform'] = '\"Windows\"'"), 'main.js must provide standard Windows Client Hint platform');
+  assert.ok(mainCode.includes("requestHeaders['Sec-Ch-Ua-Full-Version-List']"), 'main.js must provide canonical Sec-Ch-Ua-Full-Version-List client hints');
   assert.ok(mainCode.includes("details.url.includes('accounts.google.com')"), 'main.js must safeguard accounts.google.com security headers');
+  assert.ok(mainCode.includes("details.url.includes('accounts.youtube.com')"), 'main.js must safeguard accounts.youtube.com security headers');
 
   // Verify preload.js listens to auth-changed
   assert.ok(preloadCode.includes("ipcRenderer.on('auth-changed'"), 'preload.js must listen for auth-changed IPC event');
@@ -310,7 +312,10 @@ function runBitChordArchitectureTests() {
     global.document = {
       getElementById: (id) => {
         if (!global.document._store[id]) {
-          global.document._store[id] = { style: {} };
+          global.document._store[id] = {
+            style: {},
+            querySelector: () => ({ innerText: '' })
+          };
         }
         return global.document._store[id];
       },
@@ -337,6 +342,26 @@ function runBitChordArchitectureTests() {
     assert.strictEqual(global.document.getElementById('user-avatar-text').innerText, 'G');
   } finally {
     global.document = prevDoc;
+  }
+
+  // Verify InnerTube parses responsive library playlist items
+  const innertubeModule = require('../src/main/innertube.js');
+  if (typeof innertubeModule.parseLibraryPlaylistsResponse === 'function') {
+    const mockResponsivePls = {
+      contents: [{
+        musicResponsiveListItemRenderer: {
+          flexColumns: [
+            {
+              musicResponsiveListItemFlexColumnRenderer: {
+                text: { runs: [{ text: 'Chill Mix', navigationEndpoint: { browseEndpoint: { browseId: 'VLPLchill123' } } }] }
+              }
+            }
+          ]
+        }
+      }]
+    };
+    const parsedPls = innertubeModule.parseLibraryPlaylistsResponse(mockResponsivePls);
+    assert.ok(parsedPls.some(p => p.browseId === 'VLPLchill123'), 'Must parse responsive playlist list items');
   }
 
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
