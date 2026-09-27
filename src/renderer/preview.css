@@ -1929,3 +1929,25 @@ body.deja-playing .expanded-artwork-container,
   gap: 12px;
   margin-top: 8px;
 }
+
+.card-type-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: rgba(18, 18, 20, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #FFFFFF;
+  text-transform: uppercase;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.card-type-badge.yt-badge {
+  background: rgba(250, 45, 72, 0.85);
+}

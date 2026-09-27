@@ -13,6 +13,15 @@ const dejaAPI = {
   openGoogleLogin: () => ipcRenderer.invoke('open-google-login'),
   toggleWebMode: () => ipcRenderer.invoke('toggle-web-mode'),
   searchYouTube: (query) => ipcRenderer.invoke('yt-search', query),
+  getHomeFeed: () => ipcRenderer.invoke('yt-home-feed'),
+  getExploreFeed: () => ipcRenderer.invoke('yt-explore-feed'),
+  getBrowsePlaylist: (browseId) => ipcRenderer.invoke('yt-browse-playlist', browseId),
+  getNextQueue: (videoId) => ipcRenderer.invoke('yt-next-queue', videoId),
+  getAccountInfo: () => ipcRenderer.invoke('yt-account-info'),
+  rateSong: (videoId, status) => ipcRenderer.invoke('yt-rate', { videoId, status }),
+  onAuthChanged: (callback) => {
+    ipcRenderer.on('auth-state-changed', (event, data) => callback(data));
+  },
   onPlayerAction: (callback) => {
     ipcRenderer.on('player-action', (event, data) => callback(data));
   },

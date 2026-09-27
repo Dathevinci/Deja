@@ -50,268 +50,313 @@ function createCoverArt(title, subtitle, c1, c2, c3, patternType = 'mesh') {
 
 const CATALOGUE_TRACKS = [
   {
-    id: 'track-1',
-    videoId: 'jfKfPfyJRdk',
-    title: 'Midnight Reverie',
-    artist: 'Aura Soundscapes',
-    album: 'Deja Originals',
-    duration: 215,
-    genre: 'Chill / Ambient',
-    year: '2026',
-    playlists: ['favorites', 'lofi', 'featured'],
-    palette: { c1: 'rgba(250, 45, 72, 0.48)', c2: 'rgba(140, 40, 220, 0.44)', c3: 'rgba(255, 120, 50, 0.40)', c4: 'rgba(40, 160, 220, 0.35)', primaryR: 250, primaryG: 45, primaryB: 72 },
-    cover: createCoverArt('Midnight Reverie', 'Aura Soundscapes', '#FA2D48', '#833AB4', '#FD1D1D'),
+    id: 'yt-ic8j13U_FS8',
+    videoId: 'ic8j13U_FS8',
+    title: 'Cruel Summer',
+    artist: 'Taylor Swift',
+    album: 'Lover',
+    duration: 178,
+    genre: 'Pop',
+    year: '2019',
+    playlists: ['favorites', 'featured'],
+    palette: { c1: 'rgba(250, 45, 72, 0.48)', c2: 'rgba(255, 120, 50, 0.44)', c3: 'rgba(255, 200, 55, 0.40)', c4: 'rgba(250, 80, 120, 0.35)', primaryR: 250, primaryG: 45, primaryB: 72 },
+    cover: 'https://i.ytimg.com/vi/ic8j13U_FS8/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'Neon lights reflecting on the window pane' },
-      { time: 6, text: 'The city hums a rhythm through the midnight rain' },
-      { time: 13, text: 'Echoes of a melody from yesterday' },
-      { time: 20, text: 'Floating gently as the shadows fade away' },
-      { time: 28, text: 'In the soundscape of tomorrow we find peace' },
-      { time: 36, text: 'Where the timeless chords of harmony increase' },
-      { time: 44, text: 'Feel the bassline moving softly through the night' },
-      { time: 52, text: 'Guided by the crimson Apple aura light' },
-      { time: 60, text: 'Every note a story waiting to be told' },
-      { time: 70, text: 'In a desktop symphony of crystal and gold' },
-      { time: 82, text: 'Drifting further into this electric dream' },
-      { time: 95, text: 'Nothing is ever quite as it would seem' },
-      { time: 110, text: 'A gentle frequency that sets the spirit free' },
-      { time: 130, text: 'Midnight Reverie, forever you and me' }
+      { time: 0, text: 'Fever dream high in the quiet of the night' },
+      { time: 5, text: 'You know that I caught it (Oh yeah, you\'re right, I want it)' },
+      { time: 11, text: 'Bad, bad boy, shiny toy with a price' },
+      { time: 16, text: 'You know that I bought it (Oh yeah, even in my dreams)' },
+      { time: 23, text: 'And it\'s new, the shape of your body' },
+      { time: 26, text: 'It\'s blue, the feeling I\'ve got' },
+      { time: 29, text: 'And it\'s ooh, whoa, oh' },
+      { time: 34, text: 'It\'s a cruel summer with you' },
+      { time: 45, text: 'Hang your head low in the glow of the vending machine' },
+      { time: 50, text: 'I\'m not dying' },
+      { time: 60, text: 'We say that we\'ll just screw it up in these trying times' },
+      { time: 75, text: 'I\'m drunk in the back of the car' },
+      { time: 82, text: 'And I cried like a baby coming home from the bar' },
+      { time: 92, text: 'Said, "I\'m fine," but it wasn\'t true' },
+      { time: 104, text: 'I don\'t wanna keep secrets just to keep you' },
+      { time: 115, text: 'And I snuck in through the garden gate' },
+      { time: 122, text: 'Every night that summer just to seal my fate' }
     ]
   },
   {
-    id: 'track-2',
-    videoId: 'DWcJFNfaw9c',
-    title: 'Starlight Symphony',
-    artist: 'Celestial Echo',
-    album: 'Cosmic Horizons',
-    duration: 184,
-    genre: 'Space Ambient',
-    year: '2026',
-    playlists: ['favorites', 'lofi'],
-    palette: { c1: 'rgba(0, 192, 255, 0.48)', c2: 'rgba(43, 88, 118, 0.44)', c3: 'rgba(78, 84, 200, 0.40)', c4: 'rgba(0, 242, 254, 0.35)', primaryR: 0, primaryG: 192, primaryB: 255 },
-    cover: createCoverArt('Starlight Symphony', 'Celestial Echo', '#00C0FF', '#2B5876', '#4E54C8'),
+    id: 'yt-4NRXx6U8ABQ',
+    videoId: '4NRXx6U8ABQ',
+    title: 'Blinding Lights',
+    artist: 'The Weeknd',
+    album: 'After Hours',
+    duration: 200,
+    genre: 'Synthwave / Pop',
+    year: '2020',
+    playlists: ['favorites', 'synth', 'workout'],
+    palette: { c1: 'rgba(255, 0, 80, 0.48)', c2: 'rgba(30, 20, 50, 0.44)', c3: 'rgba(255, 60, 0, 0.40)', c4: 'rgba(120, 0, 50, 0.35)', primaryR: 255, primaryG: 0, primaryB: 80 },
+    cover: 'https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'Drifting past constellations in the deep' },
-      { time: 8, text: 'Waking up the universe from quiet sleep' },
-      { time: 16, text: 'Harmonics resonate across the space and time' },
-      { time: 25, text: 'Every constellation sings a subtle rhyme' },
-      { time: 35, text: 'Lost in stellar dust and endless skies' },
-      { time: 45, text: 'Seeing pure perfection in your eyes' },
-      { time: 60, text: 'A supernova burning with a sapphire glow' },
-      { time: 75, text: 'Dancing in the cosmic streams below' },
-      { time: 90, text: 'Starlight symphony, play until the dawn' },
-      { time: 110, text: 'Carrying our memories on and on' }
+      { time: 0, text: 'Yeah' },
+      { time: 12, text: 'I\'ve been tryna call' },
+      { time: 15, text: 'I\'ve been on my own for long enough' },
+      { time: 20, text: 'Maybe you can show me how to love, maybe' },
+      { time: 28, text: 'I\'m going through withdrawals' },
+      { time: 33, text: 'You don\'t even have to do too much' },
+      { time: 37, text: 'You can turn me on with just a touch, baby' },
+      { time: 48, text: 'I look around and Sin City\'s cold and empty' },
+      { time: 54, text: 'No one\'s around to judge me' },
+      { time: 60, text: 'I can\'t see clearly when you\'re gone' },
+      { time: 65, text: 'I said, ooh, I\'m blinded by the lights' },
+      { time: 75, text: 'No, I can\'t sleep until I feel your touch' },
+      { time: 85, text: 'I said, ooh, I\'m drowning in the night' },
+      { time: 95, text: 'Oh, when I\'m like this, you\'re the one I trust' }
     ]
   },
   {
-    id: 'track-3',
-    videoId: '4xDzrJKXOOY',
-    title: 'Cyberpunk Odyssey',
-    artist: 'Glitch Horizon',
-    album: 'Synthetic Dreams',
-    duration: 242,
-    genre: 'Synthwave',
-    year: '2026',
-    playlists: ['synth', 'workout', 'featured'],
-    palette: { c1: 'rgba(255, 0, 127, 0.48)', c2: 'rgba(121, 40, 202, 0.44)', c3: 'rgba(0, 245, 255, 0.40)', c4: 'rgba(255, 75, 43, 0.35)', primaryR: 255, primaryG: 0, primaryB: 127 },
-    cover: createCoverArt('Cyberpunk Odyssey', 'Glitch Horizon', '#FF007F', '#7928CA', '#00F5FF'),
-    lyrics: [
-      { time: 0, text: 'Analog warmth in a digital sphere' },
-      { time: 10, text: 'Voices of neon becoming so clear' },
-      { time: 22, text: 'Circuits pulse beneath the street' },
-      { time: 32, text: 'Locking into this magnetic beat' },
-      { time: 44, text: 'Data streams flowing through our veins' },
-      { time: 56, text: 'Breaking free of the mechanical chains' },
-      { time: 70, text: 'High above the towers of chrome and glass' },
-      { time: 85, text: 'Watching another millennium pass' },
-      { time: 105, text: 'The synthesizer cries into the rain' },
-      { time: 125, text: 'Cyberpunk odyssey, rise up again' }
-    ]
-  },
-  {
-    id: 'track-4',
-    videoId: '5qap5aO4i9A',
-    title: 'Golden Sunset Boulevard',
-    artist: 'Solara',
-    album: 'Summer Memories',
-    duration: 198,
-    genre: 'Chillhop',
-    year: '2025',
-    playlists: ['favorites', 'lofi'],
-    palette: { c1: 'rgba(255, 128, 8, 0.48)', c2: 'rgba(255, 200, 55, 0.44)', c3: 'rgba(238, 90, 36, 0.40)', c4: 'rgba(255, 175, 123, 0.35)', primaryR: 255, primaryG: 128, primaryB: 8 },
-    cover: createCoverArt('Golden Sunset', 'Solara', '#FF8008', '#FFC837', '#EE5A24'),
-    lyrics: [
-      { time: 0, text: 'Warm breeze whispering through the palm tree leaves' },
-      { time: 12, text: 'Memories of yesterday that nobody perceives' },
-      { time: 24, text: 'Amber rays casting long golden lines' },
-      { time: 36, text: 'Everything falling into place by design' },
-      { time: 50, text: 'Sipping coffee as the ocean meets the sky' },
-      { time: 65, text: 'Watching sea birds gently glide on by' },
-      { time: 80, text: 'Golden sunset, hold on to this light' },
-      { time: 100, text: 'Before the velvet beauty of the night' }
-    ]
-  },
-  {
-    id: 'track-5',
-    videoId: 'WPni755-Krg',
-    title: 'Emerald Canopy',
-    artist: 'Forest Whispers',
-    album: 'Botanica',
+    id: 'yt-eVli-tstM5E',
+    videoId: 'eVli-tstM5E',
+    title: 'Espresso',
+    artist: 'Sabrina Carpenter',
+    album: 'Short n\' Sweet',
     duration: 175,
-    genre: 'Lo-Fi Nature',
-    year: '2026',
-    playlists: ['lofi'],
-    palette: { c1: 'rgba(0, 176, 116, 0.48)', c2: 'rgba(42, 245, 152, 0.44)', c3: 'rgba(17, 153, 142, 0.40)', c4: 'rgba(56, 239, 125, 0.35)', primaryR: 0, primaryG: 176, primaryB: 116 },
-    cover: createCoverArt('Emerald Canopy', 'Forest Whispers', '#00B074', '#2AF598', '#11998E'),
+    genre: 'Nu-Disco / Pop',
+    year: '2024',
+    playlists: ['favorites', 'featured'],
+    palette: { c1: 'rgba(240, 160, 40, 0.48)', c2: 'rgba(60, 150, 240, 0.44)', c3: 'rgba(255, 220, 100, 0.40)', c4: 'rgba(200, 100, 30, 0.35)', primaryR: 240, primaryG: 160, primaryB: 40 },
+    cover: 'https://i.ytimg.com/vi/eVli-tstM5E/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'Morning dew drops sparkling on the fern' },
-      { time: 10, text: 'Ancient secrets that the trees will never learn' },
-      { time: 22, text: 'Gentle footsteps on the mossy ground' },
-      { time: 34, text: 'The purest silence is the richest sound' },
-      { time: 48, text: 'Canopy of emerald shielding from the sun' },
-      { time: 62, text: 'Where modern worries are completely undone' },
-      { time: 80, text: 'Breathe the cedar, breathe the pine' },
-      { time: 98, text: 'In the emerald forest, everything is fine' }
+      { time: 0, text: 'Now he\'s thinkin\' \'bout me every night, oh' },
+      { time: 6, text: 'Is it that sweet? I guess so' },
+      { time: 11, text: 'Say you can\'t sleep, baby, I know' },
+      { time: 16, text: 'That\'s that me espresso' },
+      { time: 22, text: 'Move it up, down, left, right, oh' },
+      { time: 27, text: 'Switch it up like Nintendo' },
+      { time: 33, text: 'Say you can\'t sleep, baby, I know' },
+      { time: 38, text: 'That\'s that me espresso' },
+      { time: 45, text: 'I can\'t relate to desperation' },
+      { time: 50, text: 'My give-a-fucks are on vacation' },
+      { time: 55, text: 'And I got this one boy and he won\'t stop calling' },
+      { time: 65, text: 'Now he\'s thinkin\' \'bout me every night, oh' },
+      { time: 75, text: 'That\'s that me espresso' }
     ]
   },
   {
-    id: 'track-6',
-    videoId: 'TURbeWK2wwg',
-    title: 'Tokyo Midnight Overdrive',
-    artist: 'Neon Overdrive',
-    album: 'Shibuya 1988',
+    id: 'yt-G7KNmW9a75Y',
+    videoId: 'G7KNmW9a75Y',
+    title: 'Flowers',
+    artist: 'Miley Cyrus',
+    album: 'Endless Summer Vacation',
+    duration: 200,
+    genre: 'Pop',
+    year: '2023',
+    playlists: ['favorites'],
+    palette: { c1: 'rgba(255, 200, 0, 0.48)', c2: 'rgba(200, 100, 0, 0.44)', c3: 'rgba(255, 80, 50, 0.40)', c4: 'rgba(180, 120, 20, 0.35)', primaryR: 255, primaryG: 200, primaryB: 0 },
+    cover: 'https://i.ytimg.com/vi/G7KNmW9a75Y/hqdefault.jpg',
+    lyrics: [
+      { time: 0, text: 'We were good, we were gold' },
+      { time: 6, text: 'Kinda dream that can\'t be sold' },
+      { time: 12, text: 'We were right \'til we weren\'t' },
+      { time: 18, text: 'Built a home and watched it burn' },
+      { time: 24, text: 'Mm, I didn\'t wanna leave you' },
+      { time: 30, text: 'I didn\'t wanna lie' },
+      { time: 36, text: 'Started to cry, but then remembered I' },
+      { time: 42, text: 'I can buy myself flowers' },
+      { time: 48, text: 'Write my name in the sand' },
+      { time: 54, text: 'Talk to myself for hours' },
+      { time: 60, text: 'Say things you don\'t understand' },
+      { time: 66, text: 'I can take myself dancing' },
+      { time: 72, text: 'And I can hold my own hand' },
+      { time: 78, text: 'Yeah, I can love me better than you can' }
+    ]
+  },
+  {
+    id: 'yt-34Na4j8AVgA',
+    videoId: '34Na4j8AVgA',
+    title: 'Starboy',
+    artist: 'The Weeknd ft. Daft Punk',
+    album: 'Starboy',
     duration: 230,
-    genre: 'Synthwave',
-    year: '2026',
-    playlists: ['synth', 'workout'],
-    palette: { c1: 'rgba(225, 0, 255, 0.48)', c2: 'rgba(63, 43, 150, 0.44)', c3: 'rgba(255, 41, 117, 0.40)', c4: 'rgba(102, 126, 234, 0.35)', primaryR: 225, primaryG: 0, primaryB: 255 },
-    cover: createCoverArt('Tokyo Overdrive', 'Neon Overdrive', '#E100FF', '#3F2B96', '#FF2975'),
+    genre: 'R&B / Electronic',
+    year: '2016',
+    playlists: ['favorites', 'synth'],
+    palette: { c1: 'rgba(0, 100, 255, 0.48)', c2: 'rgba(255, 0, 80, 0.44)', c3: 'rgba(20, 20, 60, 0.40)', c4: 'rgba(0, 200, 255, 0.35)', primaryR: 0, primaryG: 100, primaryB: 255 },
+    cover: 'https://i.ytimg.com/vi/34Na4j8AVgA/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'Headlights cutting through the Shibuya rain' },
-      { time: 10, text: 'Tachometer redlining once again' },
-      { time: 22, text: 'Shinkansen speeding past the bay' },
-      { time: 35, text: 'Chasing the ghost of yesterday' },
-      { time: 50, text: 'Wangan expressway under violet skies' },
-      { time: 65, text: 'Reflections dancing in your eyes' },
-      { time: 80, text: 'Downshift into the sharp hairpin curve' },
-      { time: 95, text: 'Feel the adrenaline in every nerve' },
-      { time: 115, text: 'Tokyo midnight overdrive' },
-      { time: 135, text: 'This is the city where legends survive' }
+      { time: 0, text: 'I\'m tryna put you in the worst mood, ah' },
+      { time: 5, text: 'P1 cleaner than your church shoes, ah' },
+      { time: 10, text: 'Milli point two just to hurt you, ah' },
+      { time: 15, text: 'All red Lamb\' just to tease you, ah' },
+      { time: 21, text: 'None of these toys on lease too, ah' },
+      { time: 26, text: 'Made your whole year in a week too, yah' },
+      { time: 36, text: 'Look what you\'ve done' },
+      { time: 42, text: 'I\'m a motherfuckin\' starboy' },
+      { time: 50, text: 'Look what you\'ve done' },
+      { time: 58, text: 'I\'m a motherfuckin\' starboy' }
     ]
   },
   {
-    id: 'track-7',
-    videoId: 'fEvM-OUq940',
-    title: 'Quantum Resonance',
-    artist: 'HyperPulse',
-    album: 'Future Bass',
-    duration: 205,
-    genre: 'Electronic',
-    year: '2026',
-    playlists: ['workout', 'featured'],
-    palette: { c1: 'rgba(0, 242, 254, 0.48)', c2: 'rgba(79, 172, 254, 0.44)', c3: 'rgba(168, 237, 234, 0.40)', c4: 'rgba(0, 198, 251, 0.35)', primaryR: 0, primaryG: 242, primaryB: 254 },
-    cover: createCoverArt('Quantum Resonance', 'HyperPulse', '#00F2FE', '#4FACFE', '#A8EDEA'),
+    id: 'yt-H5v3kku4y6Q',
+    videoId: 'H5v3kku4y6Q',
+    title: 'As It Was',
+    artist: 'Harry Styles',
+    album: 'Harry\'s House',
+    duration: 167,
+    genre: 'Indie Pop',
+    year: '2022',
+    playlists: ['favorites'],
+    palette: { c1: 'rgba(255, 80, 50, 0.48)', c2: 'rgba(50, 120, 220, 0.44)', c3: 'rgba(250, 200, 60, 0.40)', c4: 'rgba(220, 60, 60, 0.35)', primaryR: 255, primaryG: 80, primaryB: 50 },
+    cover: 'https://i.ytimg.com/vi/H5v3kku4y6Q/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'Particle spin in the subatomic haze' },
-      { time: 12, text: 'Entangled waveforms in a holographic maze' },
-      { time: 25, text: 'Frequency oscillation reaching peak power' },
-      { time: 38, text: 'Countdown clock ticking toward the zero hour' },
-      { time: 52, text: 'Drop the heavy sub, shake the foundation' },
-      { time: 68, text: 'A brand new sonic revelation' },
-      { time: 84, text: 'Quantum resonance in full stereo display' },
-      { time: 102, text: 'Wash all the earthly gravity away' }
+      { time: 0, text: 'Come on, Harry, we wanna say goodnight to you' },
+      { time: 7, text: 'Holdin\' me back' },
+      { time: 10, text: 'Gravity\'s holdin\' me back' },
+      { time: 14, text: 'I want you to hold out the palm of your hand' },
+      { time: 18, text: 'Why don\'t we leave it at that?' },
+      { time: 25, text: 'Nothin\' to say' },
+      { time: 29, text: 'When everything gets in the way' },
+      { time: 36, text: 'You know it\'s not the same as it was' },
+      { time: 43, text: 'In this world, it\'s just us' },
+      { time: 50, text: 'You know it\'s not the same as it was' }
     ]
   },
   {
-    id: 'track-8',
-    videoId: 'lTRiuFIWV54',
-    title: 'Velvet Rain & Espresso',
-    artist: 'Lofi Coffee Club',
-    album: 'Study Sessions',
-    duration: 160,
-    genre: 'Lo-Fi',
-    year: '2025',
+    id: 'yt-TUVcZfQe-Kw',
+    videoId: 'TUVcZfQe-Kw',
+    title: 'Levitating',
+    artist: 'Dua Lipa',
+    album: 'Future Nostalgia',
+    duration: 203,
+    genre: 'Nu-Disco',
+    year: '2020',
+    playlists: ['workout', 'synth'],
+    palette: { c1: 'rgba(160, 40, 220, 0.48)', c2: 'rgba(0, 220, 255, 0.44)', c3: 'rgba(255, 50, 150, 0.40)', c4: 'rgba(100, 20, 180, 0.35)', primaryR: 160, primaryG: 40, primaryB: 220 },
+    cover: 'https://i.ytimg.com/vi/TUVcZfQe-Kw/hqdefault.jpg',
+    lyrics: [
+      { time: 0, text: 'If you wanna run away with me, I know a galaxy' },
+      { time: 5, text: 'And I can take you for a ride' },
+      { time: 9, text: 'I had a premonition that we fell into a rhythm' },
+      { time: 13, text: 'Where the music don\'t stop for life' },
+      { time: 18, text: 'Glitter in the sky, glitter in my eyes' },
+      { time: 22, text: 'Shining just the way I like' },
+      { time: 27, text: 'If you\'re feeling like you need a little bit of company' },
+      { time: 31, text: 'You met me at the perfect time' },
+      { time: 35, text: 'You want me, I want you, baby' },
+      { time: 40, text: 'My sugarboo, I\'m levitating' }
+    ]
+  },
+  {
+    id: 'yt-LIIDh-qI9oI',
+    videoId: 'LIIDh-qI9oI',
+    title: 'Save Your Tears',
+    artist: 'The Weeknd & Ariana Grande',
+    album: 'After Hours',
+    duration: 191,
+    genre: 'Synth-Pop',
+    year: '2021',
+    playlists: ['favorites'],
+    palette: { c1: 'rgba(240, 50, 80, 0.48)', c2: 'rgba(120, 30, 180, 0.44)', c3: 'rgba(255, 120, 40, 0.40)', c4: 'rgba(60, 10, 80, 0.35)', primaryR: 240, primaryG: 50, primaryB: 80 },
+    cover: 'https://i.ytimg.com/vi/LIIDh-qI9oI/hqdefault.jpg',
+    lyrics: [
+      { time: 0, text: 'I saw you dancing in a crowded room' },
+      { time: 8, text: 'You look so happy when I\'m not with you' },
+      { time: 16, text: 'But then you saw me, caught you by surprise' },
+      { time: 24, text: 'A single teardrop falling from your eye' },
+      { time: 32, text: 'I don\'t know why I run away' },
+      { time: 40, text: 'I make you cry when I run away' },
+      { time: 48, text: 'Save your tears for another day' },
+      { time: 56, text: 'Save your tears for another day' }
+    ]
+  },
+  {
+    id: 'yt-RlPNh_PBZb4',
+    videoId: 'RlPNh_PBZb4',
+    title: 'vampire',
+    artist: 'Olivia Rodrigo',
+    album: 'GUTS',
+    duration: 219,
+    genre: 'Pop Rock',
+    year: '2023',
+    playlists: ['favorites'],
+    palette: { c1: 'rgba(140, 30, 60, 0.48)', c2: 'rgba(30, 20, 40, 0.44)', c3: 'rgba(200, 40, 80, 0.40)', c4: 'rgba(80, 10, 30, 0.35)', primaryR: 140, primaryG: 30, primaryB: 60 },
+    cover: 'https://i.ytimg.com/vi/RlPNh_PBZb4/hqdefault.jpg',
+    lyrics: [
+      { time: 0, text: 'Hate to give the satisfaction, asking how you\'re doing now' },
+      { time: 8, text: 'How\'s the castle built off people you pretend to care about?' },
+      { time: 16, text: 'Just what you wanted, look at you, cool guy, you got it' },
+      { time: 24, text: 'I should\'ve known it was strange' },
+      { time: 30, text: 'You only come out at night' },
+      { time: 36, text: 'Bloodsucker, fame fucker' },
+      { time: 42, text: 'Bleedin\' me dry like a goddamn vampire' }
+    ]
+  },
+  {
+    id: 'yt-b1kbLwvqugk',
+    videoId: 'b1kbLwvqugk',
+    title: 'Anti-Hero',
+    artist: 'Taylor Swift',
+    album: 'Midnights',
+    duration: 200,
+    genre: 'Synth-Pop',
+    year: '2022',
+    playlists: ['favorites'],
+    palette: { c1: 'rgba(80, 80, 180, 0.48)', c2: 'rgba(180, 100, 60, 0.44)', c3: 'rgba(30, 30, 70, 0.40)', c4: 'rgba(120, 120, 220, 0.35)', primaryR: 80, primaryG: 80, primaryB: 180 },
+    cover: 'https://i.ytimg.com/vi/b1kbLwvqugk/hqdefault.jpg',
+    lyrics: [
+      { time: 0, text: 'I have this thing where I get older, but just never wiser' },
+      { time: 6, text: 'Midnights become my afternoons' },
+      { time: 12, text: 'When my depression works the graveyard shift' },
+      { time: 18, text: 'All of the people I\'ve ghosted stand there in the room' },
+      { time: 28, text: 'It\'s me, hi, I\'m the problem, it\'s me' },
+      { time: 36, text: 'At tea time, everybody agrees' },
+      { time: 42, text: 'I\'ll stare directly at the sun, but never in the mirror' },
+      { time: 50, text: 'It must be exhausting always rooting for the anti-hero' }
+    ]
+  },
+  {
+    id: 'yt-kPa7bsKwL-c',
+    videoId: 'kPa7bsKwL-c',
+    title: 'Die With A Smile',
+    artist: 'Lady Gaga & Bruno Mars',
+    album: 'Die With A Smile',
+    duration: 251,
+    genre: 'Soul / Pop',
+    year: '2024',
+    playlists: ['favorites', 'featured'],
+    palette: { c1: 'rgba(0, 140, 200, 0.48)', c2: 'rgba(200, 60, 60, 0.44)', c3: 'rgba(50, 80, 150, 0.40)', c4: 'rgba(180, 40, 80, 0.35)', primaryR: 0, primaryG: 140, primaryB: 200 },
+    cover: 'https://i.ytimg.com/vi/kPa7bsKwL-c/hqdefault.jpg',
+    lyrics: [
+      { time: 0, text: 'I, I just woke up from a dream' },
+      { time: 8, text: 'Where you and I had to say goodbye' },
+      { time: 16, text: 'And I don\'t know what it all means' },
+      { time: 24, text: 'But since I survived, I realized' },
+      { time: 32, text: 'Wherever you go, that\'s where I\'ll follow' },
+      { time: 40, text: 'Nobody\'s promised tomorrow' },
+      { time: 48, text: 'So I\'ma love you every night like it\'s the last night' },
+      { time: 58, text: 'If the world was ending, I\'d wanna be next to you' },
+      { time: 70, text: 'If the party was over and our time on Earth was through' },
+      { time: 82, text: 'I\'d wanna hold you just for a while and die with a smile' }
+    ]
+  },
+  {
+    id: 'yt-d5gf9dXHevw',
+    videoId: 'd5gf9dXHevw',
+    title: 'Birds of a Feather',
+    artist: 'Billie Eilish',
+    album: 'HIT ME HARD AND SOFT',
+    duration: 196,
+    genre: 'Alt-Pop',
+    year: '2024',
     playlists: ['favorites', 'lofi'],
-    palette: { c1: 'rgba(138, 35, 135, 0.48)', c2: 'rgba(233, 64, 87, 0.44)', c3: 'rgba(242, 113, 33, 0.40)', c4: 'rgba(180, 58, 120, 0.35)', primaryR: 138, primaryG: 35, primaryB: 135 },
-    cover: createCoverArt('Velvet Rain', 'Lofi Coffee Club', '#8A2387', '#E94057', '#F27121'),
+    palette: { c1: 'rgba(50, 160, 220, 0.48)', c2: 'rgba(20, 40, 90, 0.44)', c3: 'rgba(100, 200, 255, 0.40)', c4: 'rgba(10, 20, 50, 0.35)', primaryR: 50, primaryG: 160, primaryB: 220 },
+    cover: 'https://i.ytimg.com/vi/d5gf9dXHevw/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'Steam rising from the ceramic mug' },
-      { time: 10, text: 'Warm blanket like a peaceful hug' },
-      { time: 22, text: 'Rain tapping softly on the window pane' },
-      { time: 34, text: 'Washing away all fatigue and strain' },
-      { time: 48, text: 'Pages turning with a gentle sound' },
-      { time: 62, text: 'The coziest haven to be found' },
-      { time: 78, text: 'Velvet rain, take your time' },
-      { time: 94, text: 'Matching the mellow piano chime' }
-    ]
-  },
-  {
-    id: 'track-9',
-    videoId: '1fueZCTYkpA',
-    title: 'Kinetic Overdrive',
-    artist: 'Kinetic Drive',
-    album: 'Redline',
-    duration: 190,
-    genre: 'High Energy',
-    year: '2026',
-    playlists: ['workout'],
-    palette: { c1: 'rgba(255, 65, 108, 0.48)', c2: 'rgba(255, 75, 43, 0.44)', c3: 'rgba(241, 39, 17, 0.40)', c4: 'rgba(255, 140, 0, 0.35)', primaryR: 255, primaryG: 65, primaryB: 108 },
-    cover: createCoverArt('Kinetic Overdrive', 'Kinetic Drive', '#FF416C', '#FF4B2B', '#F12711'),
-    lyrics: [
-      { time: 0, text: 'Feel the heart rate climbing higher' },
-      { time: 10, text: 'Lungs filled with pure electric fire' },
-      { time: 20, text: 'Pounding pavement with every stride' },
-      { time: 30, text: 'No hesitation, no place to hide' },
-      { time: 45, text: 'Breaking through the barrier of fatigue' },
-      { time: 60, text: 'Running in a whole different league' },
-      { time: 75, text: 'Kinetic power unleashed and wild' },
-      { time: 90, text: 'Stronger than ever, unreconciled' }
-    ]
-  },
-  {
-    id: 'track-10',
-    videoId: 'rUxyKA_-grg',
-    title: 'Deep Mind Meditation',
-    artist: 'Mindful Waves',
-    album: 'Inner Calm',
-    duration: 210,
-    genre: 'Ambient',
-    year: '2026',
-    playlists: ['favorites', 'lofi'],
-    palette: { c1: 'rgba(48, 207, 208, 0.48)', c2: 'rgba(51, 8, 103, 0.44)', c3: 'rgba(0, 168, 255, 0.40)', c4: 'rgba(100, 43, 115, 0.35)', primaryR: 48, primaryG: 207, primaryB: 208 },
-    cover: createCoverArt('Deep Mind', 'Mindful Waves', '#30CFD0', '#330867', '#00A8FF'),
-    lyrics: [
-      { time: 0, text: 'Inhale peace, exhale all the noise' },
-      { time: 12, text: 'Returning to centered quiet poise' },
-      { time: 26, text: 'Waves receding on a tranquil shore' },
-      { time: 40, text: 'Opening up the inner spiritual door' },
-      { time: 55, text: 'Light expanding inside the chest' },
-      { time: 70, text: 'Finding eternal restorative rest' },
-      { time: 90, text: 'Mindful waves wash over the soul' },
-      { time: 110, text: 'Making the fragmented spirit whole' }
-    ]
-  },
-  {
-    id: 'track-11',
-    videoId: '7NOSDKb0HlU',
-    title: 'Outrun Nostalgia',
-    artist: 'Pixel Arcade',
-    album: '8-Bit Dreams',
-    duration: 180,
-    genre: 'Synthwave',
-    year: '2025',
-    playlists: ['synth'],
-    palette: { c1: 'rgba(243, 85, 218, 0.48)', c2: 'rgba(112, 0, 255, 0.44)', c3: 'rgba(255, 0, 128, 0.40)', c4: 'rgba(0, 230, 255, 0.35)', primaryR: 243, primaryG: 85, primaryB: 218 },
-    cover: createCoverArt('Outrun Nostalgia', 'Pixel Arcade', '#F355DA', '#7000FF', '#FF0080'),
-    lyrics: [
-      { time: 0, text: 'Insert coin to start the game' },
-      { time: 10, text: 'A glowing screen with our high-score name' },
-      { time: 22, text: 'Pixel horizons stretching far away' },
-      { time: 34, text: 'In the golden 80s we choose to stay' },
-      { time: 48, text: 'Arcade cabinets glowing in the dark' },
-      { time: 64, text: 'Igniting an eternal retro spark' },
-      { time: 80, text: 'Press turbo boost, fly off the ramp' },
-      { time: 96, text: 'The undisputed champion of the camp' }
+      { time: 0, text: 'I want you to stay' },
+      { time: 6, text: '\'Til I\'m in the grave' },
+      { time: 12, text: '\'Til I rot away, dead and buried' },
+      { time: 18, text: '\'Til I\'m in the casket you carry' },
+      { time: 24, text: 'If you go, I\'m goin\' too, uh' },
+      { time: 30, text: '\'Cause it was always you, alright' },
+      { time: 38, text: 'And if I\'m turnin\' blue, please don\'t save me' },
+      { time: 46, text: 'Nothin\' in this world could ever break me' },
+      { time: 54, text: 'Birds of a feather, we should stick together, I know' }
     ]
   }
 ];
@@ -329,9 +374,16 @@ let isMuted = false;
 let previousVolume = 0.75;
 let isShuffle = false;
 let repeatMode = 'off'; // 'off', 'all', 'one'
-let lovedTrackIds = new Set(['track-1', 'track-4', 'track-8']);
+let lovedTrackIds = new Set(['yt-ic8j13U_FS8', 'yt-4NRXx6U8ABQ', 'yt-kPa7bsKwL-c']);
 let currentView = 'listen-now';
 let searchQuery = '';
+
+// Live YouTube Music State (InnerTube WEB_REMIX architecture)
+let liveHomeShelves = [];
+let liveExploreShelves = [];
+let liveAccount = { isLoggedIn: false };
+let activeBrowseDetail = null;
+let isFetchingLive = false;
 
 // Security: HTML Escaping
 function escapeHTML(str) {
@@ -495,6 +547,7 @@ if (typeof document !== 'undefined') {
     loadTrack(0);
     pushNavigation('listen-now', false);
     renderCurrentView();
+    fetchLiveYouTubeMusic();
   });
 }
 
@@ -612,13 +665,380 @@ function renderCurrentView() {
   } else if (currentView.startsWith('playlist-')) {
     const playlistId = currentView.replace('playlist-', '');
     renderSinglePlaylistView(mainContent, playlistId);
+  } else if (currentView === 'browse-detail') {
+    renderBrowseDetailView(mainContent);
   }
 }
 
+function createCatalogueItemFromLive(t) {
+  const videoId = t.videoId || '';
+  const title = t.title || 'YouTube Track';
+  const artist = t.artist || 'YouTube Music';
+  const album = t.album || 'YouTube Music';
+  const duration = typeof t.duration === 'number' && t.duration > 0 ? t.duration : 210;
+  const cover = t.cover || (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '../../assets/icon.png');
+
+  return {
+    id: t.id || (videoId ? `yt-${videoId}` : `track-${Math.random().toString(36).slice(2, 9)}`),
+    videoId: videoId,
+    title: title,
+    artist: artist,
+    album: album,
+    duration: duration,
+    durationStr: t.durationStr || formatTime(duration),
+    genre: 'YouTube Music',
+    year: '2026',
+    playlists: ['favorites'],
+    palette: {
+      c1: 'rgba(250, 45, 72, 0.48)',
+      c2: 'rgba(140, 40, 220, 0.44)',
+      c3: 'rgba(255, 120, 50, 0.40)',
+      c4: 'rgba(40, 160, 220, 0.35)',
+      primaryR: 250,
+      primaryG: 45,
+      primaryB: 72
+    },
+    cover: cover,
+    lyrics: [
+      { time: 0, text: `Playing "${title}"` },
+      { time: 5, text: `By ${artist}` },
+      { time: 12, text: 'Streamed directly from YouTube Music' }
+    ]
+  };
+}
+
+function renderLiveCardHTML(item, globalCardId) {
+  const safeTitle = escapeHTML(item.title || '');
+  const safeSub = escapeHTML(item.subtitle || item.artist || 'YouTube Music');
+  const safeCover = escapeHTML(item.cover || '../../assets/icon.png');
+  const isBrowse = item.type === 'browse' || (!item.videoId && item.browseId);
+
+  return `
+    <div class="apple-music-card live-yt-card" data-live-id="${globalCardId}">
+      <div class="card-thumb-wrapper">
+        <img src="${safeCover}" class="card-thumb" alt="${safeTitle}" onerror="this.src='../../assets/icon.png'">
+        <div class="card-play-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </div>
+        ${isBrowse ? '<span class="card-type-badge">ALBUM</span>' : '<span class="card-type-badge yt-badge">YTM</span>'}
+      </div>
+      <div class="card-title">${safeTitle}</div>
+      <div class="card-subtitle">${safeSub}</div>
+    </div>
+  `;
+}
+
+async function fetchLiveYouTubeMusic() {
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (!api) return;
+  isFetchingLive = true;
+
+  // 1. Account Info
+  try {
+    if (api.getAccountInfo) {
+      const acc = await api.getAccountInfo();
+      updateAccountUI(acc);
+    }
+  } catch (err) {
+    console.warn('[Account] getAccountInfo error:', err.message);
+  }
+
+  // 2. Home Feed (FEmusic_home)
+  try {
+    if (api.getHomeFeed) {
+      const homeData = await api.getHomeFeed();
+      if (homeData && homeData.shelves && homeData.shelves.length > 0) {
+        liveHomeShelves = homeData.shelves;
+        if (homeData.tracks && homeData.tracks.length > 0) {
+          homeData.tracks.forEach(t => {
+            if (t.videoId && !CATALOGUE_TRACKS.some(x => x.videoId === t.videoId)) {
+              CATALOGUE_TRACKS.push(createCatalogueItemFromLive(t));
+            }
+          });
+        }
+        if (currentView === 'listen-now') {
+          renderCurrentView();
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Feed] Home feed error:', err.message);
+  }
+
+  // 3. Explore Feed (FEmusic_explore)
+  try {
+    if (api.getExploreFeed) {
+      const exploreData = await api.getExploreFeed();
+      if (exploreData && exploreData.shelves && exploreData.shelves.length > 0) {
+        liveExploreShelves = exploreData.shelves;
+        if (exploreData.tracks && exploreData.tracks.length > 0) {
+          exploreData.tracks.forEach(t => {
+            if (t.videoId && !CATALOGUE_TRACKS.some(x => x.videoId === t.videoId)) {
+              CATALOGUE_TRACKS.push(createCatalogueItemFromLive(t));
+            }
+          });
+        }
+        if (currentView === 'browse') {
+          renderCurrentView();
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Feed] Explore feed error:', err.message);
+  }
+
+  isFetchingLive = false;
+}
+
+function updateAccountUI(acc) {
+  if (!acc) return;
+  liveAccount = acc;
+  const avatarText = document.getElementById('user-avatar-text');
+  const avatarImg = document.getElementById('user-avatar-img');
+  const pillText = document.getElementById('user-pill-text');
+
+  if (acc.isLoggedIn) {
+    if (avatarImg && acc.avatarUrl) {
+      avatarImg.src = acc.avatarUrl;
+      avatarImg.style.display = 'inline-block';
+      if (avatarText) avatarText.style.display = 'none';
+    } else if (avatarText) {
+      avatarText.innerText = (acc.name || 'U')[0].toUpperCase();
+      avatarText.style.display = 'inline-block';
+      if (avatarImg) avatarImg.style.display = 'none';
+    }
+    if (pillText) {
+      pillText.innerText = acc.name || 'Connected';
+      pillText.style.color = '#34C759';
+    }
+  } else {
+    if (avatarText) {
+      avatarText.innerText = 'G';
+      avatarText.style.display = 'inline-block';
+    }
+    if (avatarImg) avatarImg.style.display = 'none';
+    if (pillText) {
+      pillText.innerText = 'Sign In';
+      pillText.style.color = '';
+    }
+  }
+}
+
+async function openBrowseDetail(browseId, title = 'Album', cover = '', subtitle = 'YouTube Music') {
+  currentView = 'browse-detail';
+  activeBrowseDetail = {
+    browseId,
+    title,
+    subtitle,
+    cover,
+    songs: [],
+    isLoading: true
+  };
+  pushNavigation('browse-detail', false);
+  renderCurrentView();
+
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (api?.getBrowsePlaylist) {
+    try {
+      const detail = await api.getBrowsePlaylist(browseId);
+      if (detail) {
+        activeBrowseDetail = {
+          browseId,
+          title: detail.title || title,
+          subtitle: detail.subtitle || subtitle,
+          cover: detail.cover || cover,
+          songs: detail.songs || [],
+          isLoading: false
+        };
+        if (currentView === 'browse-detail') {
+          renderCurrentView();
+        }
+      }
+    } catch (err) {
+      console.warn('[Browse] getBrowsePlaylist error:', err.message);
+      if (activeBrowseDetail) {
+        activeBrowseDetail.isLoading = false;
+        renderCurrentView();
+      }
+    }
+  }
+}
+
+function renderBrowseDetailView(container) {
+  if (!activeBrowseDetail) {
+    navigateTo('listen-now');
+    return;
+  }
+
+  const { title, subtitle, cover, songs, isLoading } = activeBrowseDetail;
+  const safeTitle = escapeHTML(title);
+  const safeSubtitle = escapeHTML(subtitle);
+  const safeCover = escapeHTML(cover || '../../assets/icon.png');
+
+  container.innerHTML = `
+    <div style="padding: 10px 0 20px 0;">
+      <div class="category-hero">
+        <img src="${safeCover}" class="category-hero-cover" alt="${safeTitle}" onerror="this.src='../../assets/icon.png'">
+        <div class="category-hero-details">
+          <span class="category-hero-tag">YOUTUBE MUSIC ALBUM / PLAYLIST</span>
+          <h1 class="category-hero-title">${safeTitle}</h1>
+          <p class="category-hero-desc">${safeSubtitle}</p>
+          <div class="category-hero-actions">
+            ${songs && songs.length > 0 ? `
+              <button class="btn-apple-primary" id="btn-play-browse-all">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Play All</span>
+              </button>
+              <button class="btn-apple-secondary" id="btn-shuffle-browse-all">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="16 3 21 3 21 8"></polyline>
+                  <line x1="4" y1="20" x2="21" y2="3"></line>
+                  <polyline points="21 16 21 21 16 21"></polyline>
+                  <line x1="15" y1="15" x2="21" y2="21"></line>
+                  <line x1="4" y1="4" x2="9" y2="9"></line>
+                </svg>
+                <span>Shuffle</span>
+              </button>
+            ` : ''}
+            <button class="genre-chip" onclick="navigateBack()">‹ Back</button>
+          </div>
+        </div>
+      </div>
+
+      ${isLoading ? `
+        <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+          <div style="font-size: 14px; margin-bottom: 8px;">Loading YouTube Music tracklist...</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Fetching from InnerTube API</div>
+        </div>
+      ` : (songs && songs.length > 0 ? `
+        <div class="songs-table-container">
+          <div class="songs-table-header">
+            <span>#</span>
+            <span>Title</span>
+            <span>Artist</span>
+            <span>Album</span>
+            <span>Duration</span>
+            <span>Play</span>
+          </div>
+          ${songs.map((s, idx) => `
+            <div class="song-row" id="browse-song-${idx}">
+              <span class="song-number">${idx + 1}</span>
+              <div class="song-title-cell">
+                <img src="${escapeHTML(s.cover || safeCover)}" class="song-cell-thumb" alt="${escapeHTML(s.title)}" onerror="this.src='../../assets/icon.png'">
+                <span class="song-title">${escapeHTML(s.title)}</span>
+              </div>
+              <span class="song-artist-cell">${escapeHTML(s.artist)}</span>
+              <span class="song-album-cell">${escapeHTML(s.album || title)}</span>
+              <span class="song-duration-cell">${escapeHTML(s.durationStr || formatTime(s.duration))}</span>
+              <div>
+                <button class="player-icon-btn" style="width:28px; height:28px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      ` : `
+        <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+          <p>No tracks found in this playlist or album.</p>
+        </div>
+      `)}
+    </div>
+  `;
+
+  if (songs && songs.length > 0) {
+    songs.forEach((s, idx) => {
+      const row = document.getElementById(`browse-song-${idx}`);
+      if (row) {
+        row.onclick = () => {
+          playLiveTrack(s);
+        };
+      }
+    });
+
+    const btnPlayAll = document.getElementById('btn-play-browse-all');
+    if (btnPlayAll) {
+      btnPlayAll.onclick = () => {
+        playLiveTrack(songs[0]);
+      };
+    }
+
+    const btnShuffleAll = document.getElementById('btn-shuffle-browse-all');
+    if (btnShuffleAll) {
+      btnShuffleAll.onclick = () => {
+        const randSong = songs[Math.floor(Math.random() * songs.length)];
+        playLiveTrack(randSong);
+      };
+    }
+  }
+}
+
+function playLiveTrack(item) {
+  if (!item) return;
+  let idx = CATALOGUE_TRACKS.findIndex(t => (item.videoId && t.videoId === item.videoId) || t.id === item.id);
+  if (idx === -1) {
+    const fullTrack = createCatalogueItemFromLive(item);
+    CATALOGUE_TRACKS.unshift(fullTrack);
+    idx = 0;
+  }
+  selectTrack(idx);
+}
 
 function renderListenNowView(container) {
-  const featuredTracks = CATALOGUE_TRACKS.slice(0, 6);
-  const newReleases = CATALOGUE_TRACKS.slice(6);
+  const hasLiveShelves = liveHomeShelves && liveHomeShelves.length > 0;
+  let shelvesHTML = '';
+
+  if (hasLiveShelves) {
+    shelvesHTML = liveHomeShelves.map((shelf, shelfIdx) => {
+      return `
+        <section class="shelf-section">
+          <div class="shelf-header">
+            <div>
+              <h2 class="shelf-title">${escapeHTML(shelf.title)}</h2>
+              ${shelf.strapline ? `<p style="font-size: 13px; color: var(--text-secondary); margin-top: 3px;">${escapeHTML(shelf.strapline)}</p>` : ''}
+            </div>
+            <span class="shelf-action" style="color: var(--apple-accent); font-weight: 600;">YouTube Music</span>
+          </div>
+          <div class="card-grid" ${shelfIdx === 0 ? 'id="featured-grid"' : (shelfIdx === 1 ? 'id="new-releases-grid"' : '')}>
+            ${shelf.items.map((item, itemIdx) => {
+              const globalCardId = `live-home-${shelfIdx}-${itemIdx}`;
+              return renderLiveCardHTML(item, globalCardId);
+            }).join('')}
+          </div>
+        </section>
+      `;
+    }).join('');
+  } else {
+    const featuredTracks = CATALOGUE_TRACKS.slice(0, 6);
+    const newReleases = CATALOGUE_TRACKS.slice(6);
+    shelvesHTML = `
+      <section class="shelf-section">
+        <div class="shelf-header">
+          <h2 class="shelf-title">Featured Albums & Hits</h2>
+          <span class="shelf-action" onclick="navigateTo('albums')">See All</span>
+        </div>
+        <div class="card-grid" id="featured-grid">
+          ${renderCardGridHTML(featuredTracks)}
+        </div>
+      </section>
+
+      <section class="shelf-section">
+        <div class="shelf-header">
+          <h2 class="shelf-title">Top Charts & New Releases</h2>
+          <span class="shelf-action" onclick="navigateTo('songs')">Explore</span>
+        </div>
+        <div class="card-grid" id="new-releases-grid">
+          ${renderCardGridHTML(newReleases)}
+        </div>
+      </section>
+    `;
+  }
 
   container.innerHTML = `
     <section class="hero-banner">
@@ -638,52 +1058,92 @@ function renderListenNowView(container) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path>
             </svg>
-            <span>Connect Live YouTube Music</span>
+            <span>${liveAccount?.isLoggedIn ? 'YouTube Music Connected' : 'Connect Live YouTube Music'}</span>
           </button>
         </div>
       </div>
     </section>
 
-    <section class="shelf-section">
-      <div class="shelf-header">
-        <h2 class="shelf-title">Featured Albums & Mixes</h2>
-        <span class="shelf-action" onclick="navigateTo('albums')">See All</span>
+    ${isFetchingLive && !hasLiveShelves ? `
+      <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; display: flex; align-items: center; gap: 8px;">
+        <span class="badge-dot" style="background: #FA2D48;"></span>
+        <span>Loading live feeds from YouTube Music...</span>
       </div>
-      <div class="card-grid" id="featured-grid">
-        ${renderCardGridHTML(featuredTracks)}
-      </div>
-    </section>
+    ` : ''}
 
-    <section class="shelf-section">
-      <div class="shelf-header">
-        <h2 class="shelf-title">Top Charts & New Releases</h2>
-        <span class="shelf-action" onclick="navigateTo('songs')">Explore</span>
-      </div>
-      <div class="card-grid" id="new-releases-grid">
-        ${renderCardGridHTML(newReleases)}
-      </div>
-    </section>
+    ${shelvesHTML}
   `;
 
-  // Wire up hero play button
-  document.getElementById('btn-hero-play').onclick = () => {
-    loadTrack(0);
-    play();
-  };
+  if (hasLiveShelves) {
+    liveHomeShelves.forEach((shelf, sIdx) => {
+      shelf.items.forEach((item, iIdx) => {
+        const cardId = `live-home-${sIdx}-${iIdx}`;
+        const el = document.querySelector(`[data-live-id="${cardId}"]`);
+        if (el) {
+          el.onclick = () => {
+            if (item.type === 'browse' || (!item.videoId && item.browseId)) {
+              openBrowseDetail(item.browseId, item.title, item.cover, item.subtitle);
+            } else if (item.videoId) {
+              playLiveTrack(item);
+            }
+          };
+        }
+      });
+    });
+  }
 
-  // Wire up Google Account connection
-  document.getElementById('btn-switch-live').onclick = handleGoogleConnect;
+  const heroBtn = document.getElementById('btn-hero-play');
+  if (heroBtn) {
+    heroBtn.onclick = () => {
+      loadTrack(0);
+      play();
+    };
+  }
+
+  const switchLiveBtn = document.getElementById('btn-switch-live');
+  if (switchLiveBtn) {
+    switchLiveBtn.onclick = handleGoogleConnect;
+  }
 }
 
 function renderBrowseView(container) {
-  const genres = ['All', 'Chill', 'Synthwave', 'Electronic', 'Lo-Fi', 'Ambient', 'Workout'];
+  const genres = ['All', 'Charts', 'New Releases', 'Moods & Genres', 'Trending', 'Chill', 'Synthwave'];
+  const hasLiveShelves = liveExploreShelves && liveExploreShelves.length > 0;
+  let shelvesHTML = '';
+
+  if (hasLiveShelves) {
+    shelvesHTML = liveExploreShelves.map((shelf, shelfIdx) => {
+      return `
+        <section class="shelf-section">
+          <div class="shelf-header">
+            <div>
+              <h2 class="shelf-title">${escapeHTML(shelf.title)}</h2>
+            </div>
+            <span class="shelf-action" style="color: var(--apple-accent); font-weight: 600;">YouTube Music Explore</span>
+          </div>
+          <div class="card-grid">
+            ${shelf.items.map((item, itemIdx) => {
+              const globalCardId = `live-explore-${shelfIdx}-${itemIdx}`;
+              return renderLiveCardHTML(item, globalCardId);
+            }).join('')}
+          </div>
+        </section>
+      `;
+    }).join('');
+  } else {
+    shelvesHTML = `
+      <div class="card-grid" id="browse-card-grid">
+        ${renderCardGridHTML(CATALOGUE_TRACKS)}
+      </div>
+    `;
+  }
 
   container.innerHTML = `
     <div style="padding: 10px 0 20px 0;">
       <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 8px;">Browse Music</h1>
-      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Explore trending hits, curated playlists, and atmospheric soundscapes.</p>
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Explore trending hits, curated playlists, and new releases directly from YouTube Music.</p>
       
       <div class="genre-chips-wrap">
         ${genres.map((g, i) => `
@@ -691,11 +1151,27 @@ function renderBrowseView(container) {
         `).join('')}
       </div>
 
-      <div class="card-grid" id="browse-card-grid">
-        ${renderCardGridHTML(CATALOGUE_TRACKS)}
-      </div>
+      ${shelvesHTML}
     </div>
   `;
+
+  if (hasLiveShelves) {
+    liveExploreShelves.forEach((shelf, sIdx) => {
+      shelf.items.forEach((item, iIdx) => {
+        const cardId = `live-explore-${sIdx}-${iIdx}`;
+        const el = document.querySelector(`[data-live-id="${cardId}"]`);
+        if (el) {
+          el.onclick = () => {
+            if (item.type === 'browse' || (!item.videoId && item.browseId)) {
+              openBrowseDetail(item.browseId, item.title, item.cover, item.subtitle);
+            } else if (item.videoId) {
+              playLiveTrack(item);
+            }
+          };
+        }
+      });
+    });
+  }
 }
 
 function filterByGenre(genre) {
@@ -1008,26 +1484,13 @@ function shufflePlayPlaylist(playlistId) {
 }
 
 function selectYouTubeTrack(ytTrack) {
+  if (ytTrack.type === 'browse' || (!ytTrack.videoId && ytTrack.browseId)) {
+    openBrowseDetail(ytTrack.browseId, ytTrack.title, ytTrack.cover, ytTrack.subtitle);
+    return;
+  }
   let existingIdx = CATALOGUE_TRACKS.findIndex(t => t.videoId === ytTrack.videoId);
   if (existingIdx === -1) {
-    const newTrack = {
-      id: ytTrack.id || `yt-${ytTrack.videoId}`,
-      videoId: ytTrack.videoId,
-      title: ytTrack.title,
-      artist: ytTrack.artist,
-      album: ytTrack.album || 'YouTube Music',
-      duration: 210,
-      genre: 'YouTube Stream',
-      year: '2026',
-      playlists: ['favorites'],
-      palette: { c1: 'rgba(250, 45, 72, 0.48)', c2: 'rgba(140, 40, 220, 0.44)', c3: 'rgba(255, 120, 50, 0.40)', c4: 'rgba(40, 160, 220, 0.35)', primaryR: 250, primaryG: 45, primaryB: 72 },
-      cover: ytTrack.cover || createCoverArt(ytTrack.title, ytTrack.artist, '#FA2D48', '#833AB4', '#FD1D1D'),
-      lyrics: [
-        { time: 0, text: `Playing "${ytTrack.title}"` },
-        { time: 6, text: `By ${ytTrack.artist}` },
-        { time: 15, text: `Streamed from YouTube Music` }
-      ]
-    };
+    const newTrack = createCatalogueItemFromLive(ytTrack);
     CATALOGUE_TRACKS.unshift(newTrack);
     existingIdx = 0;
   }
@@ -1101,16 +1564,23 @@ function renderSearchResultsView(container) {
                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
               </svg>
             </div>
+            ${yt.type === 'browse' || (!yt.videoId && yt.browseId) ? '<span class="card-type-badge">ALBUM</span>' : '<span class="card-type-badge yt-badge">YTM</span>'}
           </div>
           <div class="card-title">${escapeHTML(yt.title)}</div>
-          <div class="card-subtitle">${escapeHTML(yt.artist)} • ${escapeHTML(yt.durationStr || '')}</div>
+          <div class="card-subtitle">${escapeHTML(yt.artist)} ${yt.durationStr ? `• ${escapeHTML(yt.durationStr)}` : ''}</div>
         </div>
       `).join('');
 
       ytResults.forEach((yt, i) => {
         const card = document.getElementById(`yt-card-${i}`);
         if (card) {
-          card.onclick = () => selectYouTubeTrack(yt);
+          card.onclick = () => {
+            if (yt.type === 'browse' || (!yt.videoId && yt.browseId)) {
+              openBrowseDetail(yt.browseId, yt.title, yt.cover, yt.subtitle);
+            } else {
+              selectYouTubeTrack(yt);
+            }
+          };
         }
       });
     }).catch(err => {
@@ -1157,6 +1627,19 @@ function selectTrack(idx) {
   if (idx < 0 || idx >= CATALOGUE_TRACKS.length) return;
   loadTrack(idx);
   play();
+
+  const track = CATALOGUE_TRACKS[idx];
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (api?.getNextQueue && track.videoId) {
+    api.getNextQueue(track.videoId).then(queueItems => {
+      if (queueItems && queueItems.length > 0) {
+        userQueue = queueItems.map(qi => createCatalogueItemFromLive(qi));
+        renderPreviewQueue();
+      }
+    }).catch(err => {
+      console.warn('[Queue] getNextQueue error:', err.message);
+    });
+  }
 }
 
 function selectTrackByObject(trackId) {
@@ -1167,16 +1650,27 @@ function selectTrackByObject(trackId) {
 function loadTrack(idx) {
   currentIndex = idx;
   const track = CATALOGUE_TRACKS[idx];
+  if (!track) return;
   currentTime = 0;
 
+  if (typeof document === 'undefined') return;
+
   // Player Bar Left Meta
-  document.getElementById('player-track-title').innerText = track.title;
-  document.getElementById('player-track-artist').innerText = `${track.artist} • ${track.album}`;
-  document.getElementById('player-artwork').src = track.cover;
-  document.getElementById('time-total').innerText = formatTime(track.duration);
-  document.getElementById('time-current').innerText = '0:00';
-  document.getElementById('scrubber-fill').style.width = '0%';
-  document.getElementById('scrubber-knob').style.left = '0%';
+  const titleEl = document.getElementById('player-track-title');
+  const artistEl = document.getElementById('player-track-artist');
+  const artEl = document.getElementById('player-artwork');
+  const totalEl = document.getElementById('time-total');
+  const curEl = document.getElementById('time-current');
+  const fillEl = document.getElementById('scrubber-fill');
+  const knobEl = document.getElementById('scrubber-knob');
+
+  if (titleEl) titleEl.innerText = track.title;
+  if (artistEl) artistEl.innerText = `${track.artist} • ${track.album}`;
+  if (artEl) artEl.src = track.cover;
+  if (totalEl) totalEl.innerText = formatTime(track.duration);
+  if (curEl) curEl.innerText = '0:00';
+  if (fillEl) fillEl.style.width = '0%';
+  if (knobEl) knobEl.style.left = '0%';
 
   // Update Favorite Heart
   updateFavoriteUI(track.id);
@@ -1265,19 +1759,40 @@ function renderPreviewQueue() {
   const queueBody = document.getElementById('preview-queue-body');
   const countLabel = document.getElementById('queue-count-label');
   if (!queueBody) return;
-  if (countLabel) countLabel.innerText = `${CATALOGUE_TRACKS.length} tracks`;
 
-  queueBody.innerHTML = CATALOGUE_TRACKS.map((t, idx) => `
-    <div class="deja-queue-item ${idx === currentIndex ? 'active-playing' : ''}" onclick="selectTrack(${idx})">
-      <div class="deja-queue-item-index">${idx === currentIndex ? '▶' : idx + 1}</div>
-      <img src="${t.cover}" class="deja-queue-thumb" alt="${t.title}">
-      <div class="deja-queue-item-meta">
-        <div class="deja-queue-item-title">${t.title}</div>
-        <div class="deja-queue-item-artist">${t.artist}</div>
+  const currentQueue = (userQueue && userQueue.length > 0) ? userQueue : CATALOGUE_TRACKS;
+  if (countLabel) countLabel.innerText = `${currentQueue.length} tracks`;
+
+  const currentVideoId = CATALOGUE_TRACKS[currentIndex]?.videoId;
+
+  queueBody.innerHTML = currentQueue.map((t, idx) => {
+    const isCurrent = (t.videoId && t.videoId === currentVideoId) || (idx === currentIndex && !t.videoId);
+    return `
+      <div class="deja-queue-item ${isCurrent ? 'active-playing' : ''}" id="queue-item-${idx}">
+        <div class="deja-queue-item-index">${isCurrent ? '▶' : idx + 1}</div>
+        <img src="${escapeHTML(t.cover || '')}" class="deja-queue-thumb" alt="${escapeHTML(t.title)}" onerror="this.src='../../assets/icon.png'">
+        <div class="deja-queue-item-meta">
+          <div class="deja-queue-item-title">${escapeHTML(t.title)}</div>
+          <div class="deja-queue-item-artist">${escapeHTML(t.artist)}</div>
+        </div>
+        <div class="deja-queue-item-duration">${escapeHTML(t.durationStr || formatTime(t.duration))}</div>
       </div>
-      <div class="deja-queue-item-duration">${formatTime(t.duration)}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+
+  currentQueue.forEach((t, idx) => {
+    const itemEl = document.getElementById(`queue-item-${idx}`);
+    if (itemEl) {
+      itemEl.onclick = () => selectQueueTrack(idx);
+    }
+  });
+}
+
+function selectQueueTrack(idx) {
+  const currentQueue = (userQueue && userQueue.length > 0) ? userQueue : CATALOGUE_TRACKS;
+  if (idx < 0 || idx >= currentQueue.length) return;
+  const item = currentQueue[idx];
+  playLiveTrack(item);
 }
 
 function updateFavoriteUI(trackId) {
@@ -1360,12 +1875,23 @@ function pause() {
 }
 
 function nextTrack() {
-  let nextIdx;
   if (isShuffle) {
-    nextIdx = Math.floor(Math.random() * CATALOGUE_TRACKS.length);
-  } else {
-    nextIdx = (currentIndex + 1) % CATALOGUE_TRACKS.length;
+    const pool = (userQueue && userQueue.length > 1) ? userQueue : CATALOGUE_TRACKS;
+    const randTrack = pool[Math.floor(Math.random() * pool.length)];
+    playLiveTrack(randTrack);
+    return;
   }
+
+  const currentVideoId = CATALOGUE_TRACKS[currentIndex]?.videoId;
+  if (userQueue && userQueue.length > 1) {
+    const qIdx = userQueue.findIndex(t => t.videoId === currentVideoId);
+    if (qIdx !== -1 && qIdx + 1 < userQueue.length) {
+      playLiveTrack(userQueue[qIdx + 1]);
+      return;
+    }
+  }
+
+  const nextIdx = (currentIndex + 1) % CATALOGUE_TRACKS.length;
   loadTrack(nextIdx);
   if (isPlaying) play();
 }
@@ -1373,11 +1899,21 @@ function nextTrack() {
 function prevTrack() {
   if (currentTime > 3) {
     seekTo(0);
-  } else {
-    const prevIdx = (currentIndex - 1 + CATALOGUE_TRACKS.length) % CATALOGUE_TRACKS.length;
-    loadTrack(prevIdx);
-    if (isPlaying) play();
+    return;
   }
+
+  const currentVideoId = CATALOGUE_TRACKS[currentIndex]?.videoId;
+  if (userQueue && userQueue.length > 1) {
+    const qIdx = userQueue.findIndex(t => t.videoId === currentVideoId);
+    if (qIdx > 0) {
+      playLiveTrack(userQueue[qIdx - 1]);
+      return;
+    }
+  }
+
+  const prevIdx = (currentIndex - 1 + CATALOGUE_TRACKS.length) % CATALOGUE_TRACKS.length;
+  loadTrack(prevIdx);
+  if (isPlaying) play();
 }
 
 function toggleShuffle() {
@@ -1508,6 +2044,7 @@ function updateLiveLyrics() {
 }
 
 function updatePlayButton() {
+  if (typeof document === 'undefined') return;
   const icon = document.getElementById('play-pause-icon');
   const expIcon = document.getElementById('exp-play-pause-icon');
   const playerBar = document.getElementById('apple-player-bar');
@@ -1607,22 +2144,27 @@ function updateDynamicPipeline(player) {
 
 function notifyTrackState() {
   const track = CATALOGUE_TRACKS[currentIndex];
-  const isAd = !!track.isAd;
-  const adPill = document.getElementById('player-ad-pill');
-  if (adPill) adPill.style.display = isAd ? 'inline-flex' : 'none';
+  if (!track) return;
+  if (typeof document !== 'undefined') {
+    const isAd = !!track.isAd;
+    const adPill = document.getElementById('player-ad-pill');
+    if (adPill) adPill.style.display = isAd ? 'inline-flex' : 'none';
+  }
 
-  const api = window.dejaAPI || window.sonoraAPI;
-  if (api?.sendTrackChanged) {
-    api.sendTrackChanged({
-      title: track.title,
-      artist: track.artist,
-      album: track.album,
-      duration: track.duration,
-      currentTime: currentTime,
-      isPlaying: isPlaying,
-      coverUrl: track.cover,
-      isAd: isAd
-    });
+  if (typeof window !== 'undefined') {
+    const api = window.dejaAPI || window.sonoraAPI;
+    if (api?.sendTrackChanged) {
+      api.sendTrackChanged({
+        title: track.title,
+        artist: track.artist,
+        album: track.album,
+        duration: track.duration,
+        currentTime: currentTime,
+        isPlaying: isPlaying,
+        coverUrl: track.cover,
+        isAd: !!track.isAd
+      });
+    }
   }
 }
 
@@ -1631,11 +2173,13 @@ function notifyTrackState() {
 // ==========================================
 
 function ensureAudioGraph() {
+  if (typeof window === 'undefined') return;
   if (!audioContext) {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
     audioContext = new AudioCtx();
   }
-  if (audioContext.state === 'suspended') {
+  if (audioContext && audioContext.state === 'suspended') {
     audioContext.resume();
   }
 
@@ -1671,6 +2215,7 @@ function ensureAudioGraph() {
 function startWebAudioStream() {
   try {
     ensureAudioGraph();
+    if (!audioContext) return;
     stopWebAudioStream();
 
     const track = CATALOGUE_TRACKS[currentIndex];
@@ -1832,9 +2377,12 @@ function openPipelineModal() {
 function handleGoogleConnect() {
   const api = window.dejaAPI || window.sonoraAPI;
   if (api?.openGoogleLogin) {
-    api.openGoogleLogin().then(() => {
-      const pill = document.querySelector('.premium-pill');
-      if (pill) pill.innerText = 'YTM Linked';
+    api.openGoogleLogin().then(async () => {
+      if (api.getAccountInfo) {
+        const acc = await api.getAccountInfo();
+        updateAccountUI(acc);
+      }
+      fetchLiveYouTubeMusic();
     });
   } else {
     alert('Deja YouTube Music Auth: Open Google login window.');
@@ -2089,6 +2637,13 @@ function setupIPC() {
   const api = window.dejaAPI || window.sonoraAPI;
   if (!api) return;
 
+  if (api.onAuthChanged) {
+    api.onAuthChanged((acc) => {
+      updateAccountUI(acc);
+      fetchLiveYouTubeMusic();
+    });
+  }
+
   api.onPlayerAction(({ action }) => {
     switch (action) {
       case 'togglePlay': togglePlay(); break;
@@ -2137,6 +2692,10 @@ if (typeof module !== 'undefined' && module.exports) {
     pushNavigation,
     navigateBack,
     navigateForward,
-    navHistory
+    navHistory,
+    createCatalogueItemFromLive,
+    fetchLiveYouTubeMusic,
+    openBrowseDetail,
+    playLiveTrack
   };
 }

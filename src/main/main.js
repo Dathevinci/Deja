@@ -5,6 +5,7 @@ const ShortcutManager = require('./shortcuts');
 const TrayManager = require('./tray');
 const discord = require('./discord');
 const { buildAppMenu } = require('./menu');
+const innertube = require('./innertube');
 
 // Set Windows App User Model ID for notifications and taskbar
 if (process.platform === 'win32') {
@@ -458,27 +459,54 @@ ipcMain.handle('open-external', (event, url) => {
 
 // Google Account & YouTube Music Authentication Dialog
 ipcMain.handle('open-google-login', async () => {
-  try {
-    const loginWin = new BrowserWindow({
-      width: 580,
-      height: 720,
-      title: 'Sign in to YouTube Music - Deja',
-      parent: mainWindow,
-      modal: true,
-      autoHideMenuBar: true,
-      webPreferences: {
-        partition: 'persist:ytmusic',
-        nodeIntegration: false,
-        contextIsolation: true
-      }
-    });
-    loginWin.webContents.setUserAgent(CHROME_UA);
-    loginWin.loadURL('https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F');
-    return true;
-  } catch (err) {
-    console.error('[Auth] Failed to open Google login dialog:', err);
-    return false;
-  }
+  return new Promise((resolve) => {
+    try {
+      const loginWin = new BrowserWindow({
+        width: 580,
+        height: 720,
+        title: 'Sign in to YouTube Music - Deja',
+        parent: mainWindow,
+        modal: true,
+        autoHideMenuBar: true,
+        webPreferences: {
+          partition: 'persist:ytmusic',
+          nodeIntegration: false,
+          contextIsolation: true
+        }
+      });
+      loginWin.webContents.setUserAgent(CHROME_UA);
+      loginWin.loadURL('https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F');
+
+      const notifyAuth = async () => {
+        try {
+          const ses = session.fromPartition('persist:ytmusic');
+          const info = await innertube.getAccountInfo(ses);
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('auth-state-changed', info);
+          }
+        } catch {}
+      };
+
+      loginWin.webContents.on('did-navigate', async (e, url) => {
+        if (url.includes('music.youtube.com') && !url.includes('accounts.google.com')) {
+          await notifyAuth();
+          setTimeout(() => {
+            if (!loginWin.isDestroyed()) {
+              loginWin.close();
+            }
+          }, 1500);
+        }
+      });
+
+      loginWin.on('closed', async () => {
+        await notifyAuth();
+        resolve(true);
+      });
+    } catch (err) {
+      console.error('[Auth] Failed to open Google login dialog:', err);
+      resolve(false);
+    }
+  });
 });
 
 // Toggle between native BitChord Apple UI and raw YouTube Music web mode
@@ -502,64 +530,80 @@ ipcMain.handle('toggle-web-mode', async () => {
 ipcMain.handle('yt-search', async (event, query) => {
   if (!query || typeof query !== 'string') return [];
   try {
-    const res = await fetch('https://music.youtube.com/youtubei/v1/search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': CHROME_UA
-      },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: 'WEB_REMIX',
-            clientVersion: '1.20250101.01.00'
-          }
-        },
-        query: query
-      })
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const sections = data.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
-    const results = [];
-    for (const sec of sections) {
-      const shelf = sec.musicShelfRenderer || sec.musicCardShelfRenderer;
-      if (!shelf) continue;
-      const contents = shelf.contents || [];
-      for (const item of contents) {
-        const render = item.musicResponsiveListItemRenderer;
-        if (!render) continue;
-        const flexCols = render.flexColumns || [];
-        const titleRun = flexCols[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0];
-        const title = titleRun?.text;
-        const artistRun = flexCols[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0];
-        const artist = artistRun?.text || 'YouTube Music';
-        const albumRun = flexCols[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[2];
-        const album = albumRun?.text || 'YouTube Music';
-        const durationRun = flexCols[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.slice(-1)[0];
-        const durationStr = durationRun?.text || '3:30';
-        const videoId = render.playlistItemData?.videoId ||
-                        render.navigationEndpoint?.watchEndpoint?.videoId ||
-                        titleRun?.navigationEndpoint?.watchEndpoint?.videoId;
-        const thumbnails = render.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
-        const thumbUrl = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : null;
-        if (title && videoId) {
-          results.push({
-            id: `yt-${videoId}`,
-            videoId,
-            title,
-            artist,
-            album,
-            durationStr,
-            cover: thumbUrl
-          });
-        }
-      }
-    }
-    return results;
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.search(query, ses);
   } catch (err) {
     console.warn('[Search] YouTube Music search error:', err.message);
     return [];
+  }
+});
+
+// Live YouTube Music Home Feed (Quick picks, personalized recommendations, trending)
+ipcMain.handle('yt-home-feed', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getHomeFeed(ses);
+  } catch (err) {
+    console.warn('[Feed] Home feed error:', err.message);
+    return { shelves: [], tracks: [] };
+  }
+});
+
+// Live YouTube Music Explore Feed (New releases, Top charts, Moods & genres)
+ipcMain.handle('yt-explore-feed', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getExploreFeed(ses);
+  } catch (err) {
+    console.warn('[Feed] Explore feed error:', err.message);
+    return { shelves: [], tracks: [] };
+  }
+});
+
+// Live YouTube Music Browse Playlist / Album tracks
+ipcMain.handle('yt-browse-playlist', async (event, browseId) => {
+  if (!browseId || typeof browseId !== 'string') return null;
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getPlaylist(browseId, ses);
+  } catch (err) {
+    console.warn('[Browse] Playlist browse error:', err.message);
+    return null;
+  }
+});
+
+// Live YouTube Music Watch / Radio Next Queue
+ipcMain.handle('yt-next-queue', async (event, videoId) => {
+  if (!videoId || typeof videoId !== 'string') return [];
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getNextQueue(videoId, ses);
+  } catch (err) {
+    console.warn('[Queue] Next queue error:', err.message);
+    return [];
+  }
+});
+
+// User Account & Authentication Status
+ipcMain.handle('yt-account-info', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getAccountInfo(ses);
+  } catch (err) {
+    console.warn('[Account] Account info error:', err.message);
+    return { isLoggedIn: false };
+  }
+});
+
+// Song Thumbs Up / Down / Remove Rating
+ipcMain.handle('yt-rate', async (event, { videoId, status }) => {
+  if (!videoId) return null;
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.rate(videoId, status, ses);
+  } catch (err) {
+    console.warn('[Rate] Song rate error:', err.message);
+    return null;
   }
 });
 
