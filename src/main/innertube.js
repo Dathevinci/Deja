@@ -156,7 +156,7 @@ async function fetchSessionScope(cookieStr, sapisid = null) {
 
     const dataSyncMatch = html.match(CONFIG_DATASYNC_ID);
     const rawDataSyncId = (dataSyncMatch && dataSyncMatch[1].trim()) ? dataSyncMatch[1].trim() : null;
-    const dataSyncId = pageId || normalizeDataSyncId(rawDataSyncId);
+    const dataSyncId = normalizeDataSyncId(rawDataSyncId);
 
     const authUserMatch = html.match(CONFIG_SESSION_INDEX);
     const authUser = (authUserMatch && authUserMatch[1]) ? authUserMatch[1] : '0';
@@ -449,6 +449,69 @@ async function getBrowseContinuation(token, ses) {
 }
 
 /**
+ * Extracts pageId and datasyncIdToken from account menu or account list data.
+ * Matches BitChord parseAccountChannels logic.
+ */
+function extractIdentityTokensFromAccountMenu(root) {
+  let pageId = null;
+  let dataSyncId = null;
+
+  function findStringVal(obj, key) {
+    if (!obj || typeof obj !== 'object') return null;
+    if (obj[key]) {
+      if (typeof obj[key] === 'string') return obj[key];
+      if (typeof obj[key] === 'object' && obj[key][key] && typeof obj[key][key] === 'string') {
+        return obj[key][key];
+      }
+    }
+    for (const v of Object.values(obj)) {
+      if (v && typeof v === 'object') {
+        const found = findStringVal(v, key);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  function walk(node) {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      for (const el of node) walk(el);
+      return;
+    }
+
+    const item = node.accountItem || node.accountItemRenderer || node.activeAccountHeaderRenderer;
+    if (item) {
+      const pId = findStringVal(item, 'pageId');
+      const dToken = findStringVal(item, 'datasyncIdToken');
+      if (pId && !pageId) pageId = pId.trim();
+      if (dToken && !dataSyncId) {
+        const norm = normalizeDataSyncId(dToken);
+        if (norm) dataSyncId = norm;
+      }
+    }
+
+    if (!pageId && node.pageId && typeof node.pageId === 'string') {
+      pageId = node.pageId.trim();
+    }
+    if (!dataSyncId && node.datasyncIdToken) {
+      const token = typeof node.datasyncIdToken === 'string'
+        ? node.datasyncIdToken
+        : (node.datasyncIdToken.datasyncIdToken || findStringVal(node.datasyncIdToken, 'datasyncIdToken'));
+      const norm = normalizeDataSyncId(token);
+      if (norm) dataSyncId = norm;
+    }
+
+    for (const val of Object.values(node)) {
+      walk(val);
+    }
+  }
+
+  walk(root);
+  return { pageId, dataSyncId };
+}
+
+/**
  * Retrieves the user's account info from YouTube Music when logged in.
  */
 async function getAccountInfo(ses) {
@@ -493,6 +556,15 @@ async function getAccountInfo(ses) {
       Object.values(node).forEach(walk);
     }
     walk(data);
+
+    // Extract identity tokens from account menu (BitChord architecture)
+    const tokens = extractIdentityTokensFromAccountMenu(data);
+    if (tokens.pageId && !currentSessionScope.pageId) {
+      currentSessionScope.pageId = tokens.pageId;
+    }
+    if (tokens.dataSyncId && !currentSessionScope.dataSyncId) {
+      currentSessionScope.dataSyncId = tokens.dataSyncId;
+    }
 
     return {
       isLoggedIn: true,
@@ -719,8 +791,12 @@ async function getLibraryPlaylists(ses) {
       if (bId.toLowerCase().includes('create') || bId === 'FEplaylist_add') continue;
       if (bId === 'VLLM' || bId === 'LM' || bId === 'FEmusic_liked_videos') continue;
 
+      const cleanId = bId.replace(/^VL/, '');
+      const excludedPrefixes = ['LM', 'SE', 'RD', 'OLAK', 'MPRE', 'UC'];
+      if (excludedPrefixes.some(p => cleanId.startsWith(p) || bId.startsWith(p))) continue;
+
       let normalizedBrowseId = bId;
-      if (!bId.startsWith('VL') && !bId.startsWith('FE') && !bId.startsWith('MPRE') && !bId.startsWith('UC')) {
+      if (!bId.startsWith('VL') && !bId.startsWith('FE')) {
         normalizedBrowseId = `VL${bId}`;
       }
       const key = normalizedBrowseId.replace(/^VL/, '');
@@ -1251,9 +1327,12 @@ function parseNewReleasesResponse(data) {
 function parseBrowsePlaylistItem(node) {
   if (!node || typeof node !== 'object') return null;
 
-  // 1. musicTwoRowItemRenderer
-  if (node.musicTwoRowItemRenderer) {
-    const r = node.musicTwoRowItemRenderer;
+  // 1. musicTwoRowItemRenderer (wrapped or unwrapped)
+  const twoRow = node.musicTwoRowItemRenderer ||
+    (!node.musicResponsiveListItemRenderer && !node.gridPlaylistRenderer && !node.playlistRenderer && !node.compactPlaylistRenderer && !node.lockupViewModel && !node.flexColumns && (node.title || node.subtitle) && (node.navigationEndpoint || node.thumbnailRenderer || node.thumbnail) ? node : null);
+
+  if (twoRow) {
+    const r = twoRow;
     const title = (Array.isArray(r.title?.runs) ? r.title.runs.map(x => x.text).join('') : (r.title?.simpleText || r.title?.runs?.[0]?.text)) || '';
     if (!title) return null;
     const subtitle = (Array.isArray(r.subtitle?.runs) ? r.subtitle.runs.map(x => x.text).join('') : (r.subtitle?.simpleText || 'Playlist')) || 'Playlist';
@@ -1275,13 +1354,18 @@ function parseBrowsePlaylistItem(node) {
                           endpoint.watchEndpoint?.playlistId ||
                           r.navigationEndpoint?.watchPlaylistEndpoint?.playlistId ||
                           r.navigationEndpoint?.watchEndpoint?.playlistId ||
-                          r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnailOverlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchPlaylistEndpoint?.playlistId;
+                          r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnailOverlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchPlaylistEndpoint?.playlistId ||
+                          r.thumbnailOverlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchPlaylistEndpoint?.playlistId;
     if (!browseId && watchPlaylist) {
       browseId = watchPlaylist.startsWith('VL') ? watchPlaylist : `VL${watchPlaylist}`;
     }
 
     if (!browseId && r.playlistId) {
       browseId = r.playlistId.startsWith('VL') ? r.playlistId : `VL${r.playlistId}`;
+    }
+
+    if (!browseId && r.contentId) {
+      browseId = r.contentId.startsWith('VL') ? r.contentId : `VL${r.contentId}`;
     }
 
     const thumbs = r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
@@ -1299,9 +1383,12 @@ function parseBrowsePlaylistItem(node) {
     };
   }
 
-  // 2. musicResponsiveListItemRenderer
-  if (node.musicResponsiveListItemRenderer) {
-    const r = node.musicResponsiveListItemRenderer;
+  // 2. musicResponsiveListItemRenderer (wrapped or unwrapped)
+  const respItem = node.musicResponsiveListItemRenderer ||
+    (!node.musicTwoRowItemRenderer && node.flexColumns && (node.navigationEndpoint || node.overlay || node.flexColumns[0]?.musicResponsiveListItemFlexColumnRenderer) ? node : null);
+
+  if (respItem) {
+    const r = respItem;
     const flexCols = r.flexColumns || [];
     const titleCol = flexCols[0]?.musicResponsiveListItemFlexColumnRenderer?.text;
     const title = (Array.isArray(titleCol?.runs) ? titleCol.runs.map(x => x.text).join('') : (titleCol?.simpleText || titleCol?.runs?.[0]?.text)) || '';
@@ -1336,6 +1423,10 @@ function parseBrowsePlaylistItem(node) {
 
     if (!browseId && r.playlistId) {
       browseId = r.playlistId.startsWith('VL') ? r.playlistId : `VL${r.playlistId}`;
+    }
+
+    if (!browseId && r.contentId) {
+      browseId = r.contentId.startsWith('VL') ? r.contentId : `VL${r.contentId}`;
     }
 
     const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
@@ -1458,10 +1549,13 @@ function parseLibraryPlaylistsResponse(data) {
     const lowBId = bId.toLowerCase();
     if (lowBId.includes('create') || lowBId === 'feplaylist_add' || lowTitle === 'new playlist' || lowTitle === '+ new playlist') return;
     if (bId === 'VLLM' || bId === 'LM' || bId === 'FEmusic_liked_videos' || lowBId === 'vllm' || lowBId === 'lm') return;
-    if (bId.startsWith('UC')) return; // Artist channel
+
+    const cleanId = bId.replace(/^VL/, '');
+    const excludedPrefixes = ['LM', 'SE', 'RD', 'OLAK', 'MPRE', 'UC'];
+    if (excludedPrefixes.some(p => cleanId.startsWith(p) || bId.startsWith(p))) return;
 
     let normalizedBrowseId = bId;
-    if (!bId.startsWith('VL') && !bId.startsWith('FE') && !bId.startsWith('MPRE')) {
+    if (!bId.startsWith('VL') && !bId.startsWith('FE')) {
       normalizedBrowseId = `VL${bId}`;
     }
     const key = normalizedBrowseId.replace(/^VL/, '');
@@ -2122,5 +2216,8 @@ module.exports = {
   fetchVisitorData,
   ensureVisitorData,
   extractContinuationToken,
-  getBrowseContinuation
+  getBrowseContinuation,
+  extractIdentityTokensFromAccountMenu,
+  normalizeDataSyncId,
+  parseBrowsePlaylistItem
 };

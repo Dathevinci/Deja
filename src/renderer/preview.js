@@ -1358,9 +1358,11 @@ async function _fetchLiveYouTubeMusicInternal() {
     let isLoggedIn = false;
     if (api.getAccountInfo) {
       const acc = await api.getAccountInfo().catch(() => null);
-      if (acc) {
+      if (acc && acc.isLoggedIn) {
         updateAccountUI(acc);
-        isLoggedIn = !!acc.isLoggedIn;
+        isLoggedIn = true;
+      } else if (acc && (!liveAccount || !liveAccount.isLoggedIn)) {
+        updateAccountUI(acc);
       }
     }
 
@@ -1770,9 +1772,9 @@ function updateAccountUI(acc) {
 
   // Persist / clear localStorage account cache
   try {
-    if (acc.isLoggedIn) {
+    if (acc && acc.isLoggedIn) {
       localStorage.setItem('deja_cached_account', JSON.stringify(acc));
-    } else {
+    } else if (acc && acc.isExplicitLogout) {
       localStorage.removeItem('deja_cached_account');
       localStorage.removeItem('deja_cached_playlists');
     }

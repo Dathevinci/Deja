@@ -297,6 +297,142 @@ function runAuthPersistenceTests() {
   assert.strictEqual(parsedSection[0].title, 'Electronic Dance');
   assert.strictEqual(parsedSection[0].browseId, 'VLPLcompact001');
 
+  // 9. Test Domain-Targeted URL Partitioning in applyCookiesToSession
+  const domainTestSession = {
+    cookies: {
+      set: async (details) => {
+        domainCaptured.push(details);
+        return true;
+      },
+      flushStore: async () => true
+    }
+  };
+  const domainCaptured = [];
+  const testDomainCookies = [
+    { name: 'SAPISID', value: 'secret1', domain: '.google.com' },
+    { name: 'LOGIN_INFO', value: 'yt_login', domain: '.youtube.com' }
+  ];
+  authStore.applyCookiesToSession(domainTestSession, testDomainCookies).then(() => {
+    const googleCookieTargets = domainCaptured.filter(c => c.name === 'SAPISID').map(c => c.url);
+    const ytCookieTargets = domainCaptured.filter(c => c.name === 'LOGIN_INFO').map(c => c.url);
+    assert.ok(googleCookieTargets.every(u => u.includes('google.com')), 'Google cookies must only target google domains');
+    assert.ok(ytCookieTargets.every(u => u.includes('youtube.com')), 'YouTube cookies must only target youtube domains');
+  });
+
+  // 10. Test extractIdentityTokensFromAccountMenu
+  assert.strictEqual(typeof innertube.extractIdentityTokensFromAccountMenu, 'function');
+  const mockAccountMenu = {
+    actions: [
+      {
+        openPopupAction: {
+          popup: {
+            multiPageMenuRenderer: {
+              sections: [
+                {
+                  accountSectionListRenderer: {
+                    contents: [
+                      {
+                        accountItemSectionRenderer: {
+                          contents: [
+                            {
+                              accountItem: {
+                                accountName: { simpleText: 'Brand Channel' },
+                                pageId: '10987654321',
+                                supportedTokens: [
+                                  {
+                                    datasyncIdToken: {
+                                      datasyncIdToken: 'DATASYNC_PREFIX||BRAND_SESSION_TOKEN_123'
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  };
+  const extractedTokens = innertube.extractIdentityTokensFromAccountMenu(mockAccountMenu);
+  assert.strictEqual(extractedTokens.pageId, '10987654321');
+  assert.strictEqual(extractedTokens.dataSyncId, 'BRAND_SESSION_TOKEN_123');
+
+  // 11. Test parseBrowsePlaylistItem with Unwrapped Renderers
+  assert.strictEqual(typeof innertube.parseBrowsePlaylistItem, 'function');
+  const unwrappedTwoRow = {
+    title: { runs: [{ text: 'Unwrapped Synthwave' }] },
+    subtitle: { runs: [{ text: 'Community Playlist' }] },
+    navigationEndpoint: {
+      browseEndpoint: { browseId: 'VLPLunwrapped123' }
+    },
+    thumbnailRenderer: {
+      musicThumbnailRenderer: {
+        thumbnail: {
+          thumbnails: [{ url: 'https://lh3.googleusercontent.com/cover.jpg' }]
+        }
+      }
+    }
+  };
+  const parsedUnwrapped = innertube.parseBrowsePlaylistItem(unwrappedTwoRow);
+  assert.ok(parsedUnwrapped, 'Unwrapped twoRow renderer must parse successfully');
+  assert.strictEqual(parsedUnwrapped.title, 'Unwrapped Synthwave');
+  assert.strictEqual(parsedUnwrapped.browseId, 'VLPLunwrapped123');
+
+  // 12. Test Exclusion of Non-Playlist Items (Albums, Radio, Artist Channels)
+  const mixedLibraryData = {
+    contents: [
+      {
+        musicTwoRowItemRenderer: {
+          title: { runs: [{ text: 'Actual Playlist' }] },
+          navigationEndpoint: { browseEndpoint: { browseId: 'VLPLrealplaylist' } }
+        }
+      },
+      {
+        musicTwoRowItemRenderer: {
+          title: { runs: [{ text: 'Album Release' }] },
+          navigationEndpoint: { browseEndpoint: { browseId: 'MPREb_album123' } }
+        }
+      },
+      {
+        musicTwoRowItemRenderer: {
+          title: { runs: [{ text: 'Official Album' }] },
+          navigationEndpoint: { browseEndpoint: { browseId: 'VLOLAK5uy_album456' } }
+        }
+      },
+      {
+        musicTwoRowItemRenderer: {
+          title: { runs: [{ text: 'Radio Mix' }] },
+          navigationEndpoint: { browseEndpoint: { browseId: 'VLRDmix789' } }
+        }
+      },
+      {
+        musicTwoRowItemRenderer: {
+          title: { runs: [{ text: 'Artist Profile' }] },
+          navigationEndpoint: { browseEndpoint: { browseId: 'UCartist001' } }
+        }
+      }
+    ]
+  };
+  const parsedLibrary = innertube.parseLibraryPlaylistsResponse(mixedLibraryData);
+  assert.strictEqual(parsedLibrary.length, 1, 'Only genuine user playlists must survive filtering');
+  assert.strictEqual(parsedLibrary[0].title, 'Actual Playlist');
+  assert.strictEqual(parsedLibrary[0].playlistId, 'PLrealplaylist');
+
+  // 13. Test normalizeDataSyncId Utility
+  assert.strictEqual(typeof innertube.normalizeDataSyncId, 'function');
+  assert.strictEqual(innertube.normalizeDataSyncId('SYNC_PERSONAL||SESSION_A'), 'SESSION_A');
+  assert.strictEqual(innertube.normalizeDataSyncId('SYNC_PERSONAL||'), 'SYNC_PERSONAL');
+  assert.strictEqual(innertube.normalizeDataSyncId('STANDALONE_ID'), 'STANDALONE_ID');
+  assert.strictEqual(innertube.normalizeDataSyncId(''), null);
+  assert.strictEqual(innertube.normalizeDataSyncId(null), null);
+
   console.log('✓ Auth Persistence & InnerTube Playlist Architecture tests passed successfully.');
 }
 

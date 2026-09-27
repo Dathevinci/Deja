@@ -149,17 +149,40 @@ async function applyCookiesToSession(ses, cookiePairsOrRaw, expirationSeconds = 
   }
 
   const expirationDate = Math.floor(Date.now() / 1000) + expirationSeconds;
-  const urls = ['https://music.youtube.com', 'https://youtube.com'];
 
   for (const item of cookiePairs) {
     if (!item || !item.name) continue;
     const name = item.name.trim();
     const value = String(item.value !== undefined ? item.value : '').trim();
+    const isHostCookie = name.startsWith('__Host-');
+    const itemDomain = (item.domain || '').toLowerCase();
+    const isGoogleCookie = itemDomain.includes('google');
+    const isYtCookie = itemDomain.includes('youtube');
+    const isAuthSid = name.includes('SID') || name.includes('APISID') || name === 'LOGIN_INFO';
 
-    for (const targetUrl of urls) {
+    const targets = [];
+    if (isGoogleCookie) {
+      const gDomain = isHostCookie ? undefined : (item.domain.startsWith('.') ? item.domain : `.${item.domain}`);
+      targets.push({ url: 'https://google.com', domain: gDomain });
+      targets.push({ url: 'https://accounts.google.com', domain: gDomain });
+    } else if (isYtCookie) {
+      const ytDomain = isHostCookie ? undefined : (item.domain.startsWith('.') ? item.domain : `.${item.domain}`);
+      targets.push({ url: 'https://music.youtube.com', domain: ytDomain });
+      targets.push({ url: 'https://youtube.com', domain: ytDomain });
+    } else {
+      // Unspecified domain (e.g. from pasted raw cookies or 1-click sync string)
+      targets.push({ url: 'https://music.youtube.com', domain: isHostCookie ? undefined : '.youtube.com' });
+      targets.push({ url: 'https://youtube.com', domain: isHostCookie ? undefined : '.youtube.com' });
+      if (isAuthSid) {
+        targets.push({ url: 'https://google.com', domain: isHostCookie ? undefined : '.google.com' });
+        targets.push({ url: 'https://accounts.google.com', domain: isHostCookie ? undefined : '.google.com' });
+      }
+    }
+
+    for (const t of targets) {
       try {
         const details = {
-          url: targetUrl,
+          url: t.url,
           name,
           value,
           path: item.path || '/',
@@ -169,40 +192,23 @@ async function applyCookiesToSession(ses, cookiePairsOrRaw, expirationSeconds = 
           expirationDate
         };
 
-        if (!name.startsWith('__Host-')) {
-          details.domain = item.domain || '.youtube.com';
+        if (t.domain && !isHostCookie) {
+          details.domain = t.domain;
         }
 
         await ses.cookies.set(details);
       } catch {
         try {
           await ses.cookies.set({
-            url: targetUrl,
+            url: t.url,
             name,
             value,
-            path: '/',
+            path: item.path || '/',
             secure: true,
             expirationDate
           });
         } catch {}
       }
-    }
-
-    // Propagate authentication cookies to google.com domain as well
-    if (name.includes('SID') || name.includes('APISID') || name === 'LOGIN_INFO') {
-      try {
-        await ses.cookies.set({
-          url: 'https://google.com',
-          domain: '.google.com',
-          name,
-          value,
-          path: '/',
-          secure: true,
-          httpOnly: false,
-          sameSite: 'no_restriction',
-          expirationDate
-        });
-      } catch {}
     }
   }
 

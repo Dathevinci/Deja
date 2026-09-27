@@ -871,7 +871,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       // Matching BitChord BrowserSession.clearGoogleCookies():
       // If fresh sign-in, clear local cookies first so it doesn't immediately
       // lock onto the previous account. For SWITCH_CHANNEL, preserve existing cookies.
-      if (!isSwitchChannel) {
+      if (targetMethod === 'fresh-login') {
         await clearGoogleSessionCookies(ses);
       }
 
@@ -971,7 +971,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           }
 
           const pageId = (activeProbe && activeProbe.pageId) || null;
-          const dataSyncId = pageId || normalizeDataSyncId(activeProbe && activeProbe.dataSyncId);
+          const dataSyncId = normalizeDataSyncId(activeProbe && activeProbe.dataSyncId);
           const authUser = (activeProbe && activeProbe.authUser) || '0';
           const visitorData = (activeProbe && activeProbe.visitorData) || null;
           const clientVersion = (activeProbe && activeProbe.clientVersion) || null;
@@ -1408,11 +1408,12 @@ app.whenReady().then(async () => {
   const activeSessions = [session.defaultSession, ytSession];
 
   // Restore persistent authentication session from deja-auth.json
+  let startupRestoreRes = null;
   try {
-    const restoreRes = await authStore.restoreSessionOnStartup(ytSession);
-    if (restoreRes && restoreRes.restored) {
-      if (restoreRes.sessionScope) {
-        innertube.adoptSessionScope(restoreRes.sessionScope);
+    startupRestoreRes = await authStore.restoreSessionOnStartup(ytSession);
+    if (startupRestoreRes && startupRestoreRes.restored) {
+      if (startupRestoreRes.sessionScope) {
+        innertube.adoptSessionScope(startupRestoreRes.sessionScope);
       }
     }
   } catch (err) {
@@ -1619,6 +1620,12 @@ app.whenReady().then(async () => {
 
   if (mainWindow) {
     mainWindow.webContents.once('dom-ready', () => {
+      if (startupRestoreRes && startupRestoreRes.account && startupRestoreRes.account.isLoggedIn) {
+        if (!mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('auth-changed', startupRestoreRes.account);
+          mainWindow.webContents.send('auth-state-changed', startupRestoreRes.account);
+        }
+      }
       pushStartupAuth();
     });
   }
