@@ -498,6 +498,71 @@ ipcMain.handle('toggle-web-mode', async () => {
   }
 });
 
+// Live YouTube Music Search API (InnerTube WEB_REMIX client architecture)
+ipcMain.handle('yt-search', async (event, query) => {
+  if (!query || typeof query !== 'string') return [];
+  try {
+    const res = await fetch('https://music.youtube.com/youtubei/v1/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': CHROME_UA
+      },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'WEB_REMIX',
+            clientVersion: '1.20250101.01.00'
+          }
+        },
+        query: query
+      })
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const sections = data.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
+    const results = [];
+    for (const sec of sections) {
+      const shelf = sec.musicShelfRenderer || sec.musicCardShelfRenderer;
+      if (!shelf) continue;
+      const contents = shelf.contents || [];
+      for (const item of contents) {
+        const render = item.musicResponsiveListItemRenderer;
+        if (!render) continue;
+        const flexCols = render.flexColumns || [];
+        const titleRun = flexCols[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0];
+        const title = titleRun?.text;
+        const artistRun = flexCols[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0];
+        const artist = artistRun?.text || 'YouTube Music';
+        const albumRun = flexCols[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[2];
+        const album = albumRun?.text || 'YouTube Music';
+        const durationRun = flexCols[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.slice(-1)[0];
+        const durationStr = durationRun?.text || '3:30';
+        const videoId = render.playlistItemData?.videoId ||
+                        render.navigationEndpoint?.watchEndpoint?.videoId ||
+                        titleRun?.navigationEndpoint?.watchEndpoint?.videoId;
+        const thumbnails = render.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
+        const thumbUrl = thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : null;
+        if (title && videoId) {
+          results.push({
+            id: `yt-${videoId}`,
+            videoId,
+            title,
+            artist,
+            album,
+            durationStr,
+            cover: thumbUrl
+          });
+        }
+      }
+    }
+    return results;
+  } catch (err) {
+    console.warn('[Search] YouTube Music search error:', err.message);
+    return [];
+  }
+});
+
 // App Lifecycle
 app.whenReady().then(() => {
   // Clean request headers to avoid Google security prompt issues

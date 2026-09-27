@@ -14,13 +14,30 @@ function runBitChordArchitectureTests() {
   assert.ok(mainCode.includes("mainWindow.loadFile(path.join(__dirname, '../renderer/preview.html'))"), 'main.js must load preview.html by default');
   assert.ok(mainCode.includes("ipcMain.handle('open-google-login'"), 'main.js must provide open-google-login IPC handler');
   assert.ok(mainCode.includes("ipcMain.handle('toggle-web-mode'"), 'main.js must provide toggle-web-mode IPC handler');
+  assert.ok(mainCode.includes("ipcMain.handle('yt-search'"), 'main.js must provide yt-search IPC handler');
 
-  // 2. Verify preview.html BitChord UI Components
+  // 2. Verify preload.js API bridges
+  const preloadPath = path.join(__dirname, '../src/preload/preload.js');
+  const preloadCode = fs.readFileSync(preloadPath, 'utf8');
+  assert.ok(preloadCode.includes('searchYouTube:'), 'preload.js must expose searchYouTube in dejaAPI');
+  assert.ok(preloadCode.includes('toggleWebMode:'), 'preload.js must expose toggleWebMode in dejaAPI');
+  assert.ok(preloadCode.includes('openGoogleLogin:'), 'preload.js must expose openGoogleLogin in dejaAPI');
+
+  // 3. Verify menu.js
+  const menuPath = path.join(__dirname, '../src/main/menu.js');
+  const menuCode = fs.readFileSync(menuPath, 'utf8');
+  assert.ok(menuCode.includes('Toggle Web / Native Client Mode'), 'menu.js must include Toggle Web / Native Client Mode');
+
+  // 4. Verify preview.html BitChord UI Components
   const htmlPath = path.join(__dirname, '../src/renderer/preview.html');
   const html = fs.readFileSync(htmlPath, 'utf8');
 
   assert.ok(html.includes('id="app-ambient-backdrop"'), 'Must include global dynamic ambient backdrop');
   assert.ok(html.includes('id="deja-titlebar"'), 'Must include macOS frosted window titlebar');
+  assert.ok(html.includes('id="nav-back"'), 'Must include back navigation arrow');
+  assert.ok(html.includes('id="nav-forward"'), 'Must include forward navigation arrow');
+  assert.ok(html.includes('id="btn-toggle-web"'), 'Must include toggle web mode button');
+  assert.ok(html.includes('id="yt-player-container"'), 'Must include hidden YouTube player container');
   assert.ok(html.includes('class="apple-sidebar"'), 'Must include Apple sidebar navigation');
   assert.ok(html.includes('data-page="listen-now"'), 'Sidebar must include Listen Now');
   assert.ok(html.includes('data-page="browse"'), 'Sidebar must include Browse');
@@ -48,7 +65,7 @@ function runBitChordArchitectureTests() {
   assert.ok(html.includes('id="sleep-modal"'), 'Must include sleep timer modal');
   assert.ok(html.includes('id="eq-modal"'), 'Must include equalizer modal');
 
-  // 3. Verify preview.css Styling
+  // 5. Verify preview.css Styling
   const cssPath = path.join(__dirname, '../src/renderer/preview.css');
   const css = fs.readFileSync(cssPath, 'utf8');
 
@@ -61,26 +78,57 @@ function runBitChordArchitectureTests() {
   assert.ok(css.includes('.songs-table-container'), 'CSS must style songs table');
   assert.ok(css.includes('.artists-grid'), 'CSS must style artists grid');
   assert.ok(css.includes('.radio-grid'), 'CSS must style radio grid');
+  assert.ok(css.includes('body.pure-black'), 'CSS must support body.pure-black theme selector');
 
-  // 4. Verify preview.js Logic
-  const jsPath = path.join(__dirname, '../src/renderer/preview.js');
-  const js = fs.readFileSync(jsPath, 'utf8');
+  // 6. Verify preview.js Functional Unit Tests
+  const previewModule = require('../src/renderer/preview.js');
+  const {
+    CATALOGUE_TRACKS,
+    EQ_PRESETS,
+    escapeHTML,
+    formatTime,
+    shufflePlayPlaylist
+  } = previewModule;
 
-  assert.ok(js.includes('CATALOGUE_TRACKS'), 'preview.js must define track catalogue');
-  assert.ok(js.includes('createCoverArt'), 'preview.js must generate vibrant SVG cover art');
-  assert.ok(js.includes('renderListenNowView'), 'preview.js must implement Listen Now view');
-  assert.ok(js.includes('renderBrowseView'), 'preview.js must implement Browse view');
-  assert.ok(js.includes('renderRadioView'), 'preview.js must implement Radio view');
-  assert.ok(js.includes('renderSongsTableView'), 'preview.js must implement Songs table view');
-  assert.ok(js.includes('renderArtistsView'), 'preview.js must implement Artists view');
-  assert.ok(js.includes('renderAlbumsView'), 'preview.js must implement Albums view');
-  assert.ok(js.includes('renderPlaylistsGridView'), 'preview.js must implement Playlists grid view');
-  assert.ok(js.includes('renderSearchResultsView'), 'preview.js must implement Search view');
-  assert.ok(js.includes('ensureAudioGraph'), 'preview.js must implement Web Audio graph');
-  assert.ok(js.includes('EQ_PRESETS'), 'preview.js must define EQ presets');
-  assert.ok(js.includes('applyEqPreset'), 'preview.js must apply EQ presets in real-time');
-  assert.ok(js.includes('startPreviewSleepTimer'), 'preview.js must support sleep timer countdown');
-  assert.ok(js.includes('applyDynamicMeshAura'), 'preview.js must dynamically extract and inject mesh aura');
+  // 6.1 Catalogue Tracks Integrity
+  assert.ok(Array.isArray(CATALOGUE_TRACKS) && CATALOGUE_TRACKS.length >= 11, 'Must have at least 11 tracks');
+  CATALOGUE_TRACKS.forEach((t, i) => {
+    assert.ok(t.id, `Track ${i} must have id`);
+    assert.ok(t.videoId, `Track ${i} (${t.title}) must have videoId for live YouTube streaming`);
+    assert.ok(t.title, `Track ${i} must have title`);
+    assert.ok(t.artist, `Track ${i} must have artist`);
+    assert.ok(t.duration > 0, `Track ${i} must have duration > 0`);
+    assert.ok(t.palette && t.palette.c1, `Track ${i} must have dynamic mesh palette`);
+  });
+
+  // 6.2 Security: escapeHTML XSS sanitization
+  assert.strictEqual(
+    escapeHTML('<script>alert("xss")</script>'),
+    '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;',
+    'escapeHTML must escape HTML tags and quotes'
+  );
+  assert.strictEqual(
+    escapeHTML('Starboy & "Secrets"'),
+    'Starboy &amp; &quot;Secrets&quot;',
+    'escapeHTML must escape ampersands and quotes'
+  );
+  assert.strictEqual(escapeHTML(null), '', 'escapeHTML must handle null safely');
+
+  // 6.3 Time formatting
+  assert.strictEqual(formatTime(0), '0:00', '0s must format to 0:00');
+  assert.strictEqual(formatTime(9), '0:09', '9s must format to 0:09');
+  assert.strictEqual(formatTime(65), '1:05', '65s must format to 1:05');
+  assert.strictEqual(formatTime(215), '3:35', '215s must format to 3:35');
+
+  // 6.4 Equalizer Presets
+  assert.ok(EQ_PRESETS['Flat'], 'EQ must define Flat');
+  assert.ok(EQ_PRESETS['Bass Boost'], 'EQ must define Bass Boost');
+  assert.ok(EQ_PRESETS['Acoustic'], 'EQ must define Acoustic');
+  assert.ok(EQ_PRESETS['Vocal Booster'], 'EQ must define Vocal Booster');
+  assert.ok(EQ_PRESETS['Treble Booster'], 'EQ must define Treble Booster');
+
+  // 6.5 Playlist shuffle function existence
+  assert.strictEqual(typeof shufflePlayPlaylist, 'function', 'shufflePlayPlaylist must be a defined function');
 
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
@@ -90,3 +138,4 @@ module.exports = runBitChordArchitectureTests;
 if (require.main === module) {
   runBitChordArchitectureTests();
 }
+

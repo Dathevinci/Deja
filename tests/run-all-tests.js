@@ -8,6 +8,7 @@ const runIpcTests = require('./ipc.test');
 const runPlayerControllerTests = require('./player-controller.test');
 const runWindowLifecycleTests = require('./window-lifecycle.test');
 const runBitChordArchitectureTests = require('./bitchord-architecture.test');
+const runEdgeCaseTests = require('./edge-cases.test');
 
 console.log('====================================================');
 console.log('  Deja - YouTube Music Apple Client Test Suite      ');
@@ -28,6 +29,8 @@ try {
   console.log('');
   runBitChordArchitectureTests();
   console.log('');
+  runEdgeCaseTests();
+  console.log('');
 
   // Run live Electron CSP integration test
   const res = spawnSync(electron, [path.join(__dirname, 'csp-runtime.test.js')], {
@@ -42,7 +45,7 @@ try {
   console.log('');
 
   console.log('====================================================');
-  console.log('  ALL TESTS PASSED SUCCESSFULLY! (8/8 test suites)  ');
+  console.log('  ALL TESTS PASSED SUCCESSFULLY! (9/9 test suites)  ');
   console.log('====================================================');
   process.exit(0);
 } catch (err) {

@@ -12,6 +12,7 @@ const dejaAPI = {
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   openGoogleLogin: () => ipcRenderer.invoke('open-google-login'),
   toggleWebMode: () => ipcRenderer.invoke('toggle-web-mode'),
+  searchYouTube: (query) => ipcRenderer.invoke('yt-search', query),
   onPlayerAction: (callback) => {
     ipcRenderer.on('player-action', (event, data) => callback(data));
   },

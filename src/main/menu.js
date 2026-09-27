@@ -1,4 +1,5 @@
 const { Menu, shell, app, dialog } = require('electron');
+const path = require('path');
 
 function buildAppMenu(mainWindow) {
   const dispatch = (action, payload = null) => {
@@ -118,6 +119,19 @@ function buildAppMenu(mainWindow) {
           label: 'Show Queue',
           accelerator: 'CommandOrControl+Shift+Q',
           click: () => dispatch('toggleQueue')
+        },
+        {
+          label: 'Toggle Web / Native Client Mode',
+          accelerator: 'CommandOrControl+Shift+W',
+          click: async () => {
+            if (!mainWindow || mainWindow.isDestroyed()) return;
+            const currentURL = mainWindow.webContents.getURL() || '';
+            if (currentURL.includes('music.youtube.com')) {
+              await mainWindow.loadFile(path.join(__dirname, '../renderer/preview.html'));
+            } else {
+              await mainWindow.loadURL('https://music.youtube.com', { userAgent: app.userAgentFallback });
+            }
+          }
         },
         { type: 'separator' },
         {
