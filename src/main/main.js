@@ -497,6 +497,9 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       const loginWin = new BrowserWindow({
         width: 800,
         height: 700,
+        minWidth: 500,
+        minHeight: 600,
+        backgroundColor: '#ffffff',
         title: 'Sign in to YouTube Music - Deja',
         autoHideMenuBar: true,
         webPreferences: {
@@ -518,6 +521,9 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           overrideBrowserWindowOptions: {
             width: 800,
             height: 700,
+            minWidth: 500,
+            minHeight: 600,
+            backgroundColor: '#ffffff',
             userAgent: CHROME_UA,
             autoHideMenuBar: true,
             webPreferences: {
@@ -550,6 +556,29 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         if (!loginWin || loginWin.isDestroyed()) return;
         loginWin.webContents.executeJavaScript(`
           try {
+            const isGoogle = window.location.hostname.includes('google.');
+            const isYTM = window.location.hostname.includes('youtube.');
+
+            // Ensure smooth rendering without black voids or cut-off containers
+            if (isGoogle) {
+              if (document.documentElement) {
+                document.documentElement.style.backgroundColor = '#ffffff';
+                document.documentElement.style.overflow = 'auto';
+              }
+              if (document.body) {
+                document.body.style.backgroundColor = '#ffffff';
+                document.body.style.overflow = 'auto';
+                document.body.style.minHeight = 'calc(100vh - 48px)';
+              }
+            } else if (isYTM) {
+              if (document.documentElement) {
+                document.documentElement.style.backgroundColor = '#030303';
+              }
+              if (document.body) {
+                document.body.style.backgroundColor = '#030303';
+              }
+            }
+
             if (!document.getElementById('deja-login-header')) {
               const header = document.createElement('div');
               header.id = 'deja-login-header';
@@ -592,7 +621,8 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
             }
 
             if (document.body && !document.body.dataset.dejaHeaderShifted) {
-              document.body.style.marginTop = '48px';
+              document.body.style.paddingTop = '48px';
+              document.body.style.boxSizing = 'border-box';
               document.body.dataset.dejaHeaderShifted = 'true';
             }
 
@@ -615,18 +645,27 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           if (!loginWin || loginWin.isDestroyed()) return;
           const curUrl = loginWin.webContents.getURL() || targetUrl || '';
 
-          // Check for cookies specifically on .youtube.com and music.youtube.com
-          const cookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
+          // Check for cookies across both YouTube and Google domains
+          const ytCookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
           const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
           const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
-          const ytAllCookies = [...cookies, ...ytDomainCookies, ...musicCookies];
-          const ytCookieNames = new Set(ytAllCookies.map(c => c.name));
+          const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
+          const googleDomainCookies = await ses.cookies.get({ domain: 'google.com' }).catch(() => []);
 
-          // If SAPISID or LOGIN_INFO is present on .youtube.com / music.youtube.com, the user has completed login, regardless of URL.
-          const hasAuthCookie = ytCookieNames.has('SAPISID') ||
-                                ytCookieNames.has('LOGIN_INFO') ||
-                                ytCookieNames.has('__Secure-3PAPISID') ||
-                                ytCookieNames.has('SID');
+          const ytCookieNames = new Set([...ytCookies, ...ytDomainCookies, ...musicCookies].map(c => c.name));
+          const googleCookieNames = new Set([...googleCookies, ...googleDomainCookies].map(c => c.name));
+
+          // If SAPISID, LOGIN_INFO, or SID is present on either domain, auth cookies exist
+          const hasYtAuthCookie = ytCookieNames.has('SAPISID') ||
+                                  ytCookieNames.has('LOGIN_INFO') ||
+                                  ytCookieNames.has('__Secure-3PAPISID') ||
+                                  ytCookieNames.has('__Secure-1PAPISID') ||
+                                  ytCookieNames.has('SID');
+          const hasGoogleAuthCookie = googleCookieNames.has('SAPISID') ||
+                                      googleCookieNames.has('SID') ||
+                                      googleCookieNames.has('__Secure-3PAPISID') ||
+                                      googleCookieNames.has('SSID');
+          const hasAuthCookie = hasYtAuthCookie || hasGoogleAuthCookie;
 
           // Prevent premature closing only if user is still on Google auth and has no auth cookies yet
           if (curUrl.includes('accounts.google.') && !hasAuthCookie && !forceSync) {
@@ -653,6 +692,10 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
                   loginWin.close();
                 }
               }, 400);
+            } else if (hasGoogleAuthCookie && curUrl.includes('accounts.google.')) {
+              if (loginWin && !loginWin.isDestroyed()) {
+                loginWin.loadURL('https://music.youtube.com');
+              }
             } else if (forceSync) {
               if (loginWin && !loginWin.isDestroyed() && !curUrl.includes('music.youtube.com')) {
                 loginWin.loadURL('https://music.youtube.com');
@@ -713,9 +756,16 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         checkLoginSuccess();
       }, 800);
 
-      // Cookie change listener to detect login immediately
+      // Cookie change listener to detect login immediately across YouTube and Google
       const onCookieChanged = (event, cookie, cause, removed) => {
-        if (!removed && (cookie.name === 'SAPISID' || cookie.name === 'SID' || cookie.name === 'LOGIN_INFO' || cookie.name === '__Secure-3PAPISID')) {
+        if (!removed && (
+          cookie.name === 'SAPISID' ||
+          cookie.name === 'SID' ||
+          cookie.name === 'LOGIN_INFO' ||
+          cookie.name === '__Secure-3PAPISID' ||
+          cookie.name === '__Secure-1PAPISID' ||
+          cookie.name === 'SSID'
+        )) {
           checkLoginSuccess();
         }
       };
@@ -743,9 +793,10 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         resolve(authResolved);
       });
 
-      const initialUrl = (targetMethod === 'ytmusic')
-        ? 'https://music.youtube.com'
-        : 'https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F';
+      const googleLoginUrl = 'https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F';
+      const initialUrl = (targetMethod === 'google')
+        ? googleLoginUrl
+        : 'https://music.youtube.com';
 
       loginWin.loadURL(initialUrl, {
         userAgent: CHROME_UA

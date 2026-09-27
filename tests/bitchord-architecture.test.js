@@ -92,6 +92,9 @@ function runBitChordArchitectureTests() {
   assert.ok(css.includes('.deja-queue-drawer'), 'CSS must style Up Next queue drawer');
   assert.ok(css.includes('.deja-pipeline-card'), 'CSS must style audio pipeline card');
   assert.ok(css.includes('.songs-table-container'), 'CSS must style songs table');
+  assert.ok(css.includes('.song-row') && css.includes('height: 52px'), 'CSS must enforce standard row height for .song-row');
+  assert.ok(css.includes('.song-cell-thumb') && css.includes('width: 40px !important') && css.includes('height: 40px !important'), 'CSS must enforce 40x40px rounded squircle for song-cell-thumb');
+  assert.ok(css.includes('.song-title') && css.includes('text-overflow: ellipsis'), 'CSS must enforce text-overflow: ellipsis on .song-title');
   assert.ok(css.includes('.artists-grid'), 'CSS must style artists grid');
   assert.ok(css.includes('.radio-grid'), 'CSS must style radio grid');
   assert.ok(css.includes('body.pure-black'), 'CSS must support body.pure-black theme selector');
@@ -402,6 +405,9 @@ function runBitChordArchitectureTests() {
   assert.ok(mainCode.includes('Sign in to YouTube Music'), 'main.js header must have Sign in to YouTube Music title');
   assert.ok(mainCode.includes('Done / Sync My Account'), 'main.js header must have Done / Sync My Account button');
   assert.ok(mainCode.includes('Load music.youtube.com'), 'main.js header must have Load music.youtube.com button');
+  assert.ok(mainCode.includes("backgroundColor: '#ffffff'"), 'main.js must set white background on login window to avoid black void');
+  assert.ok(mainCode.includes("domain: '.google.com'"), 'main.js must capture cookies on Google domains as well as YouTube');
+  assert.ok(mainCode.includes('hasGoogleAuthCookie'), 'main.js must track Google authentication cookies');
   assert.ok(preloadCode.includes("openGoogleLogin: (targetMethod) =>"), 'preload.js must forward targetMethod parameter in openGoogleLogin bridge');
 
   // 9.3 HTML Custom Playlists Components
