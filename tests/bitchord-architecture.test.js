@@ -409,6 +409,9 @@ function runBitChordArchitectureTests() {
   assert.ok(mainCode.includes("domain: '.google.com'"), 'main.js must capture cookies on Google domains as well as YouTube');
   assert.ok(mainCode.includes('hasGoogleAuthCookie'), 'main.js must track Google authentication cookies');
   assert.ok(preloadCode.includes("openGoogleLogin: (targetMethod) =>"), 'preload.js must forward targetMethod parameter in openGoogleLogin bridge');
+  assert.ok(mainCode.includes('isGoogleAuthRequest'), 'main.js must implement isGoogleAuthRequest to safeguard all Google auth endpoints');
+  assert.ok(mainCode.includes('gstatic.com') && mainCode.includes('googleapis.com'), 'main.js must safeguard gstatic and googleapis subresources for Google auth');
+  assert.ok(!mainCode.includes('header.innerHTML ='), 'main.js must not set innerHTML on login header to strictly comply with Trusted Types');
 
   // 9.3 HTML Custom Playlists Components
   assert.ok(html.includes('id="btn-sidebar-new-playlist"'), 'HTML must provide "+ New Playlist" button in sidebar');

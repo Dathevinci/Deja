@@ -506,7 +506,9 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           partition: 'persist:ytmusic',
           nodeIntegration: false,
           contextIsolation: true,
-          sandbox: true
+          sandbox: false,
+          webSecurity: true,
+          allowRunningInsecureContent: false
         }
       });
       activeLoginWin = loginWin;
@@ -530,7 +532,9 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
               partition: 'persist:ytmusic',
               nodeIntegration: false,
               contextIsolation: true,
-              sandbox: true
+              sandbox: false,
+              webSecurity: true,
+              allowRunningInsecureContent: false
             }
           }
         };
@@ -544,7 +548,9 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         if (!loginWin || loginWin.isDestroyed()) return;
         loginWin.webContents.executeJavaScript(`
           try {
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            if (navigator.webdriver !== undefined) {
+              Object.defineProperty(navigator, 'webdriver', { get: () => undefined, configurable: true });
+            }
             if (!window.chrome) {
               window.chrome = { app: { isInstalled: false }, csi: () => {}, loadTimes: () => {} };
             }
@@ -559,15 +565,13 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
             const isGoogle = window.location.hostname.includes('google.');
             const isYTM = window.location.hostname.includes('youtube.');
 
-            // Ensure smooth rendering without black voids or cut-off containers
+            // Ensure smooth background rendering
             if (isGoogle) {
               if (document.documentElement) {
                 document.documentElement.style.backgroundColor = '#ffffff';
-                document.documentElement.style.overflow = 'auto';
               }
               if (document.body) {
                 document.body.style.backgroundColor = '#ffffff';
-                document.body.style.overflow = 'auto';
               }
             } else if (isYTM) {
               if (document.documentElement) {
@@ -578,49 +582,62 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
               }
             }
 
+            // Safe DOM creation compliant with CSP & Trusted Types (no innerHTML)
             if (!document.getElementById('deja-login-header')) {
               const header = document.createElement('div');
               header.id = 'deja-login-header';
-              header.style.cssText = 'position:fixed;top:0;left:0;right:0;height:48px;background:#18181c;border-bottom:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.5);box-sizing:border-box;user-select:none;';
-              header.innerHTML = \`
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <div style="width:10px;height:10px;border-radius:50%;background:#FA2D48;box-shadow:0 0 8px rgba(250,45,72,0.8);"></div>
-                  <span style="font-size:14px;font-weight:600;color:#FFFFFF;letter-spacing:-0.2px;">Sign in to YouTube Music</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <button id="deja-btn-load-ytm" style="background:rgba(255,255,255,0.08);color:#e4e4e7;border:1px solid rgba(255,255,255,0.16);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:all 0.15s ease;">Load music.youtube.com</button>
-                  <button id="deja-btn-sync-done" style="background:#FA2D48;color:#FFFFFF;border:none;padding:6px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;box-shadow:0 2px 10px rgba(250,45,72,0.4);transition:all 0.15s ease;">Done / Sync My Account</button>
-                </div>
-              \`;
-              document.documentElement.appendChild(header);
+              header.style.cssText = 'position:fixed;top:0;left:0;right:0;height:44px;background:#18181c;border-bottom:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.5);box-sizing:border-box;user-select:none;pointer-events:auto;';
 
-              const btnLoad = document.getElementById('deja-btn-load-ytm');
-              if (btnLoad) {
-                btnLoad.onmouseenter = () => { btnLoad.style.background = 'rgba(255,255,255,0.16)'; };
-                btnLoad.onmouseleave = () => { btnLoad.style.background = 'rgba(255,255,255,0.08)'; };
-                btnLoad.onclick = () => {
-                  window.location.href = 'https://music.youtube.com';
-                };
-              }
+              const leftDiv = document.createElement('div');
+              leftDiv.style.cssText = 'display:flex;align-items:center;gap:10px;';
+              const dot = document.createElement('div');
+              dot.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#FA2D48;box-shadow:0 0 8px rgba(250,45,72,0.8);';
+              const title = document.createElement('span');
+              title.style.cssText = 'font-size:13px;font-weight:600;color:#FFFFFF;letter-spacing:-0.2px;';
+              title.textContent = 'Sign in to YouTube Music';
+              leftDiv.appendChild(dot);
+              leftDiv.appendChild(title);
 
-              const btnSync = document.getElementById('deja-btn-sync-done');
-              if (btnSync) {
-                btnSync.onmouseenter = () => { btnSync.style.background = '#fb455c'; };
-                btnSync.onmouseleave = () => { btnSync.style.background = '#FA2D48'; };
-                btnSync.onclick = () => {
-                  btnSync.innerText = 'Syncing...';
-                  document.title = 'DEJA_SYNC_TRIGGER_' + Date.now();
-                  window.location.hash = 'deja-sync';
-                  console.log('DEJA_SYNC_TRIGGER_' + Date.now());
-                  setTimeout(() => {
-                    if (btnSync) btnSync.innerText = 'Done / Sync My Account';
-                  }, 3000);
-                };
-              }
+              const rightDiv = document.createElement('div');
+              rightDiv.style.cssText = 'display:flex;align-items:center;gap:10px;';
+
+              const btnLoad = document.createElement('button');
+              btnLoad.id = 'deja-btn-load-ytm';
+              btnLoad.style.cssText = 'background:rgba(255,255,255,0.08);color:#e4e4e7;border:1px solid rgba(255,255,255,0.16);padding:5px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:all 0.15s ease;';
+              btnLoad.textContent = 'Load music.youtube.com';
+              btnLoad.onmouseenter = () => { btnLoad.style.background = 'rgba(255,255,255,0.16)'; };
+              btnLoad.onmouseleave = () => { btnLoad.style.background = 'rgba(255,255,255,0.08)'; };
+              btnLoad.onclick = () => {
+                window.location.href = 'https://music.youtube.com';
+              };
+
+              const btnSync = document.createElement('button');
+              btnSync.id = 'deja-btn-sync-done';
+              btnSync.style.cssText = 'background:#FA2D48;color:#FFFFFF;border:none;padding:5px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;box-shadow:0 2px 10px rgba(250,45,72,0.4);transition:all 0.15s ease;';
+              btnSync.textContent = 'Done / Sync My Account';
+              btnSync.onmouseenter = () => { btnSync.style.background = '#fb455c'; };
+              btnSync.onmouseleave = () => { btnSync.style.background = '#FA2D48'; };
+              btnSync.onclick = () => {
+                btnSync.textContent = 'Syncing...';
+                document.title = 'DEJA_SYNC_TRIGGER_' + Date.now();
+                window.location.hash = 'deja-sync';
+                console.log('DEJA_SYNC_TRIGGER_' + Date.now());
+                setTimeout(() => {
+                  if (btnSync) btnSync.textContent = 'Done / Sync My Account';
+                }, 3000);
+              };
+
+              rightDiv.appendChild(btnLoad);
+              rightDiv.appendChild(btnSync);
+
+              header.appendChild(leftDiv);
+              header.appendChild(rightDiv);
+
+              (document.body || document.documentElement).appendChild(header);
             }
 
             if (document.body && !document.body.dataset.dejaHeaderShifted) {
-              document.body.style.paddingTop = '48px';
+              document.body.style.paddingTop = '44px';
               document.body.style.boxSizing = 'border-box';
               document.body.dataset.dejaHeaderShifted = 'true';
             }
@@ -981,10 +998,48 @@ app.whenReady().then(() => {
   const activeSessions = [session.defaultSession, ytSession];
 
   activeSessions.forEach(ses => {
+    const isGoogleAuthRequest = (url, initiator) => {
+      if (!url) return false;
+      const u = url.toLowerCase();
+      const init = (initiator || '').toLowerCase();
+
+      // Protected if initiated from Google / YouTube account authentication flow
+      if (
+        init.includes('accounts.google.') ||
+        init.includes('accounts.youtube.') ||
+        init.includes('myaccount.google.')
+      ) {
+        return true;
+      }
+
+      // Protected if target URL is Google / YouTube authentication or account infrastructure
+      if (
+        u.includes('accounts.google.com') ||
+        u.includes('accounts.youtube.com') ||
+        u.includes('accounts.google.') ||
+        u.includes('accounts.youtube.') ||
+        u.includes('gstatic.com') ||
+        u.includes('googleapis.com') ||
+        u.includes('googleusercontent.com') ||
+        u.includes('play.google.com') ||
+        u.includes('myaccount.google.com')
+      ) {
+        return true;
+      }
+
+      return false;
+    };
+
     // Intercept headers: emulate genuine YouTube Music client and eliminate Error 150 / 101 embed blocks
     ses.webRequest.onBeforeSendHeaders((details, callback) => {
       // In ses.webRequest.onBeforeSendHeaders, if the URL contains accounts.google.com or accounts.youtube.com, DO NOT modify, inject, or rewrite ANY headers at all. Let Chromium send natural Chrome 131 headers.
-      if (details.url.includes('accounts.google.com') || details.url.includes('accounts.youtube.com') || details.url.includes('accounts.google.') || details.url.includes('accounts.youtube.')) {
+      if (
+        details.url.includes('accounts.google.com') ||
+        details.url.includes('accounts.youtube.com') ||
+        details.url.includes('accounts.google.') ||
+        details.url.includes('accounts.youtube.') ||
+        isGoogleAuthRequest(details.url, details.initiator)
+      ) {
         return callback({ cancel: false });
       }
 
@@ -1072,7 +1127,13 @@ app.whenReady().then(() => {
     // Strip iframe embedding restrictions and enable cross-origin media streaming
     ses.webRequest.onHeadersReceived((details, callback) => {
       // Do NOT mutate security headers on accounts.google.com or accounts.youtube.com (Google security scripts detect altered CSP/CORS)
-      if (details.url.includes('accounts.google.com') || details.url.includes('accounts.youtube.com') || details.url.includes('accounts.google.') || details.url.includes('accounts.youtube.')) {
+      if (
+        details.url.includes('accounts.google.com') ||
+        details.url.includes('accounts.youtube.com') ||
+        details.url.includes('accounts.google.') ||
+        details.url.includes('accounts.youtube.') ||
+        isGoogleAuthRequest(details.url, details.initiator)
+      ) {
         return callback({ cancel: false });
       }
 
@@ -1087,9 +1148,7 @@ app.whenReady().then(() => {
       if (!allowedOrigin) {
         if (
           details.url.includes('googlevideo.com') ||
-          details.url.includes('youtube.com') ||
-          details.url.includes('googleapis.com') ||
-          details.url.includes('gstatic.com')
+          details.url.includes('youtube.com')
         ) {
           allowedOrigin = 'https://www.youtube.com';
         } else {
