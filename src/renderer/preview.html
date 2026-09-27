@@ -150,12 +150,14 @@
           </button>
         </div>
 
-        <div class="sidebar-group">
-          <span class="sidebar-heading">My Playlists</span>
+        <div class="sidebar-group" id="sidebar-my-playlists-group">
+          <div class="sidebar-heading-row">
+            <span class="sidebar-heading">My Playlists</span>
+            <button class="sidebar-add-playlist-btn" id="btn-sidebar-new-playlist" title="New Playlist">+</button>
+          </div>
           <button class="sidebar-link" data-playlist="favorites">⭐ Liked Songs</button>
-          <button class="sidebar-link" data-playlist="lofi">☕ Deep Focus & Chill</button>
-          <button class="sidebar-link" data-playlist="synth">🌆 Synthwave Vibes</button>
-          <button class="sidebar-link" data-playlist="workout">⚡ High Energy Beats</button>
+          <div id="sidebar-custom-playlists-container"></div>
+          <div id="sidebar-yt-playlists-container"></div>
         </div>
       </div>
     </aside>
@@ -414,6 +416,10 @@
           <button class="exp-dropdown-item" id="opt-open-queue">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
             <span>Up Next Queue</span>
+          </button>
+          <button class="exp-dropdown-item" id="opt-add-to-playlist">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Add to Playlist</span>
           </button>
         </div>
       </div>
@@ -742,6 +748,51 @@
             <span>Treble Booster</span>
             <small style="color: var(--apple-text-tertiary);">+5dB crisp highs</small>
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Playlist Modal -->
+  <div class="modal-backdrop" id="create-playlist-modal" style="display: none;">
+    <div class="apple-modal-box">
+      <div class="modal-header">
+        <h2>New Playlist</h2>
+        <button class="modal-close-btn" id="btn-close-create-playlist">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;">
+          <label style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Playlist Name</label>
+          <input type="text" id="input-new-playlist-title" class="apple-text-input" placeholder="e.g. Late Night Chill" />
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px;">
+          <label style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Description (Optional)</label>
+          <input type="text" id="input-new-playlist-desc" class="apple-text-input" placeholder="e.g. Warm acoustic tracks and mellow beats" />
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button class="btn-apple-secondary" id="btn-cancel-create-playlist" style="padding: 8px 18px;">Cancel</button>
+          <button class="btn-apple-primary" id="btn-confirm-create-playlist" style="padding: 8px 20px;">Create</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Song to Playlist Modal -->
+  <div class="modal-backdrop" id="add-to-playlist-modal" style="display: none;">
+    <div class="apple-modal-box">
+      <div class="modal-header">
+        <h2>Add to Playlist</h2>
+        <button class="modal-close-btn" id="btn-close-add-to-playlist">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="add-to-playlist-song-info" style="font-size: 14px; font-weight: 600; color: var(--apple-accent); margin-bottom: 16px;"></div>
+        <div style="margin-bottom: 12px;">
+          <button class="btn-apple-secondary" id="btn-modal-create-and-add" style="width: 100%; justify-content: center; margin-bottom: 14px;">
+            + Create New Playlist
+          </button>
+        </div>
+        <div class="deja-picker-options" id="add-to-playlist-list" style="max-height: 240px; overflow-y: auto;">
+          <!-- List of custom playlists dynamically injected -->
         </div>
       </div>
     </div>

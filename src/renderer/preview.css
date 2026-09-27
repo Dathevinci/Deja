@@ -545,11 +545,13 @@ body {
   background: transparent;
   border-radius: 14px;
   cursor: pointer;
-  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .apple-music-card:hover {
-  transform: translateY(-4px);
+  transform: translate3d(0, -4px, 0);
 }
 
 .card-thumb-wrapper {
@@ -560,17 +562,21 @@ body {
   box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45);
   margin-bottom: 10px;
   background: #202024;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .card-thumb {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  will-change: transform;
+  transform: translateZ(0);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .apple-music-card:hover .card-thumb {
-  transform: scale(1.04);
+  transform: scale(1.05) translateZ(0);
 }
 
 .card-play-btn {
@@ -586,14 +592,15 @@ body {
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transform: scale(0.85);
-  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform: scale(0.85) translateZ(0);
+  will-change: transform, opacity;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
 }
 
 .apple-music-card:hover .card-play-btn {
   opacity: 1;
-  transform: scale(1);
+  transform: scale(1) translateZ(0);
 }
 
 .card-title {
@@ -972,13 +979,16 @@ body.deja-playing .artwork-wrapper {
   z-index: 10001;
   display: flex;
   flex-direction: column;
-  transform: translateX(100%);
+  transform: translate3d(100%, 0, 0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
 }
 
 .apple-lyrics-drawer.visible {
-  transform: translateX(0);
+  transform: translate3d(0, 0, 0);
 }
 
 .lyrics-dynamic-aura {
@@ -1200,8 +1210,11 @@ body.deja-playing .artwork-wrapper {
   box-sizing: border-box;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(100%);
-  transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  transform: translate3d(0, 100%, 0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
   user-select: none;
 }
@@ -1209,7 +1222,7 @@ body.deja-playing .artwork-wrapper {
 .deja-expanded-player-view.visible {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0);
+  transform: translate3d(0, 0, 0);
 }
 
 .deja-player-ambient-aura {
@@ -2481,4 +2494,272 @@ body.deja-playing .expanded-artwork-container,
 
 .card-type-badge.yt-badge {
   background: rgba(250, 45, 72, 0.85);
+}
+
+/* ==========================================================================
+   Apple Music 60/120fps Fluid Performance Standards & GPU Hardware Layer Promotion
+   ========================================================================== */
+:root {
+  --apple-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Momentum smooth scrolling on all scrollable views */
+html,
+body,
+.main-content,
+.sidebar-scrollable,
+.lyrics-lines-container,
+.expanded-lyrics-container,
+.deja-queue-body,
+.modal-body,
+.songs-table-container,
+.category-hero,
+.card-grid {
+  scroll-behavior: smooth !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* GPU Hardware Layer Promotion: cards, Now Playing overlay, lyrics drawer, squircle album art, buttons */
+.apple-music-card,
+.card-thumb-wrapper,
+.card-thumb,
+.artwork-wrapper,
+.expanded-artwork-container,
+.now-playing-art,
+.player-artwork,
+.song-cell-thumb,
+.deja-expanded-player-view,
+.apple-lyrics-drawer,
+.deja-lyrics-drawer,
+.deja-queue-drawer,
+.play-circle-btn,
+.btn-apple-primary,
+.btn-apple-secondary,
+.control-btn,
+.top-action-btn,
+.player-icon-btn,
+.player-heart-btn,
+.exp-transport-btn,
+.exp-play-circle-btn,
+.exp-sub-btn,
+.sidebar-link,
+.deja-btn-traffic,
+.nav-arrow,
+.sidebar-add-playlist-btn,
+.song-more-btn {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Signature Apple fluid easing curve for interactive elements */
+.btn-apple-primary,
+.btn-apple-secondary,
+.sidebar-link,
+.top-action-btn,
+.player-icon-btn,
+.control-btn,
+.exp-transport-btn,
+.exp-sub-btn,
+.nav-arrow,
+.deja-btn-traffic {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* ==========================================================================
+   Custom Playlists Architecture & Styling
+   ========================================================================== */
+.sidebar-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 8px;
+}
+
+.sidebar-add-playlist-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 19px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-add-playlist-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-main);
+  transform: scale(1.15) translateZ(0);
+}
+
+.apple-text-input {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--text-main);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apple-text-input:focus {
+  border-color: var(--apple-accent);
+  box-shadow: 0 0 12px var(--apple-accent-glow);
+}
+
+.create-playlist-card {
+  border: 1.5px dashed var(--border-strong) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  border-radius: 14px;
+  padding: 24px;
+  min-height: 210px;
+  box-sizing: border-box;
+  text-align: center;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.create-playlist-card:hover {
+  border-color: var(--apple-accent) !important;
+  background: rgba(250, 45, 72, 0.06) !important;
+  transform: translate3d(0, -4px, 0) scale(1.02);
+}
+
+.create-playlist-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(250, 45, 72, 0.15);
+  color: var(--apple-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.song-more-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.song-more-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-main);
+  transform: scale(1.1) translateZ(0);
+}
+
+/* Floating Apple Context / Action Menu */
+.deja-song-menu {
+  position: fixed;
+  z-index: 100000;
+  background: rgba(26, 26, 30, 0.95);
+  backdrop-filter: blur(40px) saturate(190%);
+  -webkit-backdrop-filter: blur(40px) saturate(190%);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.65);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  animation: dejaMenuFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dejaMenuFade {
+  from { opacity: 0; transform: scale(0.95) translateZ(0); }
+  to { opacity: 1; transform: scale(1) translateZ(0); }
+}
+
+.deja-song-menu-item {
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.deja-song-menu-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+}
+
+.deja-song-menu-item.danger {
+  color: #FF5F56;
+}
+
+.deja-song-menu-item.danger:hover {
+  background: rgba(255, 95, 86, 0.18);
+  color: #FF5F56;
+}
+
+.btn-delete-playlist {
+  color: #FF5F56 !important;
+  border-color: rgba(255, 95, 86, 0.3) !important;
+}
+
+.btn-delete-playlist:hover {
+  background: rgba(255, 95, 86, 0.15) !important;
+  border-color: #FF5F56 !important;
+}
+
+/* Sleek Apple Toast Notification */
+.deja-toast {
+  position: fixed;
+  bottom: 96px;
+  left: 50%;
+  transform: translate3d(-50%, 20px, 0);
+  background: rgba(28, 28, 32, 0.95);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  color: #FFFFFF;
+  padding: 10px 20px;
+  border-radius: 24px;
+  font-size: 13.5px;
+  font-weight: 500;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 99999;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.deja-toast.show {
+  transform: translate3d(-50%, 0, 0);
+  opacity: 1;
 }

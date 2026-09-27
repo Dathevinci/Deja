@@ -364,6 +364,63 @@ function runBitChordArchitectureTests() {
     assert.ok(parsedPls.some(p => p.browseId === 'VLPLchill123'), 'Must parse responsive playlist list items');
   }
 
+  // 9. Verify Apple Fluid Animations, Independent Google OAuth Window, and Custom Playlists
+  // 9.1 CSS Animation and Fluidity
+  assert.ok(css.includes('--apple-ease: cubic-bezier(0.16, 1, 0.3, 1)'), 'CSS must define Apple signature easing curve');
+  assert.ok(css.includes('scroll-behavior: smooth !important'), 'CSS must enforce momentum smooth scrolling');
+  assert.ok(css.includes('will-change: transform, opacity;'), 'CSS must promote GPU layers on animated surfaces');
+  assert.ok(css.includes('transform: translate3d(0, 100%, 0)'), 'CSS must use hardware-accelerated translate3d for Now Playing slide-up view');
+
+  // 9.2 Independent Google Login Window Architecture
+  assert.ok(!mainCode.includes('parent: mainWindow, modal: true'), 'Login window must NOT use parent or modal to prevent Google embedded webview detection');
+  assert.ok(mainCode.includes("Object.defineProperty(navigator, 'webdriver'"), 'main.js must inject stealth webdriver evasion into login window');
+  assert.ok(mainCode.includes("https://music.youtube.com"), 'main.js must support direct YouTube Music sign-in route');
+
+  // 9.3 HTML Custom Playlists Components
+  assert.ok(html.includes('id="btn-sidebar-new-playlist"'), 'HTML must provide "+ New Playlist" button in sidebar');
+  assert.ok(html.includes('id="sidebar-custom-playlists-container"'), 'HTML must provide sidebar custom playlists container');
+  assert.ok(html.includes('id="create-playlist-modal"'), 'HTML must provide create playlist modal');
+  assert.ok(html.includes('id="add-to-playlist-modal"'), 'HTML must provide add to playlist modal');
+  assert.ok(html.includes('id="opt-add-to-playlist"'), 'Now playing dropdown must include add to playlist option');
+
+  // 9.4 Functional Custom Playlist CRUD Logic
+  const {
+    createCustomPlaylist,
+    deleteCustomPlaylist,
+    addTrackToCustomPlaylist,
+    removeTrackFromCustomPlaylist,
+    customPlaylists
+  } = previewModule;
+
+  assert.strictEqual(typeof createCustomPlaylist, 'function', 'preview.js must export createCustomPlaylist');
+  assert.strictEqual(typeof deleteCustomPlaylist, 'function', 'preview.js must export deleteCustomPlaylist');
+  assert.strictEqual(typeof addTrackToCustomPlaylist, 'function', 'preview.js must export addTrackToCustomPlaylist');
+  assert.strictEqual(typeof removeTrackFromCustomPlaylist, 'function', 'preview.js must export removeTrackFromCustomPlaylist');
+
+  const testPl = createCustomPlaylist('Unit Test Jams', 'Created during architecture test');
+  assert.ok(testPl && testPl.id && testPl.id.startsWith('custom-'), 'Created playlist must have valid custom ID');
+  assert.strictEqual(testPl.title, 'Unit Test Jams');
+  assert.strictEqual(testPl.tracks.length, 0);
+
+  const sampleTrack = { id: 'test-trk-1', title: 'Test Song', artist: 'Test Artist', duration: 180 };
+  const addRes1 = addTrackToCustomPlaylist(testPl.id, sampleTrack);
+  assert.strictEqual(addRes1, true, 'First track addition must succeed');
+  assert.strictEqual(testPl.tracks.length, 1);
+  assert.strictEqual(testPl.tracks[0].id, 'test-trk-1');
+
+  // Duplicate prevention check
+  const addRes2 = addTrackToCustomPlaylist(testPl.id, sampleTrack);
+  assert.strictEqual(addRes2, false, 'Adding duplicate track must return false');
+  assert.strictEqual(testPl.tracks.length, 1);
+
+  // Remove track
+  removeTrackFromCustomPlaylist(testPl.id, 'test-trk-1');
+  assert.strictEqual(testPl.tracks.length, 0);
+
+  // Delete playlist
+  deleteCustomPlaylist(testPl.id);
+  assert.ok(!customPlaylists.some(p => p.id === testPl.id), 'Deleted playlist must be removed from customPlaylists array');
+
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
 

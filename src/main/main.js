@@ -481,7 +481,7 @@ ipcMain.handle('open-external', (event, url) => {
 
 // Google Account & YouTube Music Authentication Dialog
 let activeLoginWin = null;
-ipcMain.handle('open-google-login', async () => {
+ipcMain.handle('open-google-login', async (event, targetMethod) => {
   return new Promise((resolve) => {
     try {
       if (activeLoginWin && !activeLoginWin.isDestroyed()) {
@@ -490,12 +490,11 @@ ipcMain.handle('open-google-login', async () => {
       }
 
       const ses = session.fromPartition('persist:ytmusic');
+      // Independent normal window (no parent / modal to avoid Google embedded browser detection)
       const loginWin = new BrowserWindow({
         width: 580,
         height: 720,
         title: 'Sign in to YouTube Music - Deja',
-        parent: mainWindow,
-        modal: true,
         autoHideMenuBar: true,
         webPreferences: {
           partition: 'persist:ytmusic',
@@ -506,7 +505,7 @@ ipcMain.handle('open-google-login', async () => {
       });
       activeLoginWin = loginWin;
 
-      // Enforce clean Chrome User Agent with no Electron tokens
+      // Clean Chrome 131 User-Agent with no Electron tokens
       loginWin.webContents.setUserAgent(CHROME_UA);
 
       // Handle popup windows during Google Auth (e.g. 2FA, Security Keys)
@@ -528,63 +527,96 @@ ipcMain.handle('open-google-login', async () => {
 
       let authResolved = false;
 
-      const checkLoginSuccess = async (targetUrl) => {
-        if (authResolved) return;
-        const currentUrl = targetUrl || (!loginWin.isDestroyed() ? loginWin.webContents.getURL() : '');
-        if (!currentUrl) return;
+      const injectStealth = () => {
+        if (!loginWin || loginWin.isDestroyed()) return;
+        loginWin.webContents.executeJavaScript(`
+          Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        `).catch(() => {});
+      };
 
-        // When the URL reaches music.youtube.com and is not still within Google accounts
-        if (currentUrl.includes('music.youtube.com') && !currentUrl.includes('accounts.google.com')) {
-          try {
-            const cookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
-            const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
-            const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
-            const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
-            const googleDomainCookies = await ses.cookies.get({ domain: 'google.com' }).catch(() => []);
-            const allCookies = [...cookies, ...ytDomainCookies, ...musicCookies, ...googleCookies, ...googleDomainCookies];
-            const cookieNames = new Set(allCookies.map(c => c.name));
-
-            // Verify required Google authentication cookies are present (SAPISID, SID, or LOGIN_INFO)
-            const hasAuthCookie = cookieNames.has('SAPISID') ||
-                                  cookieNames.has('SID') ||
-                                  cookieNames.has('LOGIN_INFO') ||
-                                  cookieNames.has('__Secure-3PAPISID') ||
-                                  cookieNames.has('__Secure-1PAPISID') ||
-                                  cookieNames.has('SSID') ||
-                                  cookieNames.has('HSID');
-
-            if (hasAuthCookie) {
-              authResolved = true;
-              // Trigger innertube.getAccountInfo(ses) to fetch channel title and avatar
-              const info = await innertube.getAccountInfo(ses);
-              // Send IPC event (auth-changed) to mainWindow.webContents
-              if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('auth-changed', info);
-                mainWindow.webContents.send('auth-state-changed', info);
+      const injectSecondarySignInPrompt = () => {
+        if (!loginWin || loginWin.isDestroyed()) return;
+        const curUrl = loginWin.webContents.getURL() || '';
+        if (curUrl.includes('accounts.google.com')) {
+          loginWin.webContents.executeJavaScript(`
+            if (!document.getElementById('deja-stealth-banner')) {
+              const b = document.createElement('div');
+              b.id = 'deja-stealth-banner';
+              b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#18181b;color:#f4f4f5;padding:7px 14px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;display:flex;align-items:center;justify-content:space-between;z-index:9999999;border-bottom:1px solid rgba(255,255,255,0.15);box-shadow:0 2px 10px rgba(0,0,0,0.5);';
+              b.innerHTML = '<span style="font-weight:500;">Google blocking login?</span><button id="btn-switch-ytm-signin" style="background:#FA2D48;color:#FFFFFF;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:11px;outline:none;">Sign in via YouTube Music</button>';
+              document.body.prepend(b);
+              const btn = document.getElementById('btn-switch-ytm-signin');
+              if (btn) {
+                btn.onclick = () => {
+                  window.location.href = 'https://music.youtube.com';
+                };
               }
-              // Close loginWin smoothly
-              setTimeout(() => {
-                if (!loginWin.isDestroyed()) {
-                  loginWin.close();
-                }
-              }, 600);
             }
-          } catch (err) {
-            console.warn('[Auth] Error checking login cookies:', err.message);
-          }
+          `).catch(() => {});
         }
       };
 
-      // Listen for navigation events (did-navigate, did-navigate-in-page)
+      const checkLoginSuccess = async (targetUrl) => {
+        if (authResolved) return;
+        try {
+          const cookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
+          const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
+          const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
+          const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
+          const googleDomainCookies = await ses.cookies.get({ domain: 'google.com' }).catch(() => []);
+          const allCookies = [...cookies, ...ytDomainCookies, ...musicCookies, ...googleCookies, ...googleDomainCookies];
+          const cookieNames = new Set(allCookies.map(c => c.name));
+
+          // Verify required Google authentication cookies are present (SAPISID, SID, or LOGIN_INFO)
+          const hasAuthCookie = cookieNames.has('SAPISID') ||
+                                cookieNames.has('SID') ||
+                                cookieNames.has('LOGIN_INFO') ||
+                                cookieNames.has('__Secure-3PAPISID') ||
+                                cookieNames.has('__Secure-1PAPISID') ||
+                                cookieNames.has('SSID') ||
+                                cookieNames.has('HSID');
+
+          if (hasAuthCookie) {
+            authResolved = true;
+            // Fetch real account details via innertube.getAccountInfo(ses)
+            const info = await innertube.getAccountInfo(ses);
+            const authPayload = (info && info.isLoggedIn) ? info : Object.assign({ isLoggedIn: true }, info || {});
+            // Send IPC event (auth-changed) to mainWindow.webContents
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('auth-changed', authPayload);
+              mainWindow.webContents.send('auth-state-changed', authPayload);
+            }
+            // Close loginWin smoothly
+            setTimeout(() => {
+              if (loginWin && !loginWin.isDestroyed()) {
+                loginWin.close();
+              }
+            }, 500);
+          }
+        } catch (err) {
+          console.warn('[Auth] Error checking login cookies:', err.message);
+        }
+      };
+
+      // Listen for DOM creation and navigation events
+      loginWin.webContents.on('dom-ready', () => {
+        injectStealth();
+        injectSecondarySignInPrompt();
+        checkLoginSuccess();
+      });
+
       loginWin.webContents.on('did-navigate', (e, url) => {
+        injectStealth();
+        injectSecondarySignInPrompt();
         checkLoginSuccess(url);
-        setTimeout(() => checkLoginSuccess(url), 400);
-        setTimeout(() => checkLoginSuccess(url), 1000);
+        setTimeout(() => checkLoginSuccess(url), 500);
+        setTimeout(() => checkLoginSuccess(url), 1200);
       });
 
       loginWin.webContents.on('did-navigate-in-page', (e, url) => {
+        injectStealth();
         checkLoginSuccess(url);
-        setTimeout(() => checkLoginSuccess(url), 400);
+        setTimeout(() => checkLoginSuccess(url), 500);
       });
 
       // Cookie change listener to detect login immediately
@@ -613,7 +645,11 @@ ipcMain.handle('open-google-login', async () => {
         resolve(authResolved);
       });
 
-      loginWin.loadURL('https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F', {
+      const initialUrl = (targetMethod === 'ytmusic')
+        ? 'https://music.youtube.com'
+        : 'https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com%2F';
+
+      loginWin.loadURL(initialUrl, {
         userAgent: CHROME_UA
       });
     } catch (err) {
@@ -799,6 +835,11 @@ app.whenReady().then(() => {
   activeSessions.forEach(ses => {
     // Intercept headers: emulate genuine YouTube Music client and eliminate Error 150 / 101 embed blocks
     ses.webRequest.onBeforeSendHeaders((details, callback) => {
+      // In ses.webRequest.onBeforeSendHeaders, if the URL contains accounts.google.com or accounts.youtube.com, DO NOT modify, inject, or rewrite ANY headers at all. Let Chromium send natural Chrome 131 headers.
+      if (details.url.includes('accounts.google.com') || details.url.includes('accounts.youtube.com')) {
+        return callback({ cancel: false, requestHeaders: details.requestHeaders });
+      }
+
       const requestHeaders = details.requestHeaders || {};
 
       // 1. Strip any Electron and app tokens across all headers to prevent Google's "browser or app may not be secure" block

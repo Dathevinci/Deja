@@ -95,6 +95,32 @@ function runEdgeCaseTests() {
   assert.deepStrictEqual(preview.parseLrcLines(undefined), []);
   assert.deepStrictEqual(preview.parseLrcLines(''), []);
 
+  // 8. Custom Playlist Edge Cases
+  const plEmpty = preview.createCustomPlaylist('', '   ');
+  assert.strictEqual(plEmpty.title, 'My Playlist');
+  assert.strictEqual(plEmpty.description, 'Custom Playlist');
+
+  const plWhitespace = preview.createCustomPlaylist('   ', '');
+  assert.strictEqual(plWhitespace.title, 'My Playlist');
+
+  assert.strictEqual(preview.addTrackToCustomPlaylist('non-existent-pl-id', { id: 'x' }), false);
+  assert.strictEqual(preview.addTrackToCustomPlaylist(null, null), false);
+  assert.strictEqual(preview.addTrackToCustomPlaylist(plEmpty.id, null), false);
+
+  // Removing from non-existent playlist should not throw
+  assert.doesNotThrow(() => {
+    preview.removeTrackFromCustomPlaylist('non-existent-pl-id', 'some-id');
+  });
+
+  // Deleting non-existent playlist should not throw
+  assert.doesNotThrow(() => {
+    preview.deleteCustomPlaylist('non-existent-pl-id');
+  });
+
+  // Cleanup test playlist
+  preview.deleteCustomPlaylist(plEmpty.id);
+  preview.deleteCustomPlaylist(plWhitespace.id);
+
   console.log('✓ Edge cases and security tests passed successfully.');
 }
 
