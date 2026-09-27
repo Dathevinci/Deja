@@ -50,8 +50,8 @@ function createCoverArt(title, subtitle, c1, c2, c3, patternType = 'mesh') {
 
 const CATALOGUE_TRACKS = [
   {
-    id: 'yt-ic8j13U_FS8',
-    videoId: 'ic8j13U_FS8',
+    id: 'yt-E9jGlwluIbk',
+    videoId: 'E9jGlwluIbk',
     title: 'Cruel Summer',
     artist: 'Taylor Swift',
     album: 'Lover',
@@ -60,7 +60,7 @@ const CATALOGUE_TRACKS = [
     year: '2019',
     playlists: ['favorites', 'featured'],
     palette: { c1: 'rgba(250, 45, 72, 0.48)', c2: 'rgba(255, 120, 50, 0.44)', c3: 'rgba(255, 200, 55, 0.40)', c4: 'rgba(250, 80, 120, 0.35)', primaryR: 250, primaryG: 45, primaryB: 72 },
-    cover: 'https://i.ytimg.com/vi/ic8j13U_FS8/hqdefault.jpg',
+    cover: 'https://i.ytimg.com/vi/E9jGlwluIbk/hqdefault.jpg',
     lyrics: [
       { time: 0, text: 'Fever dream high in the quiet of the night' },
       { time: 5, text: 'You know that I caught it (Oh yeah, you\'re right, I want it)' },
@@ -639,10 +639,7 @@ async function resolveAndPlayTrack(track) {
 if (typeof window !== 'undefined') {
   window.onYouTubeIframeAPIReady = function() {
     try {
-      const initialVideoId = (CATALOGUE_TRACKS[0] && CATALOGUE_TRACKS[0].videoId) || 'ic8j13U_FS8';
-      const validOrigin = (window.location && window.location.protocol && window.location.protocol.startsWith('http'))
-        ? window.location.origin
-        : 'https://music.youtube.com';
+      const initialVideoId = (CATALOGUE_TRACKS[0] && CATALOGUE_TRACKS[0].videoId) || 'E9jGlwluIbk';
 
       ytPlayer = new YT.Player('yt-player-container', {
         height: '180',
@@ -655,9 +652,7 @@ if (typeof window !== 'undefined') {
           fs: 0,
           modestbranding: 1,
           rel: 0,
-          origin: validOrigin,
           enablejsapi: 1,
-          widget_referrer: 'https://music.youtube.com',
           playsinline: 1
         },
         events: {
@@ -2266,11 +2261,15 @@ function play() {
       isDirectStreamPlaying = false;
       fallbackToIFrame(track);
     });
-  } else if (!isDirectStreamPlaying && (!dejaAudio || !dejaAudio.src)) {
+  } else if (isYtPlaying && isYtReady && ytPlayer) {
+    try {
+      ytPlayer.unMute();
+      ytPlayer.setVolume(isMuted ? 0 : Math.round(currentVolume * 100));
+      ytPlayer.playVideo();
+    } catch {}
+  } else {
     resolveAndPlayTrack(track);
     return;
-  } else {
-    fallbackToIFrame(track);
   }
 
   ensureAudioGraph();
@@ -2323,8 +2322,7 @@ function nextTrack() {
   }
 
   const nextIdx = (currentIndex + 1) % CATALOGUE_TRACKS.length;
-  loadTrack(nextIdx);
-  if (isPlaying) play();
+  selectTrack(nextIdx);
 }
 
 function prevTrack() {
@@ -2343,8 +2341,7 @@ function prevTrack() {
   }
 
   const prevIdx = (currentIndex - 1 + CATALOGUE_TRACKS.length) % CATALOGUE_TRACKS.length;
-  loadTrack(prevIdx);
-  if (isPlaying) play();
+  selectTrack(prevIdx);
 }
 
 function toggleShuffle() {
@@ -2408,7 +2405,10 @@ function tick() {
       updateDynamicPipeline(ytPlayer);
     } catch {}
   } else if (isPlaying) {
-    currentTime += 1;
+    // Only increment simulated time in pure mock/offline testing mode without player attached
+    if (!dejaAudio?.src && !isYtReady) {
+      currentTime += 1;
+    }
   }
 
   if (currentTime >= track.duration) {

@@ -676,14 +676,21 @@ app.whenReady().then(() => {
     ses.webRequest.onBeforeSendHeaders((details, callback) => {
       const requestHeaders = details.requestHeaders || {};
 
-      // Rewrite Origin & Referer to music.youtube.com for all YouTube & GoogleVideo requests
-      if (
+      const isYtOrGv = (
         details.url.includes('youtube.com') ||
         details.url.includes('youtube-nocookie.com') ||
         details.url.includes('googlevideo.com')
-      ) {
-        requestHeaders['Origin'] = 'https://music.youtube.com';
-        requestHeaders['Referer'] = 'https://music.youtube.com/';
+      );
+
+      if (isYtOrGv) {
+        const origin = requestHeaders['Origin'] || requestHeaders['origin'] || '';
+        const referer = requestHeaders['Referer'] || requestHeaders['referer'] || '';
+        if (!origin || origin.startsWith('file://')) {
+          requestHeaders['Origin'] = 'https://music.youtube.com';
+        }
+        if (!referer || referer.startsWith('file://')) {
+          requestHeaders['Referer'] = 'https://music.youtube.com/';
+        }
       }
 
       delete requestHeaders['Sec-Ch-Ua-Platform'];
@@ -696,11 +703,27 @@ app.whenReady().then(() => {
     // Strip iframe embedding restrictions and enable cross-origin media streaming
     ses.webRequest.onHeadersReceived((details, callback) => {
       const responseHeaders = { ...details.responseHeaders };
-      delete responseHeaders['x-frame-options'];
-      delete responseHeaders['X-Frame-Options'];
-      delete responseHeaders['content-security-policy'];
-      delete responseHeaders['Content-Security-Policy'];
-      responseHeaders['Access-Control-Allow-Origin'] = ['*'];
+      for (const k of Object.keys(responseHeaders)) {
+        const lower = k.toLowerCase();
+        if (lower === 'x-frame-options' || lower === 'content-security-policy' || lower === 'access-control-allow-origin') {
+          delete responseHeaders[k];
+        }
+      }
+      let allowedOrigin = details.initiator;
+      if (!allowedOrigin) {
+        if (
+          details.url.includes('googlevideo.com') ||
+          details.url.includes('youtube.com') ||
+          details.url.includes('googleapis.com') ||
+          details.url.includes('gstatic.com')
+        ) {
+          allowedOrigin = 'https://www.youtube.com';
+        } else {
+          allowedOrigin = 'https://music.youtube.com';
+        }
+      }
+      responseHeaders['access-control-allow-origin'] = [allowedOrigin];
+      responseHeaders['access-control-allow-credentials'] = ['true'];
       callback({ cancel: false, responseHeaders });
     });
   });

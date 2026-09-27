@@ -142,6 +142,20 @@ function runInnerTubeIntegrationTests() {
   assert.strictEqual(bestFormat.duration, 210);
   assert.strictEqual(bestFormat.loudnessDb, -1.2);
 
+  // 6.1.1 AAC bitrate selection (iOS client context returns AAC itag 140 / 139)
+  const mockAacData = {
+    streamingData: {
+      adaptiveFormats: [
+        { itag: 139, mimeType: 'audio/mp4; codecs="mp4a.40.5"', bitrate: 48000, url: 'https://googlevideo.com/videoplayback?itag=139' },
+        { itag: 140, mimeType: 'audio/mp4; codecs="mp4a.40.2"', bitrate: 128000, url: 'https://googlevideo.com/videoplayback?itag=140', approxDurationMs: '180000' }
+      ]
+    }
+  };
+  const bestAac = innertube.extractBestAudioFormat(mockAacData);
+  assert.ok(bestAac, 'Must extract AAC audio format');
+  assert.strictEqual(bestAac.itag, 140, 'Must select highest bitrate AAC stream (itag 140)');
+  assert.strictEqual(bestAac.duration, 180);
+
   // 6.2 Graceful fallback when signature deciphering required (no direct url)
   const mockCipherData = {
     streamingData: {

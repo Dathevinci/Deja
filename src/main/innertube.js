@@ -752,7 +752,44 @@ function parseDurationString(str) {
 async function getAudioStream(videoId, ses) {
   if (!videoId || typeof videoId !== 'string') return null;
 
-  // 1. ANDROID_MUSIC client context (BitChord Android PlayerClient.kt)
+  // 1. IOS client context (BitChord iOS PlayerClient.kt - high-compatibility direct stream)
+  try {
+    const iosVersion = '20.01.1';
+    const payload = {
+      context: {
+        client: {
+          clientName: 'IOS',
+          clientVersion: iosVersion,
+          deviceMake: 'Apple',
+          deviceModel: 'iPhone16,2',
+          hl: 'en',
+          gl: 'US'
+        }
+      },
+      videoId,
+      contentCheckOk: true,
+      racyCheckOk: true
+    };
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': `com.google.ios.youtube/${iosVersion} (iPhone16,2; U; CPU iOS 18_1_1 like Mac OS X; en_US)`,
+        'X-YouTube-Client-Name': '5',
+        'X-YouTube-Client-Version': iosVersion
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const best = extractBestAudioFormat(data);
+      if (best) return best;
+    }
+  } catch (err) {
+    console.warn('[InnerTube] getAudioStream IOS attempt notice:', err.message);
+  }
+
+  // 2. ANDROID_MUSIC client context (BitChord Android PlayerClient.kt)
   try {
     const payload = {
       context: {
@@ -772,7 +809,9 @@ async function getAudioStream(videoId, ses) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'com.google.android.apps.youtube.music/6.20.51 (Linux; U; Android 11)'
+        'User-Agent': 'com.google.android.apps.youtube.music/6.20.51 (Linux; U; Android 11)',
+        'X-YouTube-Client-Name': '21',
+        'X-YouTube-Client-Version': '6.20.51'
       },
       body: JSON.stringify(payload)
     });
@@ -783,40 +822,6 @@ async function getAudioStream(videoId, ses) {
     }
   } catch (err) {
     console.warn('[InnerTube] getAudioStream ANDROID_MUSIC attempt notice:', err.message);
-  }
-
-  // 2. IOS client context (BitChord iOS PlayerClient.kt)
-  try {
-    const payload = {
-      context: {
-        client: {
-          clientName: 'IOS',
-          clientVersion: '19.45.4',
-          deviceMake: 'Apple',
-          deviceModel: 'iPhone16,2',
-          hl: 'en',
-          gl: 'US'
-        }
-      },
-      videoId,
-      contentCheckOk: true,
-      racyCheckOk: true
-    };
-    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_1 like Mac OS X; en_US)'
-      },
-      body: JSON.stringify(payload)
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const best = extractBestAudioFormat(data);
-      if (best) return best;
-    }
-  } catch (err) {
-    console.warn('[InnerTube] getAudioStream IOS attempt notice:', err.message);
   }
 
   // 3. Authenticated / WEB_REMIX session context
