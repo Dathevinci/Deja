@@ -847,14 +847,14 @@ const SleepTimer = {
     buttons.forEach(btn => {
       if (this.afterTrack) {
         btn.classList.add('active', 'has-timer');
-        btn.innerHTML = `<span class="sleep-icon">⏱</span> <span class="sleep-time">Track End</span>`;
+        btn.innerHTML = `<span class="sleep-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span><span class="sleep-time">Track End</span>`;
       } else if (this.deadline) {
         const rem = this.remainingMs();
         const mins = Math.floor(rem / 60000);
         const secs = Math.floor((rem % 60000) / 1000);
         const display = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
         btn.classList.add('active', 'has-timer');
-        btn.innerHTML = `<span class="sleep-icon">⏱</span> <span class="sleep-time">${display}</span>`;
+        btn.innerHTML = `<span class="sleep-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span><span class="sleep-time">${display}</span>`;
       } else {
         btn.classList.remove('active', 'has-timer');
         btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;

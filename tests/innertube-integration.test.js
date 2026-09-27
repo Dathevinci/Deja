@@ -358,7 +358,7 @@ function runInnerTubeIntegrationTests() {
           }
         }
       },
-      // Liked videos playlist (VLLM) - should be filtered out to avoid duplicating ⭐ Liked Songs
+      // Liked videos playlist (VLLM) - should be filtered out to avoid duplicating Liked Songs
       {
         musicTwoRowItemRenderer: {
           title: { runs: [{ text: 'Liked Music' }] },

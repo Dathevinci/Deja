@@ -594,7 +594,7 @@ function openSongMenu(e, track, playlistContextId = null) {
 
   let html = `
     <button class="deja-song-menu-item" id="menu-opt-play-next">
-      <span>▶</span> <span>Play Next</span>
+      <span style="display:inline-flex; align-items:center;"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span> <span>Play Next</span>
     </button>
     <button class="deja-song-menu-item" id="menu-opt-like">
       <span style="display:inline-flex; align-items:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="${isLoved ? '#FA2D48' : 'none'}" stroke="${isLoved ? '#FA2D48' : 'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span> <span>${isLoved ? 'Remove from Liked' : 'Like Song'}</span>
@@ -2485,7 +2485,7 @@ function renderSongsTableView(container) {
         </div>
         ${CATALOGUE_TRACKS.map((t, idx) => `
           <div class="song-row ${idx === currentIndex ? 'active' : ''}" onclick="selectTrack(${idx})" style="grid-template-columns: 40px 1.8fr 1.2fr 1.2fr 80px 50px 50px;">
-            <span class="song-number">${idx === currentIndex && isPlaying ? '▶' : idx + 1}</span>
+            <span class="song-number">${idx === currentIndex && isPlaying ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>' : idx + 1}</span>
             <div class="song-title-cell">
               <img src="${t.cover}" class="song-cell-thumb" alt="${t.title}">
               <span class="song-title">${t.title}</span>
@@ -2562,7 +2562,7 @@ function renderPlaylistsGridView(container) {
               </svg>
             </div>
           </div>
-          <div class="card-title">⭐ Liked Songs</div>
+          <div class="card-title">Liked Songs</div>
           <div class="card-subtitle">${lovedTrackIds.size || (liveLikedSongs && liveLikedSongs.length) || 0} tracks • Favorites</div>
         </div>
       </div>
@@ -3550,7 +3550,7 @@ function renderPreviewQueue() {
     const isCurrent = (t.videoId && t.videoId === currentVideoId) || (idx === currentIndex && !t.videoId);
     return `
       <div class="deja-queue-item ${isCurrent ? 'active-playing' : ''}" id="queue-item-${idx}">
-        <div class="deja-queue-item-index">${isCurrent ? '▶' : idx + 1}</div>
+        <div class="deja-queue-item-index">${isCurrent ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>' : idx + 1}</div>
         <img src="${escapeHTML(t.cover || '')}" class="deja-queue-thumb" alt="${escapeHTML(t.title)}" onerror="this.src='../../assets/icon.png'">
         <div class="deja-queue-item-meta">
           <div class="deja-queue-item-title">${escapeHTML(t.title)}</div>
@@ -4297,7 +4297,7 @@ function updatePlayButton() {
   document.querySelectorAll('.song-row').forEach((row, i) => {
     const num = row.querySelector('.song-number');
     if (num) {
-      num.innerText = (i === currentIndex && isPlaying) ? '▶' : String(i + 1);
+      num.innerHTML = (i === currentIndex && isPlaying) ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>' : String(i + 1);
     }
   });
 }
