@@ -623,7 +623,14 @@ function openSongMenu(e, track, playlistContextId = null) {
   menu.querySelector('#menu-opt-play-next').onclick = (ev) => {
     ev.stopPropagation();
     closeSongMenu();
-    playLiveTrack(track);
+    const currentVideoId = CATALOGUE_TRACKS[currentIndex]?.videoId;
+    const qIdx = userQueue.findIndex(t => (currentVideoId && t.videoId === currentVideoId) || t.id === CATALOGUE_TRACKS[currentIndex]?.id);
+    if (qIdx !== -1) {
+      userQueue.splice(qIdx + 1, 0, track);
+    } else {
+      userQueue.unshift(track);
+    }
+    showToast(`"${track.title}" will play next`);
   };
 
   menu.querySelector('#menu-opt-like').onclick = (ev) => {
@@ -2423,7 +2430,10 @@ function renderSinglePlaylistView(container, playlistId) {
 
     const btnPlay = document.getElementById('btn-play-single-playlist');
     if (btnPlay) {
-      btnPlay.onclick = () => playLiveTrack(tracks[0]);
+      btnPlay.onclick = () => {
+        userQueue = [...tracks];
+        playLiveTrack(tracks[0]);
+      };
     }
 
     const btnShuffle = document.getElementById('btn-shuffle-single-playlist');
@@ -3713,6 +3723,45 @@ function setupEvents() {
   if (btnExpandPlayer) btnExpandPlayer.onclick = openExpandedView;
   if (btnCollapsePlayer) btnCollapsePlayer.onclick = closeExpandedView;
 
+  // Fluid iOS / macOS swipe / drag down to dismiss gesture on Now Playing header
+  const expHeader = document.querySelector('.expanded-player-header');
+  if (expHeader && expandedView) {
+    let startY = 0;
+    let currentDragY = 0;
+    let isDraggingHeader = false;
+
+    expHeader.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button')) return;
+      isDraggingHeader = true;
+      startY = e.clientY;
+      currentDragY = 0;
+      expandedView.style.transition = 'none';
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDraggingHeader) return;
+      const deltaY = e.clientY - startY;
+      if (deltaY > 0) {
+        currentDragY = deltaY;
+        expandedView.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+      }
+    });
+
+    const endDrag = () => {
+      if (!isDraggingHeader) return;
+      isDraggingHeader = false;
+      expandedView.style.transition = '';
+      if (currentDragY > 80) {
+        closeExpandedView();
+      } else {
+        expandedView.style.transform = '';
+      }
+    };
+
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+  }
+
   if (expOptionsBtn && expOptionsDropdown) {
     expOptionsBtn.onclick = (e) => {
       e.stopPropagation();
@@ -3898,6 +3947,16 @@ function setupEvents() {
       }
       if (prefTray && typeof cfg.minimizeToTray === 'boolean') {
         prefTray.checked = cfg.minimizeToTray;
+      }
+      if (Array.isArray(cfg.customPlaylists) && cfg.customPlaylists.length > 0) {
+        if (!customPlaylists || customPlaylists.length === 0) {
+          customPlaylists = cfg.customPlaylists;
+          saveCustomPlaylists();
+          updateSidebarPlaylistsUI(liveUserPlaylists);
+          if (currentView === 'playlists' || (currentView && currentView.startsWith('playlist-'))) {
+            renderCurrentView();
+          }
+        }
       }
     }).catch(() => {});
   }

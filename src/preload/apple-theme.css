@@ -26,6 +26,7 @@
   --ytmusic-color-primary1: #FA2D48 !important;
   --ytmusic-nav-bar-height: 42px !important;
   --ytmusic-player-bar-height: 80px !important;
+  --apple-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Global Font, Fluidity & Smoothness */
@@ -179,7 +180,7 @@ body::-webkit-scrollbar-corner {
   border-radius: 50%;
   border: none;
   cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   padding: 0;
   position: relative;
   display: flex;
@@ -232,7 +233,7 @@ body::-webkit-scrollbar-corner {
   align-items: center;
   justify-content: center;
   font-size: 14px;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .deja-nav-btn:hover,
@@ -262,7 +263,7 @@ body::-webkit-scrollbar-corner {
   height: 28px;
   color: var(--apple-text-secondary);
   font-size: 13px;
-  transition: all 0.25s ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: text;
   box-sizing: border-box;
 }
@@ -325,7 +326,7 @@ body::-webkit-scrollbar-corner {
   cursor: pointer;
   padding: 6px;
   border-radius: 8px;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -369,7 +370,7 @@ body::-webkit-scrollbar-corner {
   overflow: hidden !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
-  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .deja-account-btn:hover .deja-avatar-circle,
@@ -1119,7 +1120,7 @@ ytmusic-player-bar .content-info-wrapper a,
 ytmusic-player-bar .content-info-wrapper yt-formatted-string a {
   color: var(--apple-text-secondary) !important;
   text-decoration: none !important;
-  transition: color 0.15s ease !important;
+  transition: color 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 ytmusic-player-bar .content-info-wrapper a:hover,
@@ -1685,7 +1686,7 @@ body.mini-player-mode ytmusic-player-bar {
   align-items: center;
   justify-content: center;
   font-size: 16px;
-  transition: background 0.2s ease;
+  transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .deja-modal-close-btn:hover,
@@ -1742,7 +1743,7 @@ body.mini-player-mode ytmusic-player-bar {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .deja-modal-btn-primary:hover,
@@ -1900,7 +1901,7 @@ body.mini-player-mode ytmusic-player-bar {
   padding: 10px 12px !important;
   border-radius: 12px !important;
   background: transparent !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   cursor: pointer !important;
 }
 
@@ -2007,7 +2008,7 @@ body.mini-player-mode ytmusic-player-bar {
   font-size: 13.5px !important;
   font-weight: 500 !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .deja-picker-btn:hover {

@@ -104,7 +104,8 @@ function runBitChordArchitectureTests() {
   assert.ok(css.includes('text-shadow: 0 4px 20px rgba(255, 255, 255, 0.4)'), 'CSS must style active lyric line glowing text shadow');
   assert.ok(css.includes('filter: blur(0.4px)'), 'CSS must style dimmed inactive lyric lines with blur');
 
-  // 6. Verify preview.js Functional Unit Tests
+  const previewPath = path.join(__dirname, '../src/renderer/preview.js');
+  const previewCode = fs.readFileSync(previewPath, 'utf8');
   const previewModule = require('../src/renderer/preview.js');
   const {
     CATALOGUE_TRACKS,
@@ -370,11 +371,15 @@ function runBitChordArchitectureTests() {
   assert.ok(css.includes('scroll-behavior: smooth !important'), 'CSS must enforce momentum smooth scrolling');
   assert.ok(css.includes('will-change: transform, opacity;'), 'CSS must promote GPU layers on animated surfaces');
   assert.ok(css.includes('transform: translate3d(0, 100%, 0)'), 'CSS must use hardware-accelerated translate3d for Now Playing slide-up view');
+  assert.ok(css.includes('z-index: 100050'), 'Modal backdrop must be elevated above expanded player view');
+  assert.ok(css.includes('z-index: 10002'), 'Queue drawer must be layered above expanded player view');
 
   // 9.2 Independent Google Login Window Architecture
   assert.ok(!mainCode.includes('parent: mainWindow, modal: true'), 'Login window must NOT use parent or modal to prevent Google embedded webview detection');
   assert.ok(mainCode.includes("Object.defineProperty(navigator, 'webdriver'"), 'main.js must inject stealth webdriver evasion into login window');
   assert.ok(mainCode.includes("https://music.youtube.com"), 'main.js must support direct YouTube Music sign-in route');
+  assert.ok(mainCode.includes("curUrl.includes('accounts.google.')"), 'main.js must prevent closing login window while user is still on Google auth');
+  assert.ok(preloadCode.includes("openGoogleLogin: (targetMethod) =>"), 'preload.js must forward targetMethod parameter in openGoogleLogin bridge');
 
   // 9.3 HTML Custom Playlists Components
   assert.ok(html.includes('id="btn-sidebar-new-playlist"'), 'HTML must provide "+ New Playlist" button in sidebar');
@@ -382,6 +387,7 @@ function runBitChordArchitectureTests() {
   assert.ok(html.includes('id="create-playlist-modal"'), 'HTML must provide create playlist modal');
   assert.ok(html.includes('id="add-to-playlist-modal"'), 'HTML must provide add to playlist modal');
   assert.ok(html.includes('id="opt-add-to-playlist"'), 'Now playing dropdown must include add to playlist option');
+  assert.ok(previewCode.includes("cfg.customPlaylists"), 'preview.js must hydrate custom playlists from persistent config on startup');
 
   // 9.4 Functional Custom Playlist CRUD Logic
   const {

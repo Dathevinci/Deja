@@ -111,12 +111,12 @@ body {
   border-radius: 50%;
   border: none;
   cursor: pointer;
-  transition: transform 0.15s ease;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .deja-btn-traffic:hover,
 .sonora-btn-traffic:hover {
-  transform: scale(1.15);
+  transform: scale(1.15) translateZ(0);
 }
 
 .deja-btn-close,
@@ -144,7 +144,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .nav-arrow:hover {
@@ -167,7 +167,7 @@ body {
   padding: 4px 12px;
   width: 320px;
   height: 28px;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .apple-search-box:focus-within {
@@ -217,7 +217,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .top-action-btn:hover {
@@ -386,7 +386,7 @@ body {
   margin-top: auto;
   margin-bottom: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
@@ -480,13 +480,13 @@ body {
   font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 4px 16px var(--apple-accent-glow);
 }
 
 .btn-apple-primary:hover {
   background: var(--apple-accent-hover);
-  transform: translateY(-2px);
+  transform: translate3d(0, -2px, 0);
   box-shadow: 0 6px 20px var(--apple-accent-glow);
 }
 
@@ -502,12 +502,12 @@ body {
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-apple-secondary:hover {
   background: rgba(255, 255, 255, 0.18);
-  transform: translateY(-2px);
+  transform: translate3d(0, -2px, 0);
 }
 
 /* Music Shelf Sections */
@@ -702,7 +702,7 @@ body.deja-playing .artwork-wrapper {
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .artwork-wrapper:hover .artwork-overlay {
@@ -714,7 +714,7 @@ body.deja-playing .artwork-wrapper {
   flex-direction: column;
   overflow: hidden;
   cursor: pointer;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .player-meta:hover .track-title {
@@ -730,7 +730,7 @@ body.deja-playing .artwork-wrapper {
   opacity: 1;
   color: #FFFFFF;
   background: rgba(255, 255, 255, 0.1);
-  transform: scale(1.08);
+  transform: scale(1.08) translateZ(0);
 }
 
 .title-row {
@@ -774,7 +774,7 @@ body.deja-playing .artwork-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .player-heart-btn:hover {
@@ -811,12 +811,12 @@ body.deja-playing .artwork-wrapper {
   justify-content: center;
   padding: 6px;
   border-radius: 50%;
-  transition: all 0.15s ease;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .control-btn:hover {
   color: var(--text-main);
-  transform: scale(1.1);
+  transform: scale(1.1) translateZ(0);
 }
 
 .control-btn.active {
@@ -834,11 +834,11 @@ body.deja-playing .artwork-wrapper {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .play-circle-btn:hover {
-  transform: scale(1.08);
+  transform: scale(1.08) translateZ(0);
 }
 
 .progress-bar-container {
@@ -862,7 +862,7 @@ body.deja-playing .artwork-wrapper {
   border-radius: 2px;
   position: relative;
   cursor: pointer;
-  transition: height 0.15s ease;
+  transition: height 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .scrubber-track:hover {
@@ -897,13 +897,13 @@ body.deja-playing .artwork-wrapper {
   height: 10px;
   border-radius: 50%;
   background: white;
-  transform: translate(-50%, -50%) scale(0);
-  transition: transform 0.15s ease;
+  transform: translate(-50%, -50%) scale(0) translateZ(0);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .scrubber-track:hover .scrubber-knob {
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, -50%) scale(1) translateZ(0);
 }
 
 /* Player Right */
@@ -922,7 +922,7 @@ body.deja-playing .artwork-wrapper {
   cursor: pointer;
   padding: 6px;
   border-radius: 8px;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .player-icon-btn:hover {
@@ -1107,7 +1107,7 @@ body.deja-playing .artwork-wrapper {
   inset: 0;
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(20px);
-  z-index: 200;
+  z-index: 100050;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1425,7 +1425,7 @@ body.deja-playing .artwork-wrapper {
   border-radius: 8px;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s ease;
+  transition: background 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .exp-dropdown-item:hover {
@@ -1580,14 +1580,14 @@ body.deja-playing .expanded-artwork-container,
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
 .exp-audio-pipeline-badge:hover {
   background: rgba(255, 255, 255, 0.16);
   border-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-1px);
+  transform: translate3d(0, -1px, 0);
 }
 
 .pipeline-status-dot {
@@ -1615,7 +1615,7 @@ body.deja-playing .expanded-artwork-container,
 .expanded-lyric-snippet-wrap:hover {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.18);
-  transform: translateY(-1px);
+  transform: translate3d(0, -1px, 0);
 }
 
 .exp-lyric-snippet-text {
@@ -1630,12 +1630,12 @@ body.deja-playing .expanded-artwork-container,
 .exp-lyric-arrow {
   opacity: 0.6;
   flex-shrink: 0;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .expanded-lyric-snippet-wrap:hover .exp-lyric-arrow {
   opacity: 1;
-  transform: translateX(2px);
+  transform: translate3d(2px, 0, 0);
 }
 
 .expanded-scrubber-section {
@@ -1780,7 +1780,7 @@ body.deja-playing .expanded-artwork-container,
   background: rgba(255, 255, 255, 0.18);
   position: relative;
   cursor: pointer;
-  transition: height 0.15s ease;
+  transition: height 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .exp-volume-track:hover {
@@ -1937,17 +1937,20 @@ body.deja-playing .expanded-artwork-container,
   backdrop-filter: blur(50px) saturate(200%);
   -webkit-backdrop-filter: blur(50px) saturate(200%);
   border-left: 1px solid var(--border-subtle);
-  z-index: 99;
+  z-index: 10002;
   display: flex;
   flex-direction: column;
-  transform: translateX(100%);
+  transform: translate3d(100%, 0, 0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
   box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
 }
 
 .deja-queue-drawer.visible {
-  transform: translateX(0);
+  transform: translate3d(0, 0, 0);
 }
 
 .deja-queue-header {
@@ -1988,7 +1991,7 @@ body.deja-playing .expanded-artwork-container,
   padding: 10px 12px;
   border-radius: 12px;
   background: transparent;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
 }
 
@@ -2105,7 +2108,7 @@ body.deja-playing .expanded-artwork-container,
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .deja-picker-btn:hover {
@@ -2191,7 +2194,7 @@ body.deja-playing .expanded-artwork-container,
   padding: 10px 16px;
   border-radius: 10px;
   align-items: center;
-  transition: all 0.15s ease;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
 }
 
@@ -2273,11 +2276,11 @@ body.deja-playing .expanded-artwork-container,
   text-align: center;
   gap: 12px;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .artist-card:hover {
-  transform: translateY(-4px);
+  transform: translate3d(0, -4px, 0);
 }
 
 .artist-avatar-wrap {
@@ -2293,11 +2296,11 @@ body.deja-playing .expanded-artwork-container,
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .artist-card:hover .artist-avatar-img {
-  transform: scale(1.08);
+  transform: scale(1.08) translateZ(0);
 }
 
 .artist-card-name {
@@ -2407,13 +2410,13 @@ body.deja-playing .expanded-artwork-container,
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .genre-chip:hover {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
+  transform: translate3d(0, -1px, 0);
 }
 
 .genre-chip.active {
