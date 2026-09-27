@@ -74,6 +74,8 @@ function runBitChordArchitectureTests() {
   assert.ok(html.includes('class="expanded-transport-row"'), 'Must include expanded transport row');
   assert.ok(html.includes('class="expanded-bottom-row"'), 'Must include expanded bottom row');
   assert.ok(html.includes('id="apple-lyrics-drawer"'), 'Must include time-synced lyrics drawer');
+  assert.ok(html.includes('id="btn-close-lyrics"'), 'Must include lyrics drawer close button');
+  assert.ok(html.includes('id="lyrics-backdrop"'), 'Must include lyrics drawer backdrop');
   assert.ok(html.includes('id="apple-queue-drawer"'), 'Must include Up Next queue drawer');
   assert.ok(html.includes('id="pipeline-modal"'), 'Must include audio pipeline modal');
   assert.ok(html.includes('id="sleep-modal"'), 'Must include sleep timer modal');
@@ -100,6 +102,8 @@ function runBitChordArchitectureTests() {
   assert.ok(css.includes('object-fit: cover !important'), 'CSS must enforce object-fit: cover to prevent aspect ratio distortion');
   assert.ok(css.includes('[src*="hqdefault"]'), 'CSS must include hqdefault scaling rule to eliminate YouTube 4:3 letterbox padding');
   assert.ok(css.includes('.expanded-lyrics-container'), 'CSS must style expanded lyrics container');
+  assert.ok(css.includes('.lyrics-backdrop'), 'CSS must style lyrics drawer backdrop');
+  assert.ok(css.includes('.btn-close-lyrics'), 'CSS must style lyrics drawer close button');
   assert.ok(css.includes('.apple-lyric-line'), 'CSS must style apple-lyric-line');
   assert.ok(css.includes('text-shadow: 0 4px 20px rgba(255, 255, 255, 0.4)'), 'CSS must style active lyric line glowing text shadow');
   assert.ok(css.includes('filter: blur(0.4px)'), 'CSS must style dimmed inactive lyric lines with blur');
@@ -379,6 +383,9 @@ function runBitChordArchitectureTests() {
   assert.ok(mainCode.includes("Object.defineProperty(navigator, 'webdriver'"), 'main.js must inject stealth webdriver evasion into login window');
   assert.ok(mainCode.includes("https://music.youtube.com"), 'main.js must support direct YouTube Music sign-in route');
   assert.ok(mainCode.includes("curUrl.includes('accounts.google.')"), 'main.js must prevent closing login window while user is still on Google auth');
+  assert.ok(mainCode.includes("disable-blink-features") && mainCode.includes("AutomationControlled"), 'main.js must disable AutomationControlled blink feature');
+  assert.ok(mainCode.includes('width: 800') && mainCode.includes('height: 700'), 'main.js must create 800x700 login window');
+  assert.ok(mainCode.includes('pollInterval'), 'main.js must actively poll for authentication cookies');
   assert.ok(preloadCode.includes("openGoogleLogin: (targetMethod) =>"), 'preload.js must forward targetMethod parameter in openGoogleLogin bridge');
 
   // 9.3 HTML Custom Playlists Components
@@ -426,6 +433,11 @@ function runBitChordArchitectureTests() {
   // Delete playlist
   deleteCustomPlaylist(testPl.id);
   assert.ok(!customPlaylists.some(p => p.id === testPl.id), 'Deleted playlist must be removed from customPlaylists array');
+
+  // Verify lyrics drawer exports
+  assert.strictEqual(typeof previewModule.openLyricsDrawer, 'function', 'preview.js must export openLyricsDrawer');
+  assert.strictEqual(typeof previewModule.closeLyricsDrawer, 'function', 'preview.js must export closeLyricsDrawer');
+  assert.strictEqual(typeof previewModule.toggleLyricsDrawer, 'function', 'preview.js must export toggleLyricsDrawer');
 
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }

@@ -121,6 +121,76 @@ function runEdgeCaseTests() {
   preview.deleteCustomPlaylist(plEmpty.id);
   preview.deleteCustomPlaylist(plWhitespace.id);
 
+  // 9. Lyrics Drawer Dismissal & DOM Idempotency Edge Cases
+  // In Node environment without DOM, functions should gracefully return without throwing
+  assert.doesNotThrow(() => {
+    preview.closeLyricsDrawer();
+    preview.openLyricsDrawer();
+    preview.toggleLyricsDrawer();
+  }, 'Lyrics drawer functions must be safe when DOM is absent');
+
+  // Test with mock DOM elements
+  const mockClassList = (initial = []) => {
+    const classes = new Set(initial);
+    return {
+      add: (...cls) => cls.forEach(c => classes.add(c)),
+      remove: (...cls) => cls.forEach(c => classes.delete(c)),
+      contains: (c) => classes.has(c),
+      toggle: (c, force) => {
+        if (typeof force === 'boolean') {
+          if (force) classes.add(c); else classes.delete(c);
+          return force;
+        }
+        if (classes.has(c)) { classes.delete(c); return false; }
+        classes.add(c); return true;
+      }
+    };
+  };
+
+  const mockDrawer = { id: 'apple-lyrics-drawer', classList: mockClassList() };
+  const mockBackdrop = { id: 'lyrics-backdrop', classList: mockClassList() };
+  const mockBtnToggle = { id: 'btn-toggle-lyrics', classList: mockClassList() };
+  const mockBtnLyricsPanel = { id: 'btn-lyrics-panel', classList: mockClassList() };
+
+  global.document = {
+    getElementById: (id) => {
+      if (id === 'apple-lyrics-drawer') return mockDrawer;
+      if (id === 'lyrics-backdrop') return mockBackdrop;
+      if (id === 'btn-toggle-lyrics') return mockBtnToggle;
+      if (id === 'btn-lyrics-panel') return mockBtnLyricsPanel;
+      return null;
+    }
+  };
+
+  // Open drawer
+  preview.openLyricsDrawer();
+  assert.strictEqual(mockDrawer.classList.contains('visible'), true, 'Drawer must have visible class');
+  assert.strictEqual(mockDrawer.classList.contains('active'), true, 'Drawer must have active class');
+  assert.strictEqual(mockBackdrop.classList.contains('visible'), true, 'Backdrop must have visible class');
+  assert.strictEqual(mockBtnToggle.classList.contains('active'), true, 'Toggle button must have active class');
+  assert.strictEqual(mockBtnLyricsPanel.classList.contains('active'), true, 'Player bar lyrics button must have active class');
+
+  // Close drawer
+  preview.closeLyricsDrawer();
+  assert.strictEqual(mockDrawer.classList.contains('visible'), false, 'Drawer must not have visible class');
+  assert.strictEqual(mockDrawer.classList.contains('active'), false, 'Drawer must not have active class');
+  assert.strictEqual(mockBackdrop.classList.contains('visible'), false, 'Backdrop must not have visible class');
+  assert.strictEqual(mockBtnToggle.classList.contains('active'), false, 'Toggle button must not have active class');
+  assert.strictEqual(mockBtnLyricsPanel.classList.contains('active'), false, 'Player bar lyrics button must not have active class');
+
+  // Idempotency: closing already closed drawer
+  assert.doesNotThrow(() => preview.closeLyricsDrawer());
+  assert.strictEqual(mockDrawer.classList.contains('visible'), false);
+
+  // Toggle drawer
+  preview.toggleLyricsDrawer();
+  assert.strictEqual(mockDrawer.classList.contains('visible'), true);
+  preview.toggleLyricsDrawer();
+  assert.strictEqual(mockDrawer.classList.contains('visible'), false);
+
+  // Clean up global mock
+  delete global.document;
+
   console.log('✓ Edge cases and security tests passed successfully.');
 }
 

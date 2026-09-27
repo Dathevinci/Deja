@@ -1282,7 +1282,10 @@ function renderLiveCardHTML(item, globalCardId) {
 }
 
 let fetchLivePromise = null;
-function fetchLiveYouTubeMusic() {
+function fetchLiveYouTubeMusic(force = false) {
+  if (force) {
+    fetchLivePromise = null;
+  }
   if (fetchLivePromise) return fetchLivePromise;
   fetchLivePromise = _fetchLiveYouTubeMusicInternal().finally(() => {
     fetchLivePromise = null;
@@ -1555,6 +1558,13 @@ function updateAccountUI(acc) {
     if (avatarImg && photo) {
       avatarImg.src = photo;
       avatarImg.style.display = 'inline-block';
+      avatarImg.onerror = () => {
+        avatarImg.style.display = 'none';
+        if (avatarText) {
+          avatarText.innerText = (displayName || 'U')[0].toUpperCase();
+          avatarText.style.display = 'inline-block';
+        }
+      };
       if (avatarText) avatarText.style.display = 'none';
     } else if (avatarText) {
       avatarText.innerText = (displayName || 'U')[0].toUpperCase();
@@ -3285,6 +3295,77 @@ function toggleNowPlayingLyrics() {
   }
 }
 
+/**
+ * Opens the Apple Music Synced Lyrics Drawer smoothly
+ */
+function openLyricsDrawer() {
+  if (typeof document === 'undefined') return;
+  const lyricsDrawer = document.getElementById('apple-lyrics-drawer');
+  const lyricsBackdrop = document.getElementById('lyrics-backdrop');
+  const btnToggleLyrics = document.getElementById('btn-toggle-lyrics');
+  const btnLyricsPanel = document.getElementById('btn-lyrics-panel');
+
+  if (lyricsDrawer) {
+    lyricsDrawer.classList.add('visible', 'active');
+  }
+  if (lyricsBackdrop) {
+    lyricsBackdrop.classList.add('visible', 'active');
+  }
+  if (btnToggleLyrics) btnToggleLyrics.classList.add('active');
+  if (btnLyricsPanel) btnLyricsPanel.classList.add('active');
+
+  // Close queue drawer if open so they do not overlap
+  const queueDrawer = document.getElementById('apple-queue-drawer');
+  if (queueDrawer && (queueDrawer.classList.contains('visible') || queueDrawer.classList.contains('active'))) {
+    queueDrawer.classList.remove('visible', 'active');
+    const btnQueuePanel = document.getElementById('btn-queue-panel');
+    if (btnQueuePanel) btnQueuePanel.classList.remove('active');
+  }
+
+  updateLiveLyrics(true);
+}
+
+/**
+ * Closes and dismisses the Apple Music Synced Lyrics Drawer immediately & cleanly
+ */
+function closeLyricsDrawer() {
+  if (typeof document === 'undefined') return;
+  const lyricsDrawer = document.getElementById('apple-lyrics-drawer');
+  const lyricsBackdrop = document.getElementById('lyrics-backdrop');
+  const btnToggleLyrics = document.getElementById('btn-toggle-lyrics');
+  const btnLyricsPanel = document.getElementById('btn-lyrics-panel');
+
+  if (lyricsDrawer) {
+    lyricsDrawer.classList.remove('visible', 'active');
+  }
+  if (lyricsBackdrop) {
+    lyricsBackdrop.classList.remove('visible', 'active');
+  }
+  if (btnToggleLyrics) btnToggleLyrics.classList.remove('active');
+  if (btnLyricsPanel) btnLyricsPanel.classList.remove('active');
+}
+
+/**
+ * Toggles the Apple Music Synced Lyrics Drawer on or off cleanly
+ */
+function toggleLyricsDrawer() {
+  if (typeof document === 'undefined') return;
+  const lyricsDrawer = document.getElementById('apple-lyrics-drawer');
+  if (!lyricsDrawer) return;
+  const isOpen = lyricsDrawer.classList.contains('visible') || lyricsDrawer.classList.contains('active');
+  if (isOpen) {
+    closeLyricsDrawer();
+  } else {
+    openLyricsDrawer();
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.openLyricsDrawer = openLyricsDrawer;
+  window.closeLyricsDrawer = closeLyricsDrawer;
+  window.toggleLyrics = toggleLyricsDrawer;
+}
+
 function updatePlayButton() {
   if (typeof document === 'undefined') return;
   const icon = document.getElementById('play-pause-icon');
@@ -3614,7 +3695,7 @@ function handleGoogleConnect() {
         const acc = await api.getAccountInfo();
         updateAccountUI(acc);
       }
-      fetchLiveYouTubeMusic();
+      await fetchLiveYouTubeMusic(true);
     });
   } else {
     alert('Deja YouTube Music Auth: Open Google login window.');
@@ -3666,24 +3747,33 @@ function setupEvents() {
   if (expBtnQueue) expBtnQueue.onclick = toggleQueue;
   if (btnCloseQueue) btnCloseQueue.onclick = toggleQueue;
 
-  // Lyrics toggle
+  // Lyrics toggle & dismissing
   const lyricsDrawer = document.getElementById('apple-lyrics-drawer');
+  const lyricsBackdrop = document.getElementById('lyrics-backdrop');
   const btnToggleLyrics = document.getElementById('btn-toggle-lyrics');
   const btnLyricsPanel = document.getElementById('btn-lyrics-panel');
   const expBtnLyrics = document.getElementById('exp-btn-lyrics');
   const btnCloseLyrics = document.getElementById('btn-close-lyrics');
-  const toggleLyrics = () => {
-    if (!lyricsDrawer) return;
-    lyricsDrawer.classList.toggle('visible');
-    const isVis = lyricsDrawer.classList.contains('visible');
-    if (btnToggleLyrics) btnToggleLyrics.classList.toggle('active', isVis);
-    if (btnLyricsPanel) btnLyricsPanel.classList.toggle('active', isVis);
-    if (expBtnLyrics) expBtnLyrics.classList.toggle('active', isVis);
-  };
-  if (btnToggleLyrics) btnToggleLyrics.onclick = toggleLyrics;
-  if (btnLyricsPanel) btnLyricsPanel.onclick = toggleLyrics;
+
+  if (btnToggleLyrics) btnToggleLyrics.onclick = (e) => { e.preventDefault(); e.stopPropagation(); toggleLyricsDrawer(); };
+  if (btnLyricsPanel) btnLyricsPanel.onclick = (e) => { e.preventDefault(); e.stopPropagation(); toggleLyricsDrawer(); };
   if (expBtnLyrics) expBtnLyrics.onclick = toggleNowPlayingLyrics;
-  if (btnCloseLyrics) btnCloseLyrics.onclick = toggleLyrics;
+  if (btnCloseLyrics) btnCloseLyrics.onclick = (e) => { e.preventDefault(); e.stopPropagation(); closeLyricsDrawer(); };
+  if (lyricsBackdrop) lyricsBackdrop.onclick = (e) => { e.preventDefault(); closeLyricsDrawer(); };
+
+  // Overlay backdrop and click-outside handler: clicking outside the lyrics drawer closes it
+  document.addEventListener('pointerdown', (e) => {
+    const drawer = document.getElementById('apple-lyrics-drawer');
+    if (!drawer) return;
+    const isOpen = drawer.classList.contains('visible') || drawer.classList.contains('active');
+    if (!isOpen) return;
+
+    if (drawer.contains(e.target)) return;
+    if (btnToggleLyrics && (btnToggleLyrics === e.target || btnToggleLyrics.contains(e.target))) return;
+    if (btnLyricsPanel && (btnLyricsPanel === e.target || btnLyricsPanel.contains(e.target))) return;
+
+    closeLyricsDrawer();
+  });
 
   // Expanded Now Playing view toggle & interactions
   const expandedView = document.getElementById('expanded-player-view');
@@ -3991,15 +4081,15 @@ function setupEvents() {
     searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         clearSearch();
+        closeLyricsDrawer();
       }
     });
   }
 
   // Global Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT') return;
-
     if (e.key === 'Escape') {
+      closeLyricsDrawer();
       closeExpandedView();
       closeSongMenu();
       ['settings-modal', 'pipeline-modal', 'sleep-modal', 'eq-modal', 'create-playlist-modal', 'add-to-playlist-modal'].forEach(id => {
@@ -4007,12 +4097,12 @@ function setupEvents() {
         if (el) el.style.display = 'none';
       });
       pendingTrackToAddToPlaylist = null;
-      const lyricsDrawer = document.getElementById('apple-lyrics-drawer');
-      if (lyricsDrawer) lyricsDrawer.classList.remove('visible');
       const queueDrawer = document.getElementById('apple-queue-drawer');
-      if (queueDrawer) queueDrawer.classList.remove('visible');
+      if (queueDrawer) queueDrawer.classList.remove('visible', 'active');
       return;
     }
+
+    if (e.target.tagName === 'INPUT') return;
 
     if (e.code === 'Space') {
       e.preventDefault();
@@ -4048,9 +4138,9 @@ function setupIPC() {
   if (!api) return;
 
   if (api.onAuthChanged) {
-    api.onAuthChanged((acc) => {
+    api.onAuthChanged(async (acc) => {
       updateAccountUI(acc);
-      fetchLiveYouTubeMusic();
+      await fetchLiveYouTubeMusic(true);
     });
   }
 
@@ -4065,7 +4155,7 @@ function setupIPC() {
       case 'toggleShuffle': toggleShuffle(); break;
       case 'toggleRepeat': toggleRepeat(); break;
       case 'toggleLike': toggleTrackFavorite(null, CATALOGUE_TRACKS[currentIndex].id); break;
-      case 'toggleLyrics': document.getElementById('btn-toggle-lyrics')?.click(); break;
+      case 'toggleLyrics': toggleLyricsDrawer(); break;
       case 'toggleQueue': document.getElementById('btn-queue-panel')?.click(); break;
       case 'openSettings': document.getElementById('btn-settings')?.click(); break;
     }
@@ -4114,6 +4204,9 @@ if (typeof module !== 'undefined' && module.exports) {
     updateLiveLyrics,
     renderLyrics,
     toggleNowPlayingLyrics,
+    openLyricsDrawer,
+    closeLyricsDrawer,
+    toggleLyricsDrawer,
     seekTo,
     updateAccountUI,
     updateSidebarPlaylistsUI,

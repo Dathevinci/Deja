@@ -34,6 +34,8 @@ app.userAgentFallback = CHROME_UA;
 
 // Chromium autoplay policy: allow immediate audio playback without prior user gesture
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+// Prevent Google automation detection ("This browser or app may not be secure")
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
 
 let mainWindow = null;
 let forceShowTimeout = null;
@@ -493,8 +495,8 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       ses.setUserAgent(CHROME_UA);
       // Independent normal window (no parent / modal to avoid Google embedded browser detection)
       const loginWin = new BrowserWindow({
-        width: 580,
-        height: 720,
+        width: 800,
+        height: 700,
         title: 'Sign in to YouTube Music - Deja',
         autoHideMenuBar: true,
         webPreferences: {
@@ -514,6 +516,8 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         return {
           action: 'allow',
           overrideBrowserWindowOptions: {
+            width: 800,
+            height: 700,
             userAgent: CHROME_UA,
             autoHideMenuBar: true,
             webPreferences: {
@@ -527,24 +531,27 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       });
 
       let authResolved = false;
+      let checkInProgress = false;
+      let pollInterval = null;
 
       const injectStealth = () => {
         if (!loginWin || loginWin.isDestroyed()) return;
         loginWin.webContents.executeJavaScript(`
-          Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+          try {
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+          } catch (e) {}
         `).catch(() => {});
       };
 
       const injectSecondarySignInPrompt = () => {
         if (!loginWin || loginWin.isDestroyed()) return;
-        const curUrl = loginWin.webContents.getURL() || '';
-        if (curUrl.includes('accounts.google.com')) {
-          loginWin.webContents.executeJavaScript(`
+        loginWin.webContents.executeJavaScript(`
+          try {
             if (document.body && !document.getElementById('deja-stealth-banner')) {
               const b = document.createElement('div');
               b.id = 'deja-stealth-banner';
-              b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#18181b;color:#f4f4f5;padding:8px 14px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;display:flex;align-items:center;justify-content:space-between;z-index:2147483647;border-bottom:1px solid rgba(255,255,255,0.15);box-shadow:0 2px 10px rgba(0,0,0,0.5);';
-              b.innerHTML = '<span style="font-weight:500;">Google blocking login?</span><button id="btn-switch-ytm-signin" style="background:#FA2D48;color:#FFFFFF;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:11px;outline:none;">Sign in via YouTube Music</button>';
+              b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#18181b;color:#f4f4f5;padding:8px 16px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;display:flex;align-items:center;justify-content:space-between;z-index:2147483647;border-bottom:1px solid rgba(255,255,255,0.15);box-shadow:0 2px 10px rgba(0,0,0,0.5);';
+              b.innerHTML = '<span style="font-weight:500;">Google blocking or stuck? Sign in directly via YouTube Music:</span><button id="btn-switch-ytm-signin" style="background:#FA2D48;color:#FFFFFF;border:none;padding:5px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-size:11px;outline:none;">Sign In via YouTube Music</button>';
               document.body.prepend(b);
               const btn = document.getElementById('btn-switch-ytm-signin');
               if (btn) {
@@ -553,40 +560,54 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
                 };
               }
             }
-          `).catch(() => {});
-        }
+            const bodyText = document.body ? document.body.innerText : '';
+            if (bodyText.includes('This browser or app may not be secure') || bodyText.includes("Couldn't sign you in")) {
+              const btn = document.getElementById('btn-switch-ytm-signin');
+              if (btn) {
+                btn.style.boxShadow = '0 0 10px #FA2D48';
+                btn.style.fontWeight = '700';
+              }
+            }
+          } catch (e) {}
+        `).catch(() => {});
       };
 
       const checkLoginSuccess = async (targetUrl) => {
-        if (authResolved) return;
+        if (authResolved || checkInProgress) return;
+        checkInProgress = true;
         try {
           if (!loginWin || loginWin.isDestroyed()) return;
           const curUrl = loginWin.webContents.getURL() || targetUrl || '';
 
-          // Do NOT close window or resolve prematurely while user is still entering credentials on Google
-          if (curUrl.includes('accounts.google.')) {
-            return;
-          }
-
-          // Check for YouTube Music authentication cookies
+          // Check for YouTube Music and Google authentication cookies
           const cookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
           const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
           const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
-          const allCookies = [...cookies, ...ytDomainCookies, ...musicCookies];
+          const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
+          const allCookies = [...cookies, ...ytDomainCookies, ...musicCookies, ...googleCookies];
           const cookieNames = new Set(allCookies.map(c => c.name));
 
-          // Verify required Google authentication cookies are present (SAPISID, SID, or LOGIN_INFO)
+          // Verify required Google authentication cookies are present (SAPISID, __Secure-3PAPISID, SID, or LOGIN_INFO)
           const hasAuthCookie = cookieNames.has('SAPISID') ||
+                                cookieNames.has('__Secure-3PAPISID') ||
                                 cookieNames.has('SID') ||
                                 cookieNames.has('LOGIN_INFO') ||
-                                cookieNames.has('__Secure-3PAPISID') ||
                                 cookieNames.has('__Secure-1PAPISID');
+
+          // Do NOT close window or resolve prematurely while user is still entering credentials on Google
+          if (curUrl.includes('accounts.google.') && !hasAuthCookie) {
+            return;
+          }
 
           if (hasAuthCookie) {
             // Fetch real account details via innertube.getAccountInfo(ses)
             const info = await innertube.getAccountInfo(ses);
             if (info && info.isLoggedIn) {
               authResolved = true;
+              if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+              }
               // Send IPC event (auth-changed) to mainWindow.webContents
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('auth-changed', info);
@@ -602,6 +623,8 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           }
         } catch (err) {
           console.warn('[Auth] Error checking login cookies:', err.message);
+        } finally {
+          checkInProgress = false;
         }
       };
 
@@ -626,6 +649,15 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         setTimeout(() => checkLoginSuccess(url), 500);
       });
 
+      // Active polling every 800ms for immediate cookie detection
+      pollInterval = setInterval(() => {
+        if (authResolved) {
+          if (pollInterval) clearInterval(pollInterval);
+          return;
+        }
+        checkLoginSuccess();
+      }, 800);
+
       // Cookie change listener to detect login immediately
       const onCookieChanged = (event, cookie, cause, removed) => {
         if (!removed && (cookie.name === 'SAPISID' || cookie.name === 'SID' || cookie.name === 'LOGIN_INFO' || cookie.name === '__Secure-3PAPISID')) {
@@ -636,6 +668,10 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
 
       loginWin.on('closed', async () => {
         activeLoginWin = null;
+        if (pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
         ses.cookies.removeListener('changed', onCookieChanged);
         if (!authResolved) {
           try {

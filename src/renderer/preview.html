@@ -328,7 +328,7 @@
         </svg>
       </button>
 
-      <button class="player-icon-btn active" id="btn-lyrics-panel" title="Time-Synced Lyrics">
+      <button class="player-icon-btn" id="btn-lyrics-panel" title="Time-Synced Lyrics">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           <path d="M8 9h8"></path>
@@ -557,6 +557,9 @@
     </div>
   </div>
 
+  <!-- Lyrics Drawer Overlay Backdrop -->
+  <div class="lyrics-backdrop" id="lyrics-backdrop"></div>
+
   <!-- Apple Music Synced Lyrics Drawer -->
   <aside class="apple-lyrics-drawer" id="apple-lyrics-drawer">
     <div class="lyrics-dynamic-aura" id="lyrics-aura"></div>
@@ -565,7 +568,7 @@
         <h3 id="lyrics-song-title">Cruel Summer</h3>
         <p id="lyrics-artist-name">Taylor Swift</p>
       </div>
-      <button class="btn-close-lyrics" id="btn-close-lyrics">&times;</button>
+      <button class="btn-close-lyrics" id="btn-close-lyrics" title="Close Lyrics" aria-label="Close Lyrics">✕</button>
     </div>
     <div class="lyrics-lines-container" id="lyrics-lines-container">
       <!-- Injected sync lines -->

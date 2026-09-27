@@ -966,6 +966,27 @@ body.deja-playing .artwork-wrapper {
 /* --------------------------------------------------------------------------
    Live Synced Lyrics Drawer (Apple Music Sing Style)
    -------------------------------------------------------------------------- */
+.lyrics-backdrop {
+  position: fixed;
+  top: 42px;
+  left: 0;
+  right: 0;
+  bottom: 80px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lyrics-backdrop.visible,
+.lyrics-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .apple-lyrics-drawer {
   position: fixed;
   top: 42px;
@@ -985,10 +1006,13 @@ body.deja-playing .artwork-wrapper {
   -webkit-backface-visibility: hidden;
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+  pointer-events: none;
 }
 
-.apple-lyrics-drawer.visible {
+.apple-lyrics-drawer.visible,
+.apple-lyrics-drawer.active {
   transform: translate3d(0, 0, 0);
+  pointer-events: auto;
 }
 
 .lyrics-dynamic-aura {
@@ -1030,17 +1054,36 @@ body.deja-playing .artwork-wrapper {
 }
 
 .btn-close-lyrics {
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: white;
-  width: 32px;
-  height: 32px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 16px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+  line-height: 1;
+  padding: 0;
+  user-select: none;
+}
+
+.btn-close-lyrics:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: scale(1.08);
+  color: #ffffff;
+}
+
+.btn-close-lyrics:active {
+  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .lyrics-lines-container {
