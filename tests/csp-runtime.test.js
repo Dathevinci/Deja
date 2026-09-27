@@ -30,6 +30,12 @@ function runCspRuntimeTests() {
     `);
   });
 
+  const sockets = new Set();
+  server.on('connection', (socket) => {
+    sockets.add(socket);
+    socket.on('close', () => sockets.delete(socket));
+  });
+
   server.listen(48999, '127.0.0.1', () => {
     app.whenReady().then(async () => {
       try {
@@ -60,11 +66,11 @@ function runCspRuntimeTests() {
             hasMinBtn: !!(document.getElementById('deja-min-btn') || document.getElementById('sonora-min-btn')),
             hasMaxBtn: !!(document.getElementById('deja-max-btn') || document.getElementById('sonora-max-btn')),
             hasSearchBar: !!(document.getElementById('deja-search-bar') || document.getElementById('sonora-search-bar')),
+            hasSearchInput: !!(document.getElementById('deja-search-input') || document.getElementById('sonora-search-input')),
             hasLyricsBtn: !!(document.getElementById('deja-lyrics-btn') || document.getElementById('sonora-lyrics-btn')),
             hasMiniBtn: !!(document.getElementById('deja-mini-btn') || document.getElementById('sonora-mini-btn')),
             hasSettingsBtn: !!(document.getElementById('deja-settings-btn') || document.getElementById('sonora-settings-btn')),
             hasAccountBtn: !!(document.getElementById('deja-account-btn') || document.getElementById('sonora-account-btn')),
-            hasSearchInput: !!(document.getElementById('deja-search-input') || document.getElementById('sonora-search-input')),
             navBarHidden: window.getComputedStyle(document.querySelector('ytmusic-nav-bar')).display === 'none',
             titlebarHeight: (document.getElementById('deja-titlebar') || document.getElementById('sonora-titlebar')) ? window.getComputedStyle(document.getElementById('deja-titlebar') || document.getElementById('sonora-titlebar')).height : '0px'
           })
@@ -87,13 +93,19 @@ function runCspRuntimeTests() {
 
         console.log('✓ Preload & Apple UI Runtime under Strict CSP tests passed successfully.');
         try { win.destroy(); } catch {}
+        sockets.forEach(s => { try { s.destroy(); } catch {} });
+        sockets.clear();
         try { if (typeof server.closeAllConnections === 'function') server.closeAllConnections(); } catch {}
         try { server.close(); } catch {}
+        try { server.unref(); } catch {}
         app.exit(0);
         process.exit(0);
       } catch (err) {
         console.error('❌ CSP Runtime test failed:', err);
+        sockets.forEach(s => { try { s.destroy(); } catch {} });
+        sockets.clear();
         try { server.close(); } catch {}
+        try { server.unref(); } catch {}
         app.exit(1);
         process.exit(1);
       }

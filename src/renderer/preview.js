@@ -413,6 +413,8 @@ let liveNewReleasesShelves = [];
 let liveArtists = [];
 let liveUserPlaylists = [];
 let liveLikedSongs = [];
+let liveLibraryAlbums = [];
+let liveLibraryArtists = [];
 let liveAccount = { isLoggedIn: false };
 let activeBrowseDetail = null;
 let isFetchingLive = false;
@@ -986,9 +988,11 @@ async function resolveAndPlayTrack(track) {
         }
         isPlaying = true;
         updatePlayButton();
-        if (playbackTimer) clearInterval(playbackTimer);
-        playbackTimer = setInterval(tick, 1000);
-        startLyricClock();
+        if (typeof document !== 'undefined') {
+          if (playbackTimer) clearInterval(playbackTimer);
+          playbackTimer = setInterval(tick, 1000);
+          startLyricClock();
+        }
         notifyTrackState();
         return;
       }
@@ -1002,9 +1006,11 @@ async function resolveAndPlayTrack(track) {
   fallbackToIFrame(track);
   isPlaying = true;
   updatePlayButton();
-  if (playbackTimer) clearInterval(playbackTimer);
-  playbackTimer = setInterval(tick, 1000);
-  startLyricClock();
+  if (typeof document !== 'undefined') {
+    if (playbackTimer) clearInterval(playbackTimer);
+    playbackTimer = setInterval(tick, 1000);
+    startLyricClock();
+  }
   notifyTrackState();
 }
 
@@ -1239,6 +1245,8 @@ function renderCurrentView() {
     renderSongsTableView(mainContent);
   } else if (currentView === 'playlists') {
     renderPlaylistsGridView(mainContent);
+  } else if (currentView === 'library') {
+    renderLibraryView(mainContent);
   } else if (currentView.startsWith('playlist-')) {
     const playlistId = currentView.replace('playlist-', '');
     renderSinglePlaylistView(mainContent, playlistId);
@@ -1328,42 +1336,77 @@ async function _fetchLiveYouTubeMusicInternal() {
 
   // 1. Account Info & User Library
   try {
+    let isLoggedIn = false;
     if (api.getAccountInfo) {
-      const acc = await api.getAccountInfo();
-      updateAccountUI(acc);
-      if (acc && acc.isLoggedIn) {
-        if (api.getLibraryPlaylists) {
-          const userPls = await api.getLibraryPlaylists();
-          if (userPls && userPls.length > 0) {
-            liveUserPlaylists = userPls;
-            updateSidebarPlaylistsUI(userPls);
-          }
+      const acc = await api.getAccountInfo().catch(() => null);
+      if (acc) {
+        updateAccountUI(acc);
+        isLoggedIn = !!acc.isLoggedIn;
+      }
+    }
+
+    // Always attempt fetching library if logged in, or try once if cookies might be present
+    if (api.getLibraryPlaylists) {
+      try {
+        const userPls = await api.getLibraryPlaylists();
+        if (userPls && userPls.length > 0) {
+          liveUserPlaylists = userPls;
+          updateSidebarPlaylistsUI(userPls);
         }
-        if (api.getLibrarySongs) {
-          const libSongs = await api.getLibrarySongs();
-          if (libSongs && libSongs.songs && libSongs.songs.length > 0) {
-            liveLikedSongs = libSongs.songs;
-            lovedTrackIds.clear();
-            libSongs.songs.forEach(t => {
-              let existing = CATALOGUE_TRACKS.find(x => x.videoId === t.videoId);
-              if (!existing) {
-                existing = createCatalogueItemFromLive(t);
-                CATALOGUE_TRACKS.push(existing);
+      } catch (err) {
+        console.warn('[Library] getLibraryPlaylists error:', err.message);
+      }
+    }
+
+    if (api.getLibrarySongs) {
+      try {
+        const libSongs = await api.getLibrarySongs();
+        if (libSongs && libSongs.songs && libSongs.songs.length > 0) {
+          liveLikedSongs = libSongs.songs;
+          lovedTrackIds.clear();
+          libSongs.songs.forEach(t => {
+            let existing = CATALOGUE_TRACKS.find(x => x.videoId === t.videoId);
+            if (!existing) {
+              existing = createCatalogueItemFromLive(t);
+              CATALOGUE_TRACKS.push(existing);
+            }
+            if (existing) {
+              if (!existing.playlists) existing.playlists = [];
+              if (!existing.playlists.includes('favorites')) {
+                existing.playlists.push('favorites');
               }
-              if (existing) {
-                if (!existing.playlists) existing.playlists = [];
-                if (!existing.playlists.includes('favorites')) {
-                  existing.playlists.push('favorites');
-                }
-                lovedTrackIds.add(existing.id);
-              }
-            });
-          }
+              lovedTrackIds.add(existing.id);
+            }
+          });
         }
+      } catch (err) {
+        console.warn('[Library] getLibrarySongs error:', err.message);
+      }
+    }
+
+    if (api.getLibraryAlbums) {
+      try {
+        const albums = await api.getLibraryAlbums();
+        if (albums && albums.length > 0) {
+          liveLibraryAlbums = albums;
+        }
+      } catch (err) {
+        console.warn('[Library] getLibraryAlbums error:', err.message);
+      }
+    }
+
+    if (api.getLibraryArtists) {
+      try {
+        const artists = await api.getLibraryArtists();
+        if (artists && artists.length > 0) {
+          liveLibraryArtists = artists;
+        }
+      } catch (err) {
+        console.warn('[Library] getLibraryArtists error:', err.message);
       }
     }
   } catch (err) {
-    console.warn('[Account] getAccountInfo error:', err.message);
+    console.warn('[Account] Library fetch error:', err.message);
   }
 
   // 2. Charts Feed (Top video charts, Top artists, 100 live chart songs)
@@ -1489,19 +1532,23 @@ function updateSidebarPlaylistsUI(userPls) {
     if (pls && pls.length > 0) {
       ytContainer.innerHTML = `
         <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px 4px 14px;">YouTube Music</div>
-        ${pls.slice(0, 10).map(p => `
-          <button class="sidebar-link live-user-playlist-link" data-browse-id="${escapeHTML(p.browseId || '')}" title="${escapeHTML(p.title || '')}">
-            <span style="font-size: 13px;">📁</span>
-            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(p.title || 'Playlist')}</span>
-          </button>
-        `).join('')}
+        <div class="sidebar-yt-playlists-scroll" style="display: flex; flex-direction: column; gap: 2px;">
+          ${pls.map(p => `
+            <button class="sidebar-link live-user-playlist-link" data-browse-id="${escapeHTML(p.browseId || '')}" data-cover="${escapeHTML(p.cover || '')}" data-subtitle="${escapeHTML(p.subtitle || 'YouTube Music Playlist')}" title="${escapeHTML(p.title || '')}">
+              <span style="font-size: 13px;">📁</span>
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(p.title || 'Playlist')}</span>
+            </button>
+          `).join('')}
+        </div>
       `;
 
       ytContainer.querySelectorAll('.live-user-playlist-link').forEach(btn => {
         btn.onclick = () => {
           const bId = btn.getAttribute('data-browse-id');
+          const cover = btn.getAttribute('data-cover') || '';
+          const subtitle = btn.getAttribute('data-subtitle') || 'YouTube Music Playlist';
           const title = btn.innerText.replace('📁', '').trim();
-          if (bId) openBrowseDetail(bId, title);
+          if (bId) openBrowseDetail(bId, title, cover, subtitle);
         };
       });
     } else {
@@ -1540,9 +1587,9 @@ function updateSidebarPlaylistsUI(userPls) {
   }
 
   if (pls && pls.length > 0) {
-    pls.slice(0, 8).forEach(p => {
+    pls.forEach(p => {
       html += `
-        <button class="sidebar-link live-user-playlist-link" data-browse-id="${escapeHTML(p.browseId || '')}" title="${escapeHTML(p.title || '')}">
+        <button class="sidebar-link live-user-playlist-link" data-browse-id="${escapeHTML(p.browseId || '')}" data-cover="${escapeHTML(p.cover || '')}" data-subtitle="${escapeHTML(p.subtitle || 'YouTube Music Playlist')}" title="${escapeHTML(p.title || '')}">
           📁 ${escapeHTML(p.title || 'Playlist')}
         </button>
       `;
@@ -1954,7 +2001,9 @@ function renderBrowseDetailView(container) {
       const row = document.getElementById(`browse-song-${idx}`);
       if (row) {
         row.onclick = () => {
+          userQueue = songs.slice(idx + 1).map(x => createCatalogueItemFromLive(x));
           playLiveTrack(s);
+          if (typeof renderPreviewQueue === 'function') renderPreviewQueue();
         };
       }
     });
@@ -1962,15 +2011,19 @@ function renderBrowseDetailView(container) {
     const btnPlayAll = document.getElementById('btn-play-browse-all');
     if (btnPlayAll) {
       btnPlayAll.onclick = () => {
+        userQueue = songs.slice(1).map(x => createCatalogueItemFromLive(x));
         playLiveTrack(songs[0]);
+        if (typeof renderPreviewQueue === 'function') renderPreviewQueue();
       };
     }
 
     const btnShuffleAll = document.getElementById('btn-shuffle-browse-all');
     if (btnShuffleAll) {
       btnShuffleAll.onclick = () => {
-        const randSong = songs[Math.floor(Math.random() * songs.length)];
-        playLiveTrack(randSong);
+        const shuffled = [...songs].sort(() => Math.random() - 0.5);
+        userQueue = shuffled.slice(1).map(x => createCatalogueItemFromLive(x));
+        playLiveTrack(shuffled[0]);
+        if (typeof renderPreviewQueue === 'function') renderPreviewQueue();
       };
     }
   }
@@ -2526,6 +2579,130 @@ function renderPlaylistsGridView(container) {
 
   const cardNew = document.getElementById('card-action-new-playlist');
   if (cardNew) cardNew.onclick = () => openCreatePlaylistModal();
+}
+
+function renderLibraryView(container) {
+  const hasUserPlaylists = liveUserPlaylists && liveUserPlaylists.length > 0;
+  const hasLiked = (liveLikedSongs && liveLikedSongs.length > 0) || lovedTrackIds.size > 0;
+  const hasAlbums = liveLibraryAlbums && liveLibraryAlbums.length > 0;
+  const hasArtists = liveLibraryArtists && liveLibraryArtists.length > 0;
+
+  container.innerHTML = `
+    <div style="padding: 10px 0 20px 0;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+        <div>
+          <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 6px;">Library</h1>
+          <p style="color: var(--text-secondary); font-size: 14px;">Your personal YouTube Music collection, playlists, and saved tracks.</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-apple-primary" id="btn-library-new-playlist" style="display: flex; align-items: center; gap: 8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>New Playlist</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Library Navigation Cards -->
+      <div class="card-grid" style="margin-bottom: 32px;">
+        <div class="apple-music-card" onclick="navigateToPlaylist('favorites')">
+          <div class="card-thumb-wrapper">
+            <img src="${CATALOGUE_TRACKS[0]?.cover || '../../assets/icon.png'}" class="card-thumb track-card-img" alt="Liked Songs">
+            <div class="card-play-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </div>
+          <div class="card-title">⭐ Liked Songs</div>
+          <div class="card-subtitle">${lovedTrackIds.size || (liveLikedSongs && liveLikedSongs.length) || 0} tracks • Favorites</div>
+        </div>
+
+        <div class="apple-music-card" onclick="navigateTo('playlists')">
+          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center;">
+            <span style="font-size: 36px;">📁</span>
+          </div>
+          <div class="card-title">Playlists</div>
+          <div class="card-subtitle">${liveUserPlaylists.length + (customPlaylists ? customPlaylists.length : 0)} playlists</div>
+        </div>
+
+        <div class="apple-music-card" onclick="navigateTo('albums')">
+          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center;">
+            <span style="font-size: 36px;">💿</span>
+          </div>
+          <div class="card-title">Albums</div>
+          <div class="card-subtitle">${liveLibraryAlbums.length || 'Collection'} albums</div>
+        </div>
+
+        <div class="apple-music-card" onclick="navigateTo('artists')">
+          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center;">
+            <span style="font-size: 36px;">👤</span>
+          </div>
+          <div class="card-title">Artists</div>
+          <div class="card-subtitle">${liveLibraryArtists.length || liveArtists.length || 'Collection'} artists</div>
+        </div>
+      </div>
+
+      <!-- User's YouTube Music Playlists Section -->
+      ${hasUserPlaylists ? `
+        <div style="margin-bottom: 32px;">
+          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 14px;">YouTube Music Playlists</h2>
+          <div class="card-grid">
+            ${liveUserPlaylists.map(lp => `
+              <div class="apple-music-card" onclick="openBrowseDetail('${lp.browseId}', '${escapeHTML(lp.title)}', '${escapeHTML(lp.cover || '')}', '${escapeHTML(lp.subtitle || 'YouTube Music Playlist')}')">
+                <div class="card-thumb-wrapper">
+                  <img src="${escapeHTML(lp.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(lp.title)}" onerror="this.src='../../assets/icon.png'">
+                  <div class="card-play-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </div>
+                </div>
+                <div class="card-title">${escapeHTML(lp.title)}</div>
+                <div class="card-subtitle">${escapeHTML(lp.subtitle || 'YouTube Music')}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : `
+        <div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12); border-radius: 16px; padding: 32px; text-align: center; margin-bottom: 32px;">
+          <p style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">No YouTube Music Playlists Loaded</p>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Make sure you are signed in to YouTube Music to sync your playlists and library.</p>
+          <button class="btn-apple-primary" onclick="fetchLiveYouTubeMusic()">
+            <span>Sync Library Now</span>
+          </button>
+        </div>
+      `}
+
+      <!-- Saved Albums Section if any -->
+      ${hasAlbums ? `
+        <div style="margin-bottom: 32px;">
+          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 14px;">Saved Albums</h2>
+          <div class="card-grid">
+            ${liveLibraryAlbums.map(alb => `
+              <div class="apple-music-card" onclick="openBrowseDetail('${alb.browseId}', '${escapeHTML(alb.title)}', '${escapeHTML(alb.cover || '')}', '${escapeHTML(alb.subtitle || 'Album')}')">
+                <div class="card-thumb-wrapper">
+                  <img src="${escapeHTML(alb.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(alb.title)}" onerror="this.src='../../assets/icon.png'">
+                  <div class="card-play-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </div>
+                </div>
+                <div class="card-title">${escapeHTML(alb.title)}</div>
+                <div class="card-subtitle">${escapeHTML(alb.subtitle || 'Album')}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  const btnLibNew = document.getElementById('btn-library-new-playlist');
+  if (btnLibNew) btnLibNew.onclick = () => openCreatePlaylistModal();
 }
 
 function renderSinglePlaylistView(container, playlistId) {
@@ -3358,11 +3535,13 @@ function play() {
 
   ensureAudioGraph();
 
-  if (playbackTimer) clearInterval(playbackTimer);
-  playbackTimer = setInterval(tick, 1000);
+  if (typeof document !== 'undefined') {
+    if (playbackTimer) clearInterval(playbackTimer);
+    playbackTimer = setInterval(tick, 1000);
 
-  if (lyricClockTimer) clearInterval(lyricClockTimer);
-  lyricClockTimer = setInterval(tickLyricClock, 50);
+    if (lyricClockTimer) clearInterval(lyricClockTimer);
+    lyricClockTimer = setInterval(tickLyricClock, 50);
+  }
 
   notifyTrackState();
 }
@@ -3541,6 +3720,7 @@ function toggleRepeat() {
 }
 
 function tick() {
+  if (typeof document === 'undefined') return;
   const track = CATALOGUE_TRACKS[currentIndex];
 
   if (isDirectStreamPlaying && dejaAudio && !dejaAudio.paused) {
@@ -3601,6 +3781,7 @@ function tick() {
 }
 
 function startLyricClock() {
+  if (typeof document === 'undefined') return;
   if (lyricClockTimer) clearInterval(lyricClockTimer);
   lyricClockTimer = setInterval(tickLyricClock, 50);
 }
@@ -3617,6 +3798,7 @@ function stopLyricClock() {
  * Keeps lyrics and scrubbers updated at 20fps for millisecond precision
  */
 function tickLyricClock() {
+  if (typeof document === 'undefined') return;
   if (!isPlaying) return;
   const track = CATALOGUE_TRACKS[currentIndex];
   if (!track) return;
@@ -3658,6 +3840,7 @@ if (typeof window !== 'undefined') {
 }
 
 function updateProgress() {
+  if (typeof document === 'undefined') return;
   const track = CATALOGUE_TRACKS[currentIndex];
   if (!track || !track.duration) return;
   const pct = Math.min(100, Math.max(0, (currentTime / track.duration) * 100));
@@ -4070,6 +4253,7 @@ function applyVolume(vol) {
 }
 
 function updateDynamicPipeline(source) {
+  if (typeof document === 'undefined') return;
   const bufferEl = document.getElementById('pipeline-buffer');
   const codecEl = document.getElementById('pipeline-codec');
   const bitrateEl = document.getElementById('pipeline-bitrate');

@@ -1305,7 +1305,7 @@ ipcMain.handle('yt-library-songs', async () => {
   }
 });
 
-// User Google Library Playlists (FEmusic_liked_playlists)
+// User Google Library Playlists (FEmusic_liked_playlists, FEmusic_library_playlists, FEmusic_library_landing)
 ipcMain.handle('yt-library-playlists', async () => {
   try {
     const ses = session.fromPartition('persist:ytmusic');
@@ -1313,6 +1313,39 @@ ipcMain.handle('yt-library-playlists', async () => {
   } catch (err) {
     console.warn('[Library] Liked playlists error:', err.message);
     return [];
+  }
+});
+
+// User Google Library Saved Albums (FEmusic_liked_albums)
+ipcMain.handle('yt-library-albums', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getLibraryAlbums(ses);
+  } catch (err) {
+    console.warn('[Library] Library albums error:', err.message);
+    return [];
+  }
+});
+
+// User Google Library Artists
+ipcMain.handle('yt-library-artists', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getLibraryArtists(ses);
+  } catch (err) {
+    console.warn('[Library] Library artists error:', err.message);
+    return [];
+  }
+});
+
+// Unified User Library (playlists, liked songs, albums, artists)
+ipcMain.handle('yt-user-library', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getUserLibrary(ses);
+  } catch (err) {
+    console.warn('[Library] User library error:', err.message);
+    return { playlists: [], songs: [], albums: [], artists: [] };
   }
 });
 

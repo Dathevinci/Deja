@@ -23,6 +23,10 @@ function runInnerTubeIntegrationTests() {
   assert.strictEqual(typeof innertube.getNewReleasesFeed, 'function');
   assert.strictEqual(typeof innertube.getLibrarySongs, 'function');
   assert.strictEqual(typeof innertube.getLibraryPlaylists, 'function');
+  assert.strictEqual(typeof innertube.getLibraryAlbums, 'function');
+  assert.strictEqual(typeof innertube.getLibraryArtists, 'function');
+  assert.strictEqual(typeof innertube.getUserLibrary, 'function');
+  assert.strictEqual(typeof innertube.parseLibraryPlaylistsResponse, 'function');
   assert.strictEqual(typeof innertube.getPlaylist, 'function');
   assert.strictEqual(typeof innertube.getNextQueue, 'function');
   assert.strictEqual(typeof innertube.search, 'function');
@@ -230,6 +234,75 @@ function runInnerTubeIntegrationTests() {
   assert.strictEqual(innertube.extractBestAudioFormat(null), null);
   assert.strictEqual(innertube.extractBestAudioFormat({}), null);
   assert.strictEqual(innertube.extractBestAudioFormat({ streamingData: {} }), null);
+
+  // 7. Verify parseLibraryPlaylistsResponse (User Playlists & Library Feeds)
+  const mockLibraryData = {
+    contents: {
+      singleColumnBrowseResultsRenderer: {
+        tabs: [{
+          tabRenderer: {
+            content: {
+              sectionListRenderer: {
+                contents: [
+                  {
+                    gridRenderer: {
+                      items: [
+                        // 1. "New playlist" action tile - must be filtered out
+                        {
+                          musicTwoRowItemRenderer: {
+                            title: { runs: [{ text: 'New playlist' }] },
+                            navigationEndpoint: { browseEndpoint: { browseId: 'FEplaylist_add' } }
+                          }
+                        },
+                        // 2. Custom user playlist with PL ID - must normalize to VLPL...
+                        {
+                          musicTwoRowItemRenderer: {
+                            title: { runs: [{ text: 'Chill Vibes' }] },
+                            subtitle: { runs: [{ text: 'Playlist • 25 songs' }] },
+                            navigationEndpoint: { browseEndpoint: { browseId: 'PLabc123chill' } },
+                            thumbnailRenderer: {
+                              musicThumbnailRenderer: {
+                                thumbnail: { thumbnails: [{ url: 'https://i.ytimg.com/chill.jpg' }] }
+                              }
+                            }
+                          }
+                        },
+                        // 3. Grid playlist renderer
+                        {
+                          gridPlaylistRenderer: {
+                            playlistId: 'PLgrid987xyz',
+                            title: { simpleText: 'Gym Workout' },
+                            shortBylineText: { simpleText: 'Playlist' },
+                            thumbnail: { thumbnails: [{ url: 'https://i.ytimg.com/gym.jpg' }] }
+                          }
+                        },
+                        // 4. Duplicate playlist - must be deduplicated
+                        {
+                          musicTwoRowItemRenderer: {
+                            title: { runs: [{ text: 'Chill Vibes Duplicate' }] },
+                            navigationEndpoint: { browseEndpoint: { browseId: 'VLPLabc123chill' } }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }]
+      }
+    }
+  };
+
+  const parsedPlaylists = innertube.parseLibraryPlaylistsResponse(mockLibraryData);
+  assert.strictEqual(parsedPlaylists.length, 2, 'Must filter out "New playlist" and deduplicate playlists');
+  assert.strictEqual(parsedPlaylists[0].title, 'Chill Vibes');
+  assert.strictEqual(parsedPlaylists[0].browseId, 'VLPLabc123chill', 'Must normalize browseId with VL prefix');
+  assert.strictEqual(parsedPlaylists[0].cover, 'https://i.ytimg.com/chill.jpg');
+  assert.strictEqual(parsedPlaylists[1].title, 'Gym Workout');
+  assert.strictEqual(parsedPlaylists[1].browseId, 'VLPLgrid987xyz');
+  assert.strictEqual(parsedPlaylists[1].cover, 'https://i.ytimg.com/gym.jpg');
 
   console.log('✓ InnerTube API & YouTube Music Live Integration tests passed successfully.');
 }

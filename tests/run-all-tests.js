@@ -38,7 +38,8 @@ try {
   // Run live Electron CSP integration test
   const res = spawnSync(electron, [path.join(__dirname, 'csp-runtime.test.js')], {
     encoding: 'utf8',
-    env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' }
+    env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' },
+    timeout: 30000
   });
 
   if (res.status !== 0) {
