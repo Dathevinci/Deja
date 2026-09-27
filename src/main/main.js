@@ -6,7 +6,7 @@ const TrayManager = require('./tray');
 const discord = require('./discord');
 const { buildAppMenu } = require('./menu');
 const innertube = require('./innertube');
-const { parseCookiePairs } = require('./cookie-utils');
+const { parseCookiePairs, hasApiSid, normalizeDataSyncId } = require('./cookie-utils');
 
 // Set Windows App User Model ID for notifications and taskbar
 if (process.platform === 'win32') {
@@ -671,9 +671,135 @@ async function applySessionCookies(rawCookieInput, ses) {
   }
 }
 
-// Google Account & YouTube Music Authentication Dialog
+const BITCHORD_GOOGLE_SIGNIN_URL = 'https://accounts.google.com/ServiceLogin?ltmpl=music&service=youtube&passive=true&continue=https%3A%2F%2Fmusic.youtube.com%2F';
+
+const YTCFG_PROBE_SCRIPT = `
+(function () {
+  try {
+    if (!window.ytcfg || !window.ytcfg.get) return null;
+    var get = function (key) {
+      var value = window.ytcfg.get(key);
+      return (value === undefined || value === null || value === '') ? null : String(value);
+    };
+    return {
+      loggedIn: String(!!window.ytcfg.get('LOGGED_IN')),
+      pageId: get('DELEGATED_SESSION_ID'),
+      dataSyncId: get('DATASYNC_ID'),
+      authUser: get('SESSION_INDEX'),
+      visitorData: get('VISITOR_DATA'),
+      clientVersion: get('INNERTUBE_CLIENT_VERSION')
+    };
+  } catch (e) {
+    return null;
+  }
+})()
+`;
+
+/**
+ * Clears local Google and YouTube session cookies without visiting Google's logout endpoint.
+ * Matches BitChord BrowserSession.clearGoogleCookies():
+ * Never visit accounts.google.com/Logout here: that invalidates a previously saved account
+ * on Google's server, so adding account B silently breaks account A.
+ */
+async function clearGoogleSessionCookies(ses) {
+  try {
+    const origins = [
+      'https://music.youtube.com',
+      'https://www.youtube.com',
+      'https://youtube.com',
+      'https://accounts.google.com',
+      'https://www.google.com',
+      'https://google.com'
+    ];
+    const cookies = await ses.cookies.get({});
+    for (const c of cookies) {
+      const dom = c.domain || '';
+      if (dom.includes('youtube.com') || dom.includes('google.com') || dom.includes('youtubei')) {
+        const protocol = c.secure ? 'https:' : 'http:';
+        const host = dom.startsWith('.') ? dom.substring(1) : dom;
+        const cookieUrl = `${protocol}//${host}${c.path || '/'}`;
+        await ses.cookies.remove(cookieUrl, c.name).catch(() => {});
+        for (const orig of origins) {
+          await ses.cookies.remove(orig, c.name).catch(() => {});
+        }
+      }
+    }
+    await ses.flushStorageData().catch(() => {});
+  } catch (err) {
+    console.warn('[Auth] Error clearing Google session cookies:', err.message);
+  }
+}
+
+/**
+ * Injects a sleek Apple-styled profile confirmation banner on music.youtube.com
+ * (never on accounts.google.com). Matches BitChord's YtMusicLoginScreen confirmation architecture:
+ * allows the user to browse their channels/identities before committing the session.
+ */
+async function injectProfileConfirmationBar(win) {
+  if (!win || win.isDestroyed()) return;
+  const script = `
+  (function() {
+    if (document.getElementById('deja-auth-confirmation-bar')) return;
+    try {
+      var bar = document.createElement('div');
+      bar.id = 'deja-auth-confirmation-bar';
+      bar.style.position = 'fixed';
+      bar.style.bottom = '20px';
+      bar.style.left = '50%';
+      bar.style.transform = 'translateX(-50%)';
+      bar.style.zIndex = '2147483647';
+      bar.style.display = 'flex';
+      bar.style.alignItems = 'center';
+      bar.style.gap = '14px';
+      bar.style.background = 'rgba(28, 28, 30, 0.94)';
+      bar.style.backdropFilter = 'blur(20px)';
+      bar.style.webkitBackdropFilter = 'blur(20px)';
+      bar.style.border = '1px solid rgba(255, 255, 255, 0.18)';
+      bar.style.borderRadius = '999px';
+      bar.style.padding = '8px 18px 8px 16px';
+      bar.style.boxShadow = '0 12px 36px rgba(0,0,0,0.6)';
+      bar.style.fontFamily = '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif';
+      bar.style.color = '#ffffff';
+
+      var hint = document.createElement('span');
+      hint.style.fontSize = '13px';
+      hint.style.fontWeight = '500';
+      hint.innerText = 'Switch profile if needed, then confirm:';
+
+      var btn = document.createElement('button');
+      btn.id = 'deja-btn-confirm-profile';
+      btn.innerText = 'Use This Profile';
+      btn.style.background = '#FA2D48';
+      btn.style.color = '#ffffff';
+      btn.style.border = 'none';
+      btn.style.borderRadius = '999px';
+      btn.style.padding = '6px 16px';
+      btn.style.fontSize = '13px';
+      btn.style.fontWeight = '600';
+      btn.style.cursor = 'pointer';
+      btn.style.boxShadow = '0 4px 12px rgba(250, 45, 72, 0.35)';
+      btn.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+
+      btn.onmouseenter = function() { btn.style.transform = 'scale(1.04)'; };
+      btn.onmouseleave = function() { btn.style.transform = 'scale(1)'; };
+      btn.onclick = function() {
+        btn.innerText = 'Checking...';
+        btn.disabled = true;
+        console.log('__DEJA_CONFIRM_PROFILE__');
+      };
+
+      bar.appendChild(hint);
+      bar.appendChild(btn);
+      document.body.appendChild(bar);
+    } catch(e) {}
+  })()
+  `;
+  await win.webContents.executeJavaScript(script).catch(() => {});
+}
+
+// Google Account & YouTube Music Authentication Dialog (BitChord Architecture)
 ipcMain.handle('open-google-login', async (event, targetMethod) => {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     try {
       startSyncServer();
 
@@ -689,6 +815,15 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         ses.setUserAgent(CHROME_UA);
       }
 
+      const isSwitchChannel = (targetMethod === 'switch-channel');
+
+      // Matching BitChord BrowserSession.clearGoogleCookies():
+      // If fresh sign-in, clear local cookies first so it doesn't immediately
+      // lock onto the previous account. For SWITCH_CHANNEL, preserve existing cookies.
+      if (!isSwitchChannel) {
+        await clearGoogleSessionCookies(ses);
+      }
+
       // Independent normal window (no parent / modal to avoid Google embedded browser detection)
       const loginWin = new BrowserWindow({
         width: 800,
@@ -696,7 +831,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         minWidth: 500,
         minHeight: 600,
         backgroundColor: '#ffffff',
-        title: 'Sign in to YouTube Music - Deja',
+        title: isSwitchChannel ? 'Choose YouTube Music Profile - Deja' : 'Sign in to YouTube Music - Deja',
         autoHideMenuBar: true,
         webPreferences: {
           partition: 'persist:ytmusic',
@@ -744,33 +879,110 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
       let checkInProgress = false;
       let pollInterval = null;
 
-      // NEVER inject any script or DOM element into accounts.google.com, accounts.youtube.com,
-      // or any google domain. Keep Google's login page 100% clean and untouched to prevent Botguard detection.
-      const checkLoginSuccess = async (targetUrl) => {
-        if (authResolved || checkInProgress) return;
+      // BitChord session capture and validation logic:
+      // Reads live ytcfg from music.youtube.com and verifies signing secret
+      const captureSessionAndResolve = async () => {
+        if (authResolved || checkInProgress) return false;
         checkInProgress = true;
         try {
-          if (!loginWin || loginWin.isDestroyed()) return;
-          const curUrl = loginWin.webContents.getURL() || targetUrl || '';
+          if (!loginWin || loginWin.isDestroyed()) return false;
+          const curUrl = loginWin.webContents.getURL() || '';
 
-          // Prevent checking while user is still on Google auth flow
+          // Only capture when on music.youtube.com
+          if (!curUrl.includes('music.youtube.com')) return false;
+
+          // Probe live ytcfg from the active page
+          const probe = await loginWin.webContents.executeJavaScript(YTCFG_PROBE_SCRIPT).catch(() => null);
+          const loggedIn = probe && (probe.loggedIn === 'true' || probe.loggedIn === true);
+
+          // Verify cookies across YouTube & Google domains
+          const ytCookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
+          const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
+          const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
+          const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
+          const googleDomainCookies = await ses.cookies.get({ domain: 'google.com' }).catch(() => []);
+          const allCookies = [...ytCookies, ...ytDomainCookies, ...musicCookies, ...googleCookies, ...googleDomainCookies];
+          const cookieStr = allCookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+          const cookieNames = new Set(allCookies.map(c => c.name));
+          const hasSid = hasApiSid(cookieStr) ||
+                         cookieNames.has('SAPISID') ||
+                         cookieNames.has('__Secure-3PAPISID') ||
+                         cookieNames.has('__Secure-1PAPISID');
+
+          if (!hasSid && !loggedIn) {
+            return false;
+          }
+
+          const pageId = (probe && probe.pageId) || null;
+          const dataSyncId = pageId || normalizeDataSyncId(probe && probe.dataSyncId);
+          const authUser = (probe && probe.authUser) || '0';
+          const visitorData = (probe && probe.visitorData) || null;
+          const clientVersion = (probe && probe.clientVersion) || null;
+
+          // Adopt live session scope exactly as BitChord Innertube does
+          innertube.adoptSessionScope({
+            pageId,
+            dataSyncId,
+            authUser,
+            visitorData,
+            clientVersion,
+            loggedIn: true
+          });
+
+          const info = await innertube.getAccountInfo(ses);
+          if (info && info.isLoggedIn) {
+            authResolved = true;
+            if (pollInterval) {
+              clearInterval(pollInterval);
+              pollInterval = null;
+            }
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('auth-changed', info);
+              mainWindow.webContents.send('auth-state-changed', info);
+            }
+            setTimeout(() => {
+              if (loginWin && !loginWin.isDestroyed()) {
+                loginWin.close();
+              }
+            }, 300);
+            return true;
+          }
+        } catch (err) {
+          console.warn('[Auth] Capture session error:', err.message);
+        } finally {
+          checkInProgress = false;
+        }
+        return false;
+      };
+
+      // Listen for confirmation button click inside music.youtube.com
+      loginWin.webContents.on('console-message', (e, level, msg) => {
+        if (typeof msg === 'string' && msg.includes('__DEJA_CONFIRM_PROFILE__')) {
+          captureSessionAndResolve();
+        }
+      });
+
+      // Navigation handler:
+      // When reaching music.youtube.com, probe ytcfg and inject confirmation bar.
+      // NEVER prematurely dismiss: user chooses channel and clicks "Use This Profile" or closes window.
+      const handleNavigation = async (navUrl) => {
+        try {
+          if (!loginWin || loginWin.isDestroyed()) return;
+          const curUrl = navUrl || loginWin.webContents.getURL() || '';
+
           if (curUrl.includes('accounts.google.') || curUrl.includes('accounts.youtube.')) {
             return;
           }
 
-          // Check for cookies across YouTube domains
-          const ytCookies = await ses.cookies.get({ domain: '.youtube.com' }).catch(() => []);
-          const ytDomainCookies = await ses.cookies.get({ domain: 'youtube.com' }).catch(() => []);
-          const musicCookies = await ses.cookies.get({ url: 'https://music.youtube.com' }).catch(() => []);
-          const allYtCookies = [...ytCookies, ...ytDomainCookies, ...musicCookies];
-          const ytCookieNames = new Set(allYtCookies.map(c => c.name));
+          if (curUrl.includes('music.youtube.com')) {
+            const probe = await loginWin.webContents.executeJavaScript(YTCFG_PROBE_SCRIPT).catch(() => null);
+            if (probe && (probe.loggedIn === 'true' || probe.loggedIn === true)) {
+              await injectProfileConfirmationBar(loginWin);
+            }
+          }
 
-          const hasYtAuthCookie = ytCookieNames.has('SAPISID') ||
-                                  ytCookieNames.has('LOGIN_INFO') ||
-                                  ytCookieNames.has('__Secure-3PAPISID') ||
-                                  ytCookieNames.has('__Secure-1PAPISID') ||
-                                  ytCookieNames.has('SID');
-
+          // In case user navigated to generic google and is authenticated
           const googleCookies = await ses.cookies.get({ domain: '.google.com' }).catch(() => []);
           const googleDomainCookies = await ses.cookies.get({ domain: 'google.com' }).catch(() => []);
           const googleCookieNames = new Set([...googleCookies, ...googleDomainCookies].map(c => c.name));
@@ -779,58 +991,42 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
                                       googleCookieNames.has('__Secure-3PAPISID') ||
                                       googleCookieNames.has('SSID');
 
-          if (curUrl.includes('music.youtube.com') || hasYtAuthCookie) {
-            const info = await innertube.getAccountInfo(ses);
-            if (info && info.isLoggedIn) {
-              authResolved = true;
-              if (pollInterval) {
-                clearInterval(pollInterval);
-                pollInterval = null;
-              }
-              if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('auth-changed', info);
-                mainWindow.webContents.send('auth-state-changed', info);
-              }
-              setTimeout(() => {
-                if (loginWin && !loginWin.isDestroyed()) {
-                  loginWin.close();
-                }
-              }, 400);
-              return;
-            }
-          }
-
           if (hasGoogleAuthCookie && !curUrl.includes('accounts.google.') && !curUrl.includes('music.youtube.com')) {
             if (loginWin && !loginWin.isDestroyed()) {
               loginWin.loadURL('https://music.youtube.com', { userAgent: CHROME_UA });
             }
           }
         } catch (err) {
-          console.warn('[Auth] Error checking login session:', err.message);
-        } finally {
-          checkInProgress = false;
+          console.warn('[Auth] Navigation handler notice:', err.message);
         }
       };
 
-      // Listen for navigation events
       loginWin.webContents.on('did-navigate', (e, url) => {
-        checkLoginSuccess(url);
+        handleNavigation(url);
       });
 
       loginWin.webContents.on('did-navigate-in-page', (e, url) => {
-        checkLoginSuccess(url);
+        handleNavigation(url);
       });
 
-      // Active polling every 800ms for immediate cookie detection
-      pollInterval = setInterval(() => {
+      // Active polling every 1000ms:
+      // Keeps confirmation bar attached and monitors readiness
+      pollInterval = setInterval(async () => {
         if (authResolved) {
           if (pollInterval) clearInterval(pollInterval);
           return;
         }
-        checkLoginSuccess();
-      }, 800);
+        if (!loginWin || loginWin.isDestroyed()) return;
+        const curUrl = loginWin.webContents.getURL() || '';
+        if (curUrl.includes('music.youtube.com')) {
+          const probe = await loginWin.webContents.executeJavaScript(YTCFG_PROBE_SCRIPT).catch(() => null);
+          if (probe && (probe.loggedIn === 'true' || probe.loggedIn === true)) {
+            await injectProfileConfirmationBar(loginWin);
+          }
+        }
+      }, 1000);
 
-      // Cookie change listener to detect login immediately
+      // Cookie change listener to detect login state change
       const onCookieChanged = (event, cookie, cause, removed) => {
         if (!removed && (
           cookie.name === 'SAPISID' ||
@@ -840,7 +1036,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           cookie.name === '__Secure-1PAPISID' ||
           cookie.name === 'SSID'
         )) {
-          checkLoginSuccess();
+          handleNavigation();
         }
       };
       ses.cookies.on('changed', onCookieChanged);
@@ -867,11 +1063,12 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         resolve(authResolved);
       });
 
-      // Load BitChord's exact sign-in URL: clean, untouched Google ServiceLogin
-      const BITCHORD_GOOGLE_SIGNIN_URL = 'https://accounts.google.com/ServiceLogin?ltmpl=music&service=youtube&passive=true&continue=https%3A%2F%2Fmusic.youtube.com%2F';
-      loginWin.loadURL(BITCHORD_GOOGLE_SIGNIN_URL, {
-        userAgent: CHROME_UA
-      });
+      // Load initial URL
+      if (isSwitchChannel) {
+        loginWin.loadURL('https://music.youtube.com/', { userAgent: CHROME_UA });
+      } else {
+        loginWin.loadURL(BITCHORD_GOOGLE_SIGNIN_URL, { userAgent: CHROME_UA });
+      }
     } catch (err) {
       console.error('[Auth] Failed to open Google login dialog:', err);
       resolve(false);
@@ -895,9 +1092,11 @@ ipcMain.handle('start-cookie-sync-server', () => {
 ipcMain.handle('logout-google', async () => {
   try {
     const ses = session.fromPartition('persist:ytmusic');
+    await clearGoogleSessionCookies(ses);
     await ses.clearStorageData({
       storages: ['cookies', 'localstorage', 'cache']
     });
+    innertube.adoptSessionScope(null);
     const info = { isLoggedIn: false };
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('auth-changed', info);

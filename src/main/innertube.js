@@ -17,6 +17,53 @@ function sapisidHash(sapisid, origin = MUSIC_ORIGIN) {
 }
 
 /**
+ * Current authenticated session scope (identity, brand channel, auth user index, visitor data)
+ * Exactly mirrors BitChord Innertube.kt SessionScope and ChannelSelection architecture.
+ */
+let currentSessionScope = {
+  pageId: null,
+  dataSyncId: null,
+  authUser: '0',
+  visitorData: null,
+  clientVersion: null,
+  loggedIn: false
+};
+
+function adoptSessionScope(scope) {
+  if (!scope || !scope.loggedIn) {
+    currentSessionScope = {
+      pageId: null,
+      dataSyncId: null,
+      authUser: '0',
+      visitorData: null,
+      clientVersion: scope?.clientVersion || null,
+      loggedIn: false
+    };
+    return;
+  }
+  currentSessionScope = {
+    pageId: (scope.pageId && typeof scope.pageId === 'string' && scope.pageId.trim()) ? scope.pageId.trim() : null,
+    dataSyncId: (scope.dataSyncId && typeof scope.dataSyncId === 'string' && scope.dataSyncId.trim()) ? scope.dataSyncId.trim() : null,
+    authUser: (scope.authUser && typeof scope.authUser === 'string' && scope.authUser.trim()) ? scope.authUser.trim() : '0',
+    visitorData: (scope.visitorData && typeof scope.visitorData === 'string' && scope.visitorData.trim()) ? scope.visitorData.trim() : currentSessionScope.visitorData || null,
+    clientVersion: (scope.clientVersion && typeof scope.clientVersion === 'string' && scope.clientVersion.trim()) ? scope.clientVersion.trim() : currentSessionScope.clientVersion || null,
+    loggedIn: true
+  };
+}
+
+function getSessionScope() {
+  return { ...currentSessionScope };
+}
+
+function selectChannel(pageId, dataSyncId, authUser) {
+  currentSessionScope.pageId = pageId || null;
+  currentSessionScope.dataSyncId = dataSyncId || null;
+  if (authUser !== undefined && authUser !== null) {
+    currentSessionScope.authUser = String(authUser);
+  }
+}
+
+/**
  * Retrieves cookies and builds auth headers from the Electron session partition.
  */
 async function getAuthContext(ses) {
@@ -50,6 +97,15 @@ async function getAuthContext(ses) {
       if (sapisid) {
         headers['Authorization'] = sapisidHash(sapisid);
       }
+      if (currentSessionScope.authUser) {
+        headers['X-Goog-AuthUser'] = currentSessionScope.authUser;
+      }
+      if (currentSessionScope.pageId) {
+        headers['X-Goog-PageId'] = currentSessionScope.pageId;
+      }
+      if (currentSessionScope.visitorData) {
+        headers['X-Goog-Visitor-Id'] = currentSessionScope.visitorData;
+      }
     }
     return { headers, isLoggedIn, cookieStr };
   } catch (err) {
@@ -76,16 +132,19 @@ function getDefaultHeaders() {
  */
 async function postMusic(endpoint, body, ses) {
   const { headers } = await getAuthContext(ses);
+  const clientVersion = currentSessionScope.clientVersion || WEB_REMIX_CLIENT_VERSION;
   const payload = {
     context: {
       client: {
         clientName: 'WEB_REMIX',
-        clientVersion: WEB_REMIX_CLIENT_VERSION,
+        clientVersion,
         hl: 'en',
-        gl: 'US'
+        gl: 'US',
+        ...(currentSessionScope.visitorData ? { visitorData: currentSessionScope.visitorData } : {})
       },
       user: {
-        lockedSafetyMode: false
+        lockedSafetyMode: false,
+        ...(currentSessionScope.dataSyncId ? { onBehalfOfUser: currentSessionScope.dataSyncId } : {})
       },
       request: {
         useSsl: true
@@ -156,7 +215,10 @@ async function getAccountInfo(ses) {
       channelTitle: name,
       handle,
       avatarUrl,
-      photoUrl: avatarUrl
+      photoUrl: avatarUrl,
+      pageId: currentSessionScope.pageId,
+      dataSyncId: currentSessionScope.dataSyncId,
+      authUser: currentSessionScope.authUser
     };
   } catch (err) {
     console.warn('[InnerTube] getAccountInfo error:', err.message);
@@ -168,7 +230,10 @@ async function getAccountInfo(ses) {
         channelTitle: 'Google User',
         handle: '@user',
         avatarUrl: '',
-        photoUrl: ''
+        photoUrl: '',
+        pageId: currentSessionScope.pageId,
+        dataSyncId: currentSessionScope.dataSyncId,
+        authUser: currentSessionScope.authUser
       };
     }
     return {
@@ -177,7 +242,10 @@ async function getAccountInfo(ses) {
       channelTitle: '',
       handle: '',
       avatarUrl: '',
-      photoUrl: ''
+      photoUrl: '',
+      pageId: null,
+      dataSyncId: null,
+      authUser: '0'
     };
   }
 }
@@ -1262,5 +1330,8 @@ module.exports = {
   search,
   rate,
   sapisidHash,
-  parseLibraryPlaylistsResponse
+  parseLibraryPlaylistsResponse,
+  adoptSessionScope,
+  getSessionScope,
+  selectChannel
 };

@@ -504,6 +504,43 @@ function runBitChordArchitectureTests() {
   assert.ok(mainCode.includes("details.url.includes('accounts.google.com')"), 'main.js must safeguard accounts.google.com security headers');
   assert.ok(mainCode.includes("details.url.includes('accounts.youtube.com')"), 'main.js must safeguard accounts.youtube.com security headers');
 
+  // Verify BitChord AuthStore and WebSession helpers
+  const { hasApiSid, normalizeDataSyncId } = require('../src/main/cookie-utils');
+  assert.strictEqual(typeof hasApiSid, 'function', 'cookie-utils must export hasApiSid');
+  assert.strictEqual(typeof normalizeDataSyncId, 'function', 'cookie-utils must export normalizeDataSyncId');
+  assert.strictEqual(hasApiSid(''), false);
+  assert.strictEqual(hasApiSid(null), false);
+  assert.strictEqual(hasApiSid('SID=12345; HSID=abcde'), false);
+  assert.strictEqual(hasApiSid('SAPISID=valid_sapisid_token'), true);
+  assert.strictEqual(hasApiSid('__Secure-3PAPISID=valid_secure_token'), true);
+  assert.strictEqual(hasApiSid('__Secure-1PAPISID=valid_1p_token'), true);
+  assert.strictEqual(hasApiSid('SAPISID='), false);
+
+  assert.strictEqual(normalizeDataSyncId('account_id||brand_channel_id'), 'brand_channel_id');
+  assert.strictEqual(normalizeDataSyncId('account_id||'), 'account_id');
+  assert.strictEqual(normalizeDataSyncId('plain_account_id'), 'plain_account_id');
+  assert.strictEqual(normalizeDataSyncId(''), null);
+  assert.strictEqual(normalizeDataSyncId(null), null);
+
+  // Verify Innertube Session Scope
+  assert.strictEqual(typeof innertube.adoptSessionScope, 'function', 'innertube must export adoptSessionScope');
+  assert.strictEqual(typeof innertube.getSessionScope, 'function', 'innertube must export getSessionScope');
+  assert.strictEqual(typeof innertube.selectChannel, 'function', 'innertube must export selectChannel');
+
+  innertube.adoptSessionScope({
+    pageId: 'brand_page_123',
+    dataSyncId: 'brand_page_123',
+    authUser: '1',
+    visitorData: 'Cg_test_visitor_data',
+    clientVersion: '1.20250101.01.00',
+    loggedIn: true
+  });
+  const capturedScope = innertube.getSessionScope();
+  assert.strictEqual(capturedScope.pageId, 'brand_page_123');
+  assert.strictEqual(capturedScope.dataSyncId, 'brand_page_123');
+  assert.strictEqual(capturedScope.authUser, '1');
+  assert.strictEqual(capturedScope.loggedIn, true);
+
   // Verify preload.js listens to auth-changed
   assert.ok(preloadCode.includes("ipcRenderer.on('auth-changed'"), 'preload.js must listen for auth-changed IPC event');
 

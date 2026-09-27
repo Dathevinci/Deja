@@ -120,6 +120,41 @@ function parseCookiePairs(rawCookieInput) {
   return cookiePairs;
 }
 
+const API_SID_NAMES = new Set(['SAPISID', '__Secure-3PAPISID', '__Secure-1PAPISID']);
+
+/**
+ * Checks whether a cookie header string carries a valid signing secret for Innertube requests.
+ * Exactly matches BitChord AuthStore.hasApiSid.
+ */
+function hasApiSid(cookieHeader) {
+  if (!cookieHeader || typeof cookieHeader !== 'string') return false;
+  return cookieHeader.split(';').some(entry => {
+    const eqIdx = entry.indexOf('=');
+    if (eqIdx <= 0) return false;
+    const name = entry.substring(0, eqIdx).trim();
+    const value = entry.substring(eqIdx + 1).trim();
+    return API_SID_NAMES.has(name) && value.length > 0;
+  });
+}
+
+/**
+ * Extracts the active identity from DATASYNC_ID (e.g. account||delegated).
+ * Exactly matches BitChord WebSession.normalizeDataSyncId.
+ */
+function normalizeDataSyncId(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  const value = raw.trim();
+  if (!value) return null;
+  if (!value.includes('||')) return value;
+  const after = value.substring(value.indexOf('||') + 2).trim();
+  if (after) return after;
+  const before = value.substring(0, value.indexOf('||')).trim();
+  return before || null;
+}
+
 module.exports = {
-  parseCookiePairs
+  parseCookiePairs,
+  hasApiSid,
+  normalizeDataSyncId,
+  API_SID_NAMES
 };

@@ -4743,6 +4743,16 @@ function setupEvents() {
     };
   }
 
+  const btnSwitchChannel = document.getElementById('btn-switch-channel');
+  if (btnSwitchChannel) {
+    btnSwitchChannel.onclick = async () => {
+      const api = window.dejaAPI || window.sonoraAPI;
+      if (api?.openGoogleLogin) {
+        await api.openGoogleLogin('switch-channel');
+      }
+    };
+  }
+
   const btnSwitchAccount = document.getElementById('btn-switch-account');
   if (btnSwitchAccount) {
     btnSwitchAccount.onclick = () => {
