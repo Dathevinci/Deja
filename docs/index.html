@@ -75,14 +75,14 @@
       </p>
 
       <div class="hero-cta-group">
-        <a href="https://github.com/Dathevinci/Deja/releases/download/v1.0.0/Deja%20Setup%201.0.0.exe" class="btn-ruby" id="btn-hero-download">
+        <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.0.0.exe" class="btn-ruby" id="btn-hero-download">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
           </svg>
           <span>Download for Windows (.exe)</span>
         </a>
 
-        <a href="https://github.com/Dathevinci/Deja/releases/download/v1.0.0/Deja%201.0.0.exe" class="btn-secondary" title="Portable zero-install standalone executable">
+        <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.1.0.0.exe" class="btn-secondary" title="Portable zero-install standalone executable">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
             <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
@@ -472,12 +472,12 @@
             </p>
           </div>
           <div>
-            <a href="https://github.com/Dathevinci/Deja/releases/download/v1.0.0/Deja%20Setup%201.0.0.exe" class="btn-ruby" style="width: 100%; justify-content: center;">
+            <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.0.0.exe" class="btn-ruby" style="width: 100%; justify-content: center;">
               <span>Download Deja Setup 1.0.0.exe</span>
             </a>
             <div class="download-meta">
               <span>Size: ~107 MB · </span>
-              <a href="https://github.com/Dathevinci/Deja/releases/tag/v1.0.0" target="_blank" rel="noopener noreferrer" style="color:var(--text-secondary);">Release Notes</a>
+              <a href="https://github.com/Dathevinci/Deja/releases" target="_blank" rel="noopener noreferrer" style="color:var(--text-secondary);">Release Notes</a>
             </div>
           </div>
         </div>
@@ -492,12 +492,12 @@
             </p>
           </div>
           <div>
-            <a href="https://github.com/Dathevinci/Deja/releases/download/v1.0.0/Deja%201.0.0.exe" class="btn-secondary" style="width: 100%; justify-content: center;">
+            <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.1.0.0.exe" class="btn-secondary" style="width: 100%; justify-content: center;">
               <span>Download Deja 1.0.0.exe</span>
             </a>
             <div class="download-meta">
               <span>Size: ~107 MB · </span>
-              <a href="https://github.com/Dathevinci/Deja/releases/tag/v1.0.0" target="_blank" rel="noopener noreferrer" style="color:var(--text-secondary);">Release Notes</a>
+              <a href="https://github.com/Dathevinci/Deja/releases" target="_blank" rel="noopener noreferrer" style="color:var(--text-secondary);">Release Notes</a>
             </div>
           </div>
         </div>
@@ -519,6 +519,34 @@
               <span>Architecture: ARM64 & x86_64 · Coming Soon</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Local Build Fallback Guidance -->
+      <div class="download-fallback-banner">
+        <div class="fallback-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </div>
+        <div class="fallback-content">
+          <h4>Compiled Locally or Building from Source?</h4>
+          <p>
+            Large executables (&gt;100 MB) are hosted via GitHub Releases instead of git commits due to GitHub size policies. If you have already built Deja on your machine using <code>npm run dist</code>, your production-ready executables are located right in your project folder:
+          </p>
+          <div class="fallback-paths">
+            <div class="path-badge">
+              <strong>Installer:</strong> <code>dist/Deja Setup 1.0.0.exe</code>
+            </div>
+            <div class="path-badge">
+              <strong>Portable:</strong> <code>dist/Deja 1.0.0.exe</code>
+            </div>
+          </div>
+          <p class="fallback-subtext">
+            For online downloads, grab the latest release directly from the <a href="https://github.com/Dathevinci/Deja/releases" target="_blank" rel="noopener noreferrer">Deja GitHub Releases page</a>.
+          </p>
         </div>
       </div>
     </div>

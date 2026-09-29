@@ -125,14 +125,21 @@ Deja operates in strict alignment with Google platform policies and monetization
 
 ### Direct Downloads (Windows)
 
-Ready-to-run Windows binaries are available directly via GitHub Releases and the official website:
+Ready-to-run Windows binaries are published on GitHub Releases and the official website:
 
-- **Windows Setup Installer**: [Deja Setup 1.0.0.exe](https://github.com/Dathevinci/Deja/releases/download/v1.0.0/Deja%20Setup%201.0.0.exe)  
+- **Windows Setup Installer**: [Deja.Setup.1.0.0.exe](https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.0.0.exe) (~107 MB)  
   *Standard NSIS installer with desktop shortcut, Start menu integration, and automatic uninstaller.*
-- **Windows Portable Edition**: [Deja 1.0.0.exe](https://github.com/Dathevinci/Deja/releases/download/v1.0.0/Deja%201.0.0.exe)  
+- **Windows Portable Edition**: [Deja.1.0.0.exe](https://github.com/Dathevinci/Deja/releases/latest/download/Deja.1.0.0.exe) (~107 MB)  
   *Standalone zero-install executable. Runs directly without administrator privileges or registry modifications.*
 - **All Releases & Release Notes**: [GitHub Releases](https://github.com/Dathevinci/Deja/releases)
 - **Official Web Portal**: [https://dathevinci.github.io/Deja/](https://dathevinci.github.io/Deja/)
+
+> [!TIP]
+> **Local Build Location**: If you have already cloned the repository and executed `npm run dist` locally, the compiled `.exe` files are already generated on your machine in the project root:
+> - `dist/Deja Setup 1.0.0.exe` (or `dist/Deja.Setup.1.0.0.exe`)
+> - `dist/Deja 1.0.0.exe` (or `dist/Deja.1.0.0.exe`)
+>
+> *(Large `.exe` binaries are distributed via GitHub Releases and not committed directly into the Git repository tree to adhere to GitHub's file size limits).*
 
 ---
 
@@ -210,7 +217,8 @@ npm test
 Deja/
 |-- .github/
 |   `-- workflows/
-|       `-- build.yml             # Automated CI test and release pipeline
+|       |-- build.yml             # Automated CI test and build validation pipeline
+|       `-- release.yml           # Automated release packaging and binary publishing pipeline
 |-- assets/
 |   |-- icon.ico                  # Multi-resolution Windows application icon
 |   |-- icon.png                  # High-resolution 512x512 application icon
