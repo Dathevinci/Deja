@@ -9,14 +9,19 @@
     <img src="https://img.shields.io/badge/Architecture-BitChord%20Audio-ff2d55.svg" alt="Architecture: BitChord Audio" />
     <img src="https://img.shields.io/badge/Stream-160kbps%20Opus-orange.svg" alt="Stream: 160kbps Opus" />
     <img src="https://img.shields.io/badge/TOS-Google%20Compliant-brightgreen.svg" alt="TOS: Google Compliant" />
-    <img src="https://img.shields.io/badge/Tests-10%2F10%20Passing-success.svg" alt="Tests: Passing" />
+    <img src="https://img.shields.io/badge/Tests-11%2F11%20Passing-success.svg" alt="Tests: 11/11 Passing" />
   </p>
   
+  <p>
+    <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.0.0.exe"><img src="https://img.shields.io/badge/Download%20Setup-Deja.Setup.1.0.0.exe-FA2D48?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows Setup (.exe)" /></a>
+    <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.1.0.0.exe"><img src="https://img.shields.io/badge/Download%20Portable-Deja.1.0.0.exe-333333?style=for-the-badge&logo=windows&logoColor=white" alt="Download Portable (.exe)" /></a>
+  </p>
+
   <p>
     <a href="https://dathevinci.github.io/Deja/">Official Website</a> &middot;
     <a href="https://github.com/Dathevinci/Deja/releases">Download Releases</a> &middot;
     <a href="#getting-started">Getting Started</a> &middot;
-    <a href="#feature-breakdown">Features</a> &middot;
+    <a href="#key-features">Features</a> &middot;
     <a href="#architecture">Architecture</a>
   </p>
 </div>
@@ -191,7 +196,7 @@ Ready-to-run Windows binaries are published on GitHub Releases and the official 
 
 ## Testing & Quality Assurance
 
-Deja includes an automated test suite across 10 specialized modules:
+Deja includes an automated test suite across 11 specialized modules:
 
 ```bash
 npm test
@@ -207,7 +212,8 @@ npm test
 7. **Native BitChord Architecture**: 160kbps Opus stream parsing, Stats for Nerds, and preview player logic.
 8. **Edge Cases & Security**: Malformed lyric timestamps, network interruption handling, and sanitized HTML.
 9. **InnerTube Integration**: Live playlist retrieval, continuation pagination, and track metadata extraction.
-10. **Preload & CSP Runtime**: Secure contextBridge injection under strict Content Security Policies.
+10. **Auth Persistence & Playlist Architecture**: Session token lifecycle, cookie expiration enforcement, and bidirectional playlist sync.
+11. **Preload & CSP Runtime**: Secure contextBridge injection under strict Content Security Policies.
 
 ---
 

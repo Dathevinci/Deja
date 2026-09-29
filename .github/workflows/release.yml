@@ -46,16 +46,27 @@ jobs:
       - name: Prepare Standard Release Asset Filenames
         shell: pwsh
         run: |
-          Write-Host "Creating dot-formatted asset aliases for direct GitHub download links..."
+          Write-Host "Creating dot-formatted and hyphen-formatted asset aliases for release downloads & auto-updater..."
           Get-ChildItem dist -Filter "Deja Setup *.exe" | ForEach-Object {
             $dotted = $_.Name.Replace(" ", ".")
-            Copy-Item $_.FullName (Join-Path "dist" $dotted)
-            Write-Host "Created alias: $dotted"
+            $dashed = $_.Name.Replace(" ", "-")
+            if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
+            if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
+            Write-Host "Created installer aliases for $($_.Name): $dotted, $dashed"
+          }
+          Get-ChildItem dist -Filter "Deja Setup *.blockmap" | ForEach-Object {
+            $dotted = $_.Name.Replace(" ", ".")
+            $dashed = $_.Name.Replace(" ", "-")
+            if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
+            if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
+            Write-Host "Created blockmap aliases for $($_.Name): $dotted, $dashed"
           }
           Get-ChildItem dist -Filter "Deja *.exe" | Where-Object { $_.Name -notmatch "Setup" } | ForEach-Object {
             $dotted = $_.Name.Replace(" ", ".")
-            Copy-Item $_.FullName (Join-Path "dist" $dotted)
-            Write-Host "Created alias: $dotted"
+            $dashed = $_.Name.Replace(" ", "-")
+            if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
+            if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
+            Write-Host "Created portable aliases for $($_.Name): $dotted, $dashed"
           }
           Get-ChildItem dist | Select-Object Name, Length
 

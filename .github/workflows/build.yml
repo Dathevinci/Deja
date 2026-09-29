@@ -1,9 +1,8 @@
-name: Build & Release Deja
+name: Build Deja CI
 
 on:
   push:
     branches: [ main, master ]
-    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -56,11 +55,21 @@ jobs:
         run: |
           Get-ChildItem dist -Filter "Deja Setup *.exe" | ForEach-Object {
             $dotted = $_.Name.Replace(" ", ".")
-            Copy-Item $_.FullName (Join-Path "dist" $dotted)
+            $dashed = $_.Name.Replace(" ", "-")
+            if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
+            if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
+          }
+          Get-ChildItem dist -Filter "Deja Setup *.blockmap" | ForEach-Object {
+            $dotted = $_.Name.Replace(" ", ".")
+            $dashed = $_.Name.Replace(" ", "-")
+            if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
+            if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
           }
           Get-ChildItem dist -Filter "Deja *.exe" | Where-Object { $_.Name -notmatch "Setup" } | ForEach-Object {
             $dotted = $_.Name.Replace(" ", ".")
-            Copy-Item $_.FullName (Join-Path "dist" $dotted)
+            $dashed = $_.Name.Replace(" ", "-")
+            if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
+            if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
           }
 
       - name: Upload Artifacts
@@ -71,14 +80,3 @@ jobs:
             dist/*.exe
             dist/*.blockmap
             dist/latest.yml
-
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/*.exe
-            dist/*.blockmap
-            dist/latest.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
