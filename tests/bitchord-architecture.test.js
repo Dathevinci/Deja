@@ -248,6 +248,31 @@ function runBitChordArchitectureTests() {
     innertube.getPrimaryArtist('Eminem, Dina Rae'),
     'Eminem'
   );
+  assert.strictEqual(
+    innertube.cleanArtistTerm('Taylor Swift'),
+    'Taylor Swift',
+    'cleanArtistTerm must preserve Swift without truncating at ft'
+  );
+  assert.strictEqual(
+    innertube.cleanArtistTerm('Taylor Swift - Topic'),
+    'Taylor Swift',
+    'cleanArtistTerm must strip - Topic suffix'
+  );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('Taylor Swift - Cruel Summer (Official Music Video)'),
+    'Taylor Swift - Cruel Summer',
+    'cleanSearchTerm must preserve Swift'
+  );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('Gift Of Life'),
+    'Gift Of Life',
+    'cleanSearchTerm must preserve Gift'
+  );
+  assert.strictEqual(
+    innertube.cleanSearchTerm('Soft Rain'),
+    'Soft Rain',
+    'cleanSearchTerm must preserve Soft'
+  );
 
   // Test parseLrcString
   const sampleLrc = `
@@ -263,6 +288,13 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(parsedLrc[0].text, 'Fever dream high in the quiet of the night');
   assert.strictEqual(parsedLrc[1].time, 4.15);
   assert.strictEqual(parsedLrc[2].time, 9.8);
+
+  // Test enhanced LRC with word timestamps: <mm:ss.xx> tags must be stripped cleanly
+  const enhancedLrc = `[00:02.50]<00:02.50>I'm <00:02.80>drunk <00:03.10>in <00:03.40>the <00:03.70>back`;
+  const parsedEnhanced = innertube.parseLrcString(enhancedLrc);
+  assert.strictEqual(parsedEnhanced.length, 1);
+  assert.strictEqual(parsedEnhanced[0].time, 2.5);
+  assert.strictEqual(parsedEnhanced[0].text, "I'm drunk in the back");
 
   // Test intro gap insertion (if first lyric starts after 5s)
   const lateLrc = `[00:08.50]Late intro starts here`;

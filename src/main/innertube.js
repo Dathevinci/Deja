@@ -1871,40 +1871,56 @@ function cleanSearchTerm(str) {
   if (!str || typeof str !== 'string') return '';
   let s = str
     .replace(/\uFEFF|\u200E|\u200F/g, '')
-    // Strip trailing unclosed or closed feature/collaboration tags (e.g. '(feat. Din...', '(feat. Dina Rae)', 'ft. Daft Punk', 'featuring ...', 'with ...')
-    .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
-    .replace(/\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+    // Strip trailing unclosed feature/collaboration tags (e.g. '(feat. Din...')
+    .replace(/\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+    // Strip closed bracket feature tags: e.g. '(feat. Dina Rae)', '[ft. Daft Punk]', '(with Pharrell Williams)'
+    .replace(/\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring|with)\b[^)\]]*[)\]]/gi, '')
+    // Strip unbracketed feature tags: requires at least 1 leading whitespace to protect words like 'Swift', 'Gift', 'Left'
+    .replace(/\s+(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
     // Strip parenthetical/bracketed official video/audio/remaster/live tags
-    .replace(/\s*[\(\[](?:official\s+)?(?:music\s+|lyric\s+|lyrics\s+)?(?:video|audio|visualizer|track|remaster(?:ed)?(?:\s+\d{4})?|live(?:\s+at\s+[^)\]]+)?)[\]\)]/gi, '')
+    .replace(/\s*[\(\[](?:official\s*)?(?:music\s+|lyric\s+|lyrics\s+)?(?:video|audio|visualizer|track|remaster(?:ed)?(?:\s+\d{4})?|live(?:\s+at\s+[^)\]]+)?)[\]\)]/gi, '')
     .replace(/\s*\(?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^)]+)?)\)?/gi, '')
     .replace(/\s*\[?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^\]]+)?)\]?/gi, '')
+    // Bare official in brackets
+    .replace(/\s*[(\[]\s*official\s*[)\]]/gi, '')
     // Strip trailing separators and descriptors
-    .replace(/\s*(?:\||\/\/|-)\s*(?:official\s+video|official\s+audio|audio|lyric\s+video|lyrics).*$/gi, '')
+    .replace(/\s*(?:\||\/\/|-)\s*(?:official\s+video|official\s+audio|audio|lyric\s+video|lyrics|music\s+video).*$/gi, '')
+    // Strip YouTube auto-generated channel topic tag
+    .replace(/\s*-\s*Topic$/i, '')
     .trim();
+
   if (s.includes('•')) s = s.split('•')[0].trim();
   if (s.includes('·')) s = s.split('·')[0].trim();
-  return s
+  s = s
     // Clean leading/trailing quotes
     .replace(/^["'“‘]+|["'”’]+$/g, '')
-    // Clean any trailing ellipsis or periods
-    .replace(/[\.…\s]+$/, '')
+    // Clean any trailing ellipsis, periods, dashes, or commas
+    .replace(/[\.…,\s–—\-]+$/, '')
     .trim();
+
+  return s.replace(/\s+/g, ' ').trim() || str.trim();
 }
 
 /**
  * Cleans artist name for lyrics matching
+ * Matches BitChord artist.artistForLyricsSearch()
  */
 function cleanArtistTerm(str) {
   if (!str || typeof str !== 'string') return '';
   let s = str
     .replace(/\uFEFF|\u200E|\u200F/g, '')
-    .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
-    .replace(/\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+    // Strip " - Topic" suffix from YouTube's auto-generated artist channels
+    .replace(/\s*-\s*Topic$/i, '')
+    .replace(/\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+    .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring|with)\b[^)\]]*[)\]]/gi, '')
+    .replace(/\s+(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
     .trim();
+
   // Strip metadata like bullet view counts or album info (e.g. "Eminem • The Eminem Show")
   if (s.includes('•')) s = s.split('•')[0].trim();
   if (s.includes('·')) s = s.split('·')[0].trim();
-  return s.replace(/^["'“‘]+|["'”’]+$/g, '').replace(/[\.…\s]+$/, '').trim();
+  s = s.replace(/^["'“‘]+|["'”’]+$/g, '').replace(/[\.…,\s–—\-]+$/, '').trim();
+  return s.replace(/\s+/g, ' ').trim() || str.trim();
 }
 
 /**
@@ -1919,11 +1935,13 @@ function getPrimaryArtist(str) {
 /**
  * Parses millisecond LRC formatted lyrics into [{ time: seconds, text: string }]
  * Supports [mm:ss.xx] and [mm:ss.xxx], matching BitChord's LrcLib.kt.
+ * Also strips enhanced word tags <mm:ss.xx> cleanly.
  */
 function parseLrcString(lrcContent) {
   if (!lrcContent || typeof lrcContent !== 'string') return [];
   const lines = lrcContent.split(/\r?\n/);
-  const stampRegex = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+  const stampRegex = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+  const wordStampRegex = /<(?:\d{1,3}):(?:\d{2})(?:[.:](?:\d{2,3}))?>/g;
   const result = [];
 
   for (const rawLine of lines) {
@@ -1935,7 +1953,8 @@ function parseLrcString(lrcContent) {
     const matches = [...trimmed.matchAll(stampRegex)];
     if (matches.length === 0) continue;
 
-    const text = trimmed.replace(stampRegex, '').trim();
+    // Strip enhanced word stamps and time stamps
+    let text = trimmed.replace(stampRegex, '').replace(wordStampRegex, '').trim();
     const displayText = text.length > 0 ? text : '♪';
 
     for (const match of matches) {
@@ -1958,6 +1977,7 @@ function parseLrcString(lrcContent) {
 
   result.sort((a, b) => a.time - b.time);
 
+  // If first lyric line starts after 5 seconds, add an intro break cue (BitChord LrcLib.kt)
   if (result.length > 0 && result[0].time > 5) {
     result.unshift({ time: 0, text: '♪' });
   }
@@ -1968,6 +1988,7 @@ function parseLrcString(lrcContent) {
 /**
  * Fetches millisecond synchronized lyrics from LRCLIB API
  * (BitChord LrcLib.kt provider architecture)
+ * Matches track duration within ±3 seconds tolerance to ensure exact song cut.
  */
 async function fetchLrcLibLyrics(title, artist, durationSeconds) {
   const cleanTitle = cleanSearchTerm(title);
@@ -1975,10 +1996,17 @@ async function fetchLrcLibLyrics(title, artist, durationSeconds) {
   const primaryArtist = getPrimaryArtist(cleanArtist);
   if (!cleanTitle) return null;
 
-  // Build title candidates (including stripped artist prefixes like "Eminem - Superman")
+  // Build title candidates (including stripping artist prefixes like "Taylor Swift - Cruel Summer")
   const titleCandidates = [cleanTitle];
   if (cleanArtist) {
     const escaped = cleanArtist.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const withoutArtist = cleanTitle.replace(new RegExp('^' + escaped + '\\s*[-:–—]\\s*', 'i'), '').trim();
+    if (withoutArtist && !titleCandidates.includes(withoutArtist)) {
+      titleCandidates.push(withoutArtist);
+    }
+  }
+  if (primaryArtist && primaryArtist !== cleanArtist) {
+    const escaped = primaryArtist.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const withoutArtist = cleanTitle.replace(new RegExp('^' + escaped + '\\s*[-:–—]\\s*', 'i'), '').trim();
     if (withoutArtist && !titleCandidates.includes(withoutArtist)) {
       titleCandidates.push(withoutArtist);
@@ -1989,6 +2017,10 @@ async function fetchLrcLibLyrics(title, artist, durationSeconds) {
     if (afterDash && !titleCandidates.includes(afterDash)) {
       titleCandidates.push(afterDash);
     }
+    const beforeDash = cleanTitle.split(' - ')[0].trim();
+    if (beforeDash && !titleCandidates.includes(beforeDash)) {
+      titleCandidates.push(beforeDash);
+    }
   }
 
   const durationParam = (durationSeconds && typeof durationSeconds === 'number' && durationSeconds > 0)
@@ -1998,59 +2030,65 @@ async function fetchLrcLibLyrics(title, artist, durationSeconds) {
   const artistCandidates = [cleanArtist, primaryArtist].filter(Boolean);
   const uniqueArtists = [...new Set(artistCandidates)];
 
-  const tryParseLrcResponse = async (res) => {
-    if (!res || !res.ok) return null;
-    try {
-      const data = await res.json();
-      if (data && data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
-        const parsed = parseLrcString(data.syncedLyrics);
-        if (parsed.length > 0) return parsed;
+  const tryParseLrcResponse = (data, checkDuration = true) => {
+    if (!data || !data.syncedLyrics || data.syncedLyrics.trim().length === 0) return null;
+    if (checkDuration && durationParam && data.duration) {
+      if (Math.abs(data.duration - durationParam) > 3) {
+        return null;
       }
-    } catch {}
-    return null;
+    }
+    const parsed = parseLrcString(data.syncedLyrics);
+    return (parsed && parsed.length > 0) ? parsed : null;
   };
 
   // 1. Exact match attempt via /get endpoint with title candidates
   for (const tCand of titleCandidates) {
     for (const art of (uniqueArtists.length > 0 ? uniqueArtists : [''])) {
-      try {
-        let getUrl = `${LRCLIB_BASE}/get?track_name=${encodeURIComponent(tCand)}`;
-        if (art) getUrl += `&artist_name=${encodeURIComponent(art)}`;
-        if (durationParam) getUrl += `&duration=${durationParam}`;
-
-        const res = await fetch(getUrl, {
-          headers: { 'User-Agent': LRCLIB_USER_AGENT }
-        });
-        const parsed = await tryParseLrcResponse(res);
-        if (parsed) return parsed;
-      } catch (err) {
-        console.warn('[LRCLIB] /get failed:', err.message);
-      }
-
-      // Try without duration parameter if duration was provided, to avoid 404 on minor duration drift
+      // 1a. Try /get with exact duration parameter
       if (durationParam) {
         try {
-          let getUrlNoDur = `${LRCLIB_BASE}/get?track_name=${encodeURIComponent(tCand)}`;
-          if (art) getUrlNoDur += `&artist_name=${encodeURIComponent(art)}`;
+          let getUrl = `${LRCLIB_BASE}/get?track_name=${encodeURIComponent(tCand)}`;
+          if (art) getUrl += `&artist_name=${encodeURIComponent(art)}`;
+          getUrl += `&duration=${durationParam}`;
 
-          const res = await fetch(getUrlNoDur, {
+          const res = await fetch(getUrl, {
             headers: { 'User-Agent': LRCLIB_USER_AGENT }
           });
-          const parsed = await tryParseLrcResponse(res);
-          if (parsed) return parsed;
+          if (res.ok) {
+            const data = await res.json();
+            const parsed = tryParseLrcResponse(data, false);
+            if (parsed) return parsed;
+          }
         } catch (err) {
-          console.warn('[LRCLIB] /get without duration failed:', err.message);
+          console.warn('[LRCLIB] /get with duration failed:', err.message);
         }
+      }
+
+      // 1b. Try /get without duration parameter, then check ±3 seconds tolerance
+      try {
+        let getUrlNoDur = `${LRCLIB_BASE}/get?track_name=${encodeURIComponent(tCand)}`;
+        if (art) getUrlNoDur += `&artist_name=${encodeURIComponent(art)}`;
+
+        const res = await fetch(getUrlNoDur, {
+          headers: { 'User-Agent': LRCLIB_USER_AGENT }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const parsed = tryParseLrcResponse(data, true);
+          if (parsed) return parsed;
+        }
+      } catch (err) {
+        console.warn('[LRCLIB] /get without duration failed:', err.message);
       }
     }
   }
 
-  // 2. Fuzzy search fallback via /search endpoint (supporting both ?q=... and ?track_name=...)
+  // 2. Fuzzy search fallback via /search endpoint (supporting track_name+artist and general query)
   const searchQueries = [];
   for (const tCand of titleCandidates) {
     for (const art of uniqueArtists) {
-      searchQueries.push(`${LRCLIB_BASE}/search?q=${encodeURIComponent(tCand + ' ' + art)}`);
       searchQueries.push(`${LRCLIB_BASE}/search?track_name=${encodeURIComponent(tCand)}&artist_name=${encodeURIComponent(art)}`);
+      searchQueries.push(`${LRCLIB_BASE}/search?q=${encodeURIComponent(tCand + ' ' + art)}`);
     }
     searchQueries.push(`${LRCLIB_BASE}/search?q=${encodeURIComponent(tCand)}`);
   }
@@ -2067,13 +2105,20 @@ async function fetchLrcLibLyrics(title, artist, durationSeconds) {
       if (res.ok) {
         const items = await res.json();
         if (Array.isArray(items) && items.length > 0) {
-          const syncedItems = items.filter(it => it && it.syncedLyrics && it.syncedLyrics.trim().length > 0);
+          let syncedItems = items.filter(it => it && it.syncedLyrics && it.syncedLyrics.trim().length > 0);
           if (syncedItems.length > 0) {
             if (durationParam) {
-              syncedItems.sort((a, b) => Math.abs((a.duration || 0) - durationParam) - Math.abs((b.duration || 0) - durationParam));
+              // Strictly match track duration within ±3 seconds to avoid wrong song/live/extended edits drifting
+              const closeItems = syncedItems.filter(it => Math.abs((it.duration || 0) - durationParam) <= 3);
+              if (closeItems.length > 0) {
+                closeItems.sort((a, b) => Math.abs((a.duration || 0) - durationParam) - Math.abs((b.duration || 0) - durationParam));
+                const parsed = parseLrcString(closeItems[0].syncedLyrics);
+                if (parsed.length > 0) return parsed;
+              }
+            } else {
+              const parsed = parseLrcString(syncedItems[0].syncedLyrics);
+              if (parsed.length > 0) return parsed;
             }
-            const parsed = parseLrcString(syncedItems[0].syncedLyrics);
-            if (parsed.length > 0) return parsed;
           }
         }
       }
@@ -2093,7 +2138,28 @@ async function fetchYouTubeMusicLyrics(videoId, ses) {
   if (!videoId || typeof videoId !== 'string') return null;
 
   try {
-    const nextData = await postMusic('next', { videoId, isAudioOnly: true }, ses);
+    let nextData = null;
+    try {
+      nextData = await postMusic('next', { videoId, playlistId: `RDAMVM${videoId}`, isAudioOnly: true }, ses);
+    } catch {
+      // Guest ANDROID_MUSIC fallback (matches getNextQueue)
+      const payload = {
+        context: { client: { clientName: 'ANDROID_MUSIC', clientVersion: '6.20.51', hl: 'en', gl: 'US' } },
+        videoId,
+        playlistId: `RDAMVM${videoId}`,
+        isAudioOnly: true
+      };
+      const res = await fetch(`${MUSIC_BASE}/next?prettyPrint=false`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'com.google.android.apps.youtube.music/6.20.51 (Linux; U; Android 11)'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) nextData = await res.json();
+    }
+
     let browseId = null;
     let browseParams = null;
 
@@ -2115,13 +2181,29 @@ async function fetchYouTubeMusicLyrics(videoId, ses) {
       }
       Object.values(node).forEach(walk);
     }
-    walk(nextData);
+    if (nextData) walk(nextData);
 
     if (!browseId) return null;
 
-    const browsePayload = { browseId };
-    if (browseParams) browsePayload.params = browseParams;
-    const browseData = await postMusic('browse', browsePayload, ses);
+    let browseData = null;
+    try {
+      const browsePayload = { browseId };
+      if (browseParams) browsePayload.params = browseParams;
+      browseData = await postMusic('browse', browsePayload, ses);
+    } catch {
+      const res = await fetch(`${MUSIC_BASE}/browse?prettyPrint=false`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'com.google.android.apps.youtube.music/6.20.51 (Linux; U; Android 11)'
+        },
+        body: JSON.stringify({
+          context: { client: { clientName: 'ANDROID_MUSIC', clientVersion: '6.20.51', hl: 'en', gl: 'US' } },
+          browseId
+        })
+      });
+      if (res.ok) browseData = await res.json();
+    }
 
     let rawText = '';
     function walkBrowse(node) {
@@ -2138,16 +2220,22 @@ async function fetchYouTubeMusicLyrics(videoId, ses) {
       }
       Object.values(node).forEach(walkBrowse);
     }
-    walkBrowse(browseData);
+    if (browseData) walkBrowse(browseData);
 
     if (!rawText || !rawText.trim()) return null;
+
+    // If description has LRC stamps, parse with parseLrcString
+    if (/\[\d{1,2}:\d{2}/.test(rawText)) {
+      const parsed = parseLrcString(rawText);
+      if (parsed.length > 0) return parsed;
+    }
 
     const rawLines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
     if (rawLines.length === 0) return null;
 
-    const step = 4;
+    // BitChord LyricLine(0L, text) presentation
     return rawLines.map((text, i) => ({
-      time: i * step,
+      time: i * 4,
       text
     }));
   } catch (err) {
@@ -2158,7 +2246,8 @@ async function fetchYouTubeMusicLyrics(videoId, ses) {
 
 /**
  * Unified Synced Lyrics Provider
- * Prioritizes LRCLIB millisecond synced lyrics, falls back to YouTube Music InnerTube lyrics.
+ * Prioritizes LRCLIB millisecond synced lyrics with ±3s duration tolerance,
+ * falls back to YouTube Music InnerTube lyrics.
  */
 async function getLyrics({ videoId, title, artist, duration }, ses) {
   // 1. Try LRCLIB for millisecond synced lyrics

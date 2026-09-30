@@ -3305,6 +3305,29 @@ function applyDynamicMeshAura(track) {
   }
 }
 
+let previewUserScrolling = false;
+let previewUserScrollTimer = null;
+
+function onPreviewUserScroll() {
+  previewUserScrolling = true;
+  if (previewUserScrollTimer) clearTimeout(previewUserScrollTimer);
+  previewUserScrollTimer = setTimeout(() => {
+    previewUserScrolling = false;
+    const containers = (typeof document.getElementById === 'function' ? [
+      document.getElementById('lyrics-lines-container'),
+      document.getElementById('expanded-lyrics-container')
+    ] : []).filter(Boolean);
+    containers.forEach(c => {
+      if (lastActiveLyricIndex >= 0) {
+        const activeEl = c.querySelectorAll('.apple-lyric-line')?.[lastActiveLyricIndex];
+        if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+          activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    });
+  }, 3500);
+}
+
 function renderLyrics(lyrics) {
   if (typeof document === 'undefined') return;
   const containers = [
@@ -3327,18 +3350,28 @@ function renderLyrics(lyrics) {
     : [{ time: 0, text: 'No synchronized lyrics available for this track.' }];
 
   containers.forEach(container => {
+    // Attach user manual scroll detection
+    if (!container.__dejaScrollHooked) {
+      container.__dejaScrollHooked = true;
+      container.addEventListener('wheel', onPreviewUserScroll, { passive: true });
+      container.addEventListener('touchmove', onPreviewUserScroll, { passive: true });
+      container.addEventListener('pointerdown', onPreviewUserScroll, { passive: true });
+    }
+
     container.innerHTML = safeLyrics.map((l, i) => `
-      <div class="apple-lyric-line ${i === 0 ? 'active' : ''}" data-time="${l.time}" data-line-index="${i}" onclick="seekTo(${l.time})">
+      <div class="apple-lyric-line ${i === 0 ? 'active' : ''}" data-time="${l.time}" data-line-index="${i}">
         ${escapeHTML(l.text)}
       </div>
     `).join('');
 
-    // Attach direct click listeners for immediate seek responsiveness
+    // Attach direct click listeners for immediate seek responsiveness (tap-to-seek)
     container.querySelectorAll('.apple-lyric-line').forEach((lineEl, idx) => {
       const lineData = safeLyrics[idx];
       if (lineData && typeof lineData.time === 'number') {
         lineEl.onclick = (e) => {
           if (e) e.stopPropagation();
+          previewUserScrolling = false;
+          if (previewUserScrollTimer) clearTimeout(previewUserScrollTimer);
           seekTo(lineData.time);
         };
       }
@@ -3348,41 +3381,57 @@ function renderLyrics(lyrics) {
 
 /**
  * Sanitizes track search term for lyrics matching
+ * Matches BitChord title.forLyricsSearch()
  */
 function cleanSearchTerm(str) {
   if (!str || typeof str !== 'string') return '';
   let s = str
     .replace(/\uFEFF|\u200E|\u200F/g, '')
-    // Strip trailing unclosed or closed feature/collaboration tags (e.g. '(feat. Din...', 'with Daft Punk')
-    .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
-    .replace(/\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+    // Strip trailing unclosed feature/collaboration tags (e.g. '(feat. Din...')
+    .replace(/\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+    // Strip closed bracket feature tags: e.g. '(feat. Dina Rae)', '[ft. Daft Punk]', '(with Pharrell Williams)'
+    .replace(/\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring|with)\b[^)\]]*[)\]]/gi, '')
+    // Strip unbracketed feature tags: requires at least 1 leading whitespace to protect words like 'Swift', 'Gift', 'Left'
+    .replace(/\s+(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
     // Strip parenthetical/bracketed official video/audio/remaster/live tags
-    .replace(/\s*[\(\[](?:official\s+)?(?:music\s+|lyric\s+|lyrics\s+)?(?:video|audio|visualizer|track|remaster(?:ed)?(?:\s+\d{4})?|live(?:\s+at\s+[^)\]]+)?)[\]\)]/gi, '')
+    .replace(/\s*[\(\[](?:official\s*)?(?:music\s+|lyric\s+|lyrics\s+)?(?:video|audio|visualizer|track|remaster(?:ed)?(?:\s+\d{4})?|live(?:\s+at\s+[^)\]]+)?)[\]\)]/gi, '')
     .replace(/\s*\(?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^)]+)?)\)?/gi, '')
     .replace(/\s*\[?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^\]]+)?)\]?/gi, '')
+    // Bare official in brackets
+    .replace(/\s*[(\[]\s*official\s*[)\]]/gi, '')
     // Strip trailing separators and descriptors
-    .replace(/\s*(?:\||\/\/|-)\s*(?:official\s+video|official\s+audio|audio|lyric\s+video|lyrics).*$/gi, '')
+    .replace(/\s*(?:\||\/\/|-)\s*(?:official\s+video|official\s+audio|audio|lyric\s+video|lyrics|music\s+video).*$/gi, '')
+    // Strip YouTube auto-generated channel topic tag
+    .replace(/\s*-\s*Topic$/i, '')
     .trim();
+
   // Strip metadata like bullet view counts or album info (e.g. "Eminem • The Eminem Show")
   if (s.includes('•')) s = s.split('•')[0].trim();
   if (s.includes('·')) s = s.split('·')[0].trim();
-  return s.replace(/^["'“‘]+|["'”’]+$/g, '').replace(/[\.…\s]+$/, '').trim();
+  s = s.replace(/^["'“‘]+|["'”’]+$/g, '').replace(/[\.…,\s–—\-]+$/, '').trim();
+  return s.replace(/\s+/g, ' ').trim() || str.trim();
 }
 
 /**
  * Cleans artist name for lyrics matching
+ * Matches BitChord artist.artistForLyricsSearch()
  */
 function cleanArtistTerm(str) {
   if (!str || typeof str !== 'string') return '';
   let s = str
     .replace(/\uFEFF|\u200E|\u200F/g, '')
-    .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
-    .replace(/\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+    // Strip " - Topic" suffix from YouTube's auto-generated artist channels
+    .replace(/\s*-\s*Topic$/i, '')
+    .replace(/\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+    .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring|with)\b[^)\]]*[)\]]/gi, '')
+    .replace(/\s+(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
     .trim();
+
   // Strip metadata like bullet view counts or album info (e.g. "Eminem • The Eminem Show")
   if (s.includes('•')) s = s.split('•')[0].trim();
   if (s.includes('·')) s = s.split('·')[0].trim();
-  return s.replace(/^["'“‘]+|["'”’]+$/g, '').replace(/[\.…\s]+$/, '').trim();
+  s = s.replace(/^["'“‘]+|["'”’]+$/g, '').replace(/[\.…,\s–—\-]+$/, '').trim();
+  return s.replace(/\s+/g, ' ').trim() || str.trim();
 }
 
 /**
@@ -3397,6 +3446,7 @@ function getPrimaryArtist(str) {
 /**
  * Fetches and resolves millisecond-synced lyrics via LRCLIB and InnerTube
  * (BitChord LyricsRepository.kt and LrcLib.kt provider architecture)
+ * Matches track duration within ±3 seconds tolerance
  */
 async function resolveSyncedLyrics(track) {
   if (!track || track._lyricsResolved || track._lyricsFetching) return;
@@ -3416,10 +3466,21 @@ async function resolveSyncedLyrics(track) {
       titleCandidates.push(withoutArtist);
     }
   }
+  if (primaryArtist && primaryArtist !== cleanArtist) {
+    const escaped = primaryArtist.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const withoutArtist = cleanTitle.replace(new RegExp('^' + escaped + '\\s*[-:–—]\\s*', 'i'), '').trim();
+    if (withoutArtist && !titleCandidates.includes(withoutArtist)) {
+      titleCandidates.push(withoutArtist);
+    }
+  }
   if (cleanTitle.includes(' - ')) {
     const afterDash = cleanTitle.split(' - ').slice(1).join(' - ').trim();
     if (afterDash && !titleCandidates.includes(afterDash)) {
       titleCandidates.push(afterDash);
+    }
+    const beforeDash = cleanTitle.split(' - ')[0].trim();
+    if (beforeDash && !titleCandidates.includes(beforeDash)) {
+      titleCandidates.push(beforeDash);
     }
   }
 
@@ -3447,28 +3508,13 @@ async function resolveSyncedLyrics(track) {
         if (resolved) break;
         for (const art of (uniqueArtists.length > 0 ? uniqueArtists : [''])) {
           if (resolved) break;
-          try {
-            let getUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(tCand)}`;
-            if (art) getUrl += `&artist_name=${encodeURIComponent(art)}`;
-            if (durationParam) getUrl += `&duration=${durationParam}`;
-
-            const res = await fetch(getUrl);
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
-                resolved = parseLrcLines(data.syncedLyrics);
-                break;
-              }
-            }
-          } catch {}
-
-          // Try without duration parameter in case of minor duration drift
-          if (!resolved && durationParam) {
+          if (durationParam) {
             try {
-              let getUrlNoDur = `https://lrclib.net/api/get?track_name=${encodeURIComponent(tCand)}`;
-              if (art) getUrlNoDur += `&artist_name=${encodeURIComponent(art)}`;
+              let getUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(tCand)}`;
+              if (art) getUrl += `&artist_name=${encodeURIComponent(art)}`;
+              getUrl += `&duration=${durationParam}`;
 
-              const res = await fetch(getUrlNoDur);
+              const res = await fetch(getUrl);
               if (res.ok) {
                 const data = await res.json();
                 if (data && data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
@@ -3478,16 +3524,35 @@ async function resolveSyncedLyrics(track) {
               }
             } catch {}
           }
+
+          // Try without duration parameter and check ±3 seconds tolerance
+          if (!resolved) {
+            try {
+              let getUrlNoDur = `https://lrclib.net/api/get?track_name=${encodeURIComponent(tCand)}`;
+              if (art) getUrlNoDur += `&artist_name=${encodeURIComponent(art)}`;
+
+              const res = await fetch(getUrlNoDur);
+              if (res.ok) {
+                const data = await res.json();
+                if (data && data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
+                  if (!durationParam || Math.abs((data.duration || 0) - durationParam) <= 3) {
+                    resolved = parseLrcLines(data.syncedLyrics);
+                    break;
+                  }
+                }
+              }
+            } catch {}
+          }
         }
       }
 
-      // 2. Fuzzy search fallback via /search endpoint
+      // 2. Fuzzy search fallback with ±3s duration filtering
       if (!resolved) {
         const searchQueries = [];
         for (const tCand of titleCandidates) {
           for (const art of uniqueArtists) {
-            searchQueries.push(`https://lrclib.net/api/search?q=${encodeURIComponent(tCand + ' ' + art)}`);
             searchQueries.push(`https://lrclib.net/api/search?track_name=${encodeURIComponent(tCand)}&artist_name=${encodeURIComponent(art)}`);
+            searchQueries.push(`https://lrclib.net/api/search?q=${encodeURIComponent(tCand + ' ' + art)}`);
           }
           searchQueries.push(`https://lrclib.net/api/search?q=${encodeURIComponent(tCand)}`);
         }
@@ -3505,10 +3570,16 @@ async function resolveSyncedLyrics(track) {
                 const syncedItems = items.filter(it => it && it.syncedLyrics && it.syncedLyrics.trim().length > 0);
                 if (syncedItems.length > 0) {
                   if (durationParam) {
-                    syncedItems.sort((a, b) => Math.abs((a.duration || 0) - durationParam) - Math.abs((b.duration || 0) - durationParam));
+                    const closeItems = syncedItems.filter(it => Math.abs((it.duration || 0) - durationParam) <= 3);
+                    if (closeItems.length > 0) {
+                      closeItems.sort((a, b) => Math.abs((a.duration || 0) - durationParam) - Math.abs((b.duration || 0) - durationParam));
+                      resolved = parseLrcLines(closeItems[0].syncedLyrics);
+                      break;
+                    }
+                  } else {
+                    resolved = parseLrcLines(syncedItems[0].syncedLyrics);
+                    break;
                   }
-                  resolved = parseLrcLines(syncedItems[0].syncedLyrics);
-                  break;
                 }
               }
             }
@@ -3937,10 +4008,24 @@ function tick() {
   updateSyncedLyrics();
 }
 
+let lyricClockRaf = null;
+
 function startLyricClock() {
   if (typeof document === 'undefined') return;
   if (lyricClockTimer) clearInterval(lyricClockTimer);
   lyricClockTimer = setInterval(tickLyricClock, 50);
+
+  if (typeof requestAnimationFrame === 'function' && !lyricClockRaf) {
+    function loop() {
+      if (!isPlaying) {
+        lyricClockRaf = null;
+        return;
+      }
+      tickLyricClock();
+      lyricClockRaf = requestAnimationFrame(loop);
+    }
+    lyricClockRaf = requestAnimationFrame(loop);
+  }
 }
 
 function stopLyricClock() {
@@ -3948,11 +4033,15 @@ function stopLyricClock() {
     clearInterval(lyricClockTimer);
     lyricClockTimer = null;
   }
+  if (lyricClockRaf) {
+    cancelAnimationFrame(lyricClockRaf);
+    lyricClockRaf = null;
+  }
 }
 
 /**
  * Fast-frequency Lyric Clock (BitChord LyricClock.kt)
- * Keeps lyrics and scrubbers updated at 20fps for millisecond precision
+ * Keeps lyrics and scrubbers updated with millisecond precision via HTML5 audio / RAF
  */
 function tickLyricClock() {
   if (typeof document === 'undefined') return;
@@ -3978,6 +4067,8 @@ function tickLyricClock() {
 function seekTo(seconds) {
   const track = CATALOGUE_TRACKS[currentIndex];
   if (!track) return;
+  previewUserScrolling = false;
+  if (previewUserScrollTimer) clearTimeout(previewUserScrollTimer);
   currentTime = Math.max(0, Math.min(seconds, track.duration));
   if (isDirectStreamPlaying && dejaAudio) {
     try {
@@ -4024,9 +4115,10 @@ function updateProgress() {
 
 /**
  * Real-time Dynamic Lyrics Synchronization (BitChord PlayerLyrics.kt & LyricClock.kt)
- * Computes active line dynamically: line.time <= currentTime && (!nextLine || nextLine.time > currentTime)
+ * Computes active line dynamically via monotonic timestamp resolution
  * Smooth spring-scrolling to vertical center (scrollIntoView({ behavior: 'smooth', block: 'center' }))
  * High-contrast glowing text on active line; dimmed blur on past/upcoming lines
+ * User manual scrolling pauses auto-scroll for 3.5s then resumes
  */
 function updateSyncedLyrics(forceScroll = false) {
   if (typeof document === 'undefined') return;
@@ -4037,10 +4129,9 @@ function updateSyncedLyrics(forceScroll = false) {
   let activeIndex = -1;
 
   for (let i = 0; i < lines.length; i++) {
-    const lineTime = lines[i].time;
-    const nextLine = (i + 1 < lines.length) ? lines[i + 1] : null;
-    if (lineTime <= currentTime && (!nextLine || nextLine.time > currentTime)) {
+    if (lines[i].time <= currentTime) {
       activeIndex = i;
+    } else {
       break;
     }
   }
@@ -4063,12 +4154,16 @@ function updateSyncedLyrics(forceScroll = false) {
       if (el.style) {
         if (isActive) {
           el.style.color = '#ffffff';
-          el.style.textShadow = '0 4px 20px rgba(255,255,255,0.4)';
+          el.style.fontWeight = '700';
+          el.style.fontSize = '28px';
+          el.style.textShadow = '0 4px 20px rgba(255,255,255,0.45)';
           el.style.filter = 'none';
           el.style.opacity = '1';
           el.style.transform = 'scale(1.02)';
         } else {
           el.style.color = 'rgba(255, 255, 255, 0.35)';
+          el.style.fontWeight = '600';
+          el.style.fontSize = '24px';
           el.style.textShadow = 'none';
           el.style.filter = 'blur(0.4px)';
           el.style.opacity = '0.45';
@@ -4078,9 +4173,11 @@ function updateSyncedLyrics(forceScroll = false) {
     });
 
     if (activeIndex >= 0 && (activeIndex !== lastActiveLyricIndex || forceScroll)) {
-      const activeEl = lyricElements[activeIndex];
-      if (activeEl && typeof activeEl.scrollIntoView === 'function') {
-        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (!previewUserScrolling || forceScroll) {
+        const activeEl = lyricElements[activeIndex];
+        if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+          activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
     }
   });

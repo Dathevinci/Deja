@@ -1929,17 +1929,65 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
      Smooth spring scrolling, active line glow, seek-on-click
      Dynamic real-time clock synchronization & LRCLIB/InnerTube integration
      ------------------------------------------------------------- */
+  let userManualScrolling = false;
+  let userScrollTimer = null;
+  let preloadLyricRaf = null;
+
+  function onPreloadUserScroll() {
+    userManualScrolling = true;
+    if (userScrollTimer) clearTimeout(userScrollTimer);
+    userScrollTimer = setTimeout(() => {
+      userManualScrolling = false;
+      const overlay = getEl('deja-lyrics-overlay', 'sonora-lyrics-overlay');
+      if (overlay && preloadLastActiveIndex >= 0) {
+        const lines = overlay.querySelectorAll('.deja-lyric-line, .sonora-lyric-line');
+        const activeEl = lines[preloadLastActiveIndex];
+        if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+          activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }, 3500);
+  }
+
+  function startPreloadLyricClock() {
+    if (preloadLyricRaf) return;
+    function tick() {
+      const overlay = getEl('deja-lyrics-overlay', 'sonora-lyrics-overlay');
+      if (!overlay || !overlay.classList.contains('visible')) {
+        preloadLyricRaf = null;
+        return;
+      }
+      const video = document.querySelector('video.html5-main-video') || document.querySelector('video') || document.querySelector('audio');
+      const moviePlayer = document.getElementById('movie_player') || document.querySelector('ytmusic-player#player');
+      const curTime = (video && !isNaN(video.currentTime))
+        ? video.currentTime
+        : (moviePlayer && typeof moviePlayer.getCurrentTime === 'function' ? moviePlayer.getCurrentTime() : 0);
+      if (typeof curTime === 'number' && !isNaN(curTime)) {
+        updatePreloadLiveLyrics(curTime);
+      }
+      preloadLyricRaf = requestAnimationFrame(tick);
+    }
+    preloadLyricRaf = requestAnimationFrame(tick);
+  }
+
+  function stopPreloadLyricClock() {
+    if (preloadLyricRaf) {
+      cancelAnimationFrame(preloadLyricRaf);
+      preloadLyricRaf = null;
+    }
+  }
+
   function updatePreloadLiveLyrics(currentTime, forceScroll = false) {
     const overlay = getEl('deja-lyrics-overlay', 'sonora-lyrics-overlay');
     if (!overlay || !overlay.classList.contains('visible')) return;
     if (!preloadLyrics || preloadLyrics.length === 0) return;
 
+    // BitChord LyricFocus.kt monotonic active line resolution
     let activeIndex = -1;
     for (let i = 0; i < preloadLyrics.length; i++) {
-      const lineTime = preloadLyrics[i].time;
-      const nextTime = (i + 1 < preloadLyrics.length) ? preloadLyrics[i + 1].time : Infinity;
-      if (currentTime >= lineTime && currentTime < nextTime) {
+      if (preloadLyrics[i].time <= currentTime) {
         activeIndex = i;
+      } else {
         break;
       }
     }
@@ -1950,12 +1998,31 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
       if (el.classList.contains('active') !== isActive) {
         el.classList.toggle('active', isActive);
       }
+      if (isActive) {
+        el.style.color = '#FFFFFF';
+        el.style.fontWeight = '700';
+        el.style.fontSize = '28px';
+        el.style.textShadow = '0 4px 20px rgba(255, 255, 255, 0.45)';
+        el.style.filter = 'none';
+        el.style.opacity = '1';
+        el.style.transform = 'scale(1.02)';
+      } else {
+        el.style.color = 'rgba(255, 255, 255, 0.35)';
+        el.style.fontWeight = '600';
+        el.style.fontSize = '24px';
+        el.style.textShadow = 'none';
+        el.style.filter = 'blur(0.4px)';
+        el.style.opacity = '0.45';
+        el.style.transform = 'none';
+      }
     });
 
     if (activeIndex >= 0 && (activeIndex !== preloadLastActiveIndex || forceScroll)) {
-      const activeEl = lines[activeIndex];
-      if (activeEl && typeof activeEl.scrollIntoView === 'function') {
-        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (!userManualScrolling || forceScroll) {
+        const activeEl = lines[activeIndex];
+        if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+          activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
     }
     preloadLastActiveIndex = activeIndex;
@@ -1987,33 +2054,33 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
 
     let cleanTitle = (track.title || '')
       .replace(/\uFEFF|\u200E|\u200F/g, '')
-      // Strip trailing unclosed or closed feature/collaboration tags (e.g. '(feat. Din...', 'with Daft Punk')
-      .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
-      .replace(/\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
-      // Strip parenthetical/bracketed official video/audio/remaster/live tags
-      .replace(/\s*[\(\[](?:official\s+)?(?:music\s+|lyric\s+|lyrics\s+)?(?:video|audio|visualizer|track|remaster(?:ed)?(?:\s+\d{4})?|live(?:\s+at\s+[^)\]]+)?)[\]\)]/gi, '')
+      .replace(/\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+      .replace(/\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring|with)\b[^)\]]*[)\]]/gi, '')
+      .replace(/\s+(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+      .replace(/\s*[\(\[](?:official\s*)?(?:music\s+|lyric\s+|lyrics\s+)?(?:video|audio|visualizer|track|remaster(?:ed)?(?:\s+\d{4})?|live(?:\s+at\s+[^)\]]+)?)[\]\)]/gi, '')
       .replace(/\s*\(?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^)]+)?)\)?/gi, '')
       .replace(/\s*\[?(?:official\s+(?:music\s+|lyric\s+|lyrics\s+)?video|official\s+audio|audio|lyric\s+video|lyrics\s+video|visualizer|remastered|remaster\s+\d{4}|live(?:\s+at\s+[^\]]+)?)\]?/gi, '')
-      // Strip trailing separators and descriptors
-      .replace(/\s*(?:\||\/\/|-)\s*(?:official\s+video|official\s+audio|audio|lyric\s+video|lyrics).*$/gi, '')
-      // Clean leading/trailing quotes
-      .replace(/^["'“‘]+|["'”’]+$/g, '')
-      // Clean any trailing ellipsis or periods
-      .replace(/[\.…\s]+$/, '')
+      .replace(/\s*[(\[]\s*official\s*[)\]]/gi, '')
+      .replace(/\s*(?:\||\/\/|-)\s*(?:official\s+video|official\s+audio|audio|lyric\s+video|lyrics|music\s+video).*$/gi, '')
+      .replace(/\s*-\s*Topic$/i, '')
       .trim();
+
     if (cleanTitle.includes('•')) cleanTitle = cleanTitle.split('•')[0].trim();
     if (cleanTitle.includes('·')) cleanTitle = cleanTitle.split('·')[0].trim();
+    cleanTitle = cleanTitle.replace(/^["'“‘]+|["'”’]+$/g, '').replace(/[\.…,\s–—\-]+$/, '').trim();
 
     let cleanArtist = (track.artist || '')
       .replace(/\uFEFF|\u200E|\u200F/g, '')
-      .replace(/\s*[\(\[](?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
-      .replace(/\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+      .replace(/\s*-\s*Topic$/i, '')
+      .replace(/\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
+      .replace(/\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring|with)\b[^)\]]*[)\]]/gi, '')
+      .replace(/\s+(?:feat\.?|ft\.?|featuring|with)\b.*$/gi, '')
       .trim();
     if (cleanArtist.includes('•')) cleanArtist = cleanArtist.split('•')[0].trim();
     if (cleanArtist.includes('·')) cleanArtist = cleanArtist.split('·')[0].trim();
-    cleanArtist = cleanArtist.replace(/^["'“‘]+|["'”’]+$/g, '').replace(/[\.…\s]+$/, '').trim();
+    cleanArtist = cleanArtist.replace(/^["'“‘]+|["'”’]+$/g, '').replace(/[\.…,\s–—\-]+$/, '').trim();
 
-    // If cleanTitle starts with artist prefix (e.g. "Eminem - Superman"), strip it
+    // If cleanTitle starts with artist prefix (e.g. "Taylor Swift - Cruel Summer"), strip it
     if (cleanArtist) {
       const escapedArtist = cleanArtist.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       cleanTitle = cleanTitle.replace(new RegExp('^' + escapedArtist + '\\s*[-:–—]\\s*', 'i'), '').trim();
@@ -2080,9 +2147,21 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
       </div>
     `).join(''));
 
-    const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
-    const curTime = video ? video.currentTime : 0;
+    // Attach user manual scroll detection
+    if (!container.__dejaScrollHooked) {
+      container.__dejaScrollHooked = true;
+      container.addEventListener('wheel', onPreloadUserScroll, { passive: true });
+      container.addEventListener('touchmove', onPreloadUserScroll, { passive: true });
+      container.addEventListener('pointerdown', onPreloadUserScroll, { passive: true });
+    }
+
+    const video = document.querySelector('video.html5-main-video') || document.querySelector('video') || document.querySelector('audio');
+    const moviePlayer = document.getElementById('movie_player') || document.querySelector('ytmusic-player#player');
+    const curTime = (video && !isNaN(video.currentTime))
+      ? video.currentTime
+      : (moviePlayer && typeof moviePlayer.getCurrentTime === 'function' ? moviePlayer.getCurrentTime() : 0);
     updatePreloadLiveLyrics(curTime, true);
+    startPreloadLyricClock();
   }
 
   function toggleLyricsDrawer() {
@@ -2090,11 +2169,17 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     if (overlay) {
       if (overlay.classList.contains('visible')) {
         overlay.classList.remove('visible');
+        stopPreloadLyricClock();
         setTimeout(() => overlay.remove(), 300);
       } else {
         overlay.classList.add('visible');
-        const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
-        if (video) updatePreloadLiveLyrics(video.currentTime, true);
+        const video = document.querySelector('video.html5-main-video') || document.querySelector('video') || document.querySelector('audio');
+        const moviePlayer = document.getElementById('movie_player') || document.querySelector('ytmusic-player#player');
+        const curTime = (video && !isNaN(video.currentTime))
+          ? video.currentTime
+          : (moviePlayer && typeof moviePlayer.getCurrentTime === 'function' ? moviePlayer.getCurrentTime() : 0);
+        updatePreloadLiveLyrics(curTime, true);
+        startPreloadLyricClock();
       }
       return;
     }
@@ -2127,37 +2212,58 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     if (lyricsCloseBtn) {
       lyricsCloseBtn.onclick = () => {
         overlay.classList.remove('visible');
+        stopPreloadLyricClock();
         setTimeout(() => overlay.remove(), 300);
       };
     }
 
-    // Seek-on-click on lyric lines
+    // Tap-to-seek on lyric lines: immediate seek to line timestamp and center
     const container = getEl('deja-lyrics-content', 'sonora-lyrics-content');
     if (container) {
+      container.__dejaScrollHooked = true;
+      container.addEventListener('wheel', onPreloadUserScroll, { passive: true });
+      container.addEventListener('touchmove', onPreloadUserScroll, { passive: true });
+      container.addEventListener('pointerdown', onPreloadUserScroll, { passive: true });
+
       container.onclick = (e) => {
         const line = e.target && e.target.closest ? e.target.closest('.deja-lyric-line, .sonora-lyric-line') : null;
-        if (line && line.dataset && line.dataset.time) {
+        if (line && line.dataset && line.dataset.time !== undefined) {
           const seekSec = parseFloat(line.dataset.time);
-          const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
-          if (video && !isNaN(seekSec)) {
-            video.currentTime = seekSec;
+          if (!isNaN(seekSec)) {
+            userManualScrolling = false;
+            if (userScrollTimer) clearTimeout(userScrollTimer);
+            const video = document.querySelector('video.html5-main-video') || document.querySelector('video') || document.querySelector('audio');
+            const moviePlayer = document.getElementById('movie_player') || document.querySelector('ytmusic-player#player');
+            if (moviePlayer && typeof moviePlayer.seekTo === 'function') {
+              try { moviePlayer.seekTo(seekSec, true); } catch {}
+            }
+            if (video) {
+              try { video.currentTime = seekSec; } catch {}
+            }
             updatePreloadLiveLyrics(seekSec, true);
           }
         }
       };
     }
 
-    // Hook video timeupdate
-    const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
+    // Hook video timeupdate, seeked, and playback state
+    const video = document.querySelector('video.html5-main-video') || document.querySelector('video') || document.querySelector('audio');
     if (video && video !== lyricsVideoHooked && typeof video.addEventListener === 'function') {
       lyricsVideoHooked = video;
       video.addEventListener('timeupdate', () => {
         updatePreloadLiveLyrics(video.currentTime);
       });
       video.addEventListener('seeked', () => {
+        userManualScrolling = false;
+        if (userScrollTimer) clearTimeout(userScrollTimer);
         updatePreloadLiveLyrics(video.currentTime, true);
       });
+      video.addEventListener('play', () => startPreloadLyricClock());
+      video.addEventListener('pause', () => stopPreloadLyricClock());
     }
+
+    // Start continuous RAF real-time playback clock
+    startPreloadLyricClock();
 
     // Resolve lyrics from API or native tab fallback
     if (preloadLyrics.length > 0 && lastLyricsTrackId === track.id) {
