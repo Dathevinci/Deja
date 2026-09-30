@@ -3349,6 +3349,8 @@ function renderLyrics(lyrics) {
     ? lyrics
     : [{ time: 0, text: 'No synchronized lyrics available for this track.' }];
 
+  const isSynced = safeLyrics.some(l => typeof l.time === 'number' && l.time > 0);
+
   containers.forEach(container => {
     // Attach user manual scroll detection
     if (!container.__dejaScrollHooked) {
@@ -3359,7 +3361,7 @@ function renderLyrics(lyrics) {
     }
 
     container.innerHTML = safeLyrics.map((l, i) => `
-      <div class="apple-lyric-line ${i === 0 ? 'active' : ''}" data-time="${l.time}" data-line-index="${i}">
+      <div class="apple-lyric-line ${isSynced && i === 0 ? 'active' : ''}" data-time="${l.time}" data-line-index="${i}">
         ${escapeHTML(l.text)}
       </div>
     `).join('');
@@ -3367,7 +3369,7 @@ function renderLyrics(lyrics) {
     // Attach direct click listeners for immediate seek responsiveness (tap-to-seek)
     container.querySelectorAll('.apple-lyric-line').forEach((lineEl, idx) => {
       const lineData = safeLyrics[idx];
-      if (lineData && typeof lineData.time === 'number') {
+      if (isSynced && lineData && typeof lineData.time === 'number') {
         lineEl.onclick = (e) => {
           if (e) e.stopPropagation();
           previewUserScrolling = false;
@@ -3487,8 +3489,9 @@ async function resolveSyncedLyrics(track) {
   try {
     let resolved = null;
     if (api?.getLyrics) {
+      const vid = track.videoId || (typeof track.id === 'string' && track.id.startsWith('yt-') ? track.id.slice(3) : (typeof track.id === 'string' && /^[A-Za-z0-9_-]{11}$/.test(track.id) ? track.id : null));
       resolved = await api.getLyrics({
-        videoId: track.videoId,
+        videoId: vid,
         title: cleanTitle,
         artist: cleanArtist,
         duration: track.duration
@@ -3623,7 +3626,8 @@ async function resolveSyncedLyrics(track) {
 function parseLrcLines(lrcText) {
   if (!lrcText || typeof lrcText !== 'string') return [];
   const lines = lrcText.split(/\r?\n/);
-  const stampRegex = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+  const stampRegex = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+  const wordStampRegex = /<(?:\d{1,3}):(?:\d{2})(?:[.:](?:\d{2,3}))?>/g;
   const result = [];
 
   for (const rawLine of lines) {
@@ -3634,7 +3638,8 @@ function parseLrcLines(lrcText) {
     const matches = [...trimmed.matchAll(stampRegex)];
     if (matches.length === 0) continue;
 
-    const text = trimmed.replace(stampRegex, '').trim() || '♪';
+    let text = trimmed.replace(stampRegex, '').replace(wordStampRegex, '').replace(/\s+/g, ' ').trim();
+    const displayText = text.length > 0 ? text : '♪';
 
     for (const match of matches) {
       const minutes = parseInt(match[1], 10) || 0;
@@ -3646,7 +3651,7 @@ function parseLrcLines(lrcText) {
         else fractionMs = parseInt(match[3].slice(0, 3), 10);
       }
       const timeInSec = Math.round((minutes * 60 + seconds + fractionMs / 1000) * 100) / 100;
-      result.push({ time: timeInSec, text });
+      result.push({ time: timeInSec, text: displayText });
     }
   }
 
@@ -3951,7 +3956,7 @@ function tick() {
   if (typeof document === 'undefined') return;
   const track = CATALOGUE_TRACKS[currentIndex];
 
-  if (isDirectStreamPlaying && dejaAudio && !dejaAudio.paused) {
+  if (isDirectStreamPlaying && dejaAudio && typeof dejaAudio.currentTime === 'number' && !isNaN(dejaAudio.currentTime)) {
     currentTime = dejaAudio.currentTime;
     if (dejaAudio.duration && !isNaN(dejaAudio.duration) && Math.round(dejaAudio.duration) > 0) {
       const dur = Math.round(dejaAudio.duration);
@@ -4049,7 +4054,7 @@ function tickLyricClock() {
   const track = CATALOGUE_TRACKS[currentIndex];
   if (!track) return;
 
-  if (isDirectStreamPlaying && dejaAudio && !dejaAudio.paused) {
+  if (isDirectStreamPlaying && dejaAudio && typeof dejaAudio.currentTime === 'number' && !isNaN(dejaAudio.currentTime)) {
     currentTime = dejaAudio.currentTime;
   } else if (isYtReady && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
     try {
@@ -4126,13 +4131,16 @@ function updateSyncedLyrics(forceScroll = false) {
   if (!track || !track.lyrics || track.lyrics.length === 0) return;
 
   const lines = track.lyrics;
+  const isSynced = lines.some(l => typeof l.time === 'number' && l.time > 0);
   let activeIndex = -1;
 
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].time <= currentTime) {
-      activeIndex = i;
-    } else {
-      break;
+  if (isSynced) {
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].time <= currentTime) {
+        activeIndex = i;
+      } else {
+        break;
+      }
     }
   }
 
@@ -4147,32 +4155,43 @@ function updateSyncedLyrics(forceScroll = false) {
     const lyricElements = container.querySelectorAll('.apple-lyric-line');
     if (!lyricElements) return;
     lyricElements.forEach((el, i) => {
-      const isActive = (i === activeIndex);
+      const isActive = isSynced && (i === activeIndex);
       if (el.classList && el.classList.toggle) {
         el.classList.toggle('active', isActive);
       }
       if (el.style) {
-        if (isActive) {
-          el.style.color = '#ffffff';
-          el.style.fontWeight = '700';
-          el.style.fontSize = '28px';
-          el.style.textShadow = '0 4px 20px rgba(255,255,255,0.45)';
-          el.style.filter = 'none';
-          el.style.opacity = '1';
-          el.style.transform = 'scale(1.02)';
+        if (isSynced) {
+          if (isActive) {
+            el.style.color = '#ffffff';
+            el.style.fontWeight = '700';
+            el.style.fontSize = '28px';
+            el.style.textShadow = '0 4px 20px rgba(255,255,255,0.45)';
+            el.style.filter = 'none';
+            el.style.opacity = '1';
+            el.style.transform = 'scale(1.02)';
+          } else {
+            el.style.color = 'rgba(255, 255, 255, 0.35)';
+            el.style.fontWeight = '600';
+            el.style.fontSize = '24px';
+            el.style.textShadow = 'none';
+            el.style.filter = 'blur(0.4px)';
+            el.style.opacity = '0.45';
+            el.style.transform = 'none';
+          }
         } else {
-          el.style.color = 'rgba(255, 255, 255, 0.35)';
-          el.style.fontWeight = '600';
-          el.style.fontSize = '24px';
+          // Plain unsynced lyrics presentation (BitChord PlayerLyrics.kt lines 1686, 1694)
+          el.style.color = '#ffffff';
+          el.style.fontWeight = '500';
+          el.style.fontSize = '22px';
           el.style.textShadow = 'none';
-          el.style.filter = 'blur(0.4px)';
-          el.style.opacity = '0.45';
+          el.style.filter = 'none';
+          el.style.opacity = '0.92';
           el.style.transform = 'none';
         }
       }
     });
 
-    if (activeIndex >= 0 && (activeIndex !== lastActiveLyricIndex || forceScroll)) {
+    if (isSynced && activeIndex >= 0 && (activeIndex !== lastActiveLyricIndex || forceScroll)) {
       if (!previewUserScrolling || forceScroll) {
         const activeEl = lyricElements[activeIndex];
         if (activeEl && typeof activeEl.scrollIntoView === 'function') {
@@ -4189,21 +4208,25 @@ function updateSyncedLyrics(forceScroll = false) {
                      (typeof document.querySelector === 'function' ? document.querySelector('.exp-lyric-snippet-text') : null);
   if (expSnippet) {
     let snippetText = '';
-    if (activeIndex >= 0 && lines[activeIndex]) {
-      const curText = lines[activeIndex].text;
-      if (curText && curText !== '♪') {
-        snippetText = curText;
-      } else {
-        // If current timestamp is instrumental, show upcoming vocal line or clean instrumental text
-        const nextVocal = lines.slice(activeIndex + 1).find(l => l.text && l.text !== '♪');
-        snippetText = nextVocal ? nextVocal.text : '♪ Instrumental ♪';
+    if (isSynced) {
+      if (activeIndex >= 0 && lines[activeIndex]) {
+        const curText = lines[activeIndex].text;
+        if (curText && curText !== '♪') {
+          snippetText = curText;
+        } else {
+          // If current timestamp is instrumental, show upcoming vocal line or clean instrumental text
+          const nextVocal = lines.slice(activeIndex + 1).find(l => l.text && l.text !== '♪');
+          snippetText = nextVocal ? nextVocal.text : '♪ Instrumental ♪';
+        }
+      } else if (lines.length > 0) {
+        const firstVocal = lines.find(l => l.text && l.text !== '♪');
+        snippetText = firstVocal ? firstVocal.text : lines[0].text;
       }
-    } else if (lines.length > 0) {
-      const firstVocal = lines.find(l => l.text && l.text !== '♪');
-      snippetText = firstVocal ? firstVocal.text : lines[0].text;
-    }
-    if (!snippetText || snippetText === '♪') {
-      snippetText = 'Tap for synced lyrics';
+      if (!snippetText || snippetText === '♪') {
+        snippetText = 'Tap for synced lyrics';
+      }
+    } else {
+      snippetText = (lines[0] && lines[0].text) ? lines[0].text : 'Lyrics';
     }
     expSnippet.innerText = snippetText;
   }
@@ -4292,6 +4315,14 @@ function openLyricsDrawer() {
     queueDrawer.classList.remove('visible', 'active');
     const btnQueuePanel = document.getElementById('btn-queue-panel');
     if (btnQueuePanel) btnQueuePanel.classList.remove('active');
+  }
+
+  const track = CATALOGUE_TRACKS[currentIndex];
+  if (track) {
+    renderLyrics(track.lyrics);
+    if ((!track.lyrics || track.lyrics.length === 0) && !track._lyricsFetching) {
+      resolveSyncedLyrics(track);
+    }
   }
 
   updateLiveLyrics(true);

@@ -377,6 +377,12 @@ function runInnerTubeIntegrationTests() {
   assert.strictEqual(modernParsed[1].browseId, 'VLPLlockup456');
   assert.strictEqual(modernParsed[1].cover, 'https://i.ytimg.com/lockup.jpg');
 
+  // 7. Verify fetchYouTubeTranscriptLyrics edge cases & validation
+  innertube.fetchYouTubeTranscriptLyrics(null).then(res => assert.strictEqual(res, null));
+  innertube.fetchYouTubeTranscriptLyrics('').then(res => assert.strictEqual(res, null));
+  innertube.fetchYouTubeTranscriptLyrics('invalid_len').then(res => assert.strictEqual(res, null));
+  innertube.fetchYouTubeTranscriptLyrics(12345).then(res => assert.strictEqual(res, null));
+
   console.log('✓ InnerTube API & YouTube Music Live Integration tests passed successfully.');
 }
 

@@ -823,6 +823,96 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(typeof previewModule.startLyricClock, 'function', 'preview.js must export startLyricClock');
   assert.strictEqual(typeof previewModule.stopLyricClock, 'function', 'preview.js must export stopLyricClock');
 
+  // 9.7 Verify YouTube Transcript Lyrics & Parse Transcript Data (BitChord YouTubeLyrics.kt)
+  assert.strictEqual(typeof innertube.fetchYouTubeTranscriptLyrics, 'function', 'innertube must export fetchYouTubeTranscriptLyrics');
+  assert.strictEqual(typeof innertube.parseTranscriptData, 'function', 'innertube must export parseTranscriptData');
+
+  // Test parseTranscriptData with transcriptCueRenderer (BitChord Cue format)
+  const mockCueData = {
+    actions: [{
+      updateEngagementPanelAction: {
+        content: {
+          transcriptRenderer: {
+            content: {
+              transcriptSearchPanelRenderer: {
+                body: {
+                  transcriptSegmentListRenderer: {
+                    initialSegments: [
+                      {
+                        transcriptCueRenderer: {
+                          cue: { simpleText: "Welcome to the show" },
+                          startOffsetMs: "12500"
+                        }
+                      },
+                      {
+                        transcriptCueRenderer: {
+                          cue: { runs: [{ text: "♪ " }, { text: "Singing in the rain" }, { text: " ♪" }] },
+                          startOffsetMs: "24800"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }]
+  };
+  const parsedCues = innertube.parseTranscriptData(mockCueData);
+  assert.ok(Array.isArray(parsedCues), 'parseTranscriptData must return an array');
+  assert.strictEqual(parsedCues.length, 3, 'parseTranscriptData must insert intro ♪ cue when first line is >5s, plus 2 cues');
+  assert.strictEqual(parsedCues[0].time, 0);
+  assert.strictEqual(parsedCues[0].text, '♪');
+  assert.strictEqual(parsedCues[1].time, 12.5);
+  assert.strictEqual(parsedCues[1].text, 'Welcome to the show');
+  assert.strictEqual(parsedCues[2].time, 24.8);
+  assert.strictEqual(parsedCues[2].text, 'Singing in the rain');
+
+  // Test parseTranscriptData with transcriptSegmentRenderer (modern YouTube format)
+  const mockSegmentData = {
+    transcriptSegmentRenderer: {
+      snippet: { runs: [{ text: "Hello world" }] },
+      startMs: "3200"
+    }
+  };
+  const parsedSegments = innertube.parseTranscriptData(mockSegmentData);
+  assert.ok(Array.isArray(parsedSegments));
+  assert.strictEqual(parsedSegments.length, 1);
+  assert.strictEqual(parsedSegments[0].time, 3.2);
+  assert.strictEqual(parsedSegments[0].text, 'Hello world');
+
+  // Test parseLrcLines with : delimiters, millisecond fractions, and word-level tags
+  const testLrcText = [
+    '[00:12:50] First line with colon ms',
+    '[01:05.32] <01:05.32> Second <01:06.10> line',
+    '[02:10.500] Third line with 3 digits ms'
+  ].join('\n');
+  const parsedColonLrc = previewModule.parseLrcLines(testLrcText);
+  assert.strictEqual(parsedColonLrc.length, 4, 'Must include intro ♪ cue since first line is >5s, plus 3 lines');
+  assert.strictEqual(parsedColonLrc[0].time, 0);
+  assert.strictEqual(parsedColonLrc[0].text, '♪');
+  assert.strictEqual(parsedColonLrc[1].time, 12.5);
+  assert.strictEqual(parsedColonLrc[1].text, 'First line with colon ms');
+  assert.strictEqual(parsedColonLrc[2].time, 65.32);
+  assert.strictEqual(parsedColonLrc[2].text, 'Second line');
+  assert.strictEqual(parsedColonLrc[3].time, 130.5);
+  assert.strictEqual(parsedColonLrc[3].text, 'Third line with 3 digits ms');
+
+  // 9.8 Verify Unsynced Lyrics Presentation vs Synced Lyrics
+  const unsyncedLines = [
+    { time: 0, text: 'Line 1' },
+    { time: 0, text: 'Line 2' }
+  ];
+  assert.strictEqual(unsyncedLines.some(l => typeof l.time === 'number' && l.time > 0), false, 'Unsynced lines must have isSynced === false');
+
+  const syncedLines = [
+    { time: 0, text: 'Intro' },
+    { time: 10.5, text: 'Chorus' }
+  ];
+  assert.strictEqual(syncedLines.some(l => typeof l.time === 'number' && l.time > 0), true, 'Synced lines must have isSynced === true');
+
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
 

@@ -1954,7 +1954,7 @@ function parseLrcString(lrcContent) {
     if (matches.length === 0) continue;
 
     // Strip enhanced word stamps and time stamps
-    let text = trimmed.replace(stampRegex, '').replace(wordStampRegex, '').trim();
+    let text = trimmed.replace(stampRegex, '').replace(wordStampRegex, '').replace(/\s+/g, ' ').trim();
     const displayText = text.length > 0 ? text : '♪';
 
     for (const match of matches) {
@@ -2233,9 +2233,9 @@ async function fetchYouTubeMusicLyrics(videoId, ses) {
     const rawLines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
     if (rawLines.length === 0) return null;
 
-    // BitChord LyricLine(0L, text) presentation
-    return rawLines.map((text, i) => ({
-      time: i * 4,
+    // BitChord LyricLine(0L, text) presentation for unsynced plain text
+    return rawLines.map(text => ({
+      time: 0,
       text
     }));
   } catch (err) {
@@ -2245,9 +2245,118 @@ async function fetchYouTubeMusicLyrics(videoId, ses) {
 }
 
 /**
+ * Extracts and formats timed cues from transcriptCueRenderer or transcriptSegmentRenderer
+ * (BitChord YouTubeLyrics.kt YouTubeTranscriptLyrics architecture)
+ */
+function parseTranscriptData(data) {
+  if (!data || typeof data !== 'object') return null;
+  const cues = [];
+
+  function walk(node) {
+    if (!node || typeof node !== 'object') return;
+    if (node.transcriptCueRenderer) {
+      const cue = node.transcriptCueRenderer;
+      const startMs = parseInt(cue.startOffsetMs || cue.startMs, 10);
+      let text = '';
+      if (cue.cue) {
+        if (typeof cue.cue === 'string') text = cue.cue;
+        else if (cue.cue.simpleText) text = cue.cue.simpleText;
+        else if (Array.isArray(cue.cue.runs)) text = cue.cue.runs.map(r => r.text || '').join('');
+      }
+      text = text.replace(/^[♪\s\n]+|[♪\s\n]+$/g, '').trim();
+      if (!isNaN(startMs) && text) {
+        cues.push({
+          time: Math.round((startMs / 1000) * 100) / 100,
+          text
+        });
+      }
+      return;
+    }
+    if (node.transcriptSegmentRenderer) {
+      const seg = node.transcriptSegmentRenderer;
+      const startMs = parseInt(seg.startMs || seg.startOffsetMs, 10);
+      let text = '';
+      if (seg.snippet && Array.isArray(seg.snippet.runs)) {
+        text = seg.snippet.runs.map(r => r.text || '').join('');
+      } else if (seg.snippet && typeof seg.snippet.simpleText === 'string') {
+        text = seg.snippet.simpleText;
+      }
+      text = text.replace(/^[♪\s\n]+|[♪\s\n]+$/g, '').trim();
+      if (!isNaN(startMs) && text) {
+        cues.push({
+          time: Math.round((startMs / 1000) * 100) / 100,
+          text
+        });
+      }
+      return;
+    }
+    for (const val of Object.values(node)) {
+      walk(val);
+    }
+  }
+
+  walk(data);
+  if (cues.length === 0) return null;
+
+  cues.sort((a, b) => a.time - b.time);
+  if (cues.length > 0 && cues[0].time > 5) {
+    cues.unshift({ time: 0, text: '♪' });
+  }
+
+  return cues;
+}
+
+/**
+ * Timed YouTube transcript / captions for the exact playing video
+ * (BitChord YouTubeLyrics.kt YouTubeTranscriptLyrics architecture)
+ */
+async function fetchYouTubeTranscriptLyrics(videoId, ses) {
+  if (!videoId || typeof videoId !== 'string' || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+    return null;
+  }
+
+  // 1. BitChord get_transcript protobuf params call
+  try {
+    const bytes = Buffer.concat([Buffer.from([10, videoId.length]), Buffer.from(videoId)]);
+    const params = bytes.toString('base64');
+    const data = await postMusic('get_transcript', { params }, ses);
+    const parsed = parseTranscriptData(data);
+    if (parsed && parsed.length > 0) return parsed;
+  } catch (err) {
+    // Expected fallback if get_transcript is restricted on current client
+  }
+
+  // 2. Fetch engagement panel transcript params via next endpoint
+  try {
+    const nextData = await postMusic('next', { videoId, isAudioOnly: true }, ses).catch(() => null);
+    if (nextData) {
+      let transcriptParams = null;
+      function walk(node) {
+        if (!node || typeof node !== 'object') return;
+        if (transcriptParams) return;
+        if (node.getTranscriptEndpoint && node.getTranscriptEndpoint.params) {
+          transcriptParams = node.getTranscriptEndpoint.params;
+          return;
+        }
+        for (const v of Object.values(node)) walk(v);
+      }
+      walk(nextData);
+
+      if (transcriptParams) {
+        const tData = await postMusic('get_transcript', { params: transcriptParams }, ses).catch(() => null);
+        const parsed = parseTranscriptData(tData);
+        if (parsed && parsed.length > 0) return parsed;
+      }
+    }
+  } catch (err) {}
+
+  return null;
+}
+
+/**
  * Unified Synced Lyrics Provider
  * Prioritizes LRCLIB millisecond synced lyrics with ±3s duration tolerance,
- * falls back to YouTube Music InnerTube lyrics.
+ * falls back to YouTube native timed captions/transcripts, then YouTube Music InnerTube lyrics.
  */
 async function getLyrics({ videoId, title, artist, duration }, ses) {
   // 1. Try LRCLIB for millisecond synced lyrics
@@ -2258,7 +2367,15 @@ async function getLyrics({ videoId, title, artist, duration }, ses) {
     }
   }
 
-  // 2. Fall back to YouTube Music InnerTube browse lyrics
+  // 2. Query YouTube native timed captions/transcripts if LRCLIB missed
+  if (videoId) {
+    const transcriptLyrics = await fetchYouTubeTranscriptLyrics(videoId, ses);
+    if (transcriptLyrics && transcriptLyrics.length > 0) {
+      return transcriptLyrics;
+    }
+  }
+
+  // 3. Fall back to YouTube Music InnerTube browse lyrics shelf
   if (videoId) {
     const ytmLyrics = await fetchYouTubeMusicLyrics(videoId, ses);
     if (ytmLyrics && ytmLyrics.length > 0) {
@@ -2288,6 +2405,8 @@ module.exports = {
   getLyrics,
   fetchLrcLibLyrics,
   fetchYouTubeMusicLyrics,
+  fetchYouTubeTranscriptLyrics,
+  parseTranscriptData,
   parseLrcString,
   cleanSearchTerm,
   cleanArtistTerm,
