@@ -417,6 +417,12 @@ let liveLibraryAlbums = [];
 let liveLibraryArtists = [];
 let liveAccount = { isLoggedIn: false };
 let activeBrowseDetail = null;
+let activeArtistDetail = null;
+let liveHistorySongs = null;
+let isLoadingHistory = false;
+let liveMoodsAndGenres = null;
+let isLoadingMoods = false;
+let activeSearchFilter = 'ALL';
 let isFetchingLive = false;
 
 // Custom Playlists State & Persistence
@@ -993,6 +999,9 @@ async function resolveAndPlayTrack(track) {
           playbackTimer = setInterval(tick, 1000);
           startLyricClock();
         }
+        if (api?.trackPlayback && track.videoId) {
+          api.trackPlayback({ videoId: track.videoId, state: 'start', seconds: 0 }).catch(() => {});
+        }
         notifyTrackState();
         return;
       }
@@ -1010,6 +1019,9 @@ async function resolveAndPlayTrack(track) {
     if (playbackTimer) clearInterval(playbackTimer);
     playbackTimer = setInterval(tick, 1000);
     startLyricClock();
+  }
+  if (api?.trackPlayback && track.videoId) {
+    api.trackPlayback({ videoId: track.videoId, state: 'start', seconds: 0 }).catch(() => {});
   }
   notifyTrackState();
 }
@@ -1271,6 +1283,8 @@ function renderCurrentView() {
     renderSinglePlaylistView(mainContent, playlistId);
   } else if (currentView === 'browse-detail') {
     renderBrowseDetailView(mainContent);
+  } else if (currentView === 'artist-detail') {
+    renderArtistDetailView(mainContent);
   }
 }
 
@@ -2113,6 +2127,278 @@ function renderBrowseDetailView(container) {
   }
 }
 
+async function openArtistDetail(browseId, artistName = 'Artist', cover = '', subtitle = 'YouTube Music') {
+  currentView = 'artist-detail';
+  activeArtistDetail = {
+    browseId,
+    name: artistName,
+    cover,
+    subtitle,
+    description: '',
+    subscriberCount: '',
+    topSongs: [],
+    albums: [],
+    singles: [],
+    similarArtists: [],
+    isLoading: true
+  };
+  pushNavigation('artist-detail', false);
+  renderCurrentView();
+
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (api?.getArtist && browseId) {
+    try {
+      const data = await api.getArtist(browseId);
+      if (data) {
+        activeArtistDetail = {
+          browseId,
+          name: data.name || artistName,
+          cover: data.avatar || data.headerCover || cover,
+          subtitle: data.subscriberCount || subtitle,
+          description: data.description || '',
+          subscriberCount: data.subscriberCount || '',
+          topSongs: data.topSongs || [],
+          albums: data.albums || [],
+          singles: data.singles || [],
+          similarArtists: data.similarArtists || [],
+          isLoading: false
+        };
+      } else if (activeArtistDetail) {
+        activeArtistDetail.isLoading = false;
+      }
+      if (currentView === 'artist-detail') {
+        renderCurrentView();
+      }
+    } catch (err) {
+      console.warn('[Artist] getArtist error:', err.message);
+      if (activeArtistDetail) {
+        activeArtistDetail.isLoading = false;
+      }
+      if (currentView === 'artist-detail') {
+        renderCurrentView();
+      }
+    }
+  } else if (activeArtistDetail) {
+    activeArtistDetail.isLoading = false;
+    if (currentView === 'artist-detail') {
+      renderCurrentView();
+    }
+  }
+}
+
+function renderArtistDetailView(container) {
+  if (!activeArtistDetail) {
+    navigateTo('listen-now');
+    return;
+  }
+
+  const { name, cover, subtitle, description, subscriberCount, topSongs, albums, singles, similarArtists, isLoading } = activeArtistDetail;
+  const safeName = escapeHTML(name || 'Artist');
+  const safeCover = escapeHTML(cover || '../../assets/icon.png');
+  const safeDesc = escapeHTML(description || '');
+  const safeMeta = escapeHTML(subscriberCount || subtitle || 'YouTube Music');
+
+  container.innerHTML = `
+    <div style="padding: 10px 0 20px 0;">
+      <div class="artist-hero-header">
+        <img src="${safeCover}" class="artist-avatar-large" alt="${safeName}" onerror="this.src='../../assets/icon.png'">
+        <div class="artist-hero-details">
+          <span class="artist-hero-tag">ARTIST</span>
+          <h1 class="artist-hero-name">${safeName}</h1>
+          <p class="artist-hero-meta">${safeMeta}${safeDesc ? ` • ${safeDesc.slice(0, 160)}...` : ''}</p>
+          <div class="artist-hero-actions">
+            ${topSongs && topSongs.length > 0 ? `
+              <button class="btn-apple-primary" id="btn-play-artist-all">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Play All</span>
+              </button>
+              <button class="btn-apple-secondary" id="btn-shuffle-artist-all">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="16 3 21 3 21 8"></polyline>
+                  <line x1="4" y1="20" x2="21" y2="3"></line>
+                  <polyline points="21 16 21 21 16 21"></polyline>
+                  <line x1="15" y1="15" x2="21" y2="21"></line>
+                  <line x1="4" y1="4" x2="9" y2="9"></line>
+                </svg>
+                <span>Shuffle</span>
+              </button>
+            ` : ''}
+            <button class="genre-chip" onclick="navigateBack()">‹ Back</button>
+          </div>
+        </div>
+      </div>
+
+      ${isLoading ? `
+        <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+          <div style="font-size: 14px; margin-bottom: 8px;">Loading artist profile & releases...</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Fetching from InnerTube API</div>
+        </div>
+      ` : `
+        ${topSongs && topSongs.length > 0 ? `
+          <div class="artist-section-title">
+            <span>Top Songs</span>
+          </div>
+          <div class="songs-table-container">
+            <div class="songs-table-header">
+              <span>#</span>
+              <span>Title</span>
+              <span>Artist</span>
+              <span>Album</span>
+              <span>Duration</span>
+              <span>Play</span>
+            </div>
+            ${topSongs.map((s, idx) => `
+              <div class="song-row" id="artist-song-${idx}">
+                <span class="song-number">${idx + 1}</span>
+                <div class="song-title-cell">
+                  <img src="${escapeHTML(s.cover || safeCover)}" class="song-cell-thumb" alt="${escapeHTML(s.title)}" onerror="this.src='../../assets/icon.png'">
+                  <span class="song-title">${escapeHTML(s.title)}</span>
+                </div>
+                <span class="song-artist-cell">${escapeHTML(s.artist || name)}</span>
+                <span class="song-album-cell">${escapeHTML(s.album || '')}</span>
+                <span class="song-duration-cell">${escapeHTML(s.durationStr || formatTime(s.duration || 0))}</span>
+                <div>
+                  <button class="player-icon-btn" style="width:28px; height:28px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        ${albums && albums.length > 0 ? `
+          <div class="artist-section-title">
+            <span>Albums</span>
+          </div>
+          <div class="card-grid">
+            ${albums.map((al, idx) => `
+              <div class="apple-music-card" id="artist-album-${idx}">
+                <div class="card-thumb-wrapper">
+                  <img src="${escapeHTML(al.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(al.title)}" onerror="this.src='../../assets/icon.png'">
+                  <div class="card-play-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </div>
+                  <span class="card-type-badge">ALBUM</span>
+                </div>
+                <div class="card-title">${escapeHTML(al.title)}</div>
+                <div class="card-subtitle">${escapeHTML(al.year || al.subtitle || 'Album')}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        ${singles && singles.length > 0 ? `
+          <div class="artist-section-title">
+            <span>Singles & EPs</span>
+          </div>
+          <div class="card-grid">
+            ${singles.map((si, idx) => `
+              <div class="apple-music-card" id="artist-single-${idx}">
+                <div class="card-thumb-wrapper">
+                  <img src="${escapeHTML(si.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(si.title)}" onerror="this.src='../../assets/icon.png'">
+                  <div class="card-play-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </div>
+                  <span class="card-type-badge">SINGLE</span>
+                </div>
+                <div class="card-title">${escapeHTML(si.title)}</div>
+                <div class="card-subtitle">${escapeHTML(si.year || si.subtitle || 'Single')}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        ${similarArtists && similarArtists.length > 0 ? `
+          <div class="artist-section-title">
+            <span>Fans Also Like</span>
+          </div>
+          <div class="artists-grid">
+            ${similarArtists.map((sim, idx) => `
+              <div class="artist-card" id="artist-similar-${idx}">
+                <img src="${escapeHTML(sim.cover || '../../assets/icon.png')}" class="artist-avatar" alt="${escapeHTML(sim.title)}" onerror="this.src='../../assets/icon.png'">
+                <div class="artist-card-name">${escapeHTML(sim.title)}</div>
+                <div class="artist-card-sub">${escapeHTML(sim.subtitle || 'Artist')}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      `}
+    </div>
+  `;
+
+  // Bind top songs
+  if (topSongs && topSongs.length > 0) {
+    topSongs.forEach((song, idx) => {
+      const row = document.getElementById(`artist-song-${idx}`);
+      if (row) {
+        row.onclick = () => {
+          userQueue = topSongs.slice(idx + 1).map(x => createCatalogueItemFromLive(x));
+          playLiveTrack(song);
+          if (typeof renderPreviewQueue === 'function') renderPreviewQueue();
+        };
+      }
+    });
+
+    const btnPlayAll = document.getElementById('btn-play-artist-all');
+    if (btnPlayAll) {
+      btnPlayAll.onclick = () => {
+        userQueue = topSongs.slice(1).map(x => createCatalogueItemFromLive(x));
+        playLiveTrack(topSongs[0]);
+        if (typeof renderPreviewQueue === 'function') renderPreviewQueue();
+      };
+    }
+
+    const btnShuffleAll = document.getElementById('btn-shuffle-artist-all');
+    if (btnShuffleAll) {
+      btnShuffleAll.onclick = () => {
+        const shuffled = [...topSongs].sort(() => Math.random() - 0.5);
+        userQueue = shuffled.slice(1).map(x => createCatalogueItemFromLive(x));
+        playLiveTrack(shuffled[0]);
+        if (typeof renderPreviewQueue === 'function') renderPreviewQueue();
+      };
+    }
+  }
+
+  // Bind albums
+  if (albums && albums.length > 0) {
+    albums.forEach((al, idx) => {
+      const card = document.getElementById(`artist-album-${idx}`);
+      if (card && al.browseId) {
+        card.onclick = () => openBrowseDetail(al.browseId, al.title, al.cover, al.year || 'Album');
+      }
+    });
+  }
+
+  // Bind singles
+  if (singles && singles.length > 0) {
+    singles.forEach((si, idx) => {
+      const card = document.getElementById(`artist-single-${idx}`);
+      if (card && si.browseId) {
+        card.onclick = () => openBrowseDetail(si.browseId, si.title, si.cover, si.year || 'Single');
+      }
+    });
+  }
+
+  // Bind similar artists
+  if (similarArtists && similarArtists.length > 0) {
+    similarArtists.forEach((sim, idx) => {
+      const card = document.getElementById(`artist-similar-${idx}`);
+      if (card && sim.browseId) {
+        card.onclick = () => openArtistDetail(sim.browseId, sim.title, sim.cover, sim.subtitle);
+      }
+    });
+  }
+}
+
 function playLiveTrack(item) {
   if (!item) return;
   let idx = CATALOGUE_TRACKS.findIndex(t => (item.videoId && t.videoId === item.videoId) || t.id === item.id);
@@ -2280,6 +2566,22 @@ function renderBrowseView(container) {
   const genres = ['All', 'Charts', 'New Releases', 'Moods & Genres', 'Trending', 'Chill', 'Synthwave'];
   const allBrowseShelves = [];
 
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (!liveMoodsAndGenres && !isLoadingMoods && api?.getMoodsAndGenres) {
+    isLoadingMoods = true;
+    api.getMoodsAndGenres().then(res => {
+      isLoadingMoods = false;
+      liveMoodsAndGenres = (res && res.categories) ? res.categories : [];
+      if (currentView === 'browse') {
+        renderCurrentView();
+      }
+    }).catch(err => {
+      console.warn('[Browse] getMoodsAndGenres error:', err.message);
+      isLoadingMoods = false;
+      liveMoodsAndGenres = [];
+    });
+  }
+
   if (liveNewReleasesShelves && liveNewReleasesShelves.length > 0) {
     liveNewReleasesShelves.forEach(s => {
       if (s.items && s.items.length > 0 && !allBrowseShelves.some(x => x.title === s.title)) {
@@ -2334,6 +2636,32 @@ function renderBrowseView(container) {
     `;
   }
 
+  let moodsShelfHTML = '';
+  if (liveMoodsAndGenres && liveMoodsAndGenres.length > 0) {
+    moodsShelfHTML = `
+      <section class="shelf-section" style="margin-top: 36px;">
+        <div class="shelf-header">
+          <div>
+            <h2 class="shelf-title">Moods & Genres</h2>
+          </div>
+          <span class="shelf-action" style="color: var(--apple-accent); font-weight: 600; cursor: pointer;" onclick="filterByGenre('Moods & Genres')">Explore All</span>
+        </div>
+        <div class="moods-genres-grid">
+          ${liveMoodsAndGenres.slice(0, 12).map((cat, idx) => {
+            const bg = cat.color ? `background-color: ${escapeHTML(cat.color)};` : `background: hsl(${(idx * 43) % 360}, 65%, 26%);`;
+            const style = cat.cover ? `background-image: url('${escapeHTML(cat.cover)}');` : bg;
+            return `
+              <div class="mood-genre-card" id="browse-mood-${idx}" style="${style}">
+                <div class="mood-genre-overlay"></div>
+                <span class="mood-genre-title">${escapeHTML(cat.title)}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </section>
+    `;
+  }
+
   container.innerHTML = `
     <div style="padding: 10px 0 20px 0;">
       <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 8px;">Browse Music</h1>
@@ -2346,6 +2674,7 @@ function renderBrowseView(container) {
       </div>
 
       ${shelvesHTML}
+      ${moodsShelfHTML}
     </div>
   `;
 
@@ -2357,7 +2686,11 @@ function renderBrowseView(container) {
         if (el) {
           el.onclick = () => {
             if (item.type === 'browse' || (!item.videoId && item.browseId)) {
-              openBrowseDetail(item.browseId, item.title, item.cover, item.subtitle);
+              if (item.browseId && (item.browseId.startsWith('UC') || item.type === 'artist')) {
+                openArtistDetail(item.browseId, item.title, item.cover, item.subtitle);
+              } else {
+                openBrowseDetail(item.browseId, item.title, item.cover, item.subtitle);
+              }
             } else if (item.videoId) {
               playLiveTrack(item);
             }
@@ -2366,18 +2699,76 @@ function renderBrowseView(container) {
       });
     });
   }
+
+  if (liveMoodsAndGenres && liveMoodsAndGenres.length > 0) {
+    liveMoodsAndGenres.slice(0, 12).forEach((cat, idx) => {
+      const el = document.getElementById(`browse-mood-${idx}`);
+      if (el) {
+        el.onclick = () => {
+          if (cat.browseId) {
+            openBrowseDetail(cat.browseId, cat.title, cat.cover || '', 'Mood & Genre');
+          }
+        };
+      }
+    });
+  }
 }
 
 function filterByGenre(genre) {
   const chips = document.querySelectorAll('.genre-chip');
   chips.forEach(c => c.classList.toggle('active', c.innerText === genre));
 
+  const grid = document.getElementById('browse-card-grid');
+  if (!grid) return;
+
+  if (genre === 'Moods & Genres') {
+    const cats = (liveMoodsAndGenres && liveMoodsAndGenres.length > 0) ? liveMoodsAndGenres : [
+      { title: 'Chill', color: '#2B5876' },
+      { title: 'Workout', color: '#E53935' },
+      { title: 'Focus & Study', color: '#1E3C72' },
+      { title: 'Energy Boost', color: '#FF8008' },
+      { title: 'Sleep & Relaxation', color: '#4A00E0' },
+      { title: 'Commute', color: '#00B4DB' },
+      { title: 'Party', color: '#D91E18' },
+      { title: 'Romance', color: '#C33764' },
+      { title: 'Feel Good', color: '#F7971E' },
+      { title: 'Sad & Melancholy', color: '#434343' }
+    ];
+
+    grid.className = 'moods-genres-grid';
+    grid.innerHTML = cats.map((cat, idx) => {
+      const bg = cat.color ? `background-color: ${escapeHTML(cat.color)};` : `background: hsl(${(idx * 43) % 360}, 65%, 26%);`;
+      const style = cat.cover ? `background-image: url('${escapeHTML(cat.cover)}');` : bg;
+      return `
+        <div class="mood-genre-card" id="genre-mood-${idx}" style="${style}">
+          <div class="mood-genre-overlay"></div>
+          <span class="mood-genre-title">${escapeHTML(cat.title)}</span>
+        </div>
+      `;
+    }).join('');
+
+    cats.forEach((cat, idx) => {
+      const el = document.getElementById(`genre-mood-${idx}`);
+      if (el) {
+        el.onclick = () => {
+          if (cat.browseId) {
+            openBrowseDetail(cat.browseId, cat.title, cat.cover || '', 'Mood & Genre');
+          }
+        };
+      }
+    });
+    return;
+  }
+
+  if (grid.classList.contains('moods-genres-grid')) {
+    grid.className = 'card-grid';
+  }
+
   const filtered = genre === 'All'
     ? CATALOGUE_TRACKS
     : CATALOGUE_TRACKS.filter(t => t.genre.toLowerCase().includes(genre.toLowerCase()) || t.playlists.includes(genre.toLowerCase()));
 
-  const grid = document.getElementById('browse-card-grid');
-  if (grid) grid.innerHTML = renderCardGridHTML(filtered);
+  grid.innerHTML = renderCardGridHTML(filtered);
 }
 
 function renderRadioView(container) {
@@ -2419,15 +2810,92 @@ function startRadioStation(trackIdx) {
 }
 
 function renderRecentlyAddedView(container) {
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (!liveHistorySongs && !isLoadingHistory && api?.getHistory) {
+    isLoadingHistory = true;
+    api.getHistory().then(res => {
+      isLoadingHistory = false;
+      liveHistorySongs = (res && res.songs) ? res.songs : [];
+      if (currentView === 'recently-added') {
+        renderCurrentView();
+      }
+    }).catch(err => {
+      console.warn('[History] getHistory error:', err.message);
+      isLoadingHistory = false;
+      liveHistorySongs = [];
+    });
+  }
+
+  const hasHistory = liveHistorySongs && liveHistorySongs.length > 0;
+
   container.innerHTML = `
     <div style="padding: 10px 0 20px 0;">
-      <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 8px;">Recently Added</h1>
-      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Your latest additions, releases, and synchronized playlists.</p>
-      <div class="card-grid">
-        ${renderCardGridHTML(CATALOGUE_TRACKS.slice().reverse())}
+      <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 8px;">Recently Added & History</h1>
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Your listening history, latest additions, and synchronized playback tracks.</p>
+
+      ${isLoadingHistory ? `
+        <div style="text-align: center; padding: 32px 0; color: var(--text-secondary); font-size: 13.5px;">
+          Synchronizing YouTube Music playback history...
+        </div>
+      ` : ''}
+
+      ${hasHistory ? `
+        <div class="shelf-section">
+          <div class="shelf-header">
+            <h2 class="shelf-title">Playback History</h2>
+            <span class="shelf-action" style="color: var(--apple-accent); font-weight: 600;">YouTube Music</span>
+          </div>
+          <div class="songs-table-container">
+            <div class="songs-table-header">
+              <span>#</span>
+              <span>Title</span>
+              <span>Artist</span>
+              <span>Album</span>
+              <span>Duration</span>
+              <span>Play</span>
+            </div>
+            ${liveHistorySongs.slice(0, 30).map((s, idx) => `
+              <div class="song-row" id="history-song-${idx}">
+                <span class="song-number">${idx + 1}</span>
+                <div class="song-title-cell">
+                  <img src="${escapeHTML(s.cover || '../../assets/icon.png')}" class="song-cell-thumb" alt="${escapeHTML(s.title)}" onerror="this.src='../../assets/icon.png'">
+                  <span class="song-title">${escapeHTML(s.title)}</span>
+                </div>
+                <span class="song-artist-cell">${escapeHTML(s.artist || 'YouTube Music')}</span>
+                <span class="song-album-cell">${escapeHTML(s.album || '')}</span>
+                <span class="song-duration-cell">${escapeHTML(s.durationStr || formatTime(s.duration || 0))}</span>
+                <div>
+                  <button class="player-icon-btn" style="width:28px; height:28px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="shelf-section" style="${hasHistory ? 'margin-top: 32px;' : ''}">
+        <div class="shelf-header">
+          <h2 class="shelf-title">Local Library Additions</h2>
+        </div>
+        <div class="card-grid">
+          ${renderCardGridHTML(CATALOGUE_TRACKS.slice().reverse())}
+        </div>
       </div>
     </div>
   `;
+
+  if (hasHistory) {
+    liveHistorySongs.slice(0, 30).forEach((s, idx) => {
+      const el = document.getElementById(`history-song-${idx}`);
+      if (el) {
+        el.onclick = () => playLiveTrack(s);
+      }
+    });
+  }
 }
 
 function renderArtistsView(container) {
@@ -2486,7 +2954,7 @@ function renderArtistsView(container) {
 
 function openArtistItem(browseId, artistName, cover, subtitle) {
   if (browseId) {
-    openBrowseDetail(browseId, artistName, cover, subtitle);
+    openArtistDetail(browseId, artistName, cover, subtitle);
   } else {
     const match = CATALOGUE_TRACKS.find(t => t.artist.toLowerCase().includes(artistName.toLowerCase()));
     if (match) {
@@ -3052,40 +3520,61 @@ function renderSearchResultsView(container) {
   activeSearchQuery = q;
   const safeQ = escapeHTML(searchQuery);
 
-  const matched = CATALOGUE_TRACKS.filter(t => 
+  const filterPills = [
+    { id: 'ALL', label: 'All' },
+    { id: 'SONGS', label: 'Songs' },
+    { id: 'VIDEOS', label: 'Videos' },
+    { id: 'ALBUMS', label: 'Albums' },
+    { id: 'ARTISTS', label: 'Artists' },
+    { id: 'PLAYLISTS', label: 'Playlists' }
+  ];
+
+  const showLocal = (activeSearchFilter === 'ALL' || activeSearchFilter === 'SONGS');
+  const matched = showLocal ? CATALOGUE_TRACKS.filter(t => 
     t.title.toLowerCase().includes(q) ||
     t.artist.toLowerCase().includes(q) ||
     t.album.toLowerCase().includes(q) ||
     t.genre.toLowerCase().includes(q)
-  );
+  ) : [];
 
   container.innerHTML = `
     <div style="padding: 10px 0 20px 0;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
         <div>
           <h1 style="font-size: 26px; font-weight: 800; margin-bottom: 4px;">Search Results for "${safeQ}"</h1>
-          <p style="color: var(--text-secondary); font-size: 13.5px;">Found ${matched.length} local library matches</p>
+          <p style="color: var(--text-secondary); font-size: 13.5px;">${showLocal ? `Found ${matched.length} local library matches` : 'Online YouTube Music results'}</p>
         </div>
         <button class="genre-chip" onclick="clearSearch()">Clear Search</button>
       </div>
 
+      <div class="search-filters-bar">
+        ${filterPills.map(f => `
+          <div class="search-filter-pill ${activeSearchFilter === f.id ? 'active' : ''}" data-filter="${f.id}">${f.label}</div>
+        `).join('')}
+      </div>
+
       ${matched.length > 0 ? `
-        <div class="card-grid">
-          ${renderCardGridHTML(matched)}
+        <div class="shelf-section">
+          <div class="shelf-header">
+            <h2 class="shelf-title">Local Library Results</h2>
+          </div>
+          <div class="card-grid">
+            ${renderCardGridHTML(matched)}
+          </div>
         </div>
       ` : ''}
 
       <div id="yt-search-section" style="margin-top: 24px;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
           <h2 style="font-size: 20px; font-weight: 700; margin: 0;">YouTube Music Results</h2>
-          <span style="font-size: 12px; color: var(--text-secondary);">(Live Search)</span>
+          <span style="font-size: 12px; color: var(--text-secondary);">(Live Search • ${filterPills.find(f => f.id === activeSearchFilter)?.label || 'All'})</span>
         </div>
         <div id="yt-search-grid" class="card-grid">
           <div style="color: var(--text-secondary); font-size: 13px; padding: 12px 0;">Searching YouTube Music...</div>
         </div>
       </div>
 
-      ${matched.length === 0 ? `
+      ${(matched.length === 0 && showLocal) ? `
         <div id="no-local-hint" style="text-align: center; padding: 24px 20px; color: var(--text-secondary);">
           <p style="font-size: 13px;">No local tracks found. Checking YouTube Music catalogue above...</p>
         </div>
@@ -3093,37 +3582,62 @@ function renderSearchResultsView(container) {
     </div>
   `;
 
+  // Bind filter pills click
+  container.querySelectorAll('.search-filter-pill').forEach(pill => {
+    pill.onclick = () => {
+      const filter = pill.getAttribute('data-filter');
+      if (filter && filter !== activeSearchFilter) {
+        activeSearchFilter = filter;
+        renderSearchResultsView(container);
+      }
+    };
+  });
+
   const api = window.dejaAPI || window.sonoraAPI;
   if (api?.searchYouTube && q.length >= 2) {
-    api.searchYouTube(searchQuery).then(ytResults => {
+    api.searchYouTube(searchQuery, activeSearchFilter).then(ytResults => {
       if (activeSearchQuery !== q) return;
       const ytGrid = document.getElementById('yt-search-grid');
       if (!ytGrid) return;
       if (!ytResults || ytResults.length === 0) {
-        ytGrid.innerHTML = `<div style="color: var(--text-secondary); font-size: 13px;">No online YouTube Music tracks found for "${safeQ}".</div>`;
+        ytGrid.innerHTML = `<div style="color: var(--text-secondary); font-size: 13px;">No online YouTube Music results found for "${safeQ}".</div>`;
         return;
       }
-      ytGrid.innerHTML = ytResults.map((yt, i) => `
-        <div class="apple-music-card" id="yt-card-${i}">
-          <div class="card-thumb-wrapper">
-            <img src="${escapeHTML(yt.cover || '')}" class="card-thumb track-card-img" alt="${escapeHTML(yt.title)}" onerror="this.src='../../assets/icon.png'">
-            <div class="card-play-btn">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
+      ytGrid.innerHTML = ytResults.map((yt, i) => {
+        let badge = 'YTM';
+        if (yt.resultType) {
+          badge = yt.resultType.toUpperCase();
+        } else if (yt.type === 'browse' || (!yt.videoId && yt.browseId)) {
+          badge = (yt.browseId && yt.browseId.startsWith('UC')) ? 'ARTIST' : 'ALBUM';
+        }
+        const isArtist = yt.resultType === 'artist' || yt.type === 'artist' || (yt.browseId && yt.browseId.startsWith('UC'));
+        const thumbClass = isArtist ? 'card-thumb track-card-img artist-avatar' : 'card-thumb track-card-img';
+
+        return `
+          <div class="apple-music-card" id="yt-card-${i}">
+            <div class="card-thumb-wrapper">
+              <img src="${escapeHTML(yt.cover || '')}" class="${thumbClass}" alt="${escapeHTML(yt.title)}" onerror="this.src='../../assets/icon.png'">
+              <div class="card-play-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </div>
+              <span class="card-type-badge ${isArtist ? 'artist-badge' : 'yt-badge'}">${badge}</span>
             </div>
-            ${yt.type === 'browse' || (!yt.videoId && yt.browseId) ? '<span class="card-type-badge">ALBUM</span>' : '<span class="card-type-badge yt-badge">YTM</span>'}
+            <div class="card-title">${escapeHTML(yt.title)}</div>
+            <div class="card-subtitle">${escapeHTML(yt.artist || yt.subtitle || '')} ${yt.durationStr ? `• ${escapeHTML(yt.durationStr)}` : ''}</div>
           </div>
-          <div class="card-title">${escapeHTML(yt.title)}</div>
-          <div class="card-subtitle">${escapeHTML(yt.artist)} ${yt.durationStr ? `• ${escapeHTML(yt.durationStr)}` : ''}</div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
 
       ytResults.forEach((yt, i) => {
         const card = document.getElementById(`yt-card-${i}`);
         if (card) {
           card.onclick = () => {
-            if (yt.type === 'browse' || (!yt.videoId && yt.browseId)) {
+            const isArtist = yt.resultType === 'artist' || yt.type === 'artist' || (yt.browseId && yt.browseId.startsWith('UC'));
+            if (isArtist) {
+              openArtistDetail(yt.browseId, yt.title, yt.cover, yt.subtitle);
+            } else if (yt.resultType === 'album' || yt.resultType === 'playlist' || yt.type === 'browse' || (!yt.videoId && yt.browseId)) {
               openBrowseDetail(yt.browseId, yt.title, yt.cover, yt.subtitle);
             } else {
               selectYouTubeTrack(yt);
@@ -5397,20 +5911,123 @@ function setupEvents() {
     });
   }
 
-  // Search input handler
+  // BitChord Search Typeahead Suggestions & Input Handler
   const searchInput = document.getElementById('apple-search-input');
+  const suggestionsDropdown = document.getElementById('search-suggestions-dropdown');
+  let suggestDebounceTimer = null;
+  let selectedSuggestionIndex = -1;
+
+  function hideSearchSuggestions() {
+    if (suggestionsDropdown) {
+      suggestionsDropdown.style.display = 'none';
+      suggestionsDropdown.innerHTML = '';
+      selectedSuggestionIndex = -1;
+    }
+  }
+
+  function showSearchSuggestions(suggestions) {
+    if (!suggestionsDropdown) return;
+    if (!suggestions || suggestions.length === 0) {
+      hideSearchSuggestions();
+      return;
+    }
+    selectedSuggestionIndex = -1;
+    suggestionsDropdown.innerHTML = suggestions.map((s, idx) => `
+      <div class="search-suggestion-item" data-index="${idx}" data-val="${escapeHTML(s)}">
+        <svg class="search-suggestion-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <span>${escapeHTML(s)}</span>
+      </div>
+    `).join('');
+
+    suggestionsDropdown.querySelectorAll('.search-suggestion-item').forEach(el => {
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const val = el.getAttribute('data-val');
+        if (val) {
+          if (searchInput) searchInput.value = val;
+          searchQuery = val;
+          hideSearchSuggestions();
+          renderCurrentView();
+        }
+      });
+    });
+
+    suggestionsDropdown.style.display = 'block';
+  }
+
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
       searchQuery = e.target.value;
       renderCurrentView();
+
+      const q = e.target.value.trim();
+      if (suggestDebounceTimer) clearTimeout(suggestDebounceTimer);
+      if (q.length >= 2 && api?.getSearchSuggestions) {
+        suggestDebounceTimer = setTimeout(async () => {
+          try {
+            const list = await api.getSearchSuggestions(q);
+            if (searchInput && searchInput.value.trim() === q) {
+              showSearchSuggestions(list);
+            }
+          } catch {}
+        }, 180);
+      } else {
+        hideSearchSuggestions();
+      }
     });
+
     searchInput.addEventListener('keydown', (e) => {
+      if (suggestionsDropdown && suggestionsDropdown.style.display !== 'none') {
+        const items = suggestionsDropdown.querySelectorAll('.search-suggestion-item');
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          selectedSuggestionIndex = (selectedSuggestionIndex + 1) % items.length;
+          items.forEach((it, idx) => it.classList.toggle('selected', idx === selectedSuggestionIndex));
+          if (items[selectedSuggestionIndex]) {
+            const val = items[selectedSuggestionIndex].getAttribute('data-val');
+            if (val) searchInput.value = val;
+          }
+          return;
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          selectedSuggestionIndex = (selectedSuggestionIndex - 1 + items.length) % items.length;
+          items.forEach((it, idx) => it.classList.toggle('selected', idx === selectedSuggestionIndex));
+          if (items[selectedSuggestionIndex]) {
+            const val = items[selectedSuggestionIndex].getAttribute('data-val');
+            if (val) searchInput.value = val;
+          }
+          return;
+        } else if (e.key === 'Enter') {
+          hideSearchSuggestions();
+          searchQuery = searchInput.value;
+          renderCurrentView();
+          return;
+        } else if (e.key === 'Escape') {
+          hideSearchSuggestions();
+          e.stopPropagation();
+          return;
+        }
+      }
+
       if (e.key === 'Escape') {
         clearSearch();
         closeLyricsDrawer();
       }
     });
+
+    searchInput.addEventListener('blur', () => {
+      setTimeout(hideSearchSuggestions, 200);
+    });
   }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.apple-search-box')) {
+      hideSearchSuggestions();
+    }
+  });
 
   // Global Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
@@ -5596,6 +6213,10 @@ if (typeof module !== 'undefined' && module.exports) {
     openAccountModal,
     closeAccountModal,
     renderAccountModalContent,
-    switchLoginTab
+    switchLoginTab,
+    openArtistDetail,
+    renderArtistDetailView,
+    openArtistItem,
+    filterByGenre
   };
 }

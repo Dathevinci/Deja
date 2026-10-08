@@ -383,6 +383,17 @@ function runInnerTubeIntegrationTests() {
   innertube.fetchYouTubeTranscriptLyrics('invalid_len').then(res => assert.strictEqual(res, null));
   innertube.fetchYouTubeTranscriptLyrics(12345).then(res => assert.strictEqual(res, null));
 
+  // 8. Verify getSearchSuggestions, getArtist, getHistory, getMoodsAndGenres, trackPlayback null / edge handling
+  innertube.getSearchSuggestions(null).then(res => assert.deepStrictEqual(res, []));
+  innertube.getSearchSuggestions('').then(res => assert.deepStrictEqual(res, []));
+  innertube.getSearchSuggestions(1234).then(res => assert.deepStrictEqual(res, []));
+  innertube.getArtist(null).then(res => assert.strictEqual(res, null));
+  innertube.getArtist('').then(res => assert.strictEqual(res, null));
+  innertube.getArtist(1234).then(res => assert.strictEqual(res, null));
+  innertube.trackPlayback(null).then(res => assert.strictEqual(res, false));
+  innertube.trackPlayback({}).then(res => assert.strictEqual(res, false));
+  innertube.trackPlayback({ videoId: '' }).then(res => assert.strictEqual(res, false));
+
   console.log('✓ InnerTube API & YouTube Music Live Integration tests passed successfully.');
 }
 

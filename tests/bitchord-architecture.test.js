@@ -15,6 +15,11 @@ function runBitChordArchitectureTests() {
   assert.ok(mainCode.includes("ipcMain.handle('open-google-login'"), 'main.js must provide open-google-login IPC handler');
   assert.ok(mainCode.includes("ipcMain.handle('toggle-web-mode'"), 'main.js must provide toggle-web-mode IPC handler');
   assert.ok(mainCode.includes("ipcMain.handle('yt-search'"), 'main.js must provide yt-search IPC handler');
+  assert.ok(mainCode.includes("ipcMain.handle('yt-search-suggestions'"), 'main.js must provide yt-search-suggestions IPC handler');
+  assert.ok(mainCode.includes("ipcMain.handle('yt-browse-artist'"), 'main.js must provide yt-browse-artist IPC handler');
+  assert.ok(mainCode.includes("ipcMain.handle('yt-history'"), 'main.js must provide yt-history IPC handler');
+  assert.ok(mainCode.includes("ipcMain.handle('yt-moods-genres'"), 'main.js must provide yt-moods-genres IPC handler');
+  assert.ok(mainCode.includes("ipcMain.handle('yt-track-playback'"), 'main.js must provide yt-track-playback IPC handler');
   assert.ok(mainCode.includes("ipcMain.handle('yt-resolve-stream'"), 'main.js must provide yt-resolve-stream IPC handler');
   assert.ok(mainCode.includes("app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')"), 'main.js must set autoplay-policy command line switch before whenReady');
 
@@ -22,6 +27,11 @@ function runBitChordArchitectureTests() {
   const preloadPath = path.join(__dirname, '../src/preload/preload.js');
   const preloadCode = fs.readFileSync(preloadPath, 'utf8');
   assert.ok(preloadCode.includes('searchYouTube:'), 'preload.js must expose searchYouTube in dejaAPI');
+  assert.ok(preloadCode.includes('getSearchSuggestions:'), 'preload.js must expose getSearchSuggestions in dejaAPI');
+  assert.ok(preloadCode.includes('getArtist:'), 'preload.js must expose getArtist in dejaAPI');
+  assert.ok(preloadCode.includes('getHistory:'), 'preload.js must expose getHistory in dejaAPI');
+  assert.ok(preloadCode.includes('getMoodsAndGenres:'), 'preload.js must expose getMoodsAndGenres in dejaAPI');
+  assert.ok(preloadCode.includes('trackPlayback:'), 'preload.js must expose trackPlayback in dejaAPI');
   assert.ok(preloadCode.includes('toggleWebMode:'), 'preload.js must expose toggleWebMode in dejaAPI');
   assert.ok(preloadCode.includes('openGoogleLogin:'), 'preload.js must expose openGoogleLogin in dejaAPI');
   assert.ok(preloadCode.includes('resolveAudioStream:'), 'preload.js must expose resolveAudioStream in dejaAPI');
@@ -80,11 +90,16 @@ function runBitChordArchitectureTests() {
   assert.ok(html.includes('id="pipeline-modal"'), 'Must include audio pipeline modal');
   assert.ok(html.includes('id="sleep-modal"'), 'Must include sleep timer modal');
   assert.ok(html.includes('id="eq-modal"'), 'Must include equalizer modal');
+  assert.ok(html.includes('id="search-suggestions-dropdown"'), 'Must include search suggestions dropdown container');
 
   // 5. Verify preview.css Styling
   const cssPath = path.join(__dirname, '../src/renderer/preview.css');
   const css = fs.readFileSync(cssPath, 'utf8');
 
+  assert.ok(css.includes('.search-suggestions-dropdown'), 'CSS must style search suggestions dropdown');
+  assert.ok(css.includes('.search-filters-bar'), 'CSS must style search filter pills bar');
+  assert.ok(css.includes('.artist-hero-header'), 'CSS must style artist hero header');
+  assert.ok(css.includes('.moods-genres-grid'), 'CSS must style moods & genres grid');
   assert.ok(css.includes('.app-ambient-backdrop'), 'CSS must style app ambient backdrop');
   assert.ok(css.includes('.deja-audio-pipeline-badge'), 'CSS must style audio pipeline badge');
   assert.ok(css.includes('.deja-sleep-timer-btn'), 'CSS must style sleep timer button');
@@ -912,6 +927,164 @@ function runBitChordArchitectureTests() {
     { time: 10.5, text: 'Chorus' }
   ];
   assert.strictEqual(syncedLines.some(l => typeof l.time === 'number' && l.time > 0), true, 'Synced lines must have isSynced === true');
+
+  // 9.9 Verify BitChord Search Filters & Suggestions Architecture (Innertube.kt)
+  assert.ok(innertube.SEARCH_FILTERS, 'innertube must export SEARCH_FILTERS');
+  assert.strictEqual(innertube.SEARCH_FILTERS.ALL, null);
+  assert.strictEqual(innertube.SEARCH_FILTERS.SONGS, 'EgWKAQIIAWoKEAkQChAFEAMQBA==');
+  assert.strictEqual(innertube.SEARCH_FILTERS.VIDEOS, 'EgWKAQIQAWoKEAkQChAFEAMQBA==');
+  assert.strictEqual(innertube.SEARCH_FILTERS.ALBUMS, 'EgWKAQIYAWoKEAkQChAFEAMQBA==');
+  assert.strictEqual(innertube.SEARCH_FILTERS.ARTISTS, 'EgWKAQIgAWoKEAkQChAFEAMQBA==');
+  assert.strictEqual(innertube.SEARCH_FILTERS.PLAYLISTS, 'EgWKAQIoAWoKEAkQChAFEAMQBA==');
+
+  // Verify parseSearchSuggestions
+  const mockSuggestionsPayload = {
+    contents: [{
+      searchSuggestionsSectionRenderer: {
+        contents: [
+          { searchSuggestionRenderer: { suggestion: { runs: [{ text: 'Taylor Swift' }] } } },
+          { searchSuggestionRenderer: { suggestion: { runs: [{ text: 'Taylor Swift Cruel Summer' }] } } },
+          { historySuggestionRenderer: { suggestion: { runs: [{ text: 'The Weeknd' }] } } }
+        ]
+      }
+    }]
+  };
+  const parsedSuggestions = innertube.parseSearchSuggestions(mockSuggestionsPayload);
+  assert.ok(Array.isArray(parsedSuggestions));
+  assert.strictEqual(parsedSuggestions.length, 3);
+  assert.strictEqual(parsedSuggestions[0], 'Taylor Swift');
+  assert.strictEqual(parsedSuggestions[1], 'Taylor Swift Cruel Summer');
+  assert.strictEqual(parsedSuggestions[2], 'The Weeknd');
+
+  // 9.10 Verify BitChord Artist Detail Architecture (DetailScreen.kt)
+  assert.strictEqual(typeof innertube.getArtist, 'function', 'innertube must export getArtist');
+  assert.strictEqual(typeof innertube.parseArtistPage, 'function', 'innertube must export parseArtistPage');
+  assert.strictEqual(typeof previewModule.openArtistDetail, 'function', 'preview.js must export openArtistDetail');
+  assert.strictEqual(typeof previewModule.renderArtistDetailView, 'function', 'preview.js must export renderArtistDetailView');
+  assert.strictEqual(typeof previewModule.openArtistItem, 'function', 'preview.js must export openArtistItem');
+
+  const mockArtistPayload = {
+    header: {
+      musicImmersiveHeaderRenderer: {
+        title: { runs: [{ text: 'Dua Lipa' }] },
+        description: { runs: [{ text: 'Global pop superstar and songwriter.' }] },
+        thumbnail: {
+          musicThumbnailRenderer: {
+            thumbnail: { thumbnails: [{ url: 'https://i.ytimg.com/dua_avatar.jpg' }] }
+          }
+        },
+        subscriptionButton: {
+          subscribeButtonRenderer: {
+            subscriberCountText: { runs: [{ text: '23.4M subscribers' }] }
+          }
+        }
+      }
+    },
+    contents: {
+      singleColumnBrowseResultsRenderer: {
+        tabs: [{
+          tabRenderer: {
+            content: {
+              sectionListRenderer: {
+                contents: [
+                  {
+                    musicShelfRenderer: {
+                      title: { runs: [{ text: 'Top songs' }] },
+                      contents: [{
+                        musicResponsiveListItemRenderer: {
+                          flexColumns: [
+                            {
+                              musicResponsiveListItemFlexColumnRenderer: {
+                                text: {
+                                  runs: [{
+                                    text: 'Levitating',
+                                    navigationEndpoint: { watchEndpoint: { videoId: 'bc123dua' } }
+                                  }]
+                                }
+                              }
+                            },
+                            {
+                              musicResponsiveListItemFlexColumnRenderer: {
+                                text: { runs: [{ text: 'Dua Lipa' }] }
+                              }
+                            }
+                          ],
+                          thumbnail: {
+                            musicThumbnailRenderer: {
+                              thumbnail: { thumbnails: [{ url: 'https://i.ytimg.com/levitating.jpg' }] }
+                            }
+                          }
+                        }
+                      }]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }]
+      }
+    }
+  };
+  const parsedArtist = innertube.parseArtistPage(mockArtistPayload, 'UCdua123');
+  assert.strictEqual(parsedArtist.name, 'Dua Lipa');
+  assert.strictEqual(parsedArtist.browseId, 'UCdua123');
+  assert.strictEqual(parsedArtist.avatar, 'https://i.ytimg.com/dua_avatar.jpg');
+  assert.strictEqual(parsedArtist.subscriberCount, '23.4M subscribers');
+  assert.strictEqual(parsedArtist.topSongs.length, 1);
+  assert.strictEqual(parsedArtist.topSongs[0].title, 'Levitating');
+  assert.strictEqual(parsedArtist.topSongs[0].videoId, 'bc123dua');
+
+  // 9.11 Verify YouTube Music History & Moods/Genres Architecture (LibraryScreen.kt & ExploreScreen.kt)
+  assert.strictEqual(typeof innertube.getHistory, 'function', 'innertube must export getHistory');
+  assert.strictEqual(typeof innertube.parseHistoryResponse, 'function', 'innertube must export parseHistoryResponse');
+  assert.strictEqual(typeof innertube.getMoodsAndGenres, 'function', 'innertube must export getMoodsAndGenres');
+  assert.strictEqual(typeof innertube.parseMoodsAndGenresResponse, 'function', 'innertube must export parseMoodsAndGenresResponse');
+
+  const mockHistoryData = {
+    contents: [{
+      musicResponsiveListItemRenderer: {
+        flexColumns: [
+          {
+            musicResponsiveListItemFlexColumnRenderer: {
+              text: {
+                runs: [{
+                  text: 'Blinding Lights',
+                  navigationEndpoint: { watchEndpoint: { videoId: 'bl123weeknd' } }
+                }]
+              }
+            }
+          },
+          {
+            musicResponsiveListItemFlexColumnRenderer: {
+              text: { runs: [{ text: 'The Weeknd' }] }
+            }
+          }
+        ]
+      }
+    }]
+  };
+  const parsedHistory = innertube.parseHistoryResponse(mockHistoryData);
+  assert.strictEqual(parsedHistory.songs.length, 1);
+  assert.strictEqual(parsedHistory.songs[0].title, 'Blinding Lights');
+  assert.strictEqual(parsedHistory.songs[0].videoId, 'bl123weeknd');
+
+  const mockMoodsData = {
+    contents: [{
+      musicNavigationButtonRenderer: {
+        buttonText: { runs: [{ text: 'Chill & Relax' }] },
+        clickCommand: { browseEndpoint: { browseId: 'FEmusic_mood_chill', params: 'mood_params_123' } },
+        solid: { leftStripeColor: 4281363660 }
+      }
+    }]
+  };
+  const parsedMoods = innertube.parseMoodsAndGenresResponse(mockMoodsData);
+  assert.strictEqual(parsedMoods.categories.length, 1);
+  assert.strictEqual(parsedMoods.categories[0].title, 'Chill & Relax');
+  assert.strictEqual(parsedMoods.categories[0].browseId, 'FEmusic_mood_chill');
+
+  // 9.12 Verify Playback Tracker Protocol (BitChord PlaybackTracker.kt)
+  assert.strictEqual(typeof innertube.trackPlayback, 'function', 'innertube must export trackPlayback');
 
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }

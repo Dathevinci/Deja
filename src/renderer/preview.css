@@ -3340,3 +3340,194 @@ body,
 .sidebar-yt-playlists-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* BitChord Search Suggestions Dropdown */
+.search-suggestions-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: rgba(28, 28, 32, 0.96);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+  z-index: 10000;
+  overflow: hidden;
+  padding: 6px 0;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.search-suggestion-item {
+  padding: 9px 16px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #FFFFFF;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.12s ease;
+}
+
+.search-suggestion-item:hover,
+.search-suggestion-item.selected {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--apple-accent);
+}
+
+.search-suggestion-icon {
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+/* BitChord Search Filter Pills Bar */
+.search-filters-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+
+.search-filters-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.search-filter-pill {
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.search-filter-pill:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #FFFFFF;
+}
+
+.search-filter-pill.active {
+  background: #FA2D48;
+  color: #FFFFFF;
+  border-color: #FA2D48;
+  box-shadow: 0 4px 14px rgba(250, 45, 72, 0.35);
+}
+
+/* BitChord Artist Detail Screen */
+.artist-hero-header {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 24px 0 32px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 28px;
+}
+
+.artist-avatar-large {
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  flex-shrink: 0;
+}
+
+.artist-hero-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.artist-hero-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--apple-accent);
+}
+
+.artist-hero-name {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+.artist-hero-meta {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 650px;
+  margin: 0;
+}
+
+.artist-hero-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.artist-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 32px 0 16px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* BitChord Moods & Genres Grid */
+.moods-genres-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.mood-genre-card {
+  height: 96px;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-end;
+  font-weight: 700;
+  font-size: 15px;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mood-genre-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+}
+
+.mood-genre-card .mood-genre-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.75) 100%);
+  pointer-events: none;
+}
+
+.mood-genre-card .mood-genre-title {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}

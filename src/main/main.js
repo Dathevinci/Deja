@@ -1219,13 +1219,77 @@ ipcMain.handle('toggle-web-mode', async () => {
 
 // Live YouTube Music Search API (InnerTube WEB_REMIX client architecture)
 ipcMain.handle('yt-search', async (event, query) => {
-  if (!query || typeof query !== 'string') return [];
+  if (!query) return [];
   try {
     const ses = session.fromPartition('persist:ytmusic');
-    return await innertube.search(query, ses);
+    let q = query;
+    let filter = null;
+    if (typeof query === 'object' && query !== null) {
+      q = query.query;
+      filter = query.filter;
+    }
+    if (!q || typeof q !== 'string') return [];
+    return await innertube.search(q, ses, filter);
   } catch (err) {
     console.warn('[Search] YouTube Music search error:', err.message);
     return [];
+  }
+});
+
+// Live YouTube Music Search Suggestions (BitChord SearchScreen.kt)
+ipcMain.handle('yt-search-suggestions', async (event, input) => {
+  if (!input || typeof input !== 'string') return [];
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getSearchSuggestions(input, ses);
+  } catch (err) {
+    console.warn('[Search] YouTube Music search suggestions error:', err.message);
+    return [];
+  }
+});
+
+// Live YouTube Music Artist Detail (BitChord DetailScreen.kt)
+ipcMain.handle('yt-browse-artist', async (event, browseId) => {
+  if (!browseId || typeof browseId !== 'string') return null;
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getArtist(browseId, ses);
+  } catch (err) {
+    console.warn('[Browse] Artist browse error:', err.message);
+    return null;
+  }
+});
+
+// User YouTube Music History / Recently Played (FEmusic_history)
+ipcMain.handle('yt-history', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getHistory(ses);
+  } catch (err) {
+    console.warn('[History] History browse error:', err.message);
+    return { songs: [] };
+  }
+});
+
+// YouTube Music Moods & Genres (FEmusic_moods_and_genres)
+ipcMain.handle('yt-moods-genres', async () => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getMoodsAndGenres(ses);
+  } catch (err) {
+    console.warn('[Browse] Moods and genres error:', err.message);
+    return { categories: [] };
+  }
+});
+
+// YouTube Music Playback Telemetry & History Sync (BitChord PlaybackTracker.kt)
+ipcMain.handle('yt-track-playback', async (event, data) => {
+  if (!data || !data.videoId) return false;
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.trackPlayback(data, ses);
+  } catch (err) {
+    return false;
   }
 });
 
