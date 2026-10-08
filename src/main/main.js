@@ -1427,6 +1427,26 @@ ipcMain.handle('yt-account-info', async () => {
   }
 });
 
+// Account Channel Selection & Profile Switching (BitChord architecture)
+ipcMain.handle('yt-select-channel', async (event, channelData) => {
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    if (!channelData) return { success: false, error: 'No channel data provided' };
+    const { pageId, dataSyncId, authUser } = channelData;
+    innertube.selectChannel(pageId, dataSyncId, authUser);
+    const scope = innertube.getSessionScope();
+    const info = await innertube.getAccountInfo(ses);
+    await authStore.persistCurrentSession(ses, info, scope);
+    if (mainWindow && mainWindow.webContents && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('auth-changed', info);
+    }
+    return { success: true, account: info };
+  } catch (err) {
+    console.warn('[Account] Select channel error:', err.message);
+    return { success: false, error: err.message };
+  }
+});
+
 // Song Thumbs Up / Down / Remove Rating
 ipcMain.handle('yt-rate', async (event, { videoId, status }) => {
   if (!videoId) return null;

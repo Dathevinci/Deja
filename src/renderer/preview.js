@@ -829,14 +829,23 @@ function navigateForward() {
   }
 }
 
-// Web Audio API State
+// Web Audio API State & 5-Band Equalizer (BitChord GraphicEq architecture)
 let audioContext = null;
 let masterGain = null;
+let eqFilter60 = null;
+let eqFilter250 = null;
+let eqFilter1k = null;
+let eqFilter4k = null;
+let eqFilter12k = null;
 let bassFilter = null;
 let midFilter = null;
 let trebleFilter = null;
 let activeOscillators = [];
 let noteIntervalId = null;
+
+// Playback Nonce & Tracking State (BitChord PlaybackTracker.kt)
+let currentCpn = null;
+let lastReportedWatchSeconds = 0;
 
 // YouTube Live Audio Playback State & Native BitChord Direct Stream Engine
 let ytPlayer = null;
@@ -948,9 +957,41 @@ function fallbackToIFrame(track) {
  * Resolves direct audio stream URL via IPC and pipes to native HTML5 deja-audio-element.
  * If stream URL requires signature cipher or fails, gracefully falls back to IFrame.
  */
+function generateCpn() {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_';
+  let out = '';
+  for (let i = 0; i < 16; i++) {
+    out += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return out;
+}
+
+function sendFinalWatchtimePing() {
+  const track = CATALOGUE_TRACKS[currentIndex];
+  if (currentCpn && track && track.videoId) {
+    const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+    if (api?.trackPlayback) {
+      api.trackPlayback({
+        videoId: track.videoId,
+        cpn: currentCpn,
+        state: 'watchtime',
+        seconds: Math.floor(currentTime),
+        final: true
+      }).catch(() => {});
+    }
+  }
+  currentCpn = null;
+  lastReportedWatchSeconds = 0;
+}
+
 async function resolveAndPlayTrack(track) {
   if (!track) return;
   const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+
+  // Flush final watchtime for prior track before switching
+  sendFinalWatchtimePing();
+  currentCpn = generateCpn();
+  lastReportedWatchSeconds = 0;
 
   // Stop any active audio before switching
   if (dejaAudio && !dejaAudio.paused) {
@@ -1000,7 +1041,7 @@ async function resolveAndPlayTrack(track) {
           startLyricClock();
         }
         if (api?.trackPlayback && track.videoId) {
-          api.trackPlayback({ videoId: track.videoId, state: 'start', seconds: 0 }).catch(() => {});
+          api.trackPlayback({ videoId: track.videoId, cpn: currentCpn, state: 'start', seconds: 0 }).catch(() => {});
         }
         notifyTrackState();
         return;
@@ -1021,7 +1062,7 @@ async function resolveAndPlayTrack(track) {
     startLyricClock();
   }
   if (api?.trackPlayback && track.videoId) {
-    api.trackPlayback({ videoId: track.videoId, state: 'start', seconds: 0 }).catch(() => {});
+    api.trackPlayback({ videoId: track.videoId, cpn: currentCpn, state: 'start', seconds: 0 }).catch(() => {});
   }
   notifyTrackState();
 }
@@ -1123,11 +1164,11 @@ let currentEqPreset = 'Flat';
 let userQueue = [...CATALOGUE_TRACKS];
 
 const EQ_PRESETS = {
-  'Flat': { bass: 0, mid: 0, treble: 0 },
-  'Bass Boost': { bass: 6, mid: 0, treble: -1 },
-  'Acoustic': { bass: 2, mid: 3, treble: 1 },
-  'Vocal Booster': { bass: -2, mid: 4, treble: 2 },
-  'Treble Booster': { bass: -2, mid: 1, treble: 5 }
+  'Flat': { b60: 0, b250: 0, b1k: 0, b4k: 0, b12k: 0, bass: 0, mid: 0, treble: 0 },
+  'Bass Boost': { b60: 6, b250: 4, b1k: 0, b4k: -1, b12k: -2, bass: 6, mid: 0, treble: -1 },
+  'Acoustic': { b60: 2, b250: 1, b1k: 3, b4k: 2, b12k: 1, bass: 2, mid: 3, treble: 1 },
+  'Vocal Booster': { b60: -2, b250: 0, b1k: 4, b4k: 3, b12k: 1, bass: -2, mid: 4, treble: 2 },
+  'Treble Booster': { b60: -2, b250: -1, b1k: 1, b4k: 4, b12k: 6, bass: -2, mid: 1, treble: 5 }
 };
 
 // Initialize Application
@@ -1288,6 +1329,149 @@ function renderCurrentView() {
   }
 }
 
+/**
+ * Converts HSL color to RGB [r, g, b] (0..255).
+ */
+function hslToRgb(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (0 <= h && h < 60) { r = c; g = x; b = 0; }
+  else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
+  else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+  else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+  else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+  else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
+  return [
+    Math.round((r + m) * 255),
+    Math.round((g + m) * 255),
+    Math.round((b + m) * 255)
+  ];
+}
+
+/**
+ * Derives a vibrant 4-color mesh gradient palette deterministically from a track seed.
+ * Follows BitChord MeshGradient.kt tuning:
+ * Saturation boosted 1.35x (clamped <= 1.0) and lightness clamped in [0.28, 0.58].
+ */
+function deriveTrackPalette(seed) {
+  let hash = 0;
+  const str = String(seed || 'deja-track');
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const baseHue = Math.abs(hash) % 360;
+  const hues = [
+    baseHue,
+    (baseHue + 42) % 360,
+    (baseHue + 120) % 360,
+    (baseHue + 210) % 360
+  ];
+  const tunedSat = Math.min(1.0, 0.72 * 1.35); // BitChord tuned sat
+  const tunedLight = 0.44; // BitChord clamped lightness [0.28, 0.58]
+
+  const rgbs = hues.map(h => hslToRgb(h, tunedSat, tunedLight));
+  const pR = rgbs[0][0];
+  const pG = rgbs[0][1];
+  const pB = rgbs[0][2];
+
+  return {
+    c1: `rgba(${rgbs[0][0]}, ${rgbs[0][1]}, ${rgbs[0][2]}, 0.48)`,
+    c2: `rgba(${rgbs[1][0]}, ${rgbs[1][1]}, ${rgbs[1][2]}, 0.44)`,
+    c3: `rgba(${rgbs[2][0]}, ${rgbs[2][1]}, ${rgbs[2][2]}, 0.40)`,
+    c4: `rgba(${rgbs[3][0]}, ${rgbs[3][1]}, ${rgbs[3][2]}, 0.35)`,
+    primaryR: pR,
+    primaryG: pG,
+    primaryB: pB
+  };
+}
+
+/**
+ * Samples pixel data from an image and derives a 4-color dynamic mesh palette
+ * following BitChord MeshGradient.kt (tuned & expandedToFour).
+ */
+function extractPaletteFromImage(imageUrl, callback) {
+  if (typeof Image === 'undefined' || typeof document === 'undefined' || !imageUrl) {
+    if (callback) callback(null);
+    return;
+  }
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 32;
+      canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        if (callback) callback(null);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, 32, 32);
+      const imgData = ctx.getImageData(0, 0, 32, 32).data;
+
+      // Sample colors from pixels
+      const colors = [];
+      for (let i = 0; i < imgData.length; i += 16) {
+        const r = imgData[i];
+        const g = imgData[i + 1];
+        const b = imgData[i + 2];
+        const a = imgData[i + 3];
+        if (a < 128) continue;
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        if (brightness < 20 || brightness > 240) continue;
+        colors.push([r, g, b]);
+      }
+
+      if (colors.length === 0) {
+        if (callback) callback(deriveTrackPalette(imageUrl));
+        return;
+      }
+
+      // Pick up to 4 distinct colors
+      const chosen = [colors[0]];
+      for (let c of colors) {
+        if (chosen.length >= 4) break;
+        const dist = Math.min(...chosen.map(x => Math.hypot(x[0] - c[0], x[1] - c[1], x[2] - c[2])));
+        if (dist > 45) {
+          chosen.push(c);
+        }
+      }
+
+      // If fewer than 4, expand by shifting hue
+      while (chosen.length < 4) {
+        const base = chosen[chosen.length - 1];
+        chosen.push([(base[0] + 50) % 255, (base[1] + 70) % 255, (base[2] + 90) % 255]);
+      }
+
+      const pR = chosen[0][0];
+      const pG = chosen[0][1];
+      const pB = chosen[0][2];
+
+      const palette = {
+        c1: `rgba(${chosen[0][0]}, ${chosen[0][1]}, ${chosen[0][2]}, 0.48)`,
+        c2: `rgba(${chosen[1][0]}, ${chosen[1][1]}, ${chosen[1][2]}, 0.44)`,
+        c3: `rgba(${chosen[2][0]}, ${chosen[2][1]}, ${chosen[2][2]}, 0.40)`,
+        c4: `rgba(${chosen[3][0]}, ${chosen[3][1]}, ${chosen[3][2]}, 0.35)`,
+        primaryR: pR,
+        primaryG: pG,
+        primaryB: pB
+      };
+
+      if (callback) callback(palette);
+    } catch (e) {
+      if (callback) callback(deriveTrackPalette(imageUrl));
+    }
+  };
+  img.onerror = () => {
+    if (callback) callback(deriveTrackPalette(imageUrl));
+  };
+  img.src = imageUrl;
+}
+
 function createCatalogueItemFromLive(t) {
   const videoId = t.videoId || '';
   const title = t.title || 'YouTube Track';
@@ -1307,15 +1491,7 @@ function createCatalogueItemFromLive(t) {
     genre: 'YouTube Music',
     year: '2026',
     playlists: ['favorites'],
-    palette: {
-      c1: 'rgba(250, 45, 72, 0.48)',
-      c2: 'rgba(140, 40, 220, 0.44)',
-      c3: 'rgba(255, 120, 50, 0.40)',
-      c4: 'rgba(40, 160, 220, 0.35)',
-      primaryR: 250,
-      primaryG: 45,
-      primaryB: 72
-    },
+    palette: deriveTrackPalette(videoId || title),
     cover: cover,
     lyrics: [
       { time: 0, text: `Playing "${title}"` },
@@ -1916,6 +2092,46 @@ function renderAccountModalContent(forceLoginView = false) {
       if (profAvatarLarge.style) profAvatarLarge.style.display = 'flex';
       if (profAvatarImg && profAvatarImg.style) profAvatarImg.style.display = 'none';
     }
+
+    const channelsListEl = document.getElementById('account-channels-list');
+    if (channelsListEl) {
+      if (liveAccount.channels && liveAccount.channels.length > 0) {
+        channelsListEl.innerHTML = liveAccount.channels.map((ch, idx) => {
+          const isAct = Boolean(ch.isSelected || (liveAccount.pageId ? ch.pageId === liveAccount.pageId : ch.activeOnWeb));
+          const chThumb = ch.thumbnailUrl || ch.photoUrl || '../../assets/icon.png';
+          return `
+            <div class="account-channel-row ${isAct ? 'active' : ''}" data-ch-index="${idx}">
+              <img src="${escapeHTML(chThumb)}" class="account-channel-thumb" alt="${escapeHTML(ch.name)}" onerror="this.src='../../assets/icon.png'">
+              <div class="account-channel-info">
+                <span class="account-channel-name">${escapeHTML(ch.name)}</span>
+                <span class="account-channel-sub">${escapeHTML(ch.subtitle || ch.handle || '')}</span>
+              </div>
+              ${isAct ? `<span class="account-channel-check">✓</span>` : ''}
+            </div>
+          `;
+        }).join('');
+
+        const rows = channelsListEl.querySelectorAll('.account-channel-row');
+        rows.forEach(row => {
+          row.onclick = async () => {
+            const idx = parseInt(row.getAttribute('data-ch-index'), 10);
+            const targetChannel = liveAccount.channels[idx];
+            if (!targetChannel) return;
+            const api = window.dejaAPI || window.sonoraAPI;
+            if (api?.selectChannel) {
+              const res = await api.selectChannel(targetChannel);
+              if (res && res.success && res.account) {
+                updateAccountUI(res.account);
+                renderAccountModalContent();
+                fetchLiveYouTubeMusic();
+              }
+            }
+          };
+        });
+      } else {
+        channelsListEl.innerHTML = '';
+      }
+    }
   } else {
     if (modalTitle) modalTitle.innerText = 'Sign in to YouTube Music';
     if (tabs && tabs.style) tabs.style.display = 'flex';
@@ -1979,6 +2195,10 @@ async function openBrowseDetail(browseId, title = 'Album', cover = '', subtitle 
           browseId,
           title: detail.title || title,
           subtitle: detail.subtitle || subtitle,
+          secondSubtitle: detail.secondSubtitle || '',
+          trackCount: detail.trackCount || (detail.songs ? detail.songs.length : 0),
+          duration: detail.duration || 0,
+          durationStr: detail.durationStr || '',
           cover: detail.cover || cover,
           songs: detail.songs || [],
           isLoading: false
@@ -2014,9 +2234,13 @@ function renderBrowseDetailView(container) {
     return;
   }
 
-  const { title, subtitle, cover, songs, isLoading } = activeBrowseDetail;
+  const { title, subtitle, secondSubtitle, trackCount, durationStr, cover, songs, isLoading } = activeBrowseDetail;
   const safeTitle = escapeHTML(title);
-  const safeSubtitle = escapeHTML(subtitle);
+  const count = trackCount || (songs ? songs.length : 0);
+  const totalSec = songs && songs.length > 0 ? songs.reduce((acc, s) => acc + (s.duration || 0), 0) : 0;
+  const computedDur = durationStr || (totalSec > 0 ? formatTime(totalSec) : '');
+  const metaDetail = secondSubtitle || (count > 0 ? `${count} song${count === 1 ? '' : 's'}${computedDur ? ` • ${computedDur}` : ''}` : '');
+  const safeSubtitle = escapeHTML(subtitle + (metaDetail ? ` • ${metaDetail}` : ''));
   const safeCover = escapeHTML(cover || '../../assets/icon.png');
 
   container.innerHTML = `
@@ -4504,7 +4728,18 @@ function tick() {
     }
   }
 
+  // 30s Periodic Watchtime Ping (BitChord PlaybackTracker.kt)
+  const curSec = Math.floor(currentTime);
+  if (currentCpn && track.videoId && isPlaying && (curSec - lastReportedWatchSeconds >= 30)) {
+    lastReportedWatchSeconds = curSec;
+    const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+    if (api?.trackPlayback) {
+      api.trackPlayback({ videoId: track.videoId, cpn: currentCpn, state: 'watchtime', seconds: curSec }).catch(() => {});
+    }
+  }
+
   if (currentTime >= track.duration) {
+    sendFinalWatchtimePing();
     if (sleepMode === 'track') {
       cancelPreviewSleepTimer();
       triggerPreviewSleepPause();
@@ -5058,6 +5293,7 @@ function updateDynamicPipeline(source) {
   const bitrateEl = document.getElementById('pipeline-bitrate');
   const rateEl = document.getElementById('pipeline-samplerate');
   const tierEl = document.getElementById('pipeline-tier');
+  const channelsEl = document.getElementById('pipeline-channels');
 
   const track = CATALOGUE_TRACKS[currentIndex];
   if (isDirectStreamPlaying && dejaAudio) {
@@ -5072,6 +5308,7 @@ function updateDynamicPipeline(source) {
     if (codecEl) codecEl.innerText = currentStreamMeta?.mimeType || 'Opus / WebM (Native HTML5 Stream)';
     if (bitrateEl) bitrateEl.innerText = currentStreamMeta?.bitrate ? `${Math.round(currentStreamMeta.bitrate / 1000)} kbps` : '160 kbps';
     if (rateEl) rateEl.innerText = `${audioContext?.sampleRate || 48000} Hz`;
+    if (channelsEl) channelsEl.innerText = `${currentStreamMeta?.audioChannels || 2}.0 Stereo • 16-bit PCM`;
     if (tierEl) tierEl.innerText = 'BitChord Direct Stream (Native HTML5)';
   } else if (source && typeof source.getVideoLoadedFraction === 'function' && isYtPlaying) {
     const frac = source.getVideoLoadedFraction() || 0;
@@ -5080,12 +5317,14 @@ function updateDynamicPipeline(source) {
     if (codecEl) codecEl.innerText = 'Opus (audio/webm)';
     if (bitrateEl) bitrateEl.innerText = '160 kbps';
     if (rateEl) rateEl.innerText = '48.0 kHz';
+    if (channelsEl) channelsEl.innerText = '2.0 Stereo • 16-bit';
     if (tierEl) tierEl.innerText = 'BitChord Standard (160k Opus)';
   } else {
     if (bufferEl) bufferEl.innerText = '18.4s forward buffer (synthesizer sink)';
     if (codecEl) codecEl.innerText = 'PCM Float32 (Web Audio API sink)';
     if (bitrateEl) bitrateEl.innerText = '1411 kbps (Lossless Synth)';
     if (rateEl) rateEl.innerText = `${audioContext?.sampleRate || 48000} Hz`;
+    if (channelsEl) channelsEl.innerText = '2.0 Stereo • 24-bit Studio';
     if (tierEl) tierEl.innerText = 'Native Studio Reference';
   }
 }
@@ -5135,24 +5374,41 @@ function ensureAudioGraph() {
     masterGain = audioContext.createGain();
     masterGain.gain.setValueAtTime(currentVolume * 0.2, audioContext.currentTime);
 
-    // 5-Band BiquadFilterNodes (GraphicEq)
-    bassFilter = audioContext.createBiquadFilter();
-    bassFilter.type = 'lowshelf';
-    bassFilter.frequency.setValueAtTime(120, audioContext.currentTime);
+    // 5-Band BiquadFilterNodes (GraphicEq) matching BitChord 5-Band architecture
+    eqFilter60 = audioContext.createBiquadFilter();
+    eqFilter60.type = 'lowshelf';
+    eqFilter60.frequency.setValueAtTime(60, audioContext.currentTime);
 
-    midFilter = audioContext.createBiquadFilter();
-    midFilter.type = 'peaking';
-    midFilter.frequency.setValueAtTime(1000, audioContext.currentTime);
-    midFilter.Q.setValueAtTime(1.0, audioContext.currentTime);
+    eqFilter250 = audioContext.createBiquadFilter();
+    eqFilter250.type = 'peaking';
+    eqFilter250.frequency.setValueAtTime(250, audioContext.currentTime);
+    eqFilter250.Q.setValueAtTime(1.0, audioContext.currentTime);
 
-    trebleFilter = audioContext.createBiquadFilter();
-    trebleFilter.type = 'highshelf';
-    trebleFilter.frequency.setValueAtTime(4500, audioContext.currentTime);
+    eqFilter1k = audioContext.createBiquadFilter();
+    eqFilter1k.type = 'peaking';
+    eqFilter1k.frequency.setValueAtTime(1000, audioContext.currentTime);
+    eqFilter1k.Q.setValueAtTime(1.0, audioContext.currentTime);
 
-    // Connect Graph: Filter Chain -> Master Gain -> Destination
-    bassFilter.connect(midFilter);
-    midFilter.connect(trebleFilter);
-    trebleFilter.connect(masterGain);
+    eqFilter4k = audioContext.createBiquadFilter();
+    eqFilter4k.type = 'peaking';
+    eqFilter4k.frequency.setValueAtTime(4000, audioContext.currentTime);
+    eqFilter4k.Q.setValueAtTime(1.0, audioContext.currentTime);
+
+    eqFilter12k = audioContext.createBiquadFilter();
+    eqFilter12k.type = 'highshelf';
+    eqFilter12k.frequency.setValueAtTime(12000, audioContext.currentTime);
+
+    // Backward compatible references
+    bassFilter = eqFilter60;
+    midFilter = eqFilter1k;
+    trebleFilter = eqFilter12k;
+
+    // Connect Graph: 60Hz -> 250Hz -> 1kHz -> 4kHz -> 12kHz -> Master Gain -> Destination
+    eqFilter60.connect(eqFilter250);
+    eqFilter250.connect(eqFilter1k);
+    eqFilter1k.connect(eqFilter4k);
+    eqFilter4k.connect(eqFilter12k);
+    eqFilter12k.connect(masterGain);
     masterGain.connect(audioContext.destination);
 
     // Apply active EQ Preset
@@ -5188,10 +5444,18 @@ function applyEqPreset(presetName) {
   currentEqPreset = presetName;
   const config = EQ_PRESETS[presetName] || EQ_PRESETS['Flat'];
 
-  if (bassFilter && midFilter && trebleFilter && audioContext) {
-    bassFilter.gain.setTargetAtTime(config.bass, audioContext.currentTime, 0.1);
-    midFilter.gain.setTargetAtTime(config.mid, audioContext.currentTime, 0.1);
-    trebleFilter.gain.setTargetAtTime(config.treble, audioContext.currentTime, 0.1);
+  if (audioContext) {
+    const gain60 = config.b60 !== undefined ? config.b60 : config.bass;
+    const gain250 = config.b250 !== undefined ? config.b250 : ((config.bass + config.mid) / 2);
+    const gain1k = config.b1k !== undefined ? config.b1k : config.mid;
+    const gain4k = config.b4k !== undefined ? config.b4k : ((config.mid + config.treble) / 2);
+    const gain12k = config.b12k !== undefined ? config.b12k : config.treble;
+
+    if (eqFilter60) eqFilter60.gain.setTargetAtTime(gain60, audioContext.currentTime, 0.1);
+    if (eqFilter250) eqFilter250.gain.setTargetAtTime(gain250, audioContext.currentTime, 0.1);
+    if (eqFilter1k) eqFilter1k.gain.setTargetAtTime(gain1k, audioContext.currentTime, 0.1);
+    if (eqFilter4k) eqFilter4k.gain.setTargetAtTime(gain4k, audioContext.currentTime, 0.1);
+    if (eqFilter12k) eqFilter12k.gain.setTargetAtTime(gain12k, audioContext.currentTime, 0.1);
   }
 
   const status = document.getElementById('eq-status-text');
@@ -5278,11 +5542,7 @@ function updateSleepUI() {
 function openPipelineModal() {
   const modal = document.getElementById('pipeline-modal');
   if (modal) {
-    const bufferEl = document.getElementById('pipeline-buffer');
-    if (bufferEl) {
-      const buf = (16 + Math.random() * 6).toFixed(1);
-      bufferEl.innerText = `${buf}s forward buffer`;
-    }
+    updateDynamicPipeline(isDirectStreamPlaying ? dejaAudio : ytPlayer);
     modal.style.display = 'flex';
   }
 }
@@ -5801,6 +6061,11 @@ function setupEvents() {
   const btnSwitchChannel = document.getElementById('btn-switch-channel');
   if (btnSwitchChannel) {
     btnSwitchChannel.onclick = async () => {
+      const channelsListEl = document.getElementById('account-channels-list');
+      if (channelsListEl && liveAccount?.channels && liveAccount.channels.length > 1) {
+        channelsListEl.style.display = (channelsListEl.style.display === 'none' || !channelsListEl.style.display) ? 'flex' : 'none';
+        return;
+      }
       const api = window.dejaAPI || window.sonoraAPI;
       if (api?.openGoogleLogin) {
         await api.openGoogleLogin('switch-channel');
@@ -6217,6 +6482,11 @@ if (typeof module !== 'undefined' && module.exports) {
     openArtistDetail,
     renderArtistDetailView,
     openArtistItem,
-    filterByGenre
+    filterByGenre,
+    deriveTrackPalette,
+    extractPaletteFromImage,
+    hslToRgb,
+    generateCpn,
+    sendFinalWatchtimePing
   };
 }

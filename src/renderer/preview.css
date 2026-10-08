@@ -1321,6 +1321,7 @@ body.deja-playing .artwork-wrapper {
   left: 15%;
   background: var(--deja-aura-c1, #FA2D48);
   opacity: 0.35;
+  animation: blobFloat 14s ease-in-out infinite alternate;
 }
 
 .mesh-blob.blob-2 {
@@ -1330,6 +1331,7 @@ body.deja-playing .artwork-wrapper {
   right: 10%;
   background: var(--deja-aura-c2, #8A2BE2);
   opacity: 0.30;
+  animation: blobFloat 18s ease-in-out infinite alternate-reverse;
 }
 
 .mesh-blob.blob-3 {
@@ -1339,6 +1341,7 @@ body.deja-playing .artwork-wrapper {
   left: 18%;
   background: var(--deja-aura-c3, #007AFF);
   opacity: 0.28;
+  animation: blobFloat 16s ease-in-out infinite alternate;
 }
 
 .mesh-blob.blob-4 {
@@ -1348,6 +1351,7 @@ body.deja-playing .artwork-wrapper {
   right: 15%;
   background: var(--deja-aura-c4, #FF9500);
   opacity: 0.28;
+  animation: blobFloat 20s ease-in-out infinite alternate-reverse;
 }
 
 @keyframes blobFloat {
@@ -1513,6 +1517,7 @@ body.deja-playing #now-playing-art-wrap,
 body.deja-playing .now-playing-art-wrap,
 .deja-expanded-player-view.is-playing .now-playing-art-wrap {
   transform: scale(1.03);
+  animation: dejaArtworkBreathing 4s ease-in-out infinite alternate;
   box-shadow: 0 24px 70px -10px rgba(0, 0, 0, 0.85),
               0 0 50px var(--apple-accent-glow),
               0 0 90px rgba(var(--deja-aura-r, 250), var(--deja-aura-g, 45), var(--deja-aura-b, 72), 0.28);
@@ -3530,4 +3535,79 @@ body,
   position: relative;
   z-index: 1;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+/* Account Channels Switcher List (BitChord Architecture) */
+.account-channels-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.account-channel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid transparent;
+}
+
+.account-channel-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.account-channel-row.active {
+  background: rgba(250, 45, 72, 0.12);
+  border-color: rgba(250, 45, 72, 0.3);
+}
+
+.account-channel-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.account-channel-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.account-channel-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-channel-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-channel-check {
+  color: var(--apple-accent, #FA2D48);
+  font-weight: 700;
+  font-size: 14px;
 }

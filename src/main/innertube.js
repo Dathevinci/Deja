@@ -449,16 +449,23 @@ async function getBrowseContinuation(token, ses) {
 }
 
 /**
- * Extracts pageId and datasyncIdToken from account menu or account list data.
- * Matches BitChord parseAccountChannels logic.
+ * Parses all available account channels from account switcher or account menu responses.
+ * Exactly matches BitChord InnertubeParser.parseAccountChannels architecture:
+ * - Scans for accountItem renderers across the response tree
+ * - Extracts accountName, channelHandle, accountByline, accountPhoto thumbnails
+ * - Extracts pageId (for delegated brand accounts) and datasyncIdToken (normalized)
+ * - Identifies isSelected active state
+ * - Drops entries with neither pageId nor dataSyncId (unselectable)
+ * - Deduplicates profiles by unique identity key
  */
-function extractIdentityTokensFromAccountMenu(root) {
-  let pageId = null;
-  let dataSyncId = null;
+function parseAccountChannels(root) {
+  if (!root || typeof root !== 'object') return [];
+  const channels = [];
+  const seenKeys = new Set();
 
   function findStringVal(obj, key) {
     if (!obj || typeof obj !== 'object') return null;
-    if (obj[key]) {
+    if (obj[key] !== undefined && obj[key] !== null) {
       if (typeof obj[key] === 'string') return obj[key];
       if (typeof obj[key] === 'object' && obj[key][key] && typeof obj[key][key] === 'string') {
         return obj[key][key];
@@ -467,10 +474,20 @@ function extractIdentityTokensFromAccountMenu(root) {
     for (const v of Object.values(obj)) {
       if (v && typeof v === 'object') {
         const found = findStringVal(v, key);
-        if (found) return found;
+        if (found !== null) return found;
       }
     }
     return null;
+  }
+
+  function getText(obj) {
+    if (!obj) return '';
+    if (typeof obj === 'string') return obj.trim();
+    if (Array.isArray(obj.runs)) {
+      return obj.runs.map(r => r.text || '').join('').trim();
+    }
+    if (obj.simpleText) return String(obj.simpleText).trim();
+    return '';
   }
 
   function walk(node) {
@@ -480,26 +497,43 @@ function extractIdentityTokensFromAccountMenu(root) {
       return;
     }
 
-    const item = node.accountItem || node.accountItemRenderer || node.activeAccountHeaderRenderer;
-    if (item) {
-      const pId = findStringVal(item, 'pageId');
-      const dToken = findStringVal(item, 'datasyncIdToken');
-      if (pId && !pageId) pageId = pId.trim();
-      if (dToken && !dataSyncId) {
-        const norm = normalizeDataSyncId(dToken);
-        if (norm) dataSyncId = norm;
-      }
-    }
+    if (node.accountItem || node.accountItemRenderer) {
+      const item = node.accountItem || node.accountItemRenderer;
+      const name = getText(item.accountName);
+      if (name) {
+        const subtitle = getText(item.channelHandle) ||
+                         getText(item.accountByline) ||
+                         getText(item.email) || '';
+        const thumbs = item.accountPhoto?.thumbnails || item.avatar?.thumbnails || item.thumbnail?.thumbnails || [];
+        const thumbnailUrl = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
 
-    if (!pageId && node.pageId && typeof node.pageId === 'string') {
-      pageId = node.pageId.trim();
-    }
-    if (!dataSyncId && node.datasyncIdToken) {
-      const token = typeof node.datasyncIdToken === 'string'
-        ? node.datasyncIdToken
-        : (node.datasyncIdToken.datasyncIdToken || findStringVal(node.datasyncIdToken, 'datasyncIdToken'));
-      const norm = normalizeDataSyncId(token);
-      if (norm) dataSyncId = norm;
+        const rawPageId = findStringVal(item, 'pageId');
+        const pageId = rawPageId ? String(rawPageId).trim() : null;
+
+        const rawDataSync = findStringVal(item, 'datasyncIdToken');
+        const dataSyncId = rawDataSync ? normalizeDataSyncId(String(rawDataSync)) : null;
+
+        if (pageId !== null || dataSyncId !== null) {
+          const isSelected = item.isSelected === true ||
+                             item.isSelected === 'true' ||
+                             (item.isSelected && item.isSelected.content === 'true');
+          const key = pageId ? `page:${pageId}` : `sync:${dataSyncId}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            channels.push({
+              name,
+              subtitle,
+              handle: subtitle,
+              thumbnailUrl,
+              photoUrl: thumbnailUrl,
+              pageId,
+              dataSyncId,
+              activeOnWeb: Boolean(isSelected),
+              isSelected: Boolean(isSelected)
+            });
+          }
+        }
+      }
     }
 
     for (const val of Object.values(node)) {
@@ -508,7 +542,20 @@ function extractIdentityTokensFromAccountMenu(root) {
   }
 
   walk(root);
-  return { pageId, dataSyncId };
+  return channels;
+}
+
+/**
+ * Extracts pageId and datasyncIdToken from account menu or account list data.
+ * Matches BitChord parseAccountChannels logic.
+ */
+function extractIdentityTokensFromAccountMenu(root) {
+  const channels = parseAccountChannels(root);
+  const active = channels.find(c => c.isSelected || c.activeOnWeb) || channels[0];
+  if (active) {
+    return { pageId: active.pageId, dataSyncId: active.dataSyncId };
+  }
+  return { pageId: null, dataSyncId: null };
 }
 
 /**
@@ -521,7 +568,7 @@ async function getAccountInfo(ses) {
     }
     const { isLoggedIn } = await getAuthContext(ses);
     if (!isLoggedIn) {
-      return { isLoggedIn: false };
+      return { isLoggedIn: false, channels: [] };
     }
 
     const data = await postMusic('account/account_menu', {}, ses);
@@ -557,13 +604,35 @@ async function getAccountInfo(ses) {
     }
     walk(data);
 
-    // Extract identity tokens from account menu (BitChord architecture)
+    // Extract channels and identity tokens from account menu (BitChord architecture)
+    const channels = parseAccountChannels(data);
     const tokens = extractIdentityTokensFromAccountMenu(data);
     if (tokens.pageId && !currentSessionScope.pageId) {
       currentSessionScope.pageId = tokens.pageId;
     }
     if (tokens.dataSyncId && !currentSessionScope.dataSyncId) {
       currentSessionScope.dataSyncId = tokens.dataSyncId;
+    }
+
+    // Ensure active channel state reflects currentSessionScope
+    if (channels.length > 0) {
+      channels.forEach(ch => {
+        ch.isSelected = currentSessionScope.pageId
+          ? ch.pageId === currentSessionScope.pageId
+          : Boolean(ch.activeOnWeb || (!ch.pageId && ch.dataSyncId === currentSessionScope.dataSyncId));
+      });
+    } else {
+      channels.push({
+        name,
+        subtitle: handle,
+        handle,
+        thumbnailUrl: avatarUrl,
+        photoUrl: avatarUrl,
+        pageId: currentSessionScope.pageId,
+        dataSyncId: currentSessionScope.dataSyncId,
+        activeOnWeb: true,
+        isSelected: true
+      });
     }
 
     return {
@@ -575,7 +644,8 @@ async function getAccountInfo(ses) {
       photoUrl: avatarUrl,
       pageId: currentSessionScope.pageId,
       dataSyncId: currentSessionScope.dataSyncId,
-      authUser: currentSessionScope.authUser
+      authUser: currentSessionScope.authUser,
+      channels
     };
   } catch (err) {
     console.warn('[InnerTube] getAccountInfo error:', err.message);
@@ -590,7 +660,18 @@ async function getAccountInfo(ses) {
         photoUrl: '',
         pageId: currentSessionScope.pageId,
         dataSyncId: currentSessionScope.dataSyncId,
-        authUser: currentSessionScope.authUser
+        authUser: currentSessionScope.authUser,
+        channels: [{
+          name: 'Google User',
+          subtitle: '@user',
+          handle: '@user',
+          thumbnailUrl: '',
+          photoUrl: '',
+          pageId: currentSessionScope.pageId,
+          dataSyncId: currentSessionScope.dataSyncId,
+          activeOnWeb: true,
+          isSelected: true
+        }]
       };
     }
     return {
@@ -602,7 +683,8 @@ async function getAccountInfo(ses) {
       photoUrl: '',
       pageId: null,
       dataSyncId: null,
-      authUser: '0'
+      authUser: '0',
+      channels: []
     };
   }
 }
@@ -842,22 +924,48 @@ async function getLibraryPlaylists(ses) {
 
   return playlists;
 }
-
 /**
  * Fetches user's saved albums from library (FEmusic_liked_albums).
+ * Supports continuation token paging for complete library retrieval.
  */
 async function getLibraryAlbums(ses) {
+  const albums = [];
+  const seen = new Set();
+  const addItems = (items) => {
+    if (!Array.isArray(items)) return;
+    for (const it of items) {
+      const key = it.browseId || it.playlistId || it.id || it.title;
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        albums.push(it);
+      }
+    }
+  };
+
   try {
     const data = await postMusic('browse', { browseId: 'FEmusic_liked_albums' }, ses);
-    return parseLibraryPlaylistsResponse(data);
+    if (!data) return [];
+    addItems(parseLibraryPlaylistsResponse(data));
+
+    let token = extractContinuationToken(data);
+    let page = 1;
+    while (token && page < 10) {
+      page++;
+      const contData = await getBrowseContinuation(token, ses);
+      if (!contData) break;
+      addItems(parseLibraryPlaylistsResponse(contData));
+      token = extractContinuationToken(contData);
+    }
+    return albums;
   } catch (err) {
     console.warn('[InnerTube] getLibraryAlbums notice:', err.message);
-    return [];
+    return albums;
   }
 }
 
 /**
  * Fetches user's subscribed artists from library.
+ * Paginates both library corpus endpoints via continuations.
  */
 async function getLibraryArtists(ses) {
   const artists = [];
@@ -872,14 +980,29 @@ async function getLibraryArtists(ses) {
       }
     }
   };
-  try {
-    const data = await postMusic('browse', { browseId: 'FEmusic_library_corpus_track_artists' }, ses);
-    addItems(parseLibraryPlaylistsResponse(data));
-  } catch {}
-  try {
-    const data = await postMusic('browse', { browseId: 'FEmusic_library_corpus_artists' }, ses);
-    addItems(parseLibraryPlaylistsResponse(data));
-  } catch {}
+
+  async function fetchArtistFeedWithContinuations(browseId) {
+    try {
+      const data = await postMusic('browse', { browseId }, ses);
+      if (!data) return;
+      addItems(parseLibraryPlaylistsResponse(data));
+
+      let token = extractContinuationToken(data);
+      let page = 1;
+      while (token && page < 10) {
+        page++;
+        const contData = await getBrowseContinuation(token, ses);
+        if (!contData) break;
+        addItems(parseLibraryPlaylistsResponse(contData));
+        token = extractContinuationToken(contData);
+      }
+    } catch {}
+  }
+
+  await Promise.allSettled([
+    fetchArtistFeedWithContinuations('FEmusic_library_corpus_track_artists'),
+    fetchArtistFeedWithContinuations('FEmusic_library_corpus_artists')
+  ]);
   return artists;
 }
 
@@ -1029,11 +1152,32 @@ async function getArtist(browseId, ses) {
 
 /**
  * User YouTube Music History / Recently Played (FEmusic_history).
+ * Supports continuation token pagination for complete playback history.
  */
 async function getHistory(ses) {
   try {
     const data = await postMusic('browse', { browseId: 'FEmusic_history' }, ses);
-    return parseHistoryResponse(data);
+    if (!data) return { songs: [] };
+    const res = parseHistoryResponse(data);
+    const songs = Array.isArray(res?.songs) ? [...res.songs] : [];
+
+    let token = extractContinuationToken(data);
+    let page = 1;
+    while (token && page < 10) {
+      page++;
+      const contData = await getBrowseContinuation(token, ses);
+      if (!contData) break;
+      const contRes = parseHistoryResponse(contData);
+      if (contRes && Array.isArray(contRes.songs)) {
+        for (const s of contRes.songs) {
+          if (!songs.some(existing => existing.videoId === s.videoId)) {
+            songs.push(s);
+          }
+        }
+      }
+      token = extractContinuationToken(contData);
+    }
+    return { songs };
   } catch (err) {
     console.warn('[InnerTube] getHistory error:', err.message);
     return { songs: [] };
@@ -1053,30 +1197,46 @@ async function getMoodsAndGenres(ses) {
   }
 }
 
+// In-memory cache for playback tracking endpoints to prevent redundant /player requests
+const playbackTrackingCache = new Map();
+
 /**
  * Registers plays against Google / YouTube Music playback history (BitChord PlaybackTracker.kt).
  * Three pings: videostatsPlaybackUrl, atrUrl, and videostatsWatchtimeUrl.
+ * Supports persistent cpn, 30s watchtime intervals, and final watchtime pings.
  */
 async function trackPlayback(payload, ses) {
   if (!payload || !payload.videoId) return false;
   const { videoId, cpn, state, seconds } = payload;
+  const isFinal = Boolean(payload.final);
   try {
     const { isLoggedIn, cookieStr } = await getAuthContext(ses);
     if (!isLoggedIn || !cookieStr) return false;
 
-    const data = await postMusic('player', {
-      videoId,
-      contentCheckOk: true,
-      racyCheckOk: true,
-      playbackContext: {
-        contentPlaybackContext: {
-          html5Preference: 'HTML5_PREF_WANTS',
-          referer: `${MUSIC_ORIGIN}/watch?v=${videoId}`
+    let tracking = playbackTrackingCache.get(videoId);
+    if (!tracking) {
+      const data = await postMusic('player', {
+        videoId,
+        contentCheckOk: true,
+        racyCheckOk: true,
+        playbackContext: {
+          contentPlaybackContext: {
+            html5Preference: 'HTML5_PREF_WANTS',
+            referer: `${MUSIC_ORIGIN}/watch?v=${videoId}`
+          }
+        }
+      }, ses);
+
+      tracking = data?.playbackTracking;
+      if (tracking) {
+        playbackTrackingCache.set(videoId, tracking);
+        if (playbackTrackingCache.size > 50) {
+          const firstKey = playbackTrackingCache.keys().next().value;
+          playbackTrackingCache.delete(firstKey);
         }
       }
-    }, ses);
+    }
 
-    const tracking = data?.playbackTracking;
     if (!tracking) return false;
 
     const playbackUrl = tracking.videostatsPlaybackUrl?.baseUrl;
@@ -1110,7 +1270,9 @@ async function trackPlayback(payload, ses) {
         setTimeout(() => ping(atrUrl), 5000);
       }
     } else if (state === 'watchtime' && watchtimeUrl) {
-      await ping(watchtimeUrl, { state: 'playing', ctime: seconds || 0 });
+      const extraParams = { state: 'playing', ctime: seconds || 0 };
+      if (isFinal) extraParams.final = '1';
+      await ping(watchtimeUrl, extraParams);
     }
     return true;
   } catch (err) {
@@ -1234,6 +1396,7 @@ function parseExploreResponse(data) {
 function parsePlaylistResponse(data, browseId) {
   let title = 'Playlist';
   let subtitle = 'YouTube Music';
+  let secondSubtitle = '';
   let cover = '';
   const songs = [];
 
@@ -1244,6 +1407,9 @@ function parsePlaylistResponse(data, browseId) {
       const h = node.musicResponsiveHeaderRenderer;
       title = h.title?.runs?.map(x => x.text).join('') || h.title?.simpleText || h.title?.runs?.[0]?.text || title;
       subtitle = h.subtitle?.runs?.map(x => x.text).join('') || h.subtitle?.simpleText || subtitle;
+      const sSub = h.secondSubtitle?.runs?.map(x => x.text).join('') || h.secondSubtitle?.simpleText ||
+                   h.straplineTextOne?.runs?.map(x => x.text).join('') || h.straplineTextOne?.simpleText || '';
+      if (sSub) secondSubtitle = sSub;
       const thumbs = h.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || h.thumbnail?.thumbnails || [];
       if (thumbs.length > 0) cover = thumbs[thumbs.length - 1].url;
       return;
@@ -1253,6 +1419,9 @@ function parsePlaylistResponse(data, browseId) {
       if (h) {
         title = h.title?.runs?.map(x => x.text).join('') || h.title?.simpleText || h.title?.runs?.[0]?.text || title;
         subtitle = h.subtitle?.runs?.map(x => x.text).join('') || h.subtitle?.simpleText || subtitle;
+        const sSub = h.secondSubtitle?.runs?.map(x => x.text).join('') || h.secondSubtitle?.simpleText ||
+                     h.straplineTextOne?.runs?.map(x => x.text).join('') || h.straplineTextOne?.simpleText || '';
+        if (sSub) secondSubtitle = sSub;
         const thumbs = h.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || h.thumbnail?.thumbnails || [];
         if (thumbs.length > 0) cover = thumbs[thumbs.length - 1].url;
         return;
@@ -1262,6 +1431,8 @@ function parsePlaylistResponse(data, browseId) {
       const h = node.musicHeaderRenderer;
       title = h.title?.runs?.map(x => x.text).join('') || h.title?.simpleText || title;
       subtitle = h.subtitle?.runs?.map(x => x.text).join('') || subtitle;
+      const sSub = h.secondSubtitle?.runs?.map(x => x.text).join('') || h.secondSubtitle?.simpleText || '';
+      if (sSub) secondSubtitle = sSub;
       const thumbs = h.thumbnail?.thumbnails || [];
       if (thumbs.length > 0) cover = thumbs[thumbs.length - 1].url;
       return;
@@ -1309,10 +1480,23 @@ function parsePlaylistResponse(data, browseId) {
   }
   walk(data);
 
+  const trackCount = songs.length;
+  const totalSeconds = songs.reduce((sum, s) => sum + (s.duration || 0), 0);
+  const duration = totalSeconds;
+  const durationMinutes = Math.floor(totalSeconds / 60);
+  const durationRemainder = totalSeconds % 60;
+  const durationStr = totalSeconds >= 3600
+    ? `${Math.floor(totalSeconds / 3600)} hr ${Math.floor((totalSeconds % 3600) / 60)} min`
+    : `${durationMinutes}:${durationRemainder < 10 ? '0' : ''}${durationRemainder}`;
+
   return {
     browseId,
     title,
     subtitle,
+    secondSubtitle: secondSubtitle || (trackCount > 0 ? `${trackCount} songs • ${durationStr}` : ''),
+    trackCount,
+    duration,
+    durationStr,
     cover,
     songs
   };
@@ -2798,5 +2982,7 @@ module.exports = {
   parseHistoryResponse,
   getMoodsAndGenres,
   parseMoodsAndGenresResponse,
-  trackPlayback
+  trackPlayback,
+  parseAccountChannels,
+  parsePlaylistResponse
 };

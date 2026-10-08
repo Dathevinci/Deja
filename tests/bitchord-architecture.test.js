@@ -1086,6 +1086,192 @@ function runBitChordArchitectureTests() {
   // 9.12 Verify Playback Tracker Protocol (BitChord PlaybackTracker.kt)
   assert.strictEqual(typeof innertube.trackPlayback, 'function', 'innertube must export trackPlayback');
 
+  // 9.13 Verify BitChord Account Channel Switcher Architecture (AccountChannelTest.kt)
+  assert.strictEqual(typeof innertube.parseAccountChannels, 'function', 'innertube must export parseAccountChannels');
+  assert.ok(mainCode.includes("ipcMain.handle('yt-select-channel'"), 'main.js must provide yt-select-channel IPC handler');
+  assert.ok(preloadCode.includes('selectChannel:'), 'preload.js must expose selectChannel in dejaAPI');
+
+  // Test BitChord AccountChannelTest.kt fixtures
+  const SWITCHER_FIXTURE = {
+    data: {
+      actions: [{
+        getMultiPageMenuAction: {
+          menu: {
+            multiPageMenuRenderer: {
+              sections: [{
+                accountSectionListRenderer: {
+                  contents: [{
+                    accountItemSectionRenderer: {
+                      contents: [
+                        {
+                          accountItem: {
+                            accountName: { simpleText: 'Ada Lovelace' },
+                            accountPhoto: { thumbnails: [{ url: 'https://x/s40', width: 40 }] },
+                            isSelected: true,
+                            channelHandle: { simpleText: '@ada' },
+                            serviceEndpoint: {
+                              selectActiveIdentityEndpoint: {
+                                supportedTokens: [
+                                  { accountSigninToken: { signinUrl: 'https://accounts.google.com/x' } },
+                                  { datasyncIdToken: { datasyncIdToken: 'SYNC_PERSONAL||SESSION_A' } }
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        {
+                          accountItem: {
+                            accountName: { runs: [{ text: 'Analytical Engine Radio' }] },
+                            accountPhoto: { thumbnails: [{ url: 'https://y/s40', width: 40 }] },
+                            isSelected: false,
+                            accountByline: { simpleText: 'Brand account' },
+                            serviceEndpoint: {
+                              selectActiveIdentityEndpoint: {
+                                supportedTokens: [
+                                  { pageIdToken: { pageId: '113355' } },
+                                  { datasyncIdToken: { datasyncIdToken: 'SYNC_BRAND||SESSION_B' } }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }]
+                }
+              }]
+            }
+          }
+        }
+      }]
+    }
+  };
+
+  const parsedChannels = innertube.parseAccountChannels(SWITCHER_FIXTURE);
+  assert.strictEqual(parsedChannels.length, 2, 'Must parse both personal and brand channels');
+  assert.strictEqual(parsedChannels[0].name, 'Ada Lovelace');
+  assert.strictEqual(parsedChannels[0].subtitle, '@ada');
+  assert.strictEqual(parsedChannels[0].pageId, null, 'Personal channel must not have pageId');
+  assert.strictEqual(parsedChannels[0].dataSyncId, 'SESSION_A');
+  assert.strictEqual(parsedChannels[0].isSelected, true);
+
+  assert.strictEqual(parsedChannels[1].name, 'Analytical Engine Radio');
+  assert.strictEqual(parsedChannels[1].pageId, '113355');
+  assert.strictEqual(parsedChannels[1].dataSyncId, 'SESSION_B');
+  assert.strictEqual(parsedChannels[1].isSelected, false);
+
+  // Shuffled tokens order test
+  const SHUFFLED_FIXTURE = {
+    contents: [{
+      accountItem: {
+        accountName: { simpleText: 'Analytical Engine Radio' },
+        serviceEndpoint: {
+          selectActiveIdentityEndpoint: {
+            supportedTokens: [
+              { offlineCacheKeyToken: { clientCacheKey: 'CACHE' } },
+              { datasyncIdToken: { datasyncIdToken: 'SYNC_BRAND||SESSION_B' } },
+              { pageIdToken: { pageId: '113355' } }
+            ]
+          }
+        }
+      }
+    }]
+  };
+  const shuffledChannels = innertube.parseAccountChannels(SHUFFLED_FIXTURE);
+  assert.strictEqual(shuffledChannels.length, 1);
+  assert.strictEqual(shuffledChannels[0].pageId, '113355');
+  assert.strictEqual(shuffledChannels[0].dataSyncId, 'SESSION_B');
+
+  // No tokens entry dropped test
+  const NO_TOKENS_FIXTURE = {
+    contents: [{
+      accountItem: {
+        accountName: { simpleText: 'Ada Lovelace' },
+        serviceEndpoint: { signalServiceEndpoint: { signal: 'CLIENT_SIGNAL' } }
+      }
+    }]
+  };
+  assert.strictEqual(innertube.parseAccountChannels(NO_TOKENS_FIXTURE).length, 0, 'Entry with no tokens must be dropped');
+  assert.strictEqual(innertube.parseAccountChannels({ responseContext: {}, contents: {} }).length, 0);
+
+  // 9.14 Verify Library & History Continuation Token Pagination Architecture
+  const innertubeCode = fs.readFileSync(path.join(__dirname, '../src/main/innertube.js'), 'utf8');
+  assert.ok(innertubeCode.includes('async function getLibraryAlbums(ses) {') && innertubeCode.includes('getBrowseContinuation(token, ses)'), 'getLibraryAlbums must implement continuation pagination');
+  assert.ok(innertubeCode.includes('async function getLibraryArtists(ses) {') && innertubeCode.includes('fetchArtistFeedWithContinuations'), 'getLibraryArtists must implement continuation pagination');
+  assert.ok(innertubeCode.includes('async function getHistory(ses) {') && innertubeCode.includes('getBrowseContinuation(token, ses)'), 'getHistory must implement continuation pagination');
+
+  // 9.15 Verify 5-Band Equalizer Presets & Biquad Filters
+  ['Flat', 'Bass Boost', 'Acoustic', 'Vocal Booster', 'Treble Booster'].forEach(preset => {
+    const p = EQ_PRESETS[preset];
+    assert.ok(p, `Preset ${preset} must exist`);
+    assert.strictEqual(typeof p.b60, 'number', `${preset} must have 60Hz band`);
+    assert.strictEqual(typeof p.b250, 'number', `${preset} must have 250Hz band`);
+    assert.strictEqual(typeof p.b1k, 'number', `${preset} must have 1kHz band`);
+    assert.strictEqual(typeof p.b4k, 'number', `${preset} must have 4kHz band`);
+    assert.strictEqual(typeof p.b12k, 'number', `${preset} must have 12kHz band`);
+  });
+  assert.ok(previewCode.includes('eqFilter60 = audioContext.createBiquadFilter()'), 'preview.js must instantiate 60Hz filter');
+  assert.ok(previewCode.includes('eqFilter250 = audioContext.createBiquadFilter()'), 'preview.js must instantiate 250Hz filter');
+  assert.ok(previewCode.includes('eqFilter1k = audioContext.createBiquadFilter()'), 'preview.js must instantiate 1kHz filter');
+  assert.ok(previewCode.includes('eqFilter4k = audioContext.createBiquadFilter()'), 'preview.js must instantiate 4kHz filter');
+  assert.ok(previewCode.includes('eqFilter12k = audioContext.createBiquadFilter()'), 'preview.js must instantiate 12kHz filter');
+
+  // 9.16 Verify Dynamic 4-Color Mesh Gradient Palette & Breathing Artwork Animations
+  assert.strictEqual(typeof previewModule.deriveTrackPalette, 'function', 'preview.js must export deriveTrackPalette');
+  const paletteA = previewModule.deriveTrackPalette('song-alpha-123');
+  const paletteB = previewModule.deriveTrackPalette('song-beta-789');
+  assert.ok(paletteA.c1 && paletteA.c2 && paletteA.c3 && paletteA.c4, 'Palette must contain 4 distinct aura gradient colors');
+  assert.notStrictEqual(paletteA.c1, paletteB.c1, 'Different tracks must have distinct dynamic palettes');
+
+  const liveItem1 = previewModule.createCatalogueItemFromLive({ videoId: 'track1', title: 'Song One' });
+  const liveItem2 = previewModule.createCatalogueItemFromLive({ videoId: 'track2', title: 'Song Two' });
+  assert.notStrictEqual(liveItem1.palette.c1, liveItem2.palette.c1, 'Live catalogue items must derive distinct dynamic palettes');
+
+  assert.ok(css.includes('.mesh-blob.blob-1') && css.includes('animation: blobFloat 14s ease-in-out infinite alternate'), 'CSS must attach blobFloat animation to blob-1');
+  assert.ok(css.includes('.mesh-blob.blob-2') && css.includes('animation: blobFloat 18s ease-in-out infinite alternate-reverse'), 'CSS must attach blobFloat animation to blob-2');
+  assert.ok(css.includes('body.deja-playing .expanded-artwork-container') && css.includes('animation: dejaArtworkBreathing 4s ease-in-out infinite alternate'), 'CSS must attach dejaArtworkBreathing animation to active artwork');
+  assert.ok(css.includes('.account-channels-list'), 'CSS must include styling for .account-channels-list');
+
+  // 9.17 Verify Album & Playlist Metadata (Track Count & Duration)
+  const mockPlaylistData = {
+    contents: {
+      twoColumnBrowseResultsRenderer: {
+        tabs: [{
+          tabRenderer: {
+            content: {
+              sectionListRenderer: {
+                contents: [{
+                  musicResponsiveHeaderRenderer: {
+                    title: { runs: [{ text: 'After Hours' }] },
+                    subtitle: { runs: [{ text: 'The Weeknd' }] },
+                    secondSubtitle: { runs: [{ text: '14 songs • 56 minutes' }] }
+                  }
+                }]
+              }
+            }
+          }
+        }]
+      }
+    }
+  };
+  const parsedPl = innertube.parsePlaylistResponse(mockPlaylistData, 'OLAK5uy_123');
+  assert.strictEqual(parsedPl.title, 'After Hours');
+  assert.strictEqual(parsedPl.secondSubtitle, '14 songs • 56 minutes');
+  assert.strictEqual(typeof parsedPl.trackCount, 'number');
+  assert.strictEqual(typeof parsedPl.duration, 'number');
+
+  // 9.18 Verify Measured Audio Pipeline Telemetry
+  assert.ok(!previewCode.includes('Math.random() * 6'), 'openPipelineModal must not use synthetic Math.random() telemetry');
+  assert.ok(previewCode.includes("const channelsEl = document.getElementById('pipeline-channels');"), 'updateDynamicPipeline must update pipeline-channels');
+
+  // 9.19 Verify Playback Tracking with 16-char Nonce & Watchtime
+  assert.strictEqual(typeof previewModule.generateCpn, 'function', 'preview.js must export generateCpn');
+  const cpnNonce = previewModule.generateCpn();
+  assert.strictEqual(cpnNonce.length, 16, 'CPN must be 16 characters long');
+  assert.ok(/^[a-zA-Z0-9_-]{16}$/.test(cpnNonce), 'CPN must be alphanumeric/url-safe');
+  assert.ok(previewCode.includes('sendFinalWatchtimePing'), 'preview.js must implement final watchtime ping');
+  assert.ok(previewCode.includes('lastReportedWatchSeconds >= 30'), 'preview.js must ping watchtime every 30 seconds');
+
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
 
