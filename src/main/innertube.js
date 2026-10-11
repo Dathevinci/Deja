@@ -2498,6 +2498,16 @@ function parseLrcString(lrcContent) {
   const wordStampRegex = /<(?:\d{1,3}):(?:\d{2})(?:[.:](?:\d{2,3}))?>/g;
   const result = [];
 
+  // Parse standard LRC [offset: +/-ms] tag (positive delays lyrics; negative advances them)
+  let fileOffsetSec = 0;
+  const offsetMatch = lrcContent.match(/\[offset:\s*([+-]?\d+)\s*\]/i);
+  if (offsetMatch) {
+    const offsetMs = parseInt(offsetMatch[1], 10);
+    if (!isNaN(offsetMs)) {
+      fileOffsetSec = offsetMs / 1000;
+    }
+  }
+
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
     if (!trimmed) continue;
@@ -2524,7 +2534,8 @@ function parseLrcString(lrcContent) {
           fractionMs = parseInt(match[3].slice(0, 3), 10);
         }
       }
-      const timeInSeconds = Math.round((minutes * 60 + seconds + fractionMs / 1000) * 100) / 100;
+      const rawTime = minutes * 60 + seconds + fractionMs / 1000;
+      const timeInSeconds = Math.max(0, Math.round((rawTime + fileOffsetSec) * 100) / 100);
       result.push({ time: timeInSeconds, text: displayText });
     }
   }

@@ -319,6 +319,22 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(parsedLate[0].text, '♪');
   assert.strictEqual(parsedLate[1].time, 8.5);
 
+  // Test [offset:xxx] standard LRC tag parsing (BitChord LyricsOffsetTest.kt parity)
+  const offsetPositiveLrc = `[offset: 500]\n[00:02.00]Line delayed by 500ms`;
+  const parsedOffsetPos = innertube.parseLrcString(offsetPositiveLrc);
+  assert.strictEqual(parsedOffsetPos.length, 1);
+  assert.strictEqual(parsedOffsetPos[0].time, 2.5, 'Positive offset must delay lyric timestamp by +0.5s');
+
+  const offsetNegativeLrc = `[offset: -300]\n[00:02.00]Line advanced by 300ms`;
+  const parsedOffsetNeg = innertube.parseLrcString(offsetNegativeLrc);
+  assert.strictEqual(parsedOffsetNeg.length, 1);
+  assert.strictEqual(parsedOffsetNeg[0].time, 1.7, 'Negative offset must advance lyric timestamp by -0.3s');
+
+  const offsetClampLrc = `[offset: -5000]\n[00:02.00]Line clamped to zero`;
+  const parsedOffsetClamp = innertube.parseLrcString(offsetClampLrc);
+  assert.strictEqual(parsedOffsetClamp.length, 1);
+  assert.strictEqual(parsedOffsetClamp[0].time, 0, 'Offset must never produce a negative timestamp');
+
   // 6.7 Preview Synced Lyrics Engine & Dynamic Clock Computation
   assert.strictEqual(typeof previewModule.parseLrcLines, 'function', 'previewModule must export parseLrcLines');
   assert.strictEqual(typeof previewModule.resolveSyncedLyrics, 'function', 'previewModule must export resolveSyncedLyrics');
@@ -331,6 +347,25 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(previewParsed.length, 3);
   assert.strictEqual(previewParsed[0].time, 0.72);
   assert.strictEqual(previewParsed[0].text, 'Fever dream high in the quiet of the night');
+
+  const previewOffsetParsed = previewModule.parseLrcLines('[offset: 600]\n[00:03.00]Preview offset line');
+  assert.strictEqual(previewOffsetParsed[0].time, 3.6, 'parseLrcLines must shift timestamps with [offset:xxx]');
+
+  // Test BitChord adjustedLyricsPosition & adjustedLyricsSeekTarget parity
+  assert.strictEqual(typeof previewModule.adjustedLyricsPosition, 'function');
+  assert.strictEqual(typeof previewModule.adjustedLyricsSeekTarget, 'function');
+  assert.strictEqual(typeof previewModule.formatLyricsOffset, 'function');
+  assert.strictEqual(typeof previewModule.nudgeLyricsOffset, 'function');
+
+  const baseCal = previewModule.BASELINE_ACOUSTIC_OFFSET || 0.20;
+  assert.strictEqual(previewModule.adjustedLyricsPosition(10.0, 0), Math.round((10.0 - baseCal) * 100) / 100);
+  assert.strictEqual(previewModule.adjustedLyricsPosition(10.0, 1.5), Math.round((10.0 - 1.5 - baseCal) * 100) / 100);
+  assert.strictEqual(previewModule.adjustedLyricsPosition(0.1, 1.5), 0, 'adjustedLyricsPosition never produces negative clock');
+  assert.strictEqual(previewModule.adjustedLyricsSeekTarget(10.0, 1.5), Math.round((10.0 + 1.5 + baseCal) * 100) / 100);
+
+  assert.strictEqual(previewModule.formatLyricsOffset(0), '0.0s');
+  assert.strictEqual(previewModule.formatLyricsOffset(0.5), '+0.5s');
+  assert.strictEqual(previewModule.formatLyricsOffset(-0.3), '-0.3s');
 
   // Verify dynamic active lyric calculation: timestamp <= currentTime < nextTimestamp
   const testLyrics = [

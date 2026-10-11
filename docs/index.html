@@ -75,11 +75,11 @@
       </p>
 
       <div class="hero-cta-group">
-        <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.0.0.exe" class="btn-ruby" id="btn-hero-download">
+        <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.0.0.exe" class="btn-ruby" id="btn-hero-download" title="Download standard Windows installer">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
           </svg>
-          <span>Download for Windows (.exe)</span>
+          <span>Download Deja Setup 1.0.0.exe</span>
         </a>
 
         <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.1.0.0.exe" class="btn-secondary" title="Portable zero-install standalone executable">
@@ -89,7 +89,7 @@
             <line x1="6" y1="6" x2="6.01" y2="6"></line>
             <line x1="6" y1="18" x2="6.01" y2="18"></line>
           </svg>
-          <span>Portable (.exe)</span>
+          <span>Download Deja 1.0.0.exe</span>
         </a>
 
         <button class="btn-secondary btn-open-android-modal" title="View Android development progress and roadmap">
@@ -236,7 +236,7 @@
   <!-- Feature Pillars -->
   <section class="features-section" id="features">
     <div class="container">
-      <div class="section-header-centered">
+      <div class="section-header-centered" id="architecture">
         <div class="section-tag">Core Architecture</div>
         <h2 class="section-title">Everything you love about Apple Music, powered by YouTube.</h2>
         <p class="section-description">
@@ -255,31 +255,19 @@
           </div>
           <h3 class="feature-card-title">BitChord Audio Engine</h3>
           <p class="feature-card-desc">
-            Direct 160kbps Opus stream resolution with real-time Stats for Nerds telemetry, buffer health metrics, and zero video decoding overhead.
+            Direct 160kbps Opus audio stream resolution without video decoding overhead, built on BitChord native InnerTube architecture.
           </p>
         </div>
 
         <div class="feature-card">
           <div class="feature-icon-wrap">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
             </svg>
           </div>
-          <h3 class="feature-card-title">1-Click Browser Sync</h3>
+          <h3 class="feature-card-title">Stats for Nerds Telemetry</h3>
           <p class="feature-card-desc">
-            Foolproof 1-click session import with Private Network Access (PNA) support. Safely connects your Google account in seconds without login blocks.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon-wrap">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-            </svg>
-          </div>
-          <h3 class="feature-card-title">Library & Playlist Sync</h3>
-          <p class="feature-card-desc">
-            Multi-feed retrieval for your created playlists, liked songs, albums, and library shelves with responsive continuation pagination.
+            Real-time audio telemetry tracking bitrate, Opus buffer health, loudness normalization, audio pipeline latency, and dropped frames.
           </p>
         </div>
 
@@ -289,23 +277,9 @@
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
           </div>
-          <h3 class="feature-card-title">Real-time Synced Lyrics</h3>
+          <h3 class="feature-card-title">3-Tier Synced Lyrics &amp; Offset Nudge</h3>
           <p class="feature-card-desc">
-            Millisecond-precision time-synced lyrics via LRCLIB open API with frosted glass blur, smooth auto-scroll, and interactive click-to-seek.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon-wrap">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
-              <path d="M2 12h20"></path>
-            </svg>
-          </div>
-          <h3 class="feature-card-title">Liquid Ambient Mesh</h3>
-          <p class="feature-card-desc">
-            Hardware-accelerated 4-color dynamic gradient derived from album artwork color palettes, creating a responsive glowing aura across the window.
+            LRCLIB millisecond lyrics with YouTube timed captions fallback, plus interactive timing offset calibration controls stored per-track.
           </p>
         </div>
 
@@ -317,9 +291,9 @@
               <line x1="6" y1="20" x2="6" y2="14"></line>
             </svg>
           </div>
-          <h3 class="feature-card-title">Web Audio Equalizer</h3>
+          <h3 class="feature-card-title">5-Band Studio Equalizer</h3>
           <p class="feature-card-desc">
-            5-band studio parametric equalizer with presets for Bass Boost, Acoustic, Vocal Booster, Treble Booster, and Flat audio profiles.
+            Hardware-accelerated Web Audio parametric equalizer with presets for Bass Boost, Acoustic, Vocal Booster, Treble Booster, and Flat profiles.
           </p>
         </div>
 
@@ -330,9 +304,60 @@
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
           </div>
-          <h3 class="feature-card-title">Discord RPC & Sleep Timer</h3>
+          <h3 class="feature-card-title">Sleep Timer with Fadeout</h3>
           <p class="feature-card-desc">
-            Rich Discord RPC broadcasting track details, artist, elapsed duration, and album artwork, paired with an audio fade-out sleep timer.
+            Automatic bedtime sleep timer with progressive acoustic volume fadeout for smooth, uninterrupted night-time listening.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+              <path d="M2 12h20"></path>
+            </svg>
+          </div>
+          <h3 class="feature-card-title">Dynamic 4-Color Mesh Aura</h3>
+          <p class="feature-card-desc">
+            GPU-rendered liquid mesh gradient derived dynamically from current album art palette colors, providing an immersive ambient glow.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+            </svg>
+          </div>
+          <h3 class="feature-card-title">1-Click Browser Sync with PNA</h3>
+          <p class="feature-card-desc">
+            Instant session transfer using Private Network Access (PNA). Safely imports your Google session from Chrome/Brave/Edge without login blocks.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <h3 class="feature-card-title">Multi-Account Profile Switcher</h3>
+          <p class="feature-card-desc">
+            Seamlessly switch between personal, brand, and family YouTube Music channels directly from the titlebar account menu.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <h3 class="feature-card-title">Library &amp; Playlist Sync</h3>
+          <p class="feature-card-desc">
+            Multi-feed synchronization for user playlists, liked songs, albums, and library shelves with continuation token pagination.
           </p>
         </div>
 
@@ -342,9 +367,9 @@
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
             </svg>
           </div>
-          <h3 class="feature-card-title">Google TOS Compliance</h3>
+          <h3 class="feature-card-title">Google TOS &amp; Ad Policy Compliance</h3>
           <p class="feature-card-desc">
-            Strict platform compliance: monetization ads are supported for free users, while YouTube Premium subscribers enjoy native ad-free playback.
+            Strict platform compliance: monetization ads are supported for free tiers, while YouTube Premium members enjoy native ad-free playback.
           </p>
         </div>
       </div>
@@ -356,28 +381,48 @@
     <div class="container" style="display:grid; grid-template-columns: 1fr 1fr; gap:48px; align-items:center;">
       <div class="showcase-content">
         <span class="showcase-badge">Interactive Lyrics</span>
-        <h2 class="showcase-title">Sing along with millisecond precision.</h2>
+        <h2 class="showcase-title">Sing along with millisecond precision &amp; offset calibration.</h2>
         <p class="showcase-text">
-          Deja queries LRCLIB using sanitized song metadata to provide time-synced lyrics with beautiful glowing active lines, gentle depth-of-field background blurs, and interactive click-to-seek.
+          Deja features a 3-tier synced lyrics engine querying LRCLIB open API, YouTube native timed transcript captions, and YouTube Music browse lyrics. Includes interactive on-the-fly timing offset calibration so you can fine-tune sync if a community track has lead or lag.
         </p>
         <ul class="showcase-bullets">
           <li class="showcase-bullet">
             <span class="bullet-icon">✓</span>
-            <span>Millisecond-accurate dynamic synchronization clock.</span>
+            <span>3-tier lyrics engine: LRCLIB millisecond sync, YouTube timed captions, and InnerTube browse.</span>
           </li>
           <li class="showcase-bullet">
             <span class="bullet-icon">✓</span>
-            <span>Click any lyric line to jump playback directly to that moment.</span>
+            <span>Timing offset nudge controls (−0.1s / +0.1s, −0.5s / +0.5s) stored per-track in localStorage.</span>
           </li>
           <li class="showcase-bullet">
             <span class="bullet-icon">✓</span>
-            <span>Automatic fallback to YouTube Music transcript captions.</span>
+            <span>Click any lyric line to jump playback directly to that moment with calibrated timing.</span>
+          </li>
+          <li class="showcase-bullet">
+            <span class="bullet-icon">✓</span>
+            <span>Frosted glass depth-of-field blur with glowing active line highlight.</span>
           </li>
         </ul>
       </div>
 
       <div class="showcase-visual">
         <div class="lyrics-box">
+          <div class="lyrics-demo-header">
+            <div class="lyrics-demo-track">
+              <span class="lyrics-track-title">Anti-Hero</span>
+              <span class="lyrics-track-artist">Taylor Swift · Midnights</span>
+            </div>
+            <div class="demo-offset-bar" title="Calibrate Lyrics Timing Offset">
+              <span class="demo-offset-label">Sync:</span>
+              <div class="demo-offset-pill">
+                <button class="demo-offset-btn" id="demo-offset-minus" title="Advance −0.1s">−</button>
+                <span class="demo-offset-badge" id="demo-offset-val" title="Click to reset (0.0s)">0.0s</span>
+                <button class="demo-offset-btn" id="demo-offset-plus" title="Delay +0.1s">+</button>
+              </div>
+              <button class="demo-offset-quick" id="demo-nudge-minus5" title="Advance −0.5s">−0.5s</button>
+              <button class="demo-offset-quick" id="demo-nudge-plus5" title="Delay +0.5s">+0.5s</button>
+            </div>
+          </div>
           <div class="lyric-line">I have this thing where I get older, but just never wiser</div>
           <div class="lyric-line">Midnights become my afternoons</div>
           <div class="lyric-line active">It's me, hi, I'm the problem, it's me</div>

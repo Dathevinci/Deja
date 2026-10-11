@@ -124,7 +124,87 @@ const LYRICS_STYLES = `
     display: flex;
     flex-direction: column;
     gap: 4px;
-    max-width: 80%;
+    max-width: 48%;
+  }
+  .deja-lyrics-offset-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    padding: 3px 8px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    user-select: none;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .deja-offset-label {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    font-weight: 500;
+    margin-right: 2px;
+  }
+  .deja-offset-controls {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 999px;
+    padding: 2px 4px;
+    gap: 4px;
+  }
+  .deja-offset-btn {
+    background: transparent;
+    border: none;
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  .deja-offset-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+  .deja-offset-btn:active {
+    transform: scale(0.92);
+  }
+  .deja-offset-badge {
+    min-width: 34px;
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Text", monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    padding: 0 2px;
+    transition: color 0.15s ease;
+  }
+  .deja-offset-badge:hover {
+    color: #FFFFFF;
+    text-decoration: underline;
+  }
+  .deja-offset-quick {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .deja-offset-quick:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #FFFFFF;
   }
   .deja-lyrics-title,
   .sonora-lyrics-title {

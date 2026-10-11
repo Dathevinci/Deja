@@ -52,10 +52,12 @@ Deja operates in strict alignment with Google platform policies and monetization
 - **Multi-Feed Library Aggregation**: Synchronizes user-created playlists, saved albums, followed artists, and liked songs with continuation token pagination.
 - **Bidirectional Playlist Management**: Create custom playlists, append tracks, reorder queues, and favorite songs directly within the desktop interface.
 
-### Real-Time Synced Lyrics
-- **LRCLIB Integration**: Queries the LRCLIB open lyrics database with fuzzy-sanitized artist and track metadata for millisecond-accurate synchronized lyrics.
-- **Interactive Scroller**: Frosted blur focus, smooth auto-scrolling to the active vocal line, and tap-to-seek playback jump functionality.
-- **Native Fallback**: Automatic fallback to YouTube Music timed closed-captions and transcripts when studio lyrics are unlisted.
+### Real-Time Synced Lyrics & Timing Calibration
+- **3-Tier Lyrics Engine**: Automatically resolves millisecond-synchronized lyrics from the LRCLIB open database, seamlessly falling back to YouTube Music timed captions/transcripts, and InnerTube browse descriptions.
+- **LRC `[offset:xxx]` Tag Parsing**: Fully parses standard LRC `[offset: +/-ms]` header tags, properly shifting community lyric timestamps (positive delays, negative advances).
+- **Interactive Timing Offset Nudge Controls**: Built-in sleek glassmorphic offset controls (`[-] 0.0s [+]` and `−0.5s / +0.5s`) stored per-track in `localStorage` for instantaneous on-the-fly calibration if a track has lead or lag.
+- **Acoustic Vocal Baseline Calibration**: Calibrated baseline timing that offsets YouTube stream Opus container preroll and DAC audio pipeline latency, ensuring words light up synchronously with acoustic vocal onset.
+- **Interactive Scroller & Tap-to-Seek**: Frosted blur focus, smooth auto-scrolling to the active vocal line, and calibrated tap-to-seek playback jump functionality.
 
 ### Liquid Ambient Mesh Backdrop
 - **Dynamic 4-Color Gradient**: Real-time palette extraction calculates primary, secondary, highlight, and ambient hues from the active album cover.

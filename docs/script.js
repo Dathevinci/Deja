@@ -65,9 +65,49 @@ function initPlayerMockup() {
   startTimer();
 }
 
-// Interactive LRCLIB Synced Lyrics
+// Interactive LRCLIB Synced Lyrics & Timing Offset Calibration
 function initLyricsDemo() {
   const lines = document.querySelectorAll('.lyric-line');
+  const btnMinus = document.getElementById('demo-offset-minus');
+  const btnPlus = document.getElementById('demo-offset-plus');
+  const badgeVal = document.getElementById('demo-offset-val');
+  const quickMinus = document.getElementById('demo-nudge-minus5');
+  const quickPlus = document.getElementById('demo-nudge-plus5');
+
+  let currentOffset = 0;
+
+  function updateOffset(newVal) {
+    currentOffset = Math.max(-5.0, Math.min(5.0, Math.round(newVal * 10) / 10));
+    if (badgeVal) {
+      if (currentOffset > 0) {
+        badgeVal.innerText = `+${currentOffset.toFixed(1)}s`;
+        badgeVal.style.color = '#FA2D48';
+      } else if (currentOffset < 0) {
+        badgeVal.innerText = `${currentOffset.toFixed(1)}s`;
+        badgeVal.style.color = '#FA2D48';
+      } else {
+        badgeVal.innerText = '0.0s';
+        badgeVal.style.color = '';
+      }
+    }
+  }
+
+  if (btnMinus) {
+    btnMinus.addEventListener('click', () => updateOffset(currentOffset - 0.1));
+  }
+  if (btnPlus) {
+    btnPlus.addEventListener('click', () => updateOffset(currentOffset + 0.1));
+  }
+  if (badgeVal) {
+    badgeVal.addEventListener('click', () => updateOffset(0));
+  }
+  if (quickMinus) {
+    quickMinus.addEventListener('click', () => updateOffset(currentOffset - 0.5));
+  }
+  if (quickPlus) {
+    quickPlus.addEventListener('click', () => updateOffset(currentOffset + 0.5));
+  }
+
   lines.forEach((line) => {
     line.addEventListener('click', () => {
       lines.forEach(l => l.classList.remove('active'));

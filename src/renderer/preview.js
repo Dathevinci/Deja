@@ -4224,6 +4224,104 @@ function onPreviewUserScroll() {
   }, 3500);
 }
 
+const BASELINE_ACOUSTIC_OFFSET = 0.20; // 200ms calibration for Opus stream preroll & acoustic vocal onset
+
+function getTrackLyricsOffset(track) {
+  if (typeof localStorage === 'undefined') return 0;
+  const t = track || (typeof CATALOGUE_TRACKS !== 'undefined' ? CATALOGUE_TRACKS[currentIndex] : null);
+  const trackKey = t ? (t.id || t.videoId || `${t.title || ''}-${t.artist || ''}`) : '';
+  if (trackKey) {
+    const trackVal = localStorage.getItem(`deja_lyrics_offset_${trackKey}`);
+    if (trackVal !== null) {
+      const parsed = parseFloat(trackVal);
+      if (!isNaN(parsed)) return parsed;
+    }
+  }
+  const globalVal = localStorage.getItem('deja_lyrics_offset_global');
+  if (globalVal !== null) {
+    const parsed = parseFloat(globalVal);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function setTrackLyricsOffset(track, offsetSec) {
+  const clamped = Math.max(-5.0, Math.min(5.0, Math.round(offsetSec * 10) / 10));
+  if (typeof localStorage !== 'undefined') {
+    const t = track || (typeof CATALOGUE_TRACKS !== 'undefined' ? CATALOGUE_TRACKS[currentIndex] : null);
+    const trackKey = t ? (t.id || t.videoId || `${t.title || ''}-${t.artist || ''}`) : '';
+    if (trackKey) {
+      localStorage.setItem(`deja_lyrics_offset_${trackKey}`, clamped.toString());
+    }
+    localStorage.setItem('deja_lyrics_offset_global', clamped.toString());
+  }
+  updateOffsetBadges(clamped);
+  return clamped;
+}
+
+function formatLyricsOffset(offset) {
+  const rounded = Math.round(offset * 10) / 10;
+  if (rounded > 0) return `+${rounded.toFixed(1)}s`;
+  if (rounded < 0) return `${rounded.toFixed(1)}s`;
+  return '0.0s';
+}
+
+function adjustedLyricsPosition(currentTime, offsetSec = 0) {
+  return Math.max(0, currentTime - (offsetSec + BASELINE_ACOUSTIC_OFFSET));
+}
+
+function adjustedLyricsSeekTarget(lineTime, offsetSec = 0) {
+  return Math.max(0, lineTime + (offsetSec + BASELINE_ACOUSTIC_OFFSET));
+}
+
+function nudgeLyricsOffset(delta, reset = false) {
+  const track = typeof CATALOGUE_TRACKS !== 'undefined' ? CATALOGUE_TRACKS[currentIndex] : null;
+  const curOffset = getTrackLyricsOffset(track);
+  const newOffset = reset ? 0 : (curOffset + delta);
+  setTrackLyricsOffset(track, newOffset);
+  if (typeof updateSyncedLyrics === 'function') {
+    updateSyncedLyrics(true);
+  }
+  return newOffset;
+}
+
+function updateOffsetBadges(offset) {
+  if (typeof document === 'undefined') return;
+  const formatted = formatLyricsOffset(offset);
+  const badges = document.querySelectorAll('.offset-badge, #drawer-offset-val, #exp-offset-val');
+  badges.forEach(badge => {
+    if (badge) {
+      badge.innerText = formatted;
+      badge.style.color = offset !== 0 ? '#FA2D48' : '';
+    }
+  });
+}
+
+function attachOffsetBarListeners(scope = (typeof document !== 'undefined' ? document : null)) {
+  if (!scope || !scope.querySelectorAll) return;
+  const minusBtns = scope.querySelectorAll('.btn-offset-minus, #drawer-offset-minus, #exp-offset-minus');
+  const plusBtns = scope.querySelectorAll('.btn-offset-plus, #drawer-offset-plus, #exp-offset-plus');
+  const badgeBtns = scope.querySelectorAll('.offset-badge, #drawer-offset-val, #exp-offset-val');
+  const quickMinus = scope.querySelectorAll('.btn-nudge-minus, #drawer-nudge-minus5, #exp-nudge-minus5');
+  const quickPlus = scope.querySelectorAll('.btn-nudge-plus, #drawer-nudge-plus5, #exp-nudge-plus5');
+
+  minusBtns.forEach(btn => {
+    btn.onclick = (e) => { if (e) e.stopPropagation(); nudgeLyricsOffset(-0.1); };
+  });
+  plusBtns.forEach(btn => {
+    btn.onclick = (e) => { if (e) e.stopPropagation(); nudgeLyricsOffset(0.1); };
+  });
+  badgeBtns.forEach(badge => {
+    badge.onclick = (e) => { if (e) e.stopPropagation(); nudgeLyricsOffset(0, true); };
+  });
+  quickMinus.forEach(btn => {
+    btn.onclick = (e) => { if (e) e.stopPropagation(); nudgeLyricsOffset(-0.5); };
+  });
+  quickPlus.forEach(btn => {
+    btn.onclick = (e) => { if (e) e.stopPropagation(); nudgeLyricsOffset(0.5); };
+  });
+}
+
 function renderLyrics(lyrics) {
   if (typeof document === 'undefined') return;
   const containers = [
@@ -4241,6 +4339,9 @@ function renderLyrics(lyrics) {
     if (artistNameEl) artistNameEl.innerText = track.artist;
   }
 
+  const userOffset = getTrackLyricsOffset(track);
+  updateOffsetBadges(userOffset);
+
   const safeLyrics = (lyrics && Array.isArray(lyrics) && lyrics.length > 0)
     ? lyrics
     : [{ time: 0, text: 'No synchronized lyrics available for this track.' }];
@@ -4256,11 +4357,30 @@ function renderLyrics(lyrics) {
       container.addEventListener('pointerdown', onPreviewUserScroll, { passive: true });
     }
 
-    container.innerHTML = safeLyrics.map((l, i) => `
+    const linesHtml = safeLyrics.map((l, i) => `
       <div class="apple-lyric-line ${isSynced && i === 0 ? 'active' : ''}" data-time="${l.time}" data-line-index="${i}">
         ${escapeHTML(l.text)}
       </div>
     `).join('');
+
+    if (container.id === 'expanded-lyrics-container') {
+      const offsetBarHtml = `
+        <div class="exp-lyrics-offset-bar" id="exp-lyrics-offset-bar">
+          <span class="offset-caption">Sync:</span>
+          <div class="offset-pill-group">
+            <button class="btn-offset-nudge btn-offset-minus" id="exp-offset-minus" title="Advance −0.1s">−</button>
+            <span class="offset-badge" id="exp-offset-val" title="Click to reset offset (0.0s)">${formatLyricsOffset(userOffset)}</span>
+            <button class="btn-offset-nudge btn-offset-plus" id="exp-offset-plus" title="Delay +0.1s">+</button>
+          </div>
+          <button class="btn-offset-quick btn-nudge-minus" id="exp-nudge-minus5" title="Advance −0.5s">−0.5s</button>
+          <button class="btn-offset-quick btn-nudge-plus" id="exp-nudge-plus5" title="Delay +0.5s">+0.5s</button>
+        </div>
+      `;
+      container.innerHTML = offsetBarHtml + linesHtml;
+      attachOffsetBarListeners(container);
+    } else {
+      container.innerHTML = linesHtml;
+    }
 
     // Attach direct click listeners for immediate seek responsiveness (tap-to-seek)
     container.querySelectorAll('.apple-lyric-line').forEach((lineEl, idx) => {
@@ -4270,11 +4390,16 @@ function renderLyrics(lyrics) {
           if (e) e.stopPropagation();
           previewUserScrolling = false;
           if (previewUserScrollTimer) clearTimeout(previewUserScrollTimer);
-          seekTo(lineData.time);
+          const currentOffset = getTrackLyricsOffset(track);
+          const seekTarget = adjustedLyricsSeekTarget(lineData.time, currentOffset);
+          seekTo(seekTarget);
         };
       }
     });
   });
+
+  const drawer = document.getElementById('apple-lyrics-drawer');
+  if (drawer) attachOffsetBarListeners(drawer);
 }
 
 /**
@@ -4526,6 +4651,16 @@ function parseLrcLines(lrcText) {
   const wordStampRegex = /<(?:\d{1,3}):(?:\d{2})(?:[.:](?:\d{2,3}))?>/g;
   const result = [];
 
+  // Parse standard LRC [offset: +/-ms] tag (positive delays lyrics; negative advances them)
+  let fileOffsetSec = 0;
+  const offsetMatch = lrcText.match(/\[offset:\s*([+-]?\d+)\s*\]/i);
+  if (offsetMatch) {
+    const offsetMs = parseInt(offsetMatch[1], 10);
+    if (!isNaN(offsetMs)) {
+      fileOffsetSec = offsetMs / 1000;
+    }
+  }
+
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
     if (!trimmed || /^\[[A-Za-z]+:.*\]$/.test(trimmed)) continue;
@@ -4546,7 +4681,8 @@ function parseLrcLines(lrcText) {
         else if (match[3].length === 1) fractionMs = parseInt(match[3], 10) * 100;
         else fractionMs = parseInt(match[3].slice(0, 3), 10);
       }
-      const timeInSec = Math.round((minutes * 60 + seconds + fractionMs / 1000) * 100) / 100;
+      const rawTime = minutes * 60 + seconds + fractionMs / 1000;
+      const timeInSec = Math.max(0, Math.round((rawTime + fileOffsetSec) * 100) / 100);
       result.push({ time: timeInSec, text: displayText });
     }
   }
@@ -5042,8 +5178,10 @@ function updateSyncedLyrics(forceScroll = false) {
   let activeIndex = -1;
 
   if (isSynced) {
+    const userOffset = getTrackLyricsOffset(track);
+    const effectiveTime = adjustedLyricsPosition(currentTime, userOffset);
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].time <= currentTime) {
+      if (lines[i].time <= effectiveTime) {
         activeIndex = i;
       } else {
         break;
@@ -6706,6 +6844,13 @@ if (typeof module !== 'undefined' && module.exports) {
     extractPaletteFromImage,
     hslToRgb,
     generateCpn,
-    sendFinalWatchtimePing
+    sendFinalWatchtimePing,
+    adjustedLyricsPosition,
+    adjustedLyricsSeekTarget,
+    getTrackLyricsOffset,
+    setTrackLyricsOffset,
+    formatLyricsOffset,
+    nudgeLyricsOffset,
+    BASELINE_ACOUSTIC_OFFSET
   };
 }

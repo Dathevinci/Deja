@@ -986,6 +986,64 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
   let lyricsVideoHooked = null;
   let lastLyricsTrackId = '';
 
+  const BASELINE_ACOUSTIC_OFFSET = 0.20; // 200ms calibration for Opus stream preroll & acoustic vocal onset
+
+  function getPreloadLyricsOffset(trackId) {
+    if (typeof localStorage === 'undefined') return 0;
+    if (trackId) {
+      const trackVal = localStorage.getItem(`deja_lyrics_offset_${trackId}`);
+      if (trackVal !== null) {
+        const parsed = parseFloat(trackVal);
+        if (!isNaN(parsed)) return parsed;
+      }
+    }
+    const globalVal = localStorage.getItem('deja_lyrics_offset_global');
+    if (globalVal !== null) {
+      const parsed = parseFloat(globalVal);
+      if (!isNaN(parsed)) return parsed;
+    }
+    return 0;
+  }
+
+  function setPreloadLyricsOffset(trackId, offsetSec) {
+    const clamped = Math.max(-5.0, Math.min(5.0, Math.round(offsetSec * 10) / 10));
+    if (typeof localStorage !== 'undefined') {
+      if (trackId) {
+        localStorage.setItem(`deja_lyrics_offset_${trackId}`, clamped.toString());
+      }
+      localStorage.setItem('deja_lyrics_offset_global', clamped.toString());
+    }
+    updatePreloadOffsetBadge(clamped);
+    return clamped;
+  }
+
+  function formatPreloadLyricsOffset(offset) {
+    const rounded = Math.round(offset * 10) / 10;
+    if (rounded > 0) return `+${rounded.toFixed(1)}s`;
+    if (rounded < 0) return `${rounded.toFixed(1)}s`;
+    return '0.0s';
+  }
+
+  function updatePreloadOffsetBadge(offset) {
+    const badge = document.getElementById('preload-offset-val');
+    if (badge) {
+      badge.textContent = formatPreloadLyricsOffset(offset);
+      badge.style.color = offset !== 0 ? '#FA2D48' : 'rgba(255, 255, 255, 0.85)';
+    }
+  }
+
+  function nudgePreloadOffset(delta, reset = false) {
+    const curOffset = getPreloadLyricsOffset(lastLyricsTrackId);
+    const newOffset = reset ? 0 : (curOffset + delta);
+    setPreloadLyricsOffset(lastLyricsTrackId, newOffset);
+    const video = document.querySelector('video.html5-main-video') || document.querySelector('video') || document.querySelector('audio');
+    const moviePlayer = document.getElementById('movie_player') || document.querySelector('ytmusic-player#player');
+    const curTime = (video && !isNaN(video.currentTime))
+      ? video.currentTime
+      : (moviePlayer && typeof moviePlayer.getCurrentTime === 'function' ? moviePlayer.getCurrentTime() : 0);
+    updatePreloadLiveLyrics(curTime, true);
+  }
+
   // Wait for DOM ready
   if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') {
@@ -2043,9 +2101,11 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     let activeIndex = -1;
 
     if (isSynced) {
+      const userOffset = getPreloadLyricsOffset(lastLyricsTrackId);
+      const effectivePosition = Math.max(0, currentTime - (userOffset + BASELINE_ACOUSTIC_OFFSET));
       // BitChord LyricFocus.kt monotonic active line resolution
       for (let i = 0; i < preloadLyrics.length; i++) {
-        if (typeof preloadLyrics[i].time === 'number' && preloadLyrics[i].time <= currentTime) {
+        if (typeof preloadLyrics[i].time === 'number' && preloadLyrics[i].time <= effectivePosition) {
           activeIndex = i;
         } else {
           break;
@@ -2248,6 +2308,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         setTimeout(() => overlay.remove(), 300);
       } else {
         overlay.classList.add('visible');
+        updatePreloadOffsetBadge(getPreloadLyricsOffset(lastLyricsTrackId));
         if (currentTrack.id && lastLyricsTrackId === currentTrack.id && preloadLyrics.length > 0) {
           renderPreloadLyrics(preloadLyrics);
         } else {
@@ -2265,6 +2326,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     }
 
     const track = currentTrack;
+    const initialOffset = getPreloadLyricsOffset(lastLyricsTrackId);
 
     overlay = document.createElement('div');
     overlay.id = 'deja-lyrics-overlay';
@@ -2276,6 +2338,16 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
           <h2 class="deja-lyrics-title sonora-lyrics-title">${escapeHtml(track.title)}</h2>
           <p class="deja-lyrics-artist sonora-lyrics-artist">${escapeHtml(track.artist)}</p>
         </div>
+        <div class="deja-lyrics-offset-bar" id="preload-lyrics-offset-bar" title="Calibrate Lyrics Timing">
+          <span class="deja-offset-label">Sync:</span>
+          <div class="deja-offset-controls">
+            <button class="deja-offset-btn" id="preload-offset-minus" title="Advance −0.1s">−</button>
+            <span class="deja-offset-badge" id="preload-offset-val" title="Click to reset (0.0s)">${formatPreloadLyricsOffset(initialOffset)}</span>
+            <button class="deja-offset-btn" id="preload-offset-plus" title="Delay +0.1s">+</button>
+          </div>
+          <button class="deja-offset-quick" id="preload-nudge-minus5" title="Advance −0.5s">−0.5s</button>
+          <button class="deja-offset-quick" id="preload-nudge-plus5" title="Delay +0.5s">+0.5s</button>
+        </div>
         <button class="deja-lyrics-close sonora-lyrics-close" id="deja-lyrics-close-btn">&times;</button>
       </div>
       <div class="deja-lyrics-body sonora-lyrics-body" id="deja-lyrics-content">
@@ -2284,6 +2356,19 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     `);
 
     document.body.appendChild(overlay);
+
+    const btnMinus = overlay.querySelector('#preload-offset-minus');
+    const badgeVal = overlay.querySelector('#preload-offset-val');
+    const btnPlus = overlay.querySelector('#preload-offset-plus');
+    const btnQuickMinus = overlay.querySelector('#preload-nudge-minus5');
+    const btnQuickPlus = overlay.querySelector('#preload-nudge-plus5');
+
+    if (btnMinus) btnMinus.onclick = (e) => { e.stopPropagation(); nudgePreloadOffset(-0.1); };
+    if (badgeVal) badgeVal.onclick = (e) => { e.stopPropagation(); nudgePreloadOffset(0, true); };
+    if (btnPlus) btnPlus.onclick = (e) => { e.stopPropagation(); nudgePreloadOffset(0.1); };
+    if (btnQuickMinus) btnQuickMinus.onclick = (e) => { e.stopPropagation(); nudgePreloadOffset(-0.5); };
+    if (btnQuickPlus) btnQuickPlus.onclick = (e) => { e.stopPropagation(); nudgePreloadOffset(0.5); };
+
     const lyricsCloseBtn = getEl('deja-lyrics-close-btn', 'sonora-lyrics-close-btn');
     if (lyricsCloseBtn) {
       lyricsCloseBtn.onclick = () => {
@@ -2306,10 +2391,12 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         if (!isSynced) return;
         const line = e.target && e.target.closest ? e.target.closest('.deja-lyric-line, .sonora-lyric-line') : null;
         if (line && line.dataset && line.dataset.time !== undefined) {
-          const seekSec = parseFloat(line.dataset.time);
-          if (!isNaN(seekSec)) {
+          const rawSeekSec = parseFloat(line.dataset.time);
+          if (!isNaN(rawSeekSec)) {
             userManualScrolling = false;
             if (userScrollTimer) clearTimeout(userScrollTimer);
+            const userOffset = getPreloadLyricsOffset(lastLyricsTrackId);
+            const seekSec = Math.max(0, rawSeekSec + (userOffset + BASELINE_ACOUSTIC_OFFSET));
             const video = document.querySelector('video.html5-main-video') || document.querySelector('video') || document.querySelector('audio');
             const moviePlayer = document.getElementById('movie_player') || document.querySelector('ytmusic-player#player');
             if (moviePlayer && typeof moviePlayer.seekTo === 'function') {
@@ -2709,7 +2796,12 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     toggleLyricsDrawer,
     updatePreloadLiveLyrics,
     resolvePreloadLyrics,
-    renderPreloadLyrics
+    renderPreloadLyrics,
+    getPreloadLyricsOffset,
+    setPreloadLyricsOffset,
+    formatPreloadLyricsOffset,
+    nudgePreloadOffset,
+    BASELINE_ACOUSTIC_OFFSET
   };
 }
 
