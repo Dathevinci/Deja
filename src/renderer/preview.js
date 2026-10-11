@@ -4245,15 +4245,16 @@ function getTrackLyricsOffset(track) {
   return 0;
 }
 
-function setTrackLyricsOffset(track, offsetSec) {
+function setTrackLyricsOffset(track, offsetSec, isGlobal = false) {
   const clamped = Math.max(-5.0, Math.min(5.0, Math.round(offsetSec * 10) / 10));
   if (typeof localStorage !== 'undefined') {
     const t = track || (typeof CATALOGUE_TRACKS !== 'undefined' ? CATALOGUE_TRACKS[currentIndex] : null);
     const trackKey = t ? (t.id || t.videoId || `${t.title || ''}-${t.artist || ''}`) : '';
-    if (trackKey) {
+    if (trackKey && !isGlobal) {
       localStorage.setItem(`deja_lyrics_offset_${trackKey}`, clamped.toString());
+    } else {
+      localStorage.setItem('deja_lyrics_offset_global', clamped.toString());
     }
-    localStorage.setItem('deja_lyrics_offset_global', clamped.toString());
   }
   updateOffsetBadges(clamped);
   return clamped;
@@ -4267,17 +4268,23 @@ function formatLyricsOffset(offset) {
 }
 
 function adjustedLyricsPosition(currentTime, offsetSec = 0) {
-  return Math.max(0, currentTime - (offsetSec + BASELINE_ACOUSTIC_OFFSET));
+  return Math.max(0, Math.round((currentTime - (offsetSec + BASELINE_ACOUSTIC_OFFSET)) * 1000) / 1000);
 }
 
 function adjustedLyricsSeekTarget(lineTime, offsetSec = 0) {
-  return Math.max(0, lineTime + (offsetSec + BASELINE_ACOUSTIC_OFFSET));
+  return Math.max(0, Math.round((lineTime + (offsetSec + BASELINE_ACOUSTIC_OFFSET)) * 1000) / 1000);
 }
 
 function nudgeLyricsOffset(delta, reset = false) {
   const track = typeof CATALOGUE_TRACKS !== 'undefined' ? CATALOGUE_TRACKS[currentIndex] : null;
   const curOffset = getTrackLyricsOffset(track);
   const newOffset = reset ? 0 : (curOffset + delta);
+  if (reset && typeof localStorage !== 'undefined') {
+    const trackKey = track ? (track.id || track.videoId || `${track.title || ''}-${track.artist || ''}`) : '';
+    if (trackKey) {
+      localStorage.removeItem(`deja_lyrics_offset_${trackKey}`);
+    }
+  }
   setTrackLyricsOffset(track, newOffset);
   if (typeof updateSyncedLyrics === 'function') {
     updateSyncedLyrics(true);
@@ -4653,9 +4660,9 @@ function parseLrcLines(lrcText) {
 
   // Parse standard LRC [offset: +/-ms] tag (positive delays lyrics; negative advances them)
   let fileOffsetSec = 0;
-  const offsetMatch = lrcText.match(/\[offset:\s*([+-]?\d+)\s*\]/i);
+  const offsetMatch = lrcText.match(/\[offset:\s*([+-]?\s*\d+)\s*\]/i);
   if (offsetMatch) {
-    const offsetMs = parseInt(offsetMatch[1], 10);
+    const offsetMs = parseInt(offsetMatch[1].replace(/\s+/g, ''), 10);
     if (!isNaN(offsetMs)) {
       fileOffsetSec = offsetMs / 1000;
     }
@@ -4682,7 +4689,7 @@ function parseLrcLines(lrcText) {
         else fractionMs = parseInt(match[3].slice(0, 3), 10);
       }
       const rawTime = minutes * 60 + seconds + fractionMs / 1000;
-      const timeInSec = Math.max(0, Math.round((rawTime + fileOffsetSec) * 100) / 100);
+      const timeInSec = Math.max(0, Math.round((rawTime + fileOffsetSec) * 1000) / 1000);
       result.push({ time: timeInSec, text: displayText });
     }
   }
@@ -5920,6 +5927,12 @@ function setupEvents() {
   }
   if (btnCloseLyrics) btnCloseLyrics.onclick = (e) => { e.preventDefault(); e.stopPropagation(); closeLyricsDrawer(); };
   if (lyricsBackdrop) lyricsBackdrop.onclick = (e) => { e.preventDefault(); closeLyricsDrawer(); };
+
+  // Attach offset nudge bar listeners and calibrate initial badge on boot
+  attachOffsetBarListeners(document);
+  if (typeof CATALOGUE_TRACKS !== 'undefined' && CATALOGUE_TRACKS[currentIndex]) {
+    updateOffsetBadges(getTrackLyricsOffset(CATALOGUE_TRACKS[currentIndex]));
+  }
 
   // Overlay backdrop and click-outside handler: clicking outside the lyrics drawer closes it
   document.addEventListener('pointerdown', (e) => {

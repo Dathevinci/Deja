@@ -319,6 +319,17 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(parsedLate[0].text, '♪');
   assert.strictEqual(parsedLate[1].time, 8.5);
 
+  // Test space-padded [offset: +/-ms] tags
+  const offsetSpacedLrc = `[offset: + 500]\n[00:02.00]Line with spaced plus offset`;
+  const parsedOffsetSpaced = innertube.parseLrcString(offsetSpacedLrc);
+  assert.strictEqual(parsedOffsetSpaced.length, 1);
+  assert.strictEqual(parsedOffsetSpaced[0].time, 2.5, 'Space-padded positive offset must delay timestamp by +0.5s');
+
+  const offsetNegSpacedLrc = `[offset: - 400]\n[00:02.00]Line with spaced minus offset`;
+  const parsedOffsetNegSpaced = innertube.parseLrcString(offsetNegSpacedLrc);
+  assert.strictEqual(parsedOffsetNegSpaced.length, 1);
+  assert.strictEqual(parsedOffsetNegSpaced[0].time, 1.6, 'Space-padded negative offset must advance timestamp by -0.4s');
+
   // Test [offset:xxx] standard LRC tag parsing (BitChord LyricsOffsetTest.kt parity)
   const offsetPositiveLrc = `[offset: 500]\n[00:02.00]Line delayed by 500ms`;
   const parsedOffsetPos = innertube.parseLrcString(offsetPositiveLrc);
@@ -356,6 +367,8 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(typeof previewModule.adjustedLyricsSeekTarget, 'function');
   assert.strictEqual(typeof previewModule.formatLyricsOffset, 'function');
   assert.strictEqual(typeof previewModule.nudgeLyricsOffset, 'function');
+  assert.strictEqual(typeof previewModule.getTrackLyricsOffset, 'function');
+  assert.strictEqual(typeof previewModule.setTrackLyricsOffset, 'function');
 
   const baseCal = previewModule.BASELINE_ACOUSTIC_OFFSET || 0.20;
   assert.strictEqual(previewModule.adjustedLyricsPosition(10.0, 0), Math.round((10.0 - baseCal) * 100) / 100);
@@ -363,9 +376,46 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(previewModule.adjustedLyricsPosition(0.1, 1.5), 0, 'adjustedLyricsPosition never produces negative clock');
   assert.strictEqual(previewModule.adjustedLyricsSeekTarget(10.0, 1.5), Math.round((10.0 + 1.5 + baseCal) * 100) / 100);
 
+  // Precision check: verify floating point rounding does not drift (e.g. 0.4 - 0.1 - 0.20 gives clean 0.1 without IEEE 754 drift)
+  assert.strictEqual(previewModule.adjustedLyricsPosition(0.4, 0.1), 0.1);
+
   assert.strictEqual(previewModule.formatLyricsOffset(0), '0.0s');
   assert.strictEqual(previewModule.formatLyricsOffset(0.5), '+0.5s');
   assert.strictEqual(previewModule.formatLyricsOffset(-0.3), '-0.3s');
+
+  // Verify Per-Track Offset Isolation (preventing cross-song contamination)
+  const prevLocalStorage = global.localStorage;
+  const mockStore = {};
+  global.localStorage = {
+    getItem: (key) => (key in mockStore ? mockStore[key] : null),
+    setItem: (key, val) => { mockStore[key] = String(val); },
+    removeItem: (key) => { delete mockStore[key]; },
+    clear: () => { Object.keys(mockStore).forEach(k => delete mockStore[k]); }
+  };
+
+  try {
+    const trackA = { id: 'track_test_alpha', title: 'Song Alpha', artist: 'Artist A' };
+    const trackB = { id: 'track_test_beta', title: 'Song Beta', artist: 'Artist B' };
+
+    previewModule.setTrackLyricsOffset(trackA, 1.2);
+    assert.strictEqual(previewModule.getTrackLyricsOffset(trackA), 1.2, 'Track A must have 1.2s offset');
+    assert.strictEqual(previewModule.getTrackLyricsOffset(trackB), 0, 'Track B must not inherit Track A per-track offset');
+
+    // Global fallback check
+    previewModule.setTrackLyricsOffset(null, 0.4, true);
+    assert.strictEqual(previewModule.getTrackLyricsOffset(trackA), 1.2, 'Track A still overrides global');
+    assert.strictEqual(previewModule.getTrackLyricsOffset(trackB), 0.4, 'Track B inherits global fallback');
+
+    // Reset check
+    global.localStorage.removeItem('deja_lyrics_offset_track_test_alpha');
+    assert.strictEqual(previewModule.getTrackLyricsOffset(trackA), 0.4, 'Reset track falls back to global');
+  } finally {
+    if (prevLocalStorage) {
+      global.localStorage = prevLocalStorage;
+    } else {
+      delete global.localStorage;
+    }
+  }
 
   // Verify dynamic active lyric calculation: timestamp <= currentTime < nextTimestamp
   const testLyrics = [

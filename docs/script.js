@@ -199,7 +199,7 @@ function initModals() {
 
       if (notifyStatus) {
         notifyStatus.style.color = '#34C759';
-        notifyStatus.innerText = "✓ You're on the list! We'll notify you as soon as the APK is released.";
+        notifyStatus.innerText = "You're on the list. We'll notify you as soon as the APK is released.";
       }
       if (notifyInput) notifyInput.value = '';
     });

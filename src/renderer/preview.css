@@ -1038,17 +1038,30 @@ body.deja-playing .artwork-wrapper {
   justify-content: space-between;
   padding: 24px 28px;
   border-bottom: 1px solid var(--border-subtle);
+  gap: 12px;
+}
+
+.lyrics-meta {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .lyrics-meta h3 {
   font-size: 18px;
   font-weight: 700;
   color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .lyrics-meta p {
   font-size: 13.5px;
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .btn-close-lyrics {

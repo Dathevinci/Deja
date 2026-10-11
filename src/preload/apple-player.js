@@ -988,10 +988,21 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
 
   const BASELINE_ACOUSTIC_OFFSET = 0.20; // 200ms calibration for Opus stream preroll & acoustic vocal onset
 
+  function resolveCurrentTrackKey(trackId) {
+    if (trackId) return trackId;
+    if (lastLyricsTrackId) return lastLyricsTrackId;
+    if (typeof window !== 'undefined' && window.__DEJA_CURRENT_TRACK__) {
+      const cur = window.__DEJA_CURRENT_TRACK__;
+      return cur.id || cur.videoId || (cur.title ? `${cur.title}-${cur.artist}` : '');
+    }
+    return '';
+  }
+
   function getPreloadLyricsOffset(trackId) {
     if (typeof localStorage === 'undefined') return 0;
-    if (trackId) {
-      const trackVal = localStorage.getItem(`deja_lyrics_offset_${trackId}`);
+    const tid = resolveCurrentTrackKey(trackId);
+    if (tid) {
+      const trackVal = localStorage.getItem(`deja_lyrics_offset_${tid}`);
       if (trackVal !== null) {
         const parsed = parseFloat(trackVal);
         if (!isNaN(parsed)) return parsed;
@@ -1005,13 +1016,15 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     return 0;
   }
 
-  function setPreloadLyricsOffset(trackId, offsetSec) {
+  function setPreloadLyricsOffset(trackId, offsetSec, isGlobal = false) {
     const clamped = Math.max(-5.0, Math.min(5.0, Math.round(offsetSec * 10) / 10));
+    const tid = resolveCurrentTrackKey(trackId);
     if (typeof localStorage !== 'undefined') {
-      if (trackId) {
-        localStorage.setItem(`deja_lyrics_offset_${trackId}`, clamped.toString());
+      if (tid && !isGlobal) {
+        localStorage.setItem(`deja_lyrics_offset_${tid}`, clamped.toString());
+      } else {
+        localStorage.setItem('deja_lyrics_offset_global', clamped.toString());
       }
-      localStorage.setItem('deja_lyrics_offset_global', clamped.toString());
     }
     updatePreloadOffsetBadge(clamped);
     return clamped;
@@ -1033,9 +1046,13 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
   }
 
   function nudgePreloadOffset(delta, reset = false) {
-    const curOffset = getPreloadLyricsOffset(lastLyricsTrackId);
+    const tid = resolveCurrentTrackKey(lastLyricsTrackId);
+    const curOffset = getPreloadLyricsOffset(tid);
     const newOffset = reset ? 0 : (curOffset + delta);
-    setPreloadLyricsOffset(lastLyricsTrackId, newOffset);
+    if (reset && typeof localStorage !== 'undefined' && tid) {
+      localStorage.removeItem(`deja_lyrics_offset_${tid}`);
+    }
+    setPreloadLyricsOffset(tid, newOffset);
     const video = document.querySelector('video.html5-main-video') || document.querySelector('video') || document.querySelector('audio');
     const moviePlayer = document.getElementById('movie_player') || document.querySelector('ytmusic-player#player');
     const curTime = (video && !isNaN(video.currentTime))
@@ -2283,6 +2300,10 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
       container.addEventListener('touchmove', onPreloadUserScroll, { passive: true });
       container.addEventListener('pointerdown', onPreloadUserScroll, { passive: true });
     }
+
+    // Update offset badge to reflect current track's offset
+    const currentTid = resolveCurrentTrackKey(lastLyricsTrackId);
+    updatePreloadOffsetBadge(getPreloadLyricsOffset(currentTid));
 
     const video = document.querySelector('video.html5-main-video') || document.querySelector('video') || document.querySelector('audio');
     const moviePlayer = document.getElementById('movie_player') || document.querySelector('ytmusic-player#player');

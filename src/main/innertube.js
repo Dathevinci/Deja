@@ -2500,9 +2500,9 @@ function parseLrcString(lrcContent) {
 
   // Parse standard LRC [offset: +/-ms] tag (positive delays lyrics; negative advances them)
   let fileOffsetSec = 0;
-  const offsetMatch = lrcContent.match(/\[offset:\s*([+-]?\d+)\s*\]/i);
+  const offsetMatch = lrcContent.match(/\[offset:\s*([+-]?\s*\d+)\s*\]/i);
   if (offsetMatch) {
-    const offsetMs = parseInt(offsetMatch[1], 10);
+    const offsetMs = parseInt(offsetMatch[1].replace(/\s+/g, ''), 10);
     if (!isNaN(offsetMs)) {
       fileOffsetSec = offsetMs / 1000;
     }
@@ -2535,7 +2535,7 @@ function parseLrcString(lrcContent) {
         }
       }
       const rawTime = minutes * 60 + seconds + fractionMs / 1000;
-      const timeInSeconds = Math.max(0, Math.round((rawTime + fileOffsetSec) * 100) / 100);
+      const timeInSeconds = Math.max(0, Math.round((rawTime + fileOffsetSec) * 1000) / 1000);
       result.push({ time: timeInSeconds, text: displayText });
     }
   }
