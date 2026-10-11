@@ -55,6 +55,38 @@ function parseCookiePairs(rawCookieInput) {
     return [];
   }
 
+  // Support cURL commands (e.g. copied from Chrome / Edge DevTools Network tab)
+  if (/^curl\s+/i.test(cleanInput)) {
+    const cookieMatch = cleanInput.match(/-H\s+['"]cookie:\s*([^'"]+)['"]/i) ||
+                        cleanInput.match(/--header\s+['"]cookie:\s*([^'"]+)['"]/i) ||
+                        cleanInput.match(/-b\s+['"]([^'"]+)['"]/i);
+    if (cookieMatch && cookieMatch[1]) {
+      cleanInput = cookieMatch[1].trim();
+    }
+  }
+
+  // Support Netscape / cookies.txt tab-delimited export format
+  if (cleanInput.includes('\t') && (cleanInput.includes('\n') || cleanInput.includes('\r'))) {
+    const lines = cleanInput.split(/[\r\n]+/);
+    const netscapePairs = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const parts = trimmed.split('\t');
+      if (parts.length >= 7) {
+        const name = parts[5].trim();
+        const value = parts[6].trim();
+        if (name && value && !COOKIE_DIRECTIVES.has(name.toLowerCase())) {
+          netscapePairs.push({ name, value });
+        }
+      }
+    }
+    if (netscapePairs.length > 0) {
+      populateMissingSapisidPairs(netscapePairs);
+      return netscapePairs;
+    }
+  }
+
   // Support JSON-exported cookie arrays (e.g. from Cookie-Editor / EditThisCookie)
   if (cleanInput.startsWith('[') && cleanInput.endsWith(']')) {
     try {

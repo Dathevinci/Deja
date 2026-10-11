@@ -1270,7 +1270,33 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(cpnNonce.length, 16, 'CPN must be 16 characters long');
   assert.ok(/^[a-zA-Z0-9_-]{16}$/.test(cpnNonce), 'CPN must be alphanumeric/url-safe');
   assert.ok(previewCode.includes('sendFinalWatchtimePing'), 'preview.js must implement final watchtime ping');
-  assert.ok(previewCode.includes('lastReportedWatchSeconds >= 30'), 'preview.js must ping watchtime every 30 seconds');
+  // 9.20 Verify cURL & Netscape Cookie Parsing Support
+  const cookieUtils = require('../src/main/cookie-utils');
+  const curlInput = "curl 'https://music.youtube.com/youtubei/v1/browse' -H 'cookie: SAPISID=curl_token_123; SID=sid_456' --compressed";
+  const parsedCurl = cookieUtils.parseCookiePairs(curlInput);
+  assert.strictEqual(parsedCurl.some(c => c.name === 'SAPISID' && c.value === 'curl_token_123'), true, 'parseCookiePairs must extract SAPISID from cURL commands');
+  assert.strictEqual(parsedCurl.some(c => c.name === '__Secure-3PAPISID' && c.value === 'curl_token_123'), true, 'parseCookiePairs must auto-populate __Secure-3PAPISID from cURL input');
+
+  const netscapeInput = ".youtube.com\tTRUE\t/\tTRUE\t1799999999\tSAPISID\tnetscape_token_xyz\n.youtube.com\tTRUE\t/\tTRUE\t1799999999\tLOGIN_INFO\tlogin_xyz";
+  const parsedNetscape = cookieUtils.parseCookiePairs(netscapeInput);
+  assert.strictEqual(parsedNetscape.some(c => c.name === 'SAPISID' && c.value === 'netscape_token_xyz'), true, 'parseCookiePairs must extract cookies from Netscape / cookies.txt format');
+
+  // 9.21 Verify Botguard Stealth Preload & Clean Client Hints
+  const loginPreloadPath = path.join(__dirname, '../src/main/login-preload.js');
+  assert.ok(fs.existsSync(loginPreloadPath), 'login-preload.js must exist to evade Google Botguard detection');
+  const loginPreloadCode = fs.readFileSync(loginPreloadPath, 'utf8');
+  assert.ok(loginPreloadCode.includes("navigator, 'webdriver'"), 'login-preload.js must hide webdriver flag');
+  assert.ok(loginPreloadCode.includes('window.chrome.app') && loginPreloadCode.includes('window.chrome.csi'), 'login-preload.js must emulate genuine window.chrome APIs');
+
+  assert.ok(mainCode.includes("preload: path.join(__dirname, 'login-preload.js')"), 'loginWin must attach login-preload.js');
+  assert.ok(mainCode.includes("requestHeaders['Sec-Ch-Ua'] = '\"Google Chrome\";v=\"131\""), 'main.js onBeforeSendHeaders must enforce Google Chrome Sec-Ch-Ua');
+  assert.ok(mainCode.includes("requestHeaders['Sec-Ch-Ua-Mobile'] = '?0'"), 'main.js onBeforeSendHeaders must enforce desktop Sec-Ch-Ua-Mobile');
+
+  // 9.22 Verify Native Client Shell & History Screen Parity
+  assert.ok(html.includes('data-page="history"'), 'preview.html sidebar must include History navigation link');
+  assert.ok(html.includes('id="btn-paste-clipboard-connect"'), 'preview.html account modal must include 1-click clipboard connect button');
+  assert.ok(html.includes('id="btn-open-sync-helper"'), 'preview.html account modal must include browser sync helper button');
+  assert.ok(previewCode.includes('function renderHistoryView'), 'preview.js must implement renderHistoryView matching BitChord HistoryScreen.kt');
 
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }

@@ -125,12 +125,7 @@ function buildAppMenu(mainWindow) {
           accelerator: 'CommandOrControl+Shift+W',
           click: async () => {
             if (!mainWindow || mainWindow.isDestroyed()) return;
-            const currentURL = mainWindow.webContents.getURL() || '';
-            if (currentURL.includes('music.youtube.com')) {
-              await mainWindow.loadFile(path.join(__dirname, '../renderer/preview.html'));
-            } else {
-              await mainWindow.loadURL('https://music.youtube.com', { userAgent: app.userAgentFallback });
-            }
+            await mainWindow.loadFile(path.join(__dirname, '../renderer/preview.html'));
           }
         },
         { type: 'separator' },

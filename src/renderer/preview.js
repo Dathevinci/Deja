@@ -1301,14 +1301,16 @@ function renderCurrentView() {
     return;
   }
 
-  if (currentView === 'listen-now') {
+  if (currentView === 'listen-now' || currentView === 'home') {
     renderListenNowView(mainContent);
-  } else if (currentView === 'browse') {
+  } else if (currentView === 'browse' || currentView === 'explore') {
     renderBrowseView(mainContent);
   } else if (currentView === 'radio') {
     renderRadioView(mainContent);
   } else if (currentView === 'recently-added') {
     renderRecentlyAddedView(mainContent);
+  } else if (currentView === 'history') {
+    renderHistoryView(mainContent);
   } else if (currentView === 'artists') {
     renderArtistsView(mainContent);
   } else if (currentView === 'albums') {
@@ -3119,6 +3121,117 @@ function renderRecentlyAddedView(container) {
         el.onclick = () => playLiveTrack(s);
       }
     });
+  }
+}
+
+function renderHistoryView(container) {
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (!liveHistorySongs && !isLoadingHistory && api?.getHistory) {
+    isLoadingHistory = true;
+    api.getHistory().then(res => {
+      isLoadingHistory = false;
+      liveHistorySongs = (res && res.songs) ? res.songs : [];
+      if (currentView === 'history') {
+        renderCurrentView();
+      }
+    }).catch(err => {
+      console.warn('[History] getHistory error:', err.message);
+      isLoadingHistory = false;
+      liveHistorySongs = [];
+    });
+  }
+
+  const hasHistory = liveHistorySongs && liveHistorySongs.length > 0;
+
+  container.innerHTML = `
+    <div style="padding: 10px 0 20px 0;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <h1 style="font-size: 28px; font-weight: 800; margin: 0;">History</h1>
+        <button class="btn-apple-secondary" id="btn-refresh-history" style="font-size: 13px; padding: 6px 14px; border-radius: 999px;">
+          Refresh
+        </button>
+      </div>
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">What you have been listening to on YouTube Music, most recent first. Tapping a track plays it with the rest of your history queued.</p>
+
+      ${isLoadingHistory ? `
+        <div style="text-align: center; padding: 48px 0; color: var(--text-secondary); font-size: 14px;">
+          <span class="status-dot-pulse" style="display:inline-block; margin-right:8px;"></span>
+          Synchronizing YouTube Music playback history...
+        </div>
+      ` : ''}
+
+      ${hasHistory ? `
+        <div class="shelf-section">
+          <div class="songs-table-container">
+            <div class="songs-table-header">
+              <span>#</span>
+              <span>Title</span>
+              <span>Artist</span>
+              <span>Album</span>
+              <span>Duration</span>
+              <span>Play</span>
+            </div>
+            ${liveHistorySongs.map((s, idx) => `
+              <div class="song-row" id="history-item-${idx}">
+                <span class="song-number">${idx + 1}</span>
+                <div class="song-title-cell">
+                  <img src="${escapeHTML(s.cover || '../../assets/icon.png')}" class="song-cell-thumb" alt="${escapeHTML(s.title)}" onerror="this.src='../../assets/icon.png'">
+                  <span class="song-title">${escapeHTML(s.title)}</span>
+                </div>
+                <span class="song-artist-cell">${escapeHTML(s.artist || 'YouTube Music')}</span>
+                <span class="song-album-cell">${escapeHTML(s.album || '')}</span>
+                <span class="song-duration-cell">${escapeHTML(s.durationStr || formatTime(s.duration || 0))}</span>
+                <div>
+                  <button class="player-icon-btn" style="width:28px; height:28px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : (!isLoadingHistory ? `
+        <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+          <div style="display:flex; justify-content:center; margin-bottom: 16px; opacity:0.4;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <h3 style="font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">No listening history yet</h3>
+          <p style="font-size: 14px; max-width: 440px; margin: 0 auto 20px auto;">When you sign in and listen to music, YouTube Music records your history so you can pick up right where you left off.</p>
+          ${!liveAccount?.isLoggedIn ? `
+            <button class="btn-apple-primary" id="btn-history-signin" style="display:inline-flex; align-items:center; gap:8px;">
+              Sign in to YouTube Music
+            </button>
+          ` : ''}
+        </div>
+      ` : '')}
+    </div>
+  `;
+
+  if (hasHistory) {
+    liveHistorySongs.forEach((s, idx) => {
+      const el = document.getElementById(`history-item-${idx}`);
+      if (el) {
+        el.onclick = () => {
+          userQueue = liveHistorySongs.slice(idx);
+          playLiveTrack(s);
+        };
+      }
+    });
+  }
+
+  const btnRefresh = document.getElementById('btn-refresh-history');
+  if (btnRefresh) {
+    btnRefresh.onclick = () => {
+      liveHistorySongs = null;
+      renderCurrentView();
+    };
+  }
+
+  const btnSignIn = document.getElementById('btn-history-signin');
+  if (btnSignIn) {
+    btnSignIn.onclick = () => openAccountModal();
   }
 }
 
@@ -5979,14 +6092,62 @@ function setupEvents() {
     };
   }
 
-  const btnOpenYtmBrowser = document.getElementById('btn-open-ytm-browser');
-  if (btnOpenYtmBrowser) {
-    btnOpenYtmBrowser.onclick = () => {
+  const btnOpenSyncHelper = document.getElementById('btn-open-sync-helper');
+  if (btnOpenSyncHelper) {
+    btnOpenSyncHelper.onclick = () => {
       const api = window.dejaAPI || window.sonoraAPI;
       if (api?.openExternal) {
-        api.openExternal('https://music.youtube.com');
+        api.openExternal('http://127.0.0.1:3728/connect');
       } else if (typeof window !== 'undefined') {
-        window.open('https://music.youtube.com', '_blank');
+        window.open('http://127.0.0.1:3728/connect', '_blank');
+      }
+    };
+  }
+
+  const btnPasteClipboard = document.getElementById('btn-paste-clipboard-connect');
+  if (btnPasteClipboard) {
+    btnPasteClipboard.onclick = async () => {
+      const statusEl = document.getElementById('clipboard-import-status');
+      if (statusEl) {
+        statusEl.style.color = 'var(--apple-text-secondary)';
+        statusEl.innerText = 'Reading clipboard...';
+      }
+      try {
+        let text = '';
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          text = await navigator.clipboard.readText();
+        }
+        if (!text || !text.trim()) {
+          if (statusEl) {
+            statusEl.style.color = '#FA2D48';
+            statusEl.innerText = 'Clipboard is empty. Copy cookies, SAPISID, or cURL from browser first!';
+          }
+          return;
+        }
+        if (statusEl) {
+          statusEl.innerText = 'Connecting...';
+        }
+        const api = window.dejaAPI || window.sonoraAPI;
+        if (api?.importSessionCookies) {
+          const res = await api.importSessionCookies(text.trim());
+          if (res && res.success) {
+            if (statusEl) {
+              statusEl.style.color = '#34C759';
+              statusEl.innerText = `Connected successfully as ${res.account?.name || 'Google User'}!`;
+            }
+            setTimeout(() => closeAccountModal(), 800);
+          } else {
+            if (statusEl) {
+              statusEl.style.color = '#FA2D48';
+              statusEl.innerText = (res && res.error) ? res.error : 'Connection failed. Please check your cookies.';
+            }
+          }
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.style.color = '#FA2D48';
+          statusEl.innerText = 'Error: ' + err.message;
+        }
       }
     };
   }

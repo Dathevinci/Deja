@@ -276,23 +276,11 @@ function createWindow() {
       mainWindow = null;
     });
 
-    // Load URL or preview mode
-    if (isPreview) {
-      mainWindow.loadFile(path.join(__dirname, '../renderer/preview.html')).catch((err) => {
-        console.error('[Window] Failed to load preview.html:', err);
-        showMainWindow('preview-load-error');
-      });
-    } else {
-      mainWindow.loadURL('https://music.youtube.com', {
-        userAgent: CHROME_UA
-      }).catch((err) => {
-        console.warn(`[Network] loadURL failed (${err.message}). Loading offline fallback.`);
-        const fallbackPath = path.join(__dirname, '../renderer/offline-fallback.html');
-        mainWindow.loadFile(fallbackPath).finally(() => {
-          showMainWindow('loadurl-catch-fallback');
-        });
-      });
-    }
+    // Load native client shell (Deja is 100% native client shell, matching BitChord architecture)
+    mainWindow.loadFile(path.join(__dirname, '../renderer/preview.html')).catch((err) => {
+      console.error('[Window] Failed to load preview.html:', err);
+      showMainWindow('preview-load-error');
+    });
 
     // Handle network failure gracefully with fallback option
     mainWindow.webContents.on('did-fail-load', (e, errorCode, errorDescription, validatedURL) => {
@@ -682,7 +670,20 @@ async function applySessionCookies(rawCookieInput, ses) {
 
   try {
     await innertube.ensureSessionScope(ses, true).catch(() => {});
-    const info = await innertube.getAccountInfo(ses);
+    let info = await innertube.getAccountInfo(ses).catch(() => null);
+    if (!info || !info.isLoggedIn) {
+      const auth = await innertube.getAuthContext(ses).catch(() => ({ isLoggedIn: false }));
+      if (auth && auth.isLoggedIn) {
+        info = {
+          isLoggedIn: true,
+          name: 'Google User',
+          channelTitle: 'Google User',
+          handle: '@user',
+          avatarUrl: '',
+          photoUrl: ''
+        };
+      }
+    }
     if (info && info.isLoggedIn) {
       const scope = innertube.getSessionScope();
       await authStore.persistCurrentSession(ses, info, scope, rawCookieInput);
@@ -885,6 +886,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
         title: isSwitchChannel ? 'Choose YouTube Music Profile - Deja' : 'Sign in to YouTube Music - Deja',
         autoHideMenuBar: true,
         webPreferences: {
+          preload: path.join(__dirname, 'login-preload.js'),
           partition: 'persist:ytmusic',
           nodeIntegration: false,
           contextIsolation: true,
@@ -915,6 +917,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
             userAgent: CHROME_UA,
             autoHideMenuBar: true,
             webPreferences: {
+              preload: path.join(__dirname, 'login-preload.js'),
               partition: 'persist:ytmusic',
               nodeIntegration: false,
               contextIsolation: true,
@@ -1204,15 +1207,10 @@ ipcMain.handle('logout-google', async () => {
 ipcMain.handle('toggle-web-mode', async () => {
   if (!mainWindow) return false;
   try {
-    const currentURL = mainWindow.webContents.getURL() || '';
-    if (currentURL.includes('music.youtube.com')) {
-      await mainWindow.loadFile(path.join(__dirname, '../renderer/preview.html'));
-    } else {
-      await mainWindow.loadURL('https://music.youtube.com', { userAgent: CHROME_UA });
-    }
+    await mainWindow.loadFile(path.join(__dirname, '../renderer/preview.html'));
     return true;
   } catch (err) {
-    console.error('[Mode] Failed to toggle web mode:', err);
+    console.error('[Mode] Failed to reload native client:', err);
     return false;
   }
 });
@@ -1579,7 +1577,7 @@ app.whenReady().then(async () => {
         isGoogleAuthRequest(details.url, details.initiator)
       );
 
-      // Clean file:// origin/referer for Google OAuth & auth endpoints without tampering with native Client Hints
+      // Clean file:// origin/referer for Google OAuth & auth endpoints
       if (isGoogleAuth) {
         const origin = requestHeaders['Origin'] || requestHeaders['origin'] || '';
         const referer = requestHeaders['Referer'] || requestHeaders['referer'] || '';
@@ -1591,7 +1589,6 @@ app.whenReady().then(async () => {
           delete requestHeaders['Referer'];
           delete requestHeaders['referer'];
         }
-        return callback({ cancel: false, requestHeaders });
       }
 
       // Remove any lowercase/variant header keys before explicitly setting clean canonical headers
@@ -1603,7 +1600,10 @@ app.whenReady().then(async () => {
           lower === 'sec-ch-ua-mobile' ||
           lower === 'sec-ch-ua-platform' ||
           lower === 'sec-ch-ua-full-version-list' ||
-          lower === 'sec-ch-ua-model'
+          lower === 'sec-ch-ua-platform-version' ||
+          lower === 'sec-ch-ua-model' ||
+          lower === 'sec-ch-ua-bitness' ||
+          lower === 'sec-ch-ua-wow64'
         ) {
           delete requestHeaders[k];
         }
@@ -1615,6 +1615,10 @@ app.whenReady().then(async () => {
       requestHeaders['Sec-Ch-Ua-Mobile'] = '?0';
       requestHeaders['Sec-Ch-Ua-Platform'] = '"Windows"';
       requestHeaders['Sec-Ch-Ua-Full-Version-List'] = '"Google Chrome";v="131.0.6778.86", "Chromium";v="131.0.6778.86", "Not_A Brand";v="24.0.0.0"';
+      requestHeaders['Sec-Ch-Ua-Platform-Version'] = '"10.0.0"';
+      requestHeaders['Sec-Ch-Ua-Model'] = '""';
+      requestHeaders['Sec-Ch-Ua-Bitness'] = '"64"';
+      requestHeaders['Sec-Ch-Ua-Wow64'] = '?0';
 
       const isYtOrGv = (
         details.url.includes('youtube.com') ||
