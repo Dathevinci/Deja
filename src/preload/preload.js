@@ -33,6 +33,7 @@ const dejaAPI = {
   getLyrics: (query) => ipcRenderer.invoke('yt-get-lyrics', query),
   getAccountInfo: () => ipcRenderer.invoke('yt-account-info'),
   selectChannel: (data) => ipcRenderer.invoke('yt-select-channel', data),
+  readClipboard: () => ipcRenderer.invoke('read-clipboard'),
   importSessionCookies: (cookies) => ipcRenderer.invoke('import-session-cookies', cookies),
   startCookieSyncServer: () => ipcRenderer.invoke('start-cookie-sync-server'),
   logoutGoogle: () => ipcRenderer.invoke('logout-google'),

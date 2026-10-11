@@ -651,24 +651,33 @@ async function getAccountInfo(ses) {
     console.warn('[InnerTube] getAccountInfo error:', err.message);
     const auth = await getAuthContext(ses).catch(() => ({ isLoggedIn: false }));
     if (auth && auth.isLoggedIn) {
+      let savedAcc = null;
+      try {
+        const authStore = require('./auth-store');
+        const sessionData = authStore.loadAuthSession();
+        if (sessionData && sessionData.account && sessionData.account.isLoggedIn) {
+          savedAcc = sessionData.account;
+        }
+      } catch {}
+
       return {
         isLoggedIn: true,
-        name: 'Google User',
-        channelTitle: 'Google User',
-        handle: '@user',
-        avatarUrl: '',
-        photoUrl: '',
-        pageId: currentSessionScope.pageId,
-        dataSyncId: currentSessionScope.dataSyncId,
-        authUser: currentSessionScope.authUser,
-        channels: [{
-          name: 'Google User',
-          subtitle: '@user',
-          handle: '@user',
-          thumbnailUrl: '',
-          photoUrl: '',
-          pageId: currentSessionScope.pageId,
-          dataSyncId: currentSessionScope.dataSyncId,
+        name: savedAcc?.name || 'Google User',
+        channelTitle: savedAcc?.channelTitle || savedAcc?.name || 'Google User',
+        handle: savedAcc?.handle || '@user',
+        avatarUrl: savedAcc?.avatarUrl || savedAcc?.photoUrl || '',
+        photoUrl: savedAcc?.photoUrl || savedAcc?.avatarUrl || '',
+        pageId: currentSessionScope.pageId || savedAcc?.pageId || null,
+        dataSyncId: currentSessionScope.dataSyncId || savedAcc?.dataSyncId || null,
+        authUser: currentSessionScope.authUser || savedAcc?.authUser || '0',
+        channels: savedAcc?.channels || [{
+          name: savedAcc?.name || 'Google User',
+          subtitle: savedAcc?.handle || '@user',
+          handle: savedAcc?.handle || '@user',
+          thumbnailUrl: savedAcc?.avatarUrl || '',
+          photoUrl: savedAcc?.photoUrl || '',
+          pageId: currentSessionScope.pageId || null,
+          dataSyncId: currentSessionScope.dataSyncId || null,
           activeOnWeb: true,
           isSelected: true
         }]

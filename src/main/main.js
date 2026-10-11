@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, session, Notification, screen, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session, Notification, screen, dialog, clipboard } = require('electron');
 const path = require('path');
 const config = require('./config');
 const ShortcutManager = require('./shortcuts');
@@ -545,23 +545,118 @@ function startSyncServer() {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Deja Desktop Sync Helper</title>
+  <title>Deja - YouTube Music 1-Click Sync</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; background: #0a0a0e; color: #fff; text-align: center; padding: 40px 20px; margin: 0; }
-    .card { max-width: 520px; margin: 0 auto; background: rgba(28,28,32,0.9); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 32px 28px; box-shadow: 0 16px 40px rgba(0,0,0,0.6); }
-    h1 { font-size: 24px; color: #FA2D48; margin-top: 0; }
-    p { font-size: 14px; line-height: 1.6; color: #aaa; }
-    .status-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(52,199,89,0.15); color: #34C759; padding: 6px 16px; border-radius: 999px; font-weight: 600; font-size: 13px; margin-bottom: 20px; }
-    .btn { display: inline-block; background: #FA2D48; color: #fff; text-decoration: none; padding: 10px 22px; border-radius: 999px; font-weight: 600; margin: 10px 4px; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "SF Pro Display", sans-serif; background: #0a0a0f; color: #fff; margin: 0; padding: 32px 16px; display: flex; justify-content: center; }
+    .card { max-width: 600px; width: 100%; background: rgba(26,26,32,0.95); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 32px 28px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+    .header { text-align: center; margin-bottom: 24px; }
+    .badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(52,199,89,0.15); color: #34C759; border: 1px solid rgba(52,199,89,0.3); padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: 13px; margin-bottom: 12px; }
+    .badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #34C759; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+    h1 { font-size: 26px; font-weight: 800; margin: 0 0 8px 0; color: #fff; }
+    p.sub { font-size: 14px; color: #999; margin: 0; line-height: 1.5; }
+    .method-box { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 18px; margin-bottom: 16px; text-align: left; }
+    .method-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .method-desc { font-size: 13px; color: #aaa; margin-bottom: 14px; line-height: 1.4; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #FA2D48; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 999px; font-weight: 600; font-size: 14px; border: none; cursor: pointer; transition: transform 0.15s ease, background 0.15s ease; }
+    .btn:hover { background: #e0263f; transform: translateY(-1px); }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; }
+    .btn-secondary:hover { background: rgba(255,255,255,0.18); }
+    .bookmarklet-btn { display: inline-block; background: linear-gradient(135deg, #FA2D48, #ff5e7e); color: #fff; padding: 12px 24px; border-radius: 999px; font-weight: 700; text-decoration: none; cursor: grab; box-shadow: 0 4px 16px rgba(250,45,72,0.4); }
+    textarea { width: 100%; height: 75px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #fff; padding: 10px; font-family: monospace; font-size: 12px; resize: none; margin-bottom: 10px; }
+    textarea:focus { outline: none; border-color: #FA2D48; }
+    .success-overlay { display: none; background: rgba(52,199,89,0.15); border: 1px solid rgba(52,199,89,0.4); border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 20px; }
+    .success-overlay h2 { color: #34C759; margin: 0 0 6px 0; font-size: 20px; }
+    .success-overlay p { margin: 0; color: #ccc; font-size: 14px; }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="status-badge">● Deja Sync Server is Online</div>
-    <h1>Deja Account Connect</h1>
-    <p>To connect your Google / YouTube Music account to Deja without entering your password, open YouTube Music in this browser and click your Deja bookmarklet!</p>
-    <a href="https://music.youtube.com" class="btn" target="_blank">Open YouTube Music ↗</a>
+    <div id="status-card" class="success-overlay">
+      <h2>✓ Connected to Deja Successfully!</h2>
+      <p id="status-account-text">Account synchronized. You can return to Deja now.</p>
+    </div>
+
+    <div class="header">
+      <div class="badge"><span class="dot"></span> Deja Desktop Sync Server Online</div>
+      <h1>Connect YouTube Music to Deja</h1>
+      <p class="sub">Safely import your active browser session into Deja without password re-entry.</p>
+    </div>
+
+    <div class="method-box">
+      <div class="method-title">1. Drag Bookmarklet to Bookmarks Bar (Easiest)</div>
+      <div class="method-desc">Drag the red button to your Bookmarks Bar. Then navigate to YouTube Music and click it!</div>
+      <div style="text-align: center; margin: 10px 0 16px 0;">
+        <a class="bookmarklet-btn" href="javascript:(function(){var c=document.cookie;if(!c||c.indexOf('SAPISID')===-1){alert('Please navigate to music.youtube.com and make sure you are signed in first!');return;}fetch('http://127.0.0.1:3728/sync?c='+encodeURIComponent(c),{mode:'no-cors'}).then(function(){alert('Sync sent to Deja! Return to Deja now.');}).catch(function(e){alert('Could not reach Deja. Please make sure Deja is running!');});})()" title="Drag this button to your browser Bookmarks Bar!">★ Drag Me: "Sync to Deja"</a>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <a href="https://music.youtube.com" target="_blank" class="btn btn-secondary" style="flex: 1;">Open YouTube Music ↗</a>
+      </div>
+    </div>
+
+    <div class="method-box">
+      <div class="method-title">2. Or Run 1-Line in Browser Console (F12)</div>
+      <div class="method-desc">On <a href="https://music.youtube.com" target="_blank" style="color: #FA2D48;">music.youtube.com</a>, press <strong>F12</strong>, open Console, paste this snippet, and press Enter:</div>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="snippet" readonly value="fetch('http://127.0.0.1:3728/sync?c=' + encodeURIComponent(document.cookie), { mode: 'no-cors' })" style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #aaa; padding: 8px 12px; font-family: monospace; font-size: 11px;">
+        <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('snippet').value); this.innerText='✓ Copied!'; setTimeout(() => this.innerText='Copy', 2000);">Copy</button>
+      </div>
+    </div>
+
+    <div class="method-box">
+      <div class="method-title">3. Or Paste Cookies / cURL / SAPISID Directly</div>
+      <div class="method-desc">Copied cookies or cURL from DevTools? Paste here and click Connect:</div>
+      <textarea id="cookie-input" placeholder="Paste cookie string (SAPISID=... or cURL command) here..."></textarea>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span id="paste-msg" style="font-size: 13px;"></span>
+        <button class="btn" id="btn-submit-paste" onclick="submitPaste()">Connect to Deja</button>
+      </div>
+    </div>
   </div>
+
+  <script>
+    async function submitPaste() {
+      const val = document.getElementById('cookie-input').value.trim();
+      const msg = document.getElementById('paste-msg');
+      if (!val) { msg.style.color = '#FA2D48'; msg.innerText = 'Please paste cookies first!'; return; }
+      msg.style.color = '#aaa'; msg.innerText = 'Connecting...';
+      try {
+        const res = await fetch('http://127.0.0.1:3728/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ c: val })
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok && data && data.success) {
+          msg.style.color = '#34C759'; msg.innerText = 'Connected!';
+          checkStatus();
+        } else {
+          msg.style.color = '#FA2D48'; msg.innerText = (data && data.error) || 'Failed to connect.';
+        }
+      } catch (err) {
+        msg.style.color = '#FA2D48'; msg.innerText = 'Error: ' + err.message;
+      }
+    }
+
+    async function checkStatus() {
+      try {
+        const res = await fetch('http://127.0.0.1:3728/sync-status');
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          if (data && data.isLoggedIn) {
+            const card = document.getElementById('status-card');
+            const txt = document.getElementById('status-account-text');
+            if (card) card.style.display = 'block';
+            if (txt) txt.innerText = 'Connected successfully as ' + (data.channelTitle || data.name || 'Google User') + '! You can return to Deja now.';
+          }
+        }
+      } catch {}
+    }
+    setInterval(checkStatus, 1500);
+    checkStatus();
+  </script>
 </body>
 </html>`);
           return;
@@ -889,8 +984,8 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           preload: path.join(__dirname, 'login-preload.js'),
           partition: 'persist:ytmusic',
           nodeIntegration: false,
-          contextIsolation: true,
-          sandbox: true,
+          contextIsolation: false,
+          sandbox: false, // Prevents Botguard block; overrides legacy sandbox: true
           webSecurity: true,
           allowRunningInsecureContent: false
         }
@@ -920,8 +1015,8 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
               preload: path.join(__dirname, 'login-preload.js'),
               partition: 'persist:ytmusic',
               nodeIntegration: false,
-              contextIsolation: true,
-              sandbox: true,
+              contextIsolation: false,
+              sandbox: false,
               webSecurity: true,
               allowRunningInsecureContent: false
             }

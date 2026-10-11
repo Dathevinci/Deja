@@ -81,34 +81,21 @@
 
       <div class="sidebar-scrollable">
         <div class="sidebar-group">
-          <span class="sidebar-heading">Apple Music</span>
-          <button class="sidebar-link active" data-page="listen-now">
+          <span class="sidebar-heading">Menu</span>
+          <button class="sidebar-link active" data-page="home" id="sidebar-link-home">
             <svg class="sidebar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
               <polyline points="9 22 9 12 15 12 15 22"></polyline>
             </svg>
-            <span>Listen Now</span>
+            <span>Home</span>
           </button>
-          <button class="sidebar-link" data-page="browse">
+          <button class="sidebar-link" data-page="explore" id="sidebar-link-explore">
             <svg class="sidebar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="7" height="7" x="3" y="3" rx="1"></rect>
-              <rect width="7" height="7" x="14" y="3" rx="1"></rect>
-              <rect width="7" height="7" x="14" y="14" rx="1"></rect>
-              <rect width="7" height="7" x="3" y="14" rx="1"></rect>
+              <circle cx="12" cy="12" r="10"></circle>
+              <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
             </svg>
-            <span>Browse</span>
+            <span>Explore</span>
           </button>
-          <button class="sidebar-link" data-page="radio">
-            <svg class="sidebar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="2"></circle>
-              <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
-            </svg>
-            <span>Radio</span>
-          </button>
-        </div>
-
-        <div class="sidebar-group">
-          <span class="sidebar-heading">Library</span>
           <button class="sidebar-link" data-page="library" id="sidebar-link-library">
             <svg class="sidebar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="m16 6 4 14"></path>
@@ -118,6 +105,13 @@
             </svg>
             <span>Library</span>
           </button>
+          <button class="sidebar-link" data-page="listen-now" style="display:none;" tabindex="-1" aria-hidden="true"></button>
+          <button class="sidebar-link" data-page="browse" style="display:none;" tabindex="-1" aria-hidden="true"></button>
+          <button class="sidebar-link" data-page="radio" style="display:none;" tabindex="-1" aria-hidden="true"></button>
+        </div>
+
+        <div class="sidebar-group">
+          <span class="sidebar-heading">Library</span>
           <button class="sidebar-link" data-page="recently-added">
             <svg class="sidebar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
@@ -192,31 +186,24 @@
 
     <!-- Main Content Area -->
     <main class="main-content" id="main-content-scroll">
-      <!-- Hero Banner / Featured Shelf -->
-      <section class="hero-banner">
-        <div class="hero-backdrop"></div>
-        <div class="hero-content">
-          <span class="hero-tag">EXCLUSIVE DESKTOP EXPERIENCE</span>
-          <h1 class="hero-title">Apple Music Elegance with YouTube Music Base</h1>
-          <p class="hero-subtitle">Stream your favorite tracks, sync your Google library, and experience real-time synchronized lyrics with glassmorphic visuals.</p>
-          <div class="hero-actions">
-            <button class="btn-apple-primary" id="btn-hero-play">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
-              <span>Play Featured Mix</span>
-            </button>
-            <button class="btn-apple-secondary" id="btn-switch-live">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="2" y1="12" x2="22" y2="12"></line>
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-              </svg>
-              <span>Connect Live YouTube Music</span>
-            </button>
+      <!-- BitChord Home Header & Sign-In Prompt -->
+      <div class="bitchord-home-header" style="padding: 10px 0 16px 0;">
+        <h1 style="font-size: 32px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px;">Home</h1>
+        <p style="color: var(--text-secondary); font-size: 14px; margin: 0 0 18px 0;">Your music feed, quick picks, and recommendations from YouTube Music.</p>
+        
+        <div class="bitchord-signin-banner" id="home-signin-banner" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: #FA2D48; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
+            </div>
+            <div>
+              <h3 style="margin: 0 0 2px 0; font-size: 15px; font-weight: 700; color: var(--text-main);">Sign in to YouTube Music</h3>
+              <p style="margin: 0; font-size: 13px; color: var(--text-secondary);">Get personalized recommendations, your playlists, and listening history.</p>
+            </div>
           </div>
+          <button class="btn-apple-primary" id="btn-banner-signin" style="padding: 8px 18px; font-weight: 600; white-space: nowrap;">Sign In</button>
         </div>
-      </section>
+      </div>
 
       <!-- Music Shelves (Cards Grid) -->
       <section class="shelf-section">

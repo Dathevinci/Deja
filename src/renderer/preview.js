@@ -402,7 +402,7 @@ let previousVolume = 0.75;
 let isShuffle = false;
 let repeatMode = 'off'; // 'off', 'all', 'one'
 let lovedTrackIds = new Set(['yt-ic8j13U_FS8', 'yt-4NRXx6U8ABQ', 'yt-kPa7bsKwL-c']);
-let currentView = 'listen-now';
+let currentView = 'home';
 let searchQuery = '';
 
 // Live YouTube Music State (InnerTube WEB_REMIX architecture)
@@ -1171,38 +1171,45 @@ const EQ_PRESETS = {
   'Treble Booster': { b60: -2, b250: -1, b1k: 1, b4k: 4, b12k: 6, bass: -2, mid: 1, treble: 5 }
 };
 
-// Initialize Application
+// Initialize Application (BitChord Native Architecture)
+function bootDejaApp() {
+  initUI();
+  setupNavigation();
+  setupEvents();
+  setupIPC();
+  loadTrack(0);
+
+  // Instant restoration from local storage cache before network returns
+  try {
+    const cachedAcc = localStorage.getItem('deja_cached_account');
+    if (cachedAcc) {
+      const parsedAcc = JSON.parse(cachedAcc);
+      if (parsedAcc && parsedAcc.isLoggedIn) {
+        updateAccountUI(parsedAcc);
+      }
+    }
+    const cachedPls = localStorage.getItem('deja_cached_playlists');
+    if (cachedPls) {
+      const parsedPls = JSON.parse(cachedPls);
+      if (Array.isArray(parsedPls) && parsedPls.length > 0) {
+        liveUserPlaylists = parsedPls;
+      }
+    }
+  } catch {}
+
+  updateSidebarPlaylistsUI(liveUserPlaylists);
+  currentView = 'home';
+  pushNavigation('home', false);
+  renderCurrentView();
+  fetchLiveYouTubeMusic();
+}
+
 if (typeof document !== 'undefined') {
-  document.addEventListener('DOMContentLoaded', () => {
-    initUI();
-    setupNavigation();
-    setupEvents();
-    setupIPC();
-    loadTrack(0);
-
-    // Instant restoration from local storage cache before network returns
-    try {
-      const cachedAcc = localStorage.getItem('deja_cached_account');
-      if (cachedAcc) {
-        const parsedAcc = JSON.parse(cachedAcc);
-        if (parsedAcc && parsedAcc.isLoggedIn) {
-          updateAccountUI(parsedAcc);
-        }
-      }
-      const cachedPls = localStorage.getItem('deja_cached_playlists');
-      if (cachedPls) {
-        const parsedPls = JSON.parse(cachedPls);
-        if (Array.isArray(parsedPls) && parsedPls.length > 0) {
-          liveUserPlaylists = parsedPls;
-        }
-      }
-    } catch {}
-
-    updateSidebarPlaylistsUI(liveUserPlaylists);
-    pushNavigation('listen-now', false);
-    renderCurrentView();
-    fetchLiveYouTubeMusic();
-  });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootDejaApp);
+  } else {
+    bootDejaApp();
+  }
 }
 
 function initUI() {
@@ -1282,12 +1289,15 @@ function renderCurrentView() {
   const mainContent = document.getElementById('main-content-scroll');
   if (!mainContent) return;
 
-  // Update active sidebar link
+  // Update active sidebar link (BitChord Parity)
   const sidebarLinks = document.querySelectorAll('.sidebar-link');
   sidebarLinks.forEach(link => {
     const page = link.getAttribute('data-page');
     const pl = link.getAttribute('data-playlist');
-    if (page && page === currentView && !searchQuery.trim()) {
+    const isHome = (page === 'home' || page === 'listen-now') && (currentView === 'home' || currentView === 'listen-now');
+    const isExplore = (page === 'explore' || page === 'browse') && (currentView === 'explore' || currentView === 'browse');
+    const isExact = page && page === currentView;
+    if ((isHome || isExplore || isExact) && !searchQuery.trim()) {
       link.classList.add('active');
     } else if (pl && `playlist-${pl}` === currentView && !searchQuery.trim()) {
       link.classList.add('active');
@@ -1301,10 +1311,10 @@ function renderCurrentView() {
     return;
   }
 
-  if (currentView === 'listen-now' || currentView === 'home') {
-    renderListenNowView(mainContent);
-  } else if (currentView === 'browse' || currentView === 'explore') {
-    renderBrowseView(mainContent);
+  if (currentView === 'home' || currentView === 'listen-now') {
+    renderHomeView(mainContent);
+  } else if (currentView === 'explore' || currentView === 'browse') {
+    renderExploreView(mainContent);
   } else if (currentView === 'radio') {
     renderRadioView(mainContent);
   } else if (currentView === 'recently-added') {
@@ -2636,7 +2646,12 @@ function playLiveTrack(item) {
   selectTrack(idx);
 }
 
-function renderListenNowView(container) {
+function renderHomeView(container) {
+  return _renderHomeViewImpl(container);
+}
+const renderListenNowView = renderHomeView;
+
+function _renderHomeViewImpl(container) {
   const allShelves = [];
 
   if (liveChartsShelves && liveChartsShelves.length > 0) {
@@ -2720,31 +2735,36 @@ function renderListenNowView(container) {
     `;
   }
 
-  container.innerHTML = `
-    <section class="hero-banner">
-      <div class="hero-backdrop"></div>
-      <div class="hero-content">
-        <span class="hero-tag">NATIVE BITCHORD & APPLE MUSIC CLIENT</span>
-        <h1 class="hero-title">Crystal Audio with Dynamic Mesh Aura</h1>
-        <p class="hero-subtitle">Immerse yourself in fluid 18px squircles, word-synced live lyrics, BitChord audio telemetry, and high-fidelity YouTube Music streaming.</p>
-        <div class="hero-actions">
-          <button class="btn-apple-primary" id="btn-hero-play">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-            <span>Play Featured Mix</span>
-          </button>
-          <button class="btn-apple-secondary" id="btn-switch-live">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path>
-            </svg>
-            <span>${liveAccount?.isLoggedIn ? 'YouTube Music Connected' : 'Connect Live YouTube Music'}</span>
-          </button>
+  const isUserSignedIn = Boolean(liveAccount && liveAccount.isLoggedIn);
+  const signInBannerHTML = !isUserSignedIn ? `
+    <div class="bitchord-signin-banner" id="home-signin-banner" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; cursor: pointer;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="width: 38px; height: 38px; border-radius: 50%; background: #FA2D48; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
+        </div>
+        <div>
+          <h3 style="margin: 0 0 2px 0; font-size: 15px; font-weight: 700; color: var(--text-main);">Sign in to YouTube Music</h3>
+          <p style="margin: 0; font-size: 13px; color: var(--text-secondary);">Get personalized recommendations, your playlists, and listening history.</p>
         </div>
       </div>
-    </section>
+      <button class="btn-apple-primary" id="btn-banner-signin" style="padding: 8px 18px; font-weight: 600; white-space: nowrap;">Sign In</button>
+    </div>
+  ` : '';
+
+  container.innerHTML = `
+    <div class="bitchord-home-header" style="padding: 10px 0 16px 0;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+        <h1 style="font-size: 32px; font-weight: 800; margin: 0; letter-spacing: -0.5px;">Home</h1>
+        ${isUserSignedIn ? `
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); cursor: pointer;" onclick="openAccountModal()">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: #34C759; display: inline-block;"></span>
+            <span>${escapeHTML(liveAccount.channelTitle || liveAccount.name || 'Google User')}</span>
+          </div>
+        ` : ''}
+      </div>
+      <p style="color: var(--text-secondary); font-size: 14px; margin: 0 0 18px 0;">Your music feed, quick picks, and recommendations from YouTube Music.</p>
+      ${signInBannerHTML}
+    </div>
 
     ${isFetchingLive && !hasLiveShelves ? `
       <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; display: flex; align-items: center; gap: 8px;">
@@ -2755,6 +2775,18 @@ function renderListenNowView(container) {
 
     ${shelvesHTML}
   `;
+
+  const bannerSignIn = document.getElementById('btn-banner-signin');
+  if (bannerSignIn) {
+    bannerSignIn.onclick = (e) => {
+      e.stopPropagation();
+      openAccountModal();
+    };
+  }
+  const homeBanner = document.getElementById('home-signin-banner');
+  if (homeBanner) {
+    homeBanner.onclick = () => openAccountModal();
+  }
 
   if (hasLiveShelves) {
     allShelves.forEach((shelf, sIdx) => {
@@ -2788,7 +2820,12 @@ function renderListenNowView(container) {
   }
 }
 
-function renderBrowseView(container) {
+function renderExploreView(container) {
+  return _renderExploreViewImpl(container);
+}
+const renderBrowseView = renderExploreView;
+
+function _renderExploreViewImpl(container) {
   const genres = ['All', 'Charts', 'New Releases', 'Moods & Genres', 'Trending', 'Chill', 'Synthwave'];
   const allBrowseShelves = [];
 
@@ -2798,7 +2835,7 @@ function renderBrowseView(container) {
     api.getMoodsAndGenres().then(res => {
       isLoadingMoods = false;
       liveMoodsAndGenres = (res && res.categories) ? res.categories : [];
-      if (currentView === 'browse') {
+      if (currentView === 'explore' || currentView === 'browse') {
         renderCurrentView();
       }
     }).catch(err => {
@@ -2890,8 +2927,8 @@ function renderBrowseView(container) {
 
   container.innerHTML = `
     <div style="padding: 10px 0 20px 0;">
-      <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 8px;">Browse Music</h1>
-      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Explore trending hits, curated playlists, and new releases directly from YouTube Music.</p>
+      <h1 style="font-size: 32px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px;">Explore</h1>
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">New releases, charts, and moods & genres from YouTube Music.</p>
       
       <div class="genre-chips-wrap">
         ${genres.map((g, i) => `
@@ -3584,6 +3621,14 @@ function renderLibraryView(container) {
           </div>
           <div class="card-title">Artists</div>
           <div class="card-subtitle">${liveLibraryArtists.length || liveArtists.length || 'Collection'} artists</div>
+        </div>
+
+        <div class="apple-music-card" onclick="navigateTo('history')" style="cursor: pointer;">
+          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color: var(--text-secondary);">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="card-title">History</div>
+          <div class="card-subtitle">${(liveHistorySongs && liveHistorySongs.length) || 'Listening'} history</div>
         </div>
       </div>
 
@@ -6092,6 +6137,18 @@ function setupEvents() {
     };
   }
 
+  const btnOpenYtmBrowser = document.getElementById('btn-open-ytm-browser');
+  if (btnOpenYtmBrowser) {
+    btnOpenYtmBrowser.onclick = () => {
+      const api = window.dejaAPI || window.sonoraAPI;
+      if (api?.openExternal) {
+        api.openExternal('https://music.youtube.com');
+      } else if (typeof window !== 'undefined') {
+        window.open('https://music.youtube.com', '_blank');
+      }
+    };
+  }
+
   const btnOpenSyncHelper = document.getElementById('btn-open-sync-helper');
   if (btnOpenSyncHelper) {
     btnOpenSyncHelper.onclick = () => {
@@ -6114,8 +6171,12 @@ function setupEvents() {
       }
       try {
         let text = '';
-        if (navigator.clipboard && navigator.clipboard.readText) {
-          text = await navigator.clipboard.readText();
+        const api = window.dejaAPI || window.sonoraAPI;
+        if (api?.readClipboard) {
+          text = await api.readClipboard().catch(() => '');
+        }
+        if (!text && navigator.clipboard && navigator.clipboard.readText) {
+          text = await navigator.clipboard.readText().catch(() => '');
         }
         if (!text || !text.trim()) {
           if (statusEl) {
@@ -6127,8 +6188,7 @@ function setupEvents() {
         if (statusEl) {
           statusEl.innerText = 'Connecting...';
         }
-        const api = window.dejaAPI || window.sonoraAPI;
-        if (api?.importSessionCookies) {
+ {
           const res = await api.importSessionCookies(text.trim());
           if (res && res.success) {
             if (statusEl) {
@@ -6541,9 +6601,7 @@ function setupIPC() {
       updateAccountUI(acc);
       await fetchLiveYouTubeMusic(true);
       updateSidebarPlaylistsUI(liveUserPlaylists);
-      if (currentView === 'library' || currentView === 'playlists') {
-        renderCurrentView();
-      }
+      renderCurrentView(); // Re-render current view immediately upon auth change
     });
   }
 

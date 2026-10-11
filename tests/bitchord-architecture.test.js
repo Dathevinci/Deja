@@ -1298,6 +1298,21 @@ function runBitChordArchitectureTests() {
   assert.ok(html.includes('id="btn-open-sync-helper"'), 'preview.html account modal must include browser sync helper button');
   assert.ok(previewCode.includes('function renderHistoryView'), 'preview.js must implement renderHistoryView matching BitChord HistoryScreen.kt');
 
+  // 9.23 Verify BitChord Home, Explore & 1-Click Sync Parity
+  assert.ok(html.includes('data-page="home"'), 'preview.html sidebar must include Home link');
+  assert.ok(html.includes('data-page="explore"'), 'preview.html sidebar must include Explore link');
+  assert.ok(html.includes('id="home-signin-banner"'), 'preview.html must include BitChord Home SignInBanner');
+  assert.ok(html.includes('id="btn-open-ytm-browser"'), 'preview.html must include open YouTube Music browser button');
+  assert.ok(previewCode.includes('renderHomeView'), 'preview.js must implement renderHomeView');
+  assert.ok(previewCode.includes('renderExploreView'), 'preview.js must implement renderExploreView');
+  assert.ok(mainCode.includes("parsedUrl.pathname === '/connect'"), 'main.js sync server must handle /connect');
+  assert.ok(mainCode.includes('Deja - YouTube Music 1-Click Sync'), 'main.js /connect must serve interactive 1-click sync helper portal');
+  assert.ok(mainCode.includes("parsedUrl.pathname === '/sync-status'"), 'main.js sync server must handle /sync-status');
+  assert.ok(mainCode.includes("contextIsolation: false"), 'main.js login windows must use contextIsolation: false for Botguard compatibility');
+  const libraryIdMatches = (html.match(/id="sidebar-link-library"/g) || []).length;
+  assert.strictEqual(libraryIdMatches, 1, 'preview.html must not contain duplicate sidebar-link-library IDs');
+  assert.ok(preloadCode.includes('readClipboard:'), 'preload.js must expose readClipboard bridge');
+
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
 
