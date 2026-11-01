@@ -15,8 +15,16 @@
       <button class="deja-btn-traffic sonora-btn-traffic deja-btn-min sonora-btn-min" id="btn-minimize" title="Minimize"></button>
       <button class="deja-btn-traffic sonora-btn-traffic deja-btn-max sonora-btn-max" id="btn-maximize" title="Maximize"></button>
       <div class="nav-arrows">
-        <button class="nav-arrow" id="nav-back" title="Back">‹</button>
-        <button class="nav-arrow" id="nav-forward" title="Forward">›</button>
+        <button class="nav-arrow" id="nav-back" title="Back" aria-label="Back">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <button class="nav-arrow" id="nav-forward" title="Forward" aria-label="Forward">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -255,7 +263,7 @@
           <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
         </svg>
       </button>
-      <button class="player-icon-btn btn-expand-player" id="btn-expand-player" title="Expand Now Playing (⤢)">
+      <button class="player-icon-btn btn-expand-player" id="btn-expand-player" title="Expand Now Playing">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 3 21 3 21 9"></polyline>
           <polyline points="9 21 3 21 3 15"></polyline>
@@ -392,7 +400,7 @@
       <div class="deja-mesh-dark-scrim"></div>
     </div>
 
-    <!-- Top Header: Sleek collapse arrow ⌄, "Playing from...", and three-dots options button -->
+    <!-- Top Header: Sleek collapse chevron, "Playing from...", and three-dots options button -->
     <header class="expanded-player-header">
       <button class="btn-collapse-player" id="btn-collapse-player" title="Collapse (Esc)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -867,8 +875,13 @@
                 <div class="step-badge">Step 1</div>
                 <h4>Open YouTube Music</h4>
                 <p>Ensure you are signed in to YouTube Music in your default browser.</p>
-                <button class="btn-apple-secondary btn-mini-open" id="btn-open-ytm-browser">
-                  Open YouTube Music ↗
+                <button class="btn-apple-secondary btn-mini-open" id="btn-open-ytm-browser" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;">
+                  <span>Open YouTube Music</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
                 </button>
               </div>
 

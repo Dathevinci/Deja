@@ -1399,21 +1399,196 @@ body {
   min-height: 20px;
 }
 
-/* Footer */
+/* Curated Marquee Ticker Section (matching BitChord reference) */
+.curated-marquee-section {
+  padding: 40px 0 60px;
+  overflow: hidden;
+  position: relative;
+}
+
+.curated-marquee-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.curated-marquee-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.curated-marquee-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.marquee-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  position: relative;
+}
+
+.marquee-container::before,
+.marquee-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 120px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.marquee-container::before {
+  left: 0;
+  background: linear-gradient(to right, #060608 0%, transparent 100%);
+}
+
+.marquee-container::after {
+  right: 0;
+  background: linear-gradient(to left, #060608 0%, transparent 100%);
+}
+
+.marquee-row {
+  display: flex;
+  gap: 14px;
+  width: max-content;
+  will-change: transform;
+}
+
+.marquee-row-left {
+  animation: marqueeScrollLeft 55s linear infinite;
+}
+
+.marquee-row-right {
+  animation: marqueeScrollRight 55s linear infinite;
+}
+
+.marquee-row:hover {
+  animation-play-state: paused;
+}
+
+@keyframes marqueeScrollLeft {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes marqueeScrollRight {
+  0% { transform: translate3d(-50%, 0, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+.marquee-track-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 8px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.marquee-track-card:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(250, 45, 72, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.marquee-art-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #111;
+}
+
+.marquee-art-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.marquee-track-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.marquee-track-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.marquee-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.explicit-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.marquee-artist {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Footer (BitChord Parity) */
 .site-footer {
   border-top: 1px solid var(--border-subtle);
-  background: rgba(10, 10, 14, 0.8);
-  padding: 48px 0;
+  background: rgba(10, 10, 14, 0.85);
+  padding: 48px 0 40px;
   font-size: 13px;
   color: var(--text-tertiary);
 }
 
-.footer-content {
+.footer-main-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 20px;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+}
+
+.footer-version-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .footer-links {
@@ -1422,14 +1597,36 @@ body {
   list-style: none;
 }
 
-.footer-links a {
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--text-secondary);
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
-.footer-links a:hover {
+.footer-link:hover {
   color: var(--text-primary);
+}
+
+.footer-disclaimers {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  max-width: 820px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.footer-bottom-row {
+  margin-top: 20px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
 }
 
 /* Responsive adjustments */

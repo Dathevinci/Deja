@@ -1135,8 +1135,16 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         <button class="deja-btn-traffic sonora-btn-traffic deja-btn-min sonora-btn-min" id="deja-min-btn" title="Minimize"></button>
         <button class="deja-btn-traffic sonora-btn-traffic deja-btn-max sonora-btn-max" id="deja-max-btn" title="Maximize"></button>
         <div class="deja-nav-controls sonora-nav-controls">
-          <button class="deja-nav-btn sonora-nav-btn" id="deja-back-btn" title="Back">‹</button>
-          <button class="deja-nav-btn sonora-nav-btn" id="deja-forward-btn" title="Forward">›</button>
+          <button class="deja-nav-btn sonora-nav-btn" id="deja-back-btn" title="Back" aria-label="Back">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <button class="deja-nav-btn sonora-nav-btn" id="deja-forward-btn" title="Forward" aria-label="Forward">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
         </div>
       </div>
 

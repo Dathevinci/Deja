@@ -1398,6 +1398,26 @@ function runBitChordArchitectureTests() {
   assert.strictEqual(libraryIdMatches, 1, 'preview.html must not contain duplicate sidebar-link-library IDs');
   assert.ok(preloadCode.includes('readClipboard:'), 'preload.js must expose readClipboard bridge');
 
+  // 9.24 Verify Zero-Emoji Vector Cleanliness & BitChord Website Parity
+  const applePlayerPath = path.join(__dirname, '../src/preload/apple-player.js');
+  const applePlayerCode = fs.readFileSync(applePlayerPath, 'utf8');
+  assert.ok(!html.includes('id="nav-back">‹'), 'preview.html nav-back must use SVG vector chevron instead of raw unicode');
+  assert.ok(!html.includes('id="nav-forward">›'), 'preview.html nav-forward must use SVG vector chevron instead of raw unicode');
+  assert.ok(!applePlayerCode.includes('id="deja-back-btn" title="Back">‹'), 'apple-player.js deja-back-btn must use SVG vector chevron');
+  assert.ok(!applePlayerCode.includes('id="deja-forward-btn" title="Forward">›'), 'apple-player.js deja-forward-btn must use SVG vector chevron');
+
+  const docsHtmlPath = path.join(__dirname, '../docs/index.html');
+  const docsHtml = fs.readFileSync(docsHtmlPath, 'utf8');
+  const docsCssPath = path.join(__dirname, '../docs/style.css');
+  const docsCss = fs.readFileSync(docsCssPath, 'utf8');
+  assert.ok(docsHtml.includes('class="curated-marquee-section"'), 'docs/index.html must include curated marquee section');
+  assert.ok(docsHtml.includes('class="marquee-track-card album-card"'), 'docs/index.html must include interactive marquee track cards');
+  assert.ok(docsHtml.includes('class="footer-disclaimers"'), 'docs/index.html must include platform disclaimers matching BitChord');
+  assert.ok(!docsHtml.includes('id="btn-close-android-modal" title="Close">&times;</button>'), 'docs/index.html modal close button must use SVG vector icon instead of &times;');
+  assert.ok(docsCss.includes('.curated-marquee-section'), 'docs/style.css must style curated marquee section');
+  assert.ok(docsCss.includes('.marquee-row-left') && docsCss.includes('.marquee-row-right'), 'docs/style.css must define dual-direction infinite marquee animations');
+  assert.ok(docsCss.includes('.footer-disclaimers'), 'docs/style.css must style footer disclaimers');
+
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
 
