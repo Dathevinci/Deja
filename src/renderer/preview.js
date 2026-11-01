@@ -899,7 +899,7 @@ function setupDejaAudioElement() {
 
   dejaAudio.addEventListener('timeupdate', () => {
     if (!isDirectStreamPlaying) return;
-    currentTime = dejaAudio.currentTime;
+    currentTime = lyricClockReconciler.reconcile(dejaAudio.currentTime, !dejaAudio.paused);
     const track = CATALOGUE_TRACKS[currentIndex];
     if (track && dejaAudio.duration && !isNaN(dejaAudio.duration) && Math.round(dejaAudio.duration) > 0) {
       const dur = Math.round(dejaAudio.duration);
@@ -4393,9 +4393,14 @@ function renderLyrics(lyrics) {
       const innerContent = hasWords
         ? l.words.map(w => `<span class="lyric-word-span" data-start="${w.startTime}" data-end="${w.endTime}">${escapeHTML(w.text)}</span>`).join(' ')
         : escapeHTML(l.text);
+      const bgHtml = l.backgroundText
+        ? `<div class="lyric-bg-vocal" style="font-size: 0.72em; opacity: 0.72; margin-top: 4px; font-weight: 500;">(${escapeHTML(l.backgroundText)})</div>`
+        : '';
+      const alignClass = l.isRightAligned ? ' lyric-right-aligned' : '';
+      const alignStyle = l.isRightAligned ? ' style="text-align: right;"' : '';
       return `
-      <div class="apple-lyric-line ${isSynced && i === 0 ? 'active' : ''}${hasWords ? ' has-word-sync' : ''}" data-time="${l.time}" data-line-index="${i}">
-        ${innerContent}
+      <div class="apple-lyric-line ${isSynced && i === 0 ? 'active' : ''}${hasWords ? ' has-word-sync' : ''}${alignClass}" data-time="${l.time}" data-line-index="${i}"${alignStyle}>
+        ${innerContent}${bgHtml}
       </div>
     `;
     }).join('');
@@ -4683,6 +4688,26 @@ async function resolveSyncedLyrics(track, forceRefresh = false) {
   }
 }
 
+function decodeLrcEntities(text) {
+  if (!text || typeof text !== 'string') return '';
+  if (!text.includes('&')) return text;
+  return text
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
+      const code = parseInt(hex, 16);
+      return !isNaN(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&#(\d+);/g, (_, dec) => {
+      const code = parseInt(dec, 10);
+      return !isNaN(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&');
+}
+
 function parseLrcLines(lrcText) {
   if (!lrcText || typeof lrcText !== 'string') return [];
   const lines = lrcText.split(/\r?\n/);
@@ -4725,23 +4750,30 @@ function parseLrcLines(lrcText) {
     for (let i = 0; i < stamps.length; i++) {
       const cur = stamps[i];
       const next = i + 1 < stamps.length ? stamps[i + 1] : null;
-      const slice = lineBody.slice(cur.endIdx, next ? next.startIdx : lineBody.length).replace(/\s+/g, ' ').trim();
+      const rawSlice = lineBody.slice(cur.endIdx, next ? next.startIdx : lineBody.length);
+      const slice = decodeLrcEntities(rawSlice).replace(/\s+/g, ' ').trim();
       if (!slice) continue;
       const startTime = cur.timeSec;
+      const hasExplicitEnd = Boolean(next);
       const endTime = Math.max(startTime + 0.08, Math.round((next ? next.timeSec : startTime + 0.38) * 1000) / 1000);
       const parts = slice.split(' ').filter(Boolean);
       if (parts.length === 1) {
-        words.push({ startTime, endTime, text: parts[0] });
+        words.push({ startTime, endTime, text: parts[0], _hasExplicitEnd: hasExplicitEnd });
       } else {
         const step = Math.max(0.08, endTime - startTime) / parts.length;
         for (let p = 0; p < parts.length; p++) {
           const wStart = Math.round((startTime + p * step) * 1000) / 1000;
           const wEnd = Math.round((p === parts.length - 1 ? endTime : startTime + (p + 1) * step) * 1000) / 1000;
-          words.push({ startTime: wStart, endTime: Math.max(wStart + 0.05, wEnd), text: parts[p] });
+          words.push({
+            startTime: wStart,
+            endTime: Math.max(wStart + 0.05, wEnd),
+            text: parts[p],
+            _hasExplicitEnd: p === parts.length - 1 ? hasExplicitEnd : true
+          });
         }
       }
     }
-    return words.length >= 2 ? words : [];
+    return words.length >= 1 ? words : [];
   };
 
   for (const rawLine of lines) {
@@ -4750,14 +4782,20 @@ function parseLrcLines(lrcText) {
 
     stampRegex.lastIndex = 0;
     const matches = [...trimmed.matchAll(stampRegex)];
-    if (matches.length === 0) continue;
 
     const lineBody = trimmed.replace(stampRegex, '').trim();
     const words = parseInlineWords(lineBody);
+    if (matches.length === 0 && words.length === 0) continue;
+
     wordStampRegex.lastIndex = 0;
-    let text = lineBody.replace(wordStampRegex, '').replace(/\s+/g, ' ').trim();
+    let text = decodeLrcEntities(lineBody.replace(wordStampRegex, '')).replace(/\s+/g, ' ').trim();
     if (!text && words.length > 0) text = words.map(w => w.text).join(' ');
     const displayText = text.length > 0 ? text : '♪';
+
+    if (matches.length === 0 && words.length > 0) {
+      result.push({ time: words[0].startTime, text: displayText, words: words.map(w => ({ ...w })) });
+      continue;
+    }
 
     for (const match of matches) {
       const minutes = parseInt(match[1], 10) || 0;
@@ -4779,6 +4817,26 @@ function parseLrcLines(lrcText) {
   }
 
   result.sort((a, b) => a.time - b.time);
+
+  // Refine endTime on the final word of word-synced lines using the next line's start time
+  for (let i = 0; i < result.length; i++) {
+    const line = result[i];
+    if (Array.isArray(line.words) && line.words.length > 0) {
+      const lastWord = line.words[line.words.length - 1];
+      const nextLineTime = i + 1 < result.length ? result[i + 1].time : null;
+      if (!lastWord._hasExplicitEnd && nextLineTime !== null && nextLineTime > lastWord.startTime) {
+        const clampedEnd = Math.min(lastWord.startTime + 1.6, Math.max(lastWord.startTime + 0.08, nextLineTime));
+        lastWord.endTime = Math.round(clampedEnd * 1000) / 1000;
+      } else if (lastWord._hasExplicitEnd && nextLineTime !== null && nextLineTime > lastWord.startTime && lastWord.endTime > nextLineTime) {
+        lastWord.endTime = Math.round(Math.max(lastWord.startTime + 0.08, nextLineTime) * 1000) / 1000;
+      }
+      for (const w of line.words) {
+        delete w._hasExplicitEnd;
+      }
+      line.endTime = lastWord.endTime;
+    }
+  }
+
   if (result.length > 0 && result[0].time > 5) {
     result.unshift({ time: 0, text: '♪' });
   }
@@ -4889,9 +4947,7 @@ function play() {
   if (typeof document !== 'undefined') {
     if (playbackTimer) clearInterval(playbackTimer);
     playbackTimer = setInterval(tick, 1000);
-
-    if (lyricClockTimer) clearInterval(lyricClockTimer);
-    lyricClockTimer = setInterval(tickLyricClock, 50);
+    startLyricClock();
   }
 
   notifyTrackState();
@@ -4917,10 +4973,7 @@ function pause() {
     clearInterval(playbackTimer);
     playbackTimer = null;
   }
-  if (lyricClockTimer) {
-    clearInterval(lyricClockTimer);
-    lyricClockTimer = null;
-  }
+  stopLyricClock();
 
   notifyTrackState();
 }
@@ -5080,7 +5133,7 @@ function tick() {
   const track = CATALOGUE_TRACKS[currentIndex];
 
   if (isDirectStreamPlaying && dejaAudio && typeof dejaAudio.currentTime === 'number' && !isNaN(dejaAudio.currentTime)) {
-    currentTime = dejaAudio.currentTime;
+    currentTime = lyricClockReconciler.reconcile(dejaAudio.currentTime, !dejaAudio.paused);
     if (dejaAudio.duration && !isNaN(dejaAudio.duration) && Math.round(dejaAudio.duration) > 0) {
       const dur = Math.round(dejaAudio.duration);
       const prevDur = track.duration || 0;
@@ -5101,7 +5154,9 @@ function tick() {
   } else if (isYtReady && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
     try {
       const ytSec = ytPlayer.getCurrentTime();
-      if (typeof ytSec === 'number' && !isNaN(ytSec) && ytSec >= 0) currentTime = ytSec;
+      if (typeof ytSec === 'number' && !isNaN(ytSec) && ytSec >= 0) {
+        currentTime = lyricClockReconciler.reconcile(ytSec, isYtPlaying);
+      }
       const ytDur = Math.round(ytPlayer.getDuration());
       const prevDur = track.duration || 0;
       const wasUnverified = Boolean(track._durationUnverified);

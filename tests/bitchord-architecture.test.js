@@ -1460,6 +1460,61 @@ function runBitChordArchitectureTests() {
   const seekSnap = testClock.reconcile(45.0, true, 1100);
   assert.strictEqual(seekSnap, 45.0, 'LyricClockReconciler must snap immediately on seeks > 1.25s');
 
+  // 9.26 Verify Nested TTML Spans (x-bg, x-translation, wrapper spans, v1/v2 duet alignment),
+  // Numeric HTML Entities (&#x27;), 1-Word Enhanced LRC, and Last-Word Hold Extension
+  assert.strictEqual(innertube.decodeHtmlEntities('I&#x27;m &amp; you&#39;re'), "I'm & you're", 'decodeHtmlEntities must decode hex and decimal numeric entities');
+  assert.strictEqual(innertube.decodeHtmlEntities('&amp;#x27;'), '&#x27;', 'decodeHtmlEntities must decode &amp; last to avoid double-unescaping');
+
+  const nestedTtmlSample = `
+    <tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+      <body>
+        <div>
+          <p begin="00:01.000" end="00:04.500" ttm:agent="v1">
+            <span begin="00:01.000" end="00:04.000">
+              <span begin="00:01.000" end="00:01.500">yel</span><span begin="00:01.500" end="00:02.200">low </span>
+              <span begin="00:02.200" end="00:03.800">stars</span>,
+            </span>
+            <span ttm:role="x-bg">
+              <span begin="00:02.500" end="00:03.200">(shine </span>
+              <span begin="00:03.200" end="00:04.400">for you)</span>
+            </span>
+            <span ttm:role="x-translation"><span lang="es">estrellas amarillas</span></span>
+          </p>
+          <p begin="00:04.600" end="00:06.800" ttm:agent="v2">
+            <span begin="00:04.600" end="00:06.800">I&#x27;m here</span>
+          </p>
+        </div>
+      </body>
+    </tt>
+  `;
+  const parsedNestedTtml = innertube.parseTtmlLyrics(nestedTtmlSample);
+  assert.strictEqual(parsedNestedTtml.length, 2, 'parseTtmlLyrics must parse both duet <p> lines');
+  assert.strictEqual(parsedNestedTtml[0].text, 'yellow stars,', 'Lead vocal text must exclude nested x-bg and x-translation spans and preserve trailing punctuation');
+  assert.strictEqual(parsedNestedTtml[0].words.length, 2, 'Nested timed wrapper span must recurse to leaf syllable spans and merge "yel"+"low"');
+  assert.strictEqual(parsedNestedTtml[0].words[0].text, 'yellow');
+  assert.strictEqual(parsedNestedTtml[0].words[0].startTime, 1.0);
+  assert.strictEqual(parsedNestedTtml[0].words[0].endTime, 2.2);
+  assert.strictEqual(parsedNestedTtml[0].words[1].text, 'stars,');
+  assert.strictEqual(parsedNestedTtml[0].backgroundText, 'shine for you', 'Nested x-bg spans must be extracted into backgroundText with outer parens stripped');
+  assert.strictEqual(parsedNestedTtml[0].isRightAligned, false, 'Primary vocalist v1 must be left-aligned');
+  assert.strictEqual(parsedNestedTtml[1].text, "I'm here", 'TTML parser must decode hex entities in span text');
+  assert.strictEqual(parsedNestedTtml[1].isRightAligned, true, 'Secondary vocalist v2 must be right-aligned');
+
+  // Single-word Enhanced LRC & last-word hold extension toward next line
+  const multiLineEnhancedLrc = '[00:01.00]<00:01.00>Yellow\n[00:02.20]<00:02.20>I&#x27;m <00:02.60>calling\n[00:03.80]Next line';
+  const parsedMultiMain = innertube.parseLrcString(multiLineEnhancedLrc);
+  const parsedMultiRenderer = previewModule.parseLrcLines(multiLineEnhancedLrc);
+  [parsedMultiMain, parsedMultiRenderer].forEach((parsed, idx) => {
+    const label = idx === 0 ? 'innertube.parseLrcString' : 'preview.parseLrcLines';
+    assert.strictEqual(parsed.length, 3, `${label} must parse all 3 lines`);
+    assert.ok(Array.isArray(parsed[0].words) && parsed[0].words.length === 1, `${label} must preserve 1-word Enhanced LRC lines`);
+    assert.strictEqual(parsed[0].words[0].text, 'Yellow');
+    assert.strictEqual(parsed[0].words[0].endTime, 2.2, `${label} must extend 1-word line endTime to next line start (2.2s)`);
+    assert.strictEqual(parsed[1].words[0].text, "I'm", `${label} must decode &#x27; entity in word text`);
+    assert.strictEqual(parsed[1].words[1].text, 'calling');
+    assert.strictEqual(parsed[1].words[1].endTime, 3.8, `${label} must extend last word endTime to next line start (3.8s)`);
+  });
+
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
 
@@ -1468,4 +1523,5 @@ module.exports = runBitChordArchitectureTests;
 if (require.main === module) {
   runBitChordArchitectureTests();
 }
+
 

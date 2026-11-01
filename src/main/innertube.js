@@ -156,7 +156,7 @@ async function fetchSessionScope(cookieStr, sapisid = null) {
 
     const dataSyncMatch = html.match(CONFIG_DATASYNC_ID);
     const rawDataSyncId = (dataSyncMatch && dataSyncMatch[1].trim()) ? dataSyncMatch[1].trim() : null;
-    const dataSyncId = normalizeDataSyncId(rawDataSyncId);
+    const dataSyncId = pageId || normalizeDataSyncId(rawDataSyncId);
 
     const authUserMatch = html.match(CONFIG_SESSION_INDEX);
     const authUser = (authUserMatch && authUserMatch[1]) ? authUserMatch[1] : '0';
@@ -604,9 +604,23 @@ async function getAccountInfo(ses) {
     }
     walk(data);
 
-    // Extract channels and identity tokens from account menu (BitChord architecture)
-    const channels = parseAccountChannels(data);
-    const tokens = extractIdentityTokensFromAccountMenu(data);
+    // Extract channels and identity tokens from account menu & accounts_list (BitChord architecture)
+    let channels = parseAccountChannels(data);
+    let tokens = extractIdentityTokensFromAccountMenu(data);
+
+    if (channels.length === 0) {
+      try {
+        const listData = await postMusic('account/accounts_list', {}, ses);
+        const listChannels = parseAccountChannels(listData);
+        if (listChannels.length > 0) {
+          channels = listChannels;
+          const listTokens = extractIdentityTokensFromAccountMenu(listData);
+          if (!tokens.pageId && listTokens.pageId) tokens.pageId = listTokens.pageId;
+          if (!tokens.dataSyncId && listTokens.dataSyncId) tokens.dataSyncId = listTokens.dataSyncId;
+        }
+      } catch {}
+    }
+
     if (tokens.pageId && !currentSessionScope.pageId) {
       currentSessionScope.pageId = tokens.pageId;
     }
@@ -621,6 +635,16 @@ async function getAccountInfo(ses) {
           ? ch.pageId === currentSessionScope.pageId
           : Boolean(ch.activeOnWeb || (!ch.pageId && ch.dataSyncId === currentSessionScope.dataSyncId));
       });
+      const selectedChannel = channels.find(ch => ch.isSelected);
+      if (selectedChannel) {
+        if (selectedChannel.name) name = selectedChannel.name;
+        if (selectedChannel.handle || selectedChannel.subtitle) {
+          handle = selectedChannel.handle || selectedChannel.subtitle || handle;
+        }
+        if (selectedChannel.thumbnailUrl || selectedChannel.photoUrl) {
+          avatarUrl = selectedChannel.thumbnailUrl || selectedChannel.photoUrl || avatarUrl;
+        }
+      }
     } else {
       channels.push({
         name,
@@ -2488,19 +2512,26 @@ function getPrimaryArtist(str) {
 
 /**
  * Decodes HTML entities commonly returned in Enhanced LRC / TTML lyrics
- * Matches BitChord EnhancedLrc.kt decodeEntities()
+ * Matches BitChord EnhancedLrc.kt decodeEntities() (numeric hex/dec entities first, &amp; last).
  */
 function decodeHtmlEntities(text) {
   if (!text || typeof text !== 'string') return '';
   if (!text.includes('&')) return text;
   return text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, ' ');
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
+      const code = parseInt(hex, 16);
+      return !isNaN(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&#(\d+);/g, (_, dec) => {
+      const code = parseInt(dec, 10);
+      return !isNaN(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&');
 }
 
 /**
@@ -2541,25 +2572,31 @@ function parseWordRunsFromLine(lineBody, fileOffsetSec = 0) {
     if (!cleaned) continue;
 
     const startTime = cur.timeSec;
+    const hasExplicitEnd = Boolean(next);
     const nextStampTime = next ? next.timeSec : startTime + 0.38;
     const endTime = Math.max(startTime + 0.08, Math.round(nextStampTime * 1000) / 1000);
 
     // Split multi-word slices if needed or keep single word token
     const parts = cleaned.split(' ').filter(Boolean);
     if (parts.length === 1) {
-      words.push({ startTime, endTime, text: parts[0] });
+      words.push({ startTime, endTime, text: parts[0], _hasExplicitEnd: hasExplicitEnd });
     } else {
       const spanDur = Math.max(0.08, endTime - startTime);
       const step = spanDur / parts.length;
       for (let p = 0; p < parts.length; p++) {
         const wStart = Math.round((startTime + p * step) * 1000) / 1000;
         const wEnd = Math.round((p === parts.length - 1 ? endTime : startTime + (p + 1) * step) * 1000) / 1000;
-        words.push({ startTime: wStart, endTime: Math.max(wStart + 0.05, wEnd), text: parts[p] });
+        words.push({
+          startTime: wStart,
+          endTime: Math.max(wStart + 0.05, wEnd),
+          text: parts[p],
+          _hasExplicitEnd: p === parts.length - 1 ? hasExplicitEnd : true
+        });
       }
     }
   }
 
-  return words.length >= 2 ? words : [];
+  return words.length >= 1 ? words : [];
 }
 
 /**
@@ -2591,10 +2628,10 @@ function parseLrcString(lrcContent) {
 
     stampRegex.lastIndex = 0;
     const matches = [...trimmed.matchAll(stampRegex)];
-    if (matches.length === 0) continue;
 
     const lineBody = trimmed.replace(stampRegex, '').trim();
     const words = parseWordRunsFromLine(lineBody, fileOffsetSec);
+    if (matches.length === 0 && words.length === 0) continue;
 
     // Strip enhanced word stamps and time stamps for full line text
     let text = decodeHtmlEntities(lineBody.replace(wordStampRegex, '')).replace(/\s+/g, ' ').trim();
@@ -2602,6 +2639,15 @@ function parseLrcString(lrcContent) {
       text = words.map(w => w.text).join(' ');
     }
     const displayText = text.length > 0 ? text : '♪';
+
+    if (matches.length === 0 && words.length > 0) {
+      result.push({
+        time: words[0].startTime,
+        text: displayText,
+        words: words.map(w => ({ ...w }))
+      });
+      continue;
+    }
 
     for (const match of matches) {
       const minutes = parseInt(match[1], 10) || 0;
@@ -2633,13 +2679,20 @@ function parseLrcString(lrcContent) {
   result.sort((a, b) => a.time - b.time);
 
   // Refine endTime on the final word of word-synced lines using the next line's start time
+  // Matches BitChord EnhancedLrc.kt: rawEnd.coerceIn(startMs + MIN_WORD_MS, startMs + TAIL_MS) where TAIL_MS = 1600ms
   for (let i = 0; i < result.length; i++) {
     const line = result[i];
     if (Array.isArray(line.words) && line.words.length > 0) {
       const lastWord = line.words[line.words.length - 1];
       const nextLineTime = i + 1 < result.length ? result[i + 1].time : null;
-      if (nextLineTime && nextLineTime > lastWord.startTime) {
-        lastWord.endTime = Math.round(Math.min(nextLineTime, Math.max(lastWord.endTime, lastWord.startTime + 0.18)) * 1000) / 1000;
+      if (!lastWord._hasExplicitEnd && nextLineTime !== null && nextLineTime > lastWord.startTime) {
+        const clampedEnd = Math.min(lastWord.startTime + 1.6, Math.max(lastWord.startTime + 0.08, nextLineTime));
+        lastWord.endTime = Math.round(clampedEnd * 1000) / 1000;
+      } else if (lastWord._hasExplicitEnd && nextLineTime !== null && nextLineTime > lastWord.startTime && lastWord.endTime > nextLineTime) {
+        lastWord.endTime = Math.round(Math.max(lastWord.startTime + 0.08, nextLineTime) * 1000) / 1000;
+      }
+      for (const w of line.words) {
+        delete w._hasExplicitEnd;
       }
       line.endTime = lastWord.endTime;
     }
@@ -2693,8 +2746,9 @@ function parseTtmlTimestamp(raw) {
 
 /**
  * Parses Apple Music / BetterLyrics TTML into synced lyric lines with word timings.
- * Matches BitChord TtmlLyrics.kt (merges adjacent syllable spans into whole words,
- * ignores x-translation and x-roman roles, and inserts instrumental ♪ cues).
+ * Matches BitChord TtmlLyrics.kt & LyricAlignments.kt (hierarchical span tree parser,
+ * merges adjacent syllable spans into whole words, extracts x-bg background vocals even when
+ * nested, ignores x-translation and x-roman subtrees, assigns v1/v2 duet alignment, and inserts ♪ cues).
  */
 function parseTtmlLyrics(ttml) {
   if (!ttml || typeof ttml !== 'string' || !ttml.includes('<p')) return [];
@@ -2706,54 +2760,125 @@ function parseTtmlLyrics(ttml) {
     return m ? m[1] : null;
   };
 
-  const parseSpansIntoWords = (innerHtml) => {
-    // Remove translation and romanization spans
-    const cleanedHtml = innerHtml.replace(
-      /<span\b[^>]*\b(?:ttm:role|role)\s*=\s*["'](?:x-translation|x-roman)["'][^>]*>[\s\S]*?<\/span>/gi,
-      ''
-    );
-
-    const spanRegex = /<span\b([^>]*)>([\s\S]*?)<\/span>/gi;
-    const syllables = [];
-    let match;
-    let lastEndIndex = 0;
-
-    while ((match = spanRegex.exec(cleanedHtml)) !== null) {
-      const attrs = match[1] || '';
-      const role = extractAttr(attrs, 'ttm:role') || extractAttr(attrs, 'role');
-      if (role === 'x-translation' || role === 'x-roman' || role === 'x-bg') {
-        lastEndIndex = match.index + match[0].length;
-        continue;
+  const buildSpanTree = (innerHtml) => {
+    const root = { type: 'root', role: '', agent: null, begin: null, end: null, children: [] };
+    const stack = [root];
+    const tokenRegex = /<(\/?)span\b([^>]*)>|<br\s*\/?>|<[^>]+>|([^<]+)/gi;
+    let m;
+    while ((m = tokenRegex.exec(innerHtml)) !== null) {
+      if (m[3] !== undefined) {
+        stack[stack.length - 1].children.push({ type: 'text', text: m[3] });
+      } else if (m[1] !== undefined) {
+        const isClosing = m[1] === '/';
+        const attrs = m[2] || '';
+        const isSelfClosing = /\/\s*$/.test(attrs);
+        if (isClosing) {
+          if (stack.length > 1) stack.pop();
+        } else if (!isSelfClosing) {
+          const role = (extractAttr(attrs, 'ttm:role') || extractAttr(attrs, 'role') || '').trim().toLowerCase();
+          const agent = extractAttr(attrs, 'ttm:agent') || extractAttr(attrs, 'agent') || null;
+          const begin = parseTtmlTimestamp(extractAttr(attrs, 'begin'));
+          const end = parseTtmlTimestamp(extractAttr(attrs, 'end'));
+          const node = { type: 'span', role, agent, begin, end, children: [] };
+          stack[stack.length - 1].children.push(node);
+          stack.push(node);
+        }
+      } else if (/^<br/i.test(m[0])) {
+        stack[stack.length - 1].children.push({ type: 'text', text: ' ' });
       }
+    }
+    return root;
+  };
 
-      if (syllables.length > 0 && match.index > lastEndIndex) {
-        const between = cleanedHtml.slice(lastEndIndex, match.index).replace(/<[^>]+>/g, '');
-        if (/\s/.test(between)) {
-          syllables[syllables.length - 1].endsWord = true;
+  const isIgnoredRole = (role) => role === 'x-translation' || role === 'x-roman';
+
+  const collectPlainText = (node) => {
+    if (!node) return '';
+    if (node.type === 'text') return node.text || '';
+    if (node.type === 'span' && isIgnoredRole(node.role)) return '';
+    return (node.children || []).map(collectPlainText).join('');
+  };
+
+  const hasTimedChild = (node) => {
+    if (!node || !Array.isArray(node.children)) return false;
+    return node.children.some(
+      ch => ch.type === 'span' && !isIgnoredRole(ch.role) && ch.role !== 'x-bg' && (ch.begin !== null || hasTimedChild(ch))
+    );
+  };
+
+  let pMatch;
+  while ((pMatch = pRegex.exec(ttml)) !== null) {
+    const pAttrs = pMatch[1] || '';
+    const pBody = pMatch[2] || '';
+    const pBegin = parseTtmlTimestamp(extractAttr(pAttrs, 'begin'));
+    const pEnd = parseTtmlTimestamp(extractAttr(pAttrs, 'end'));
+    let lineAgent = extractAttr(pAttrs, 'ttm:agent') || extractAttr(pAttrs, 'agent') || null;
+
+    const root = buildSpanTree(pBody);
+    const syllables = [];
+    const bgChunks = [];
+    const untimedLeadText = [];
+
+    const collectNode = (node) => {
+      if (!node || !Array.isArray(node.children)) return;
+      for (const child of node.children) {
+        if (child.type === 'text') {
+          const decoded = decodeHtmlEntities(child.text || '');
+          if (!decoded) continue;
+          const trimmed = decoded.trim();
+          if (!trimmed) {
+            if (syllables.length > 0 && /\s/.test(decoded)) {
+              syllables[syllables.length - 1].endsWord = true;
+            }
+          } else if (syllables.length > 0) {
+            // Attach trailing punctuation outside spans to the preceding syllable
+            syllables[syllables.length - 1].text += trimmed;
+            syllables[syllables.length - 1].endsWord = /\s$/.test(decoded);
+          } else {
+            untimedLeadText.push(decoded);
+          }
+          continue;
+        }
+
+        if (child.type === 'span') {
+          if (isIgnoredRole(child.role)) continue;
+          if (!lineAgent && child.agent) lineAgent = child.agent;
+
+          if (child.role === 'x-bg') {
+            const bgRaw = decodeHtmlEntities(collectPlainText(child)).replace(/\s+/g, ' ').trim();
+            if (bgRaw) {
+              const cleanedBg = bgRaw.replace(/^\(([\s\S]*)\)$/, '$1').trim();
+              if (cleanedBg) bgChunks.push(cleanedBg);
+            }
+            continue;
+          }
+
+          if (child.begin !== null && !hasTimedChild(child)) {
+            const rawText = decodeHtmlEntities(collectPlainText(child));
+            const trimmedText = rawText.trim();
+            const endsWithSpace = /\s$/.test(rawText);
+            if (trimmedText) {
+              if (/^\s/.test(rawText) && syllables.length > 0) {
+                syllables[syllables.length - 1].endsWord = true;
+              }
+              syllables.push({
+                text: trimmedText,
+                startTime: child.begin,
+                endTime: child.end !== null && child.end > child.begin ? child.end : Math.round((child.begin + 0.25) * 1000) / 1000,
+                endsWord: endsWithSpace
+              });
+            }
+          } else {
+            collectNode(child);
+          }
         }
       }
+    };
 
-      const beginSec = parseTtmlTimestamp(extractAttr(attrs, 'begin'));
-      const endSec = parseTtmlTimestamp(extractAttr(attrs, 'end'));
-      const rawText = decodeHtmlEntities(match[2].replace(/<[^>]+>/g, ''));
-      const trimmedText = rawText.trim();
-      const endsWithSpace = /\s$/.test(rawText);
-
-      if (beginSec !== null && trimmedText) {
-        syllables.push({
-          text: trimmedText,
-          startTime: beginSec,
-          endTime: endSec !== null && endSec > beginSec ? endSec : Math.round((beginSec + 0.25) * 1000) / 1000,
-          endsWord: endsWithSpace
-        });
-      }
-      lastEndIndex = match.index + match[0].length;
-    }
-
-    if (syllables.length === 0) return [];
+    collectNode(root);
 
     // Merge adjacent syllables that belong to the same word
-    const mergedWords = [];
+    const words = [];
     let current = null;
     for (const part of syllables) {
       if (!current) {
@@ -2763,34 +2888,15 @@ function parseTtmlLyrics(ttml) {
         current.endTime = Math.max(current.endTime, part.endTime);
       }
       if (part.endsWord) {
-        mergedWords.push(current);
+        words.push(current);
         current = null;
       }
     }
-    if (current) mergedWords.push(current);
-    return mergedWords;
-  };
+    if (current) words.push(current);
 
-  let pMatch;
-  while ((pMatch = pRegex.exec(ttml)) !== null) {
-    const pAttrs = pMatch[1] || '';
-    const pBody = pMatch[2] || '';
-    const pBegin = parseTtmlTimestamp(extractAttr(pAttrs, 'begin'));
-    const pEnd = parseTtmlTimestamp(extractAttr(pAttrs, 'end'));
-
-    // Strip x-bg spans from main line before parsing main words
-    const mainHtml = pBody.replace(
-      /<span\b[^>]*\b(?:ttm:role|role)\s*=\s*["']x-bg["'][^>]*>[\s\S]*?<\/span>/gi,
-      ''
-    );
-    const words = parseSpansIntoWords(mainHtml);
-    let lineText = words.length > 0
+    const lineText = words.length > 0
       ? words.map(w => w.text).join(' ')
-      : decodeHtmlEntities(
-          mainHtml
-            .replace(/<span\b[^>]*\b(?:ttm:role|role)\s*=\s*["'](?:x-translation|x-roman)["'][^>]*>[\s\S]*?<\/span>/gi, '')
-            .replace(/<[^>]+>/g, ' ')
-        ).replace(/\s+/g, ' ').trim();
+      : untimedLeadText.join(' ').replace(/\s+/g, ' ').trim();
 
     const startTime = pBegin !== null ? pBegin : (words.length > 0 ? words[0].startTime : null);
     const endTime = pEnd !== null ? pEnd : (words.length > 0 ? words[words.length - 1].endTime : (startTime !== null ? startTime + 3 : null));
@@ -2798,12 +2904,23 @@ function parseTtmlLyrics(ttml) {
     if (startTime !== null && lineText) {
       const entry = { time: startTime, text: lineText, endTime };
       if (words.length > 0) entry.words = words;
+      if (bgChunks.length > 0) entry.backgroundText = bgChunks.join(' ');
+      if (lineAgent) entry.agent = lineAgent.trim();
       rawLines.push(entry);
     }
   }
 
   if (rawLines.length === 0) return [];
   rawLines.sort((a, b) => a.time - b.time);
+
+  // Assign duet alignment (BitChord LyricAlignments.kt: primary vocalist left, secondary right)
+  const agents = [...new Set(rawLines.map(l => l.agent).filter(Boolean))];
+  if (agents.length > 1) {
+    const primaryAgent = agents[0];
+    for (const line of rawLines) {
+      line.isRightAligned = Boolean(line.agent && line.agent !== primaryAgent);
+    }
+  }
 
   const result = [];
   if (rawLines[0].time > 5) {
@@ -2842,7 +2959,7 @@ async function fetchSimpMusicLyrics(videoId, durationSeconds) {
 
     if (!res.ok) return null;
     const json = await res.json();
-    if (!json || json.type !== 'success' || !Array.isArray(json.data) || json.data.length === 0) {
+    if (!json || (json.success !== true && json.type !== 'success') || !Array.isArray(json.data) || json.data.length === 0) {
       return null;
     }
 
@@ -2948,26 +3065,29 @@ async function fetchLyricsPlus(title, artist, durationSeconds) {
     for (const entry of json.lyrics) {
       if (!entry || typeof entry !== 'object') continue;
       const startMs = Number(entry.time);
+      if (isNaN(startMs)) continue;
       const durMs = Number(entry.duration) || 0;
-      const text = typeof entry.text === 'string' ? entry.text.trim() : '';
-      if (isNaN(startMs) || !text) continue;
-
-      const startTime = Math.max(0, Math.round(startMs) / 1000);
-      const endTime = Math.max(startTime + 0.25, Math.round(startMs + Math.max(durMs, 250)) / 1000);
 
       const words = [];
       if (Array.isArray(entry.syllabus) && entry.syllabus.length > 0) {
         let curWord = null;
         for (const syl of entry.syllabus) {
-          if (!syl || typeof syl.text !== 'string' || !syl.text.trim()) continue;
+          if (!syl || typeof syl.text !== 'string') continue;
+          const decodedSyl = decodeHtmlEntities(syl.text);
+          if (!decodedSyl.trim()) continue;
           const sMs = Number(syl.time);
           const dMs = Number(syl.duration) || 0;
           if (isNaN(sMs)) continue;
           const wStart = Math.max(0, Math.round(sMs) / 1000);
           const wEnd = Math.max(wStart + 0.08, Math.round(sMs + Math.max(dMs, 120)) / 1000);
-          const endsWithSpace = /\s$/.test(syl.text);
-          const piece = syl.text.trim();
+          const leadsSpace = /^\s/.test(decodedSyl);
+          const endsWithSpace = /\s$/.test(decodedSyl);
+          const piece = decodedSyl.trim();
 
+          if (curWord && leadsSpace) {
+            words.push(curWord);
+            curWord = null;
+          }
           if (!curWord) {
             curWord = { startTime: wStart, endTime: wEnd, text: piece };
           } else {
@@ -2981,6 +3101,15 @@ async function fetchLyricsPlus(title, artist, durationSeconds) {
         }
         if (curWord) words.push(curWord);
       }
+
+      const rawText = typeof entry.text === 'string' ? decodeHtmlEntities(entry.text).trim() : '';
+      const text = rawText || (words.length > 0 ? words.map(w => w.text).join(' ') : '');
+      if (!text) continue;
+
+      const rawStartSec = Math.max(0, Math.round(startMs) / 1000);
+      const startTime = words.length > 0 ? Math.min(rawStartSec, words[0].startTime) : rawStartSec;
+      const rawEndSec = Math.max(startTime + 0.25, Math.round(startMs + Math.max(durMs, 250)) / 1000);
+      const endTime = words.length > 0 ? Math.max(rawEndSec, words[words.length - 1].endTime) : rawEndSec;
 
       const lineObj = { time: startTime, text, endTime };
       if (words.length > 0) lineObj.words = words;
