@@ -52,12 +52,12 @@ Deja operates in strict alignment with Google platform policies and monetization
 - **Multi-Feed Library Aggregation**: Synchronizes user-created playlists, saved albums, followed artists, and liked songs with continuation token pagination.
 - **Bidirectional Playlist Management**: Create custom playlists, append tracks, reorder queues, and favorite songs directly within the desktop interface.
 
-### Real-Time Synced Lyrics & Timing Calibration
-- **3-Tier Lyrics Engine**: Automatically resolves millisecond-synchronized lyrics from the LRCLIB open database, seamlessly falling back to YouTube Music timed captions/transcripts, and InnerTube browse descriptions.
+### Real-Time Word-Synced Lyrics & Timing Calibration
+- **5-Provider Word-Synced Cascade**: Automatically resolves word-synced and line-synced lyrics across SimpMusic (Enhanced LRC), BetterLyrics (TTML), LyricsPlus (syllable-timed JSON), LRCLIB (`/api/get` & `/api/search`), and YouTube Music timed captions/transcripts.
+- **60fps Monotonic Clock Reconciliation**: Uses `LyricClockReconciler` to interpolate smooth 60fps wall-clock deltas between coarse player time updates without backward jitter or drift.
 - **LRC `[offset:xxx]` Tag Parsing**: Fully parses standard LRC `[offset: +/-ms]` header tags, properly shifting community lyric timestamps (positive delays, negative advances).
-- **Interactive Timing Offset Nudge Controls**: Built-in sleek glassmorphic offset controls (`[-] 0.0s [+]` and `−0.5s / +0.5s`) stored per-track in `localStorage` for instantaneous on-the-fly calibration if a track has lead or lag.
-- **Acoustic Vocal Baseline Calibration**: Calibrated baseline timing that offsets YouTube stream Opus container preroll and DAC audio pipeline latency, ensuring words light up synchronously with acoustic vocal onset.
-- **Interactive Scroller & Tap-to-Seek**: Frosted blur focus, smooth auto-scrolling to the active vocal line, and calibrated tap-to-seek playback jump functionality.
+- **Interactive Timing Offset Nudge Controls**: Built-in sleek glassmorphic offset controls (`[-] 0.0s [+]` and `-0.5s / +0.5s`) stored per-track in `localStorage` for instantaneous on-the-fly calibration if a track has lead or lag.
+- **Interactive Scroller & Tap-to-Seek**: Word-by-word karaoke fill sweeps, background vocal and duet alignment support, frosted blur focus, smooth auto-scrolling to the active vocal line, and calibrated tap-to-seek playback jump functionality.
 
 ### Liquid Ambient Mesh Backdrop
 - **Dynamic 4-Color Gradient**: Real-time palette extraction calculates primary, secondary, highlight, and ambient hues from the active album cover.
