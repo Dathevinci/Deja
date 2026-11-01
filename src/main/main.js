@@ -1790,7 +1790,10 @@ app.whenReady().then(async () => {
     try {
       const info = await innertube.getAccountInfo(ytSession);
       if (info && info.isLoggedIn) {
-        authStore.updateSavedAccount(info);
+        const updated = authStore.updateSavedAccount(info);
+        if (!updated) {
+          await authStore.persistCurrentSession(ytSession, info, innertube.getSessionScope());
+        }
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('auth-changed', info);
           mainWindow.webContents.send('auth-state-changed', info);

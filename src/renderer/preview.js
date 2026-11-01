@@ -1198,6 +1198,9 @@ function bootDejaApp() {
     if (cachedAcc) {
       const parsedAcc = JSON.parse(cachedAcc);
       if (parsedAcc && parsedAcc.isLoggedIn) {
+        if (parsedAcc.name === 'Google User') parsedAcc.name = 'YouTube Music';
+        if (parsedAcc.channelTitle === 'Google User') parsedAcc.channelTitle = 'YouTube Music';
+        if (parsedAcc.handle === '@user') parsedAcc.handle = 'YouTube Music Account';
         updateAccountUI(parsedAcc);
       }
     }
@@ -1902,8 +1905,12 @@ function updateAccountUI(acc) {
   const sidebarBadge = document.getElementById('sidebar-account-btn');
 
   if (acc.isLoggedIn) {
-    const displayName = acc.channelTitle || acc.name || 'Connected';
-    const photo = acc.avatarUrl || acc.photoUrl;
+    const rawName = acc.channelTitle || acc.name || '';
+    const displayName = (rawName && rawName !== 'Google User') ? rawName : 'YouTube Music';
+    const rawHandle = acc.handle || acc.email || '';
+    const displayHandle = (rawHandle && rawHandle !== '@user') ? rawHandle : 'YouTube Music Account';
+    const photo = acc.avatarUrl || acc.photoUrl || '';
+    const initial = (displayName && displayName !== 'YouTube Music') ? displayName[0].toUpperCase() : 'Y';
 
     if (avatarImg && photo) {
       avatarImg.src = photo;
@@ -1911,13 +1918,13 @@ function updateAccountUI(acc) {
       avatarImg.onerror = () => {
         avatarImg.style.display = 'none';
         if (avatarText) {
-          avatarText.innerText = (displayName || 'U')[0].toUpperCase();
+          avatarText.innerText = initial;
           avatarText.style.display = 'inline-block';
         }
       };
       if (avatarText) avatarText.style.display = 'none';
     } else if (avatarText) {
-      avatarText.innerText = (displayName || 'U')[0].toUpperCase();
+      avatarText.innerText = initial;
       avatarText.style.display = 'inline-block';
       if (avatarImg) avatarImg.style.display = 'none';
     }
@@ -1927,12 +1934,16 @@ function updateAccountUI(acc) {
     }
     const badge = document.getElementById('btn-login-status');
     if (badge) {
-      badge.title = `${displayName} (${acc.handle || 'Connected'})`;
+      badge.title = `${displayName} (${displayHandle})`;
     }
     const switchLiveBtn = document.getElementById('btn-switch-live');
     if (switchLiveBtn) {
       const span = switchLiveBtn.querySelector('span');
       if (span) span.innerText = 'YouTube Music Connected';
+    }
+    const homeBanner = document.getElementById('home-signin-banner');
+    if (homeBanner && homeBanner.style) {
+      homeBanner.style.display = 'none';
     }
 
     // Update sidebar account profile
@@ -1942,19 +1953,19 @@ function updateAccountUI(acc) {
       sidebarAvatarImg.onerror = () => {
         sidebarAvatarImg.style.display = 'none';
         if (sidebarAvatarText) {
-          sidebarAvatarText.innerText = (displayName || 'U')[0].toUpperCase();
+          sidebarAvatarText.innerText = initial;
           sidebarAvatarText.style.display = 'inline-block';
         }
       };
       if (sidebarAvatarText) sidebarAvatarText.style.display = 'none';
     } else if (sidebarAvatarText) {
-      sidebarAvatarText.innerText = (displayName || 'U')[0].toUpperCase();
+      sidebarAvatarText.innerText = initial;
       sidebarAvatarText.style.display = 'inline-block';
       if (sidebarAvatarImg) sidebarAvatarImg.style.display = 'none';
     }
     if (sidebarName) sidebarName.innerText = displayName;
-    if (sidebarSub) sidebarSub.innerText = acc.handle || 'Connected';
-    if (sidebarBadge) sidebarBadge.title = `${displayName} (${acc.handle || 'Connected'})`;
+    if (sidebarSub) sidebarSub.innerText = displayHandle;
+    if (sidebarBadge) sidebarBadge.title = `${displayName} (${displayHandle})`;
   } else {
     if (avatarText) {
       avatarText.innerText = 'G';
@@ -2090,8 +2101,10 @@ function renderAccountModalContent(forceLoginView = false) {
     if (cookiesContent && cookiesContent.style) cookiesContent.style.display = 'none';
     if (profileView && profileView.style) profileView.style.display = 'block';
 
-    const displayName = liveAccount.channelTitle || liveAccount.name || 'Google User';
-    const handle = liveAccount.handle || '';
+    const rawName = liveAccount.channelTitle || liveAccount.name || '';
+    const displayName = (rawName && rawName !== 'Google User') ? rawName : 'YouTube Music';
+    const rawHandle = liveAccount.handle || liveAccount.email || '';
+    const handle = (rawHandle && rawHandle !== '@user') ? rawHandle : 'YouTube Music Account';
     const photo = liveAccount.avatarUrl || liveAccount.photoUrl;
 
     const profName = document.getElementById('profile-display-name');
@@ -2778,7 +2791,7 @@ function _renderHomeViewImpl(container) {
         ${isUserSignedIn ? `
           <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); cursor: pointer;" onclick="openAccountModal()">
             <span style="width: 8px; height: 8px; border-radius: 50%; background: #34C759; display: inline-block;"></span>
-            <span>${escapeHTML(liveAccount.channelTitle || liveAccount.name || 'Google User')}</span>
+            <span>${escapeHTML((liveAccount.channelTitle && liveAccount.channelTitle !== 'Google User') ? liveAccount.channelTitle : ((liveAccount.name && liveAccount.name !== 'Google User') ? liveAccount.name : 'YouTube Music'))}</span>
           </div>
         ` : ''}
       </div>
@@ -2815,8 +2828,12 @@ function _renderHomeViewImpl(container) {
         const el = document.querySelector(`[data-live-id="${cardId}"]`);
         if (el) {
           el.onclick = () => {
-            if (item.type === 'browse' || (!item.videoId && item.browseId)) {
-              openBrowseDetail(item.browseId, item.title, item.cover, item.subtitle);
+            if (item.type === 'browse' || item.type === 'artist' || (!item.videoId && item.browseId)) {
+              if (item.browseId && (item.browseId.startsWith('UC') || item.type === 'artist')) {
+                openArtistDetail(item.browseId, item.title, item.cover, item.subtitle);
+              } else {
+                openBrowseDetail(item.browseId, item.title, item.cover, item.subtitle);
+              }
             } else if (item.videoId) {
               playLiveTrack(item);
             }
@@ -3931,20 +3948,20 @@ function renderSearchResultsView(container) {
     { id: 'PLAYLISTS', label: 'Playlists' }
   ];
 
+  const activeFilterLabel = filterPills.find(f => f.id === activeSearchFilter)?.label || 'All';
   const showLocal = (activeSearchFilter === 'ALL' || activeSearchFilter === 'SONGS');
-  const matched = showLocal ? CATALOGUE_TRACKS.filter(t => 
+  const matched = (showLocal && q.length >= 2) ? CATALOGUE_TRACKS.filter(t =>
     t.title.toLowerCase().includes(q) ||
     t.artist.toLowerCase().includes(q) ||
-    t.album.toLowerCase().includes(q) ||
-    t.genre.toLowerCase().includes(q)
+    t.album.toLowerCase().includes(q)
   ) : [];
 
   container.innerHTML = `
-    <div style="padding: 10px 0 20px 0;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+    <div style="padding: 10px 0 28px 0;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
         <div>
-          <h1 style="font-size: 26px; font-weight: 800; margin-bottom: 4px;">Search Results for "${safeQ}"</h1>
-          <p style="color: var(--text-secondary); font-size: 13.5px;">${showLocal ? `Found ${matched.length} local library matches` : 'Online YouTube Music results'}</p>
+          <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.4px;">Search Results for "${safeQ}"</h1>
+          <p style="color: var(--text-secondary); font-size: 13.5px; margin: 0;">YouTube Music Catalogue • ${escapeHTML(activeFilterLabel)}</p>
         </div>
         <button class="genre-chip" onclick="clearSearch()">Clear Search</button>
       </div>
@@ -3955,30 +3972,23 @@ function renderSearchResultsView(container) {
         `).join('')}
       </div>
 
+      <div id="yt-search-section" style="margin-top: 20px;">
+        <div id="yt-search-grid" class="bitchord-search-results-container">
+          <div class="bitchord-search-loading">
+            <span class="badge-dot" style="background: #FA2D48;"></span>
+            <span>Searching YouTube Music for "${safeQ}"...</span>
+          </div>
+        </div>
+      </div>
+
       ${matched.length > 0 ? `
-        <div class="shelf-section">
+        <div class="shelf-section" style="margin-top: 32px;">
           <div class="shelf-header">
-            <h2 class="shelf-title">Local Library Results</h2>
+            <h2 class="shelf-title">Local Library Matches</h2>
           </div>
           <div class="card-grid">
             ${renderCardGridHTML(matched)}
           </div>
-        </div>
-      ` : ''}
-
-      <div id="yt-search-section" style="margin-top: 24px;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
-          <h2 style="font-size: 20px; font-weight: 700; margin: 0;">YouTube Music Results</h2>
-          <span style="font-size: 12px; color: var(--text-secondary);">(Live Search • ${filterPills.find(f => f.id === activeSearchFilter)?.label || 'All'})</span>
-        </div>
-        <div id="yt-search-grid" class="card-grid">
-          <div style="color: var(--text-secondary); font-size: 13px; padding: 12px 0;">Searching YouTube Music...</div>
-        </div>
-      </div>
-
-      ${(matched.length === 0 && showLocal) ? `
-        <div id="no-local-hint" style="text-align: center; padding: 24px 20px; color: var(--text-secondary);">
-          <p style="font-size: 13px;">No local tracks found. Checking YouTube Music catalogue above...</p>
         </div>
       ` : ''}
     </div>
@@ -3995,6 +4005,67 @@ function renderSearchResultsView(container) {
     };
   });
 
+  const isArtistItem = (yt) => Boolean(yt.resultType === 'artist' || yt.type === 'artist' || (yt.browseId && yt.browseId.startsWith('UC')));
+  const getBadgeLabel = (yt) => {
+    if (yt.resultType) return yt.resultType.toUpperCase();
+    if (isArtistItem(yt)) return 'ARTIST';
+    if (yt.browseId && (yt.browseId.startsWith('MPRE') || yt.browseId.startsWith('OLAK'))) return 'ALBUM';
+    if (yt.browseId && (yt.browseId.startsWith('VL') || yt.browseId.startsWith('PL'))) return 'PLAYLIST';
+    return yt.videoId ? 'SONG' : 'YTM';
+  };
+
+  const renderSongRowHTML = (yt, i) => {
+    const subParts = [];
+    if (yt.artist && yt.artist !== 'YouTube Music') subParts.push(yt.artist);
+    if (yt.album && yt.album !== 'YouTube Music' && yt.album !== yt.artist) subParts.push(yt.album);
+    const subText = subParts.join(' · ') || yt.subtitle || 'YouTube Music';
+    const isVid = yt.resultType === 'video';
+    return `
+      <div class="bitchord-search-song-row" id="yt-card-${i}">
+        <div class="bitchord-song-row-art-wrap">
+          <img src="${escapeHTML(yt.cover || '../../assets/icon.png')}" class="bitchord-song-row-art" alt="${escapeHTML(yt.title)}" onerror="this.src='../../assets/icon.png'">
+          <div class="bitchord-song-row-play">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          </div>
+        </div>
+        <div class="bitchord-song-row-meta">
+          <div class="bitchord-song-row-title">${escapeHTML(yt.title)}</div>
+          <div class="bitchord-song-row-sub">${escapeHTML(subText)}</div>
+        </div>
+        ${isVid ? `<span class="bitchord-row-badge">VIDEO</span>` : ''}
+        <span class="bitchord-song-row-dur">${escapeHTML(yt.durationStr || '')}</span>
+        <button class="bitchord-song-row-action" data-add-idx="${i}" title="Add to Playlist">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+    `;
+  };
+
+  const renderCardItemHTML = (yt, i) => {
+    const isArtist = isArtistItem(yt);
+    const badge = getBadgeLabel(yt);
+    const thumbClass = isArtist ? 'card-thumb track-card-img artist-avatar' : 'card-thumb track-card-img';
+    const sub = isArtist ? (yt.subtitle || 'Artist') : `${yt.artist || yt.subtitle || ''}${yt.durationStr && yt.videoId ? ` • ${yt.durationStr}` : ''}`;
+    return `
+      <div class="apple-music-card" id="yt-card-${i}">
+        <div class="card-thumb-wrapper">
+          <img src="${escapeHTML(yt.cover || '../../assets/icon.png')}" class="${thumbClass}" alt="${escapeHTML(yt.title)}" onerror="this.src='../../assets/icon.png'">
+          <div class="card-play-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          </div>
+          <span class="card-type-badge ${isArtist ? 'artist-badge' : 'yt-badge'}">${badge}</span>
+        </div>
+        <div class="card-title">${escapeHTML(yt.title)}</div>
+        <div class="card-subtitle">${escapeHTML(sub)}</div>
+      </div>
+    `;
+  };
+
   const api = window.dejaAPI || window.sonoraAPI;
   if (api?.searchYouTube && q.length >= 2) {
     api.searchYouTube(searchQuery, activeSearchFilter).then(ytResults => {
@@ -4002,42 +4073,135 @@ function renderSearchResultsView(container) {
       const ytGrid = document.getElementById('yt-search-grid');
       if (!ytGrid) return;
       if (!ytResults || ytResults.length === 0) {
-        ytGrid.innerHTML = `<div style="color: var(--text-secondary); font-size: 13px;">No online YouTube Music results found for "${safeQ}".</div>`;
+        ytGrid.innerHTML = `<div style="color: var(--text-secondary); font-size: 13.5px; padding: 16px 0;">No online YouTube Music results found for "${safeQ}".</div>`;
         return;
       }
-      ytGrid.innerHTML = ytResults.map((yt, i) => {
-        let badge = 'YTM';
-        if (yt.resultType) {
-          badge = yt.resultType.toUpperCase();
-        } else if (yt.type === 'browse' || (!yt.videoId && yt.browseId)) {
-          badge = (yt.browseId && yt.browseId.startsWith('UC')) ? 'ARTIST' : 'ALBUM';
-        }
-        const isArtist = yt.resultType === 'artist' || yt.type === 'artist' || (yt.browseId && yt.browseId.startsWith('UC'));
-        const thumbClass = isArtist ? 'card-thumb track-card-img artist-avatar' : 'card-thumb track-card-img';
 
-        return `
-          <div class="apple-music-card" id="yt-card-${i}">
-            <div class="card-thumb-wrapper">
-              <img src="${escapeHTML(yt.cover || '')}" class="${thumbClass}" alt="${escapeHTML(yt.title)}" onerror="this.src='../../assets/icon.png'">
-              <div class="card-play-btn">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
+      if (activeSearchFilter === 'ALL') {
+        let topIdx = ytResults.findIndex(r => r.isTopResult);
+        if (topIdx < 0) topIdx = 0;
+        const topItem = ytResults[topIdx];
+        const topIsArtist = isArtistItem(topItem);
+        const topBadge = getBadgeLabel(topItem);
+        const topSub = topIsArtist
+          ? (topItem.subtitle || 'Artist')
+          : [topItem.artist, topItem.album && topItem.album !== 'YouTube Music' ? topItem.album : '', topItem.durationStr && topItem.videoId ? topItem.durationStr : ''].filter(Boolean).join(' · ');
+
+        const songs = [];
+        const artists = [];
+        const browses = [];
+        ytResults.forEach((yt, idx) => {
+          if (idx === topIdx) return;
+          if (isArtistItem(yt)) {
+            artists.push({ yt, idx });
+          } else if (yt.videoId) {
+            songs.push({ yt, idx });
+          } else if (yt.browseId) {
+            browses.push({ yt, idx });
+          }
+        });
+
+        ytGrid.innerHTML = `
+          <div class="bitchord-top-and-songs-grid">
+            <div class="bitchord-top-result-col">
+              <div class="bitchord-section-heading">Top result</div>
+              <div class="bitchord-top-result-card" id="yt-card-${topIdx}">
+                <div class="bitchord-top-result-main">
+                  <img src="${escapeHTML(topItem.cover || '../../assets/icon.png')}" class="bitchord-top-result-art ${topIsArtist ? 'is-artist' : ''}" alt="${escapeHTML(topItem.title)}" onerror="this.src='../../assets/icon.png'">
+                  <div class="bitchord-top-result-info">
+                    <span class="bitchord-top-result-badge">${topBadge}</span>
+                    <div class="bitchord-top-result-title">${escapeHTML(topItem.title)}</div>
+                    <div class="bitchord-top-result-sub">${escapeHTML(topSub)}</div>
+                  </div>
+                </div>
+                <div class="bitchord-top-result-actions">
+                  <button class="bitchord-top-btn primary" id="yt-top-primary-btn">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    <span>${topItem.videoId ? 'Play' : (topIsArtist ? 'Open Artist' : 'Open')}</span>
+                  </button>
+                  ${(topItem.videoId || songs.length > 0) ? `
+                    <button class="bitchord-top-btn secondary" id="yt-top-secondary-btn">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                      <span>${topItem.videoId ? 'Add to Playlist' : 'Play Top Song'}</span>
+                    </button>
+                  ` : ''}
+                </div>
               </div>
-              <span class="card-type-badge ${isArtist ? 'artist-badge' : 'yt-badge'}">${badge}</span>
             </div>
-            <div class="card-title">${escapeHTML(yt.title)}</div>
-            <div class="card-subtitle">${escapeHTML(yt.artist || yt.subtitle || '')} ${yt.durationStr ? `• ${escapeHTML(yt.durationStr)}` : ''}</div>
+
+            ${songs.length > 0 ? `
+              <div class="bitchord-songs-col">
+                <div class="bitchord-section-heading">Songs</div>
+                <div class="bitchord-search-song-list">
+                  ${songs.slice(0, 6).map(({ yt, idx }) => renderSongRowHTML(yt, idx)).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          ${songs.length > 6 ? `
+            <div class="bitchord-search-section">
+              <div class="bitchord-section-heading">More Songs & Videos</div>
+              <div class="bitchord-search-song-list">
+                ${songs.slice(6).map(({ yt, idx }) => renderSongRowHTML(yt, idx)).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          ${artists.length > 0 ? `
+            <div class="bitchord-search-section">
+              <div class="bitchord-section-heading">Artists</div>
+              <div class="card-grid">
+                ${artists.map(({ yt, idx }) => renderCardItemHTML(yt, idx)).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          ${browses.length > 0 ? `
+            <div class="bitchord-search-section">
+              <div class="bitchord-section-heading">Albums & Playlists</div>
+              <div class="card-grid">
+                ${browses.map(({ yt, idx }) => renderCardItemHTML(yt, idx)).join('')}
+              </div>
+            </div>
+          ` : ''}
+        `;
+
+        const secondaryBtn = document.getElementById('yt-top-secondary-btn');
+        if (secondaryBtn) {
+          secondaryBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (topItem.videoId) {
+              const catTrack = createCatalogueItemFromLive(topItem);
+              if (!CATALOGUE_TRACKS.some(x => x.videoId === catTrack.videoId)) {
+                CATALOGUE_TRACKS.push(catTrack);
+              }
+              openAddToPlaylistModal(catTrack.id);
+            } else if (songs.length > 0) {
+              selectYouTubeTrack(songs[0].yt);
+            }
+          };
+        }
+      } else if (activeSearchFilter === 'SONGS' || activeSearchFilter === 'VIDEOS') {
+        ytGrid.innerHTML = `
+          <div class="bitchord-search-song-list">
+            ${ytResults.map((yt, i) => renderSongRowHTML(yt, i)).join('')}
           </div>
         `;
-      }).join('');
+      } else {
+        ytGrid.innerHTML = `
+          <div class="card-grid">
+            ${ytResults.map((yt, i) => renderCardItemHTML(yt, i)).join('')}
+          </div>
+        `;
+      }
 
+      // Bind item click and add-to-playlist buttons
       ytResults.forEach((yt, i) => {
         const card = document.getElementById(`yt-card-${i}`);
         if (card) {
           card.onclick = () => {
-            const isArtist = yt.resultType === 'artist' || yt.type === 'artist' || (yt.browseId && yt.browseId.startsWith('UC'));
-            if (isArtist) {
+            if (isArtistItem(yt)) {
               openArtistDetail(yt.browseId, yt.title, yt.cover, yt.subtitle);
             } else if (yt.resultType === 'album' || yt.resultType === 'playlist' || yt.type === 'browse' || (!yt.videoId && yt.browseId)) {
               openBrowseDetail(yt.browseId, yt.title, yt.cover, yt.subtitle);
@@ -4046,6 +4210,21 @@ function renderSearchResultsView(container) {
             }
           };
         }
+      });
+
+      ytGrid.querySelectorAll('[data-add-idx]').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.getAttribute('data-add-idx'), 10);
+          const yt = ytResults[idx];
+          if (yt && yt.videoId) {
+            const catTrack = createCatalogueItemFromLive(yt);
+            if (!CATALOGUE_TRACKS.some(x => x.videoId === catTrack.videoId)) {
+              CATALOGUE_TRACKS.push(catTrack);
+            }
+            openAddToPlaylistModal(catTrack.id);
+          }
+        };
       });
     }).catch(err => {
       console.warn('[Search] YouTube live search error:', err);

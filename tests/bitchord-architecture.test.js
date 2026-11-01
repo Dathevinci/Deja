@@ -1515,6 +1515,70 @@ function runBitChordArchitectureTests() {
     assert.strictEqual(parsed[1].words[1].endTime, 3.8, `${label} must extend last word endTime to next line start (3.8s)`);
   });
 
+  // 9.27 Verify Header Deduplication (HTTP 400 Fix), Top-Result Card Search Parser, & Deja Replay Logo Branding
+  assert.strictEqual(typeof innertube.sanitizeFetchHeaders, 'function', 'innertube must export sanitizeFetchHeaders');
+  const dedupedHeaders = innertube.sanitizeFetchHeaders({
+    'X-Origin': 'https://music.youtube.com',
+    'x-origin': 'https://music.youtube.com',
+    'X-Goog-AuthUser': '0',
+    'x-goog-authuser': '0'
+  });
+  const originKeys = Object.keys(dedupedHeaders).filter(k => k.toLowerCase() === 'x-origin');
+  const authUserKeys = Object.keys(dedupedHeaders).filter(k => k.toLowerCase() === 'x-goog-authuser');
+  assert.strictEqual(originKeys.length, 1, 'sanitizeFetchHeaders must eliminate duplicate case-insensitive X-Origin keys');
+  assert.strictEqual(authUserKeys.length, 1, 'sanitizeFetchHeaders must eliminate duplicate case-insensitive X-Goog-AuthUser keys');
+
+  assert.strictEqual(typeof innertube.parseSearchResults, 'function', 'innertube must export parseSearchResults');
+  const mockSearchResponse = {
+    contents: {
+      tabbedSearchResultsRenderer: {
+        tabs: [{
+          tabRenderer: {
+            content: {
+              sectionListRenderer: {
+                contents: [
+                  {
+                    musicCardShelfRenderer: {
+                      title: { runs: [{ text: 'Eminem' }] },
+                      subtitle: { runs: [{ text: 'Artist • 67.3M subscribers' }] },
+                      onTap: {
+                        browseEndpoint: {
+                          browseId: 'UCedvOgsKFzcK3hA5taf3KoQ',
+                          browseEndpointContextSupportedConfigs: {
+                            browseEndpointContextMusicConfig: { pageType: 'MUSIC_PAGE_TYPE_ARTIST' }
+                          }
+                        }
+                      },
+                      contents: [{
+                        musicResponsiveListItemRenderer: {
+                          playlistItemData: { videoId: 'LoseYourself123' },
+                          flexColumns: [
+                            { musicResponsiveListItemFlexColumnRenderer: { text: { runs: [{ text: 'Lose Yourself' }] } } },
+                            { musicResponsiveListItemFlexColumnRenderer: { text: { runs: [{ text: 'Song' }, { text: ' • ' }, { text: '5:20' }] } } }
+                          ]
+                        }
+                      }]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }]
+      }
+    }
+  };
+  const parsedSearch = innertube.parseSearchResults(mockSearchResponse);
+  assert.strictEqual(parsedSearch.length, 2, 'parseSearchResults must extract both promoted Top Result card and nested song row');
+  assert.strictEqual(parsedSearch[0].isTopResult, true, 'First item must be flagged isTopResult');
+  assert.strictEqual(parsedSearch[0].resultType, 'artist', 'Promoted artist card must have resultType=artist');
+  assert.strictEqual(parsedSearch[1].videoId, 'LoseYourself123', 'Nested track row must preserve videoId');
+  assert.strictEqual(parsedSearch[1].artist, 'Eminem', 'Nested track row with only "Song • 5:20" must inherit promoted artist card name');
+
+  assert.ok(!docsHtml.includes('viewBox="0 0 730 484"'), 'docs/index.html must not contain BitChord 3-wave SVG logo');
+  const replayDejas = (docsHtml.match(/<img src="assets\/icon\.png" alt="Deja Logo" class="replay-wave-mark"\s*\/>/g) || []).length;
+  assert.strictEqual(replayDejas, 4, 'All 4 Replay cards in docs/index.html must display Deja icon logo');
+
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
 

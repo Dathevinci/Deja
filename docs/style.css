@@ -2083,9 +2083,11 @@ body {
 }
 
 .replay-wave-mark {
-  width: 32px;
-  height: 21px;
-  fill: #FFFFFF;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
   flex-shrink: 0;
 }
 

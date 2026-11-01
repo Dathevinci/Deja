@@ -151,21 +151,25 @@ async function fetchSessionScope(cookieStr, sapisid = null) {
     const clientVerMatch = html.match(CONFIG_CLIENT_VERSION);
     const clientVersion = clientVerMatch ? clientVerMatch[1] : null;
 
-    const pageIdMatch = html.match(CONFIG_PAGE_ID);
+    // Matching BitChord Innertube.kt lines 420-426:
+    // Never extract DATASYNC_ID or DELEGATED_SESSION_ID from a signed-out HTML shell,
+    // because a signed-out shell's DATASYNC_ID is an anonymous visitor token (e.g. V660a5407||)
+    // which causes HTTP 401 on every InnerTube request if sent as onBehalfOfUser.
+    const pageIdMatch = loggedIn ? html.match(CONFIG_PAGE_ID) : null;
     const pageId = (pageIdMatch && pageIdMatch[1].trim()) ? pageIdMatch[1].trim() : null;
 
-    const dataSyncMatch = html.match(CONFIG_DATASYNC_ID);
+    const dataSyncMatch = loggedIn ? html.match(CONFIG_DATASYNC_ID) : null;
     const rawDataSyncId = (dataSyncMatch && dataSyncMatch[1].trim()) ? dataSyncMatch[1].trim() : null;
-    const dataSyncId = pageId || normalizeDataSyncId(rawDataSyncId);
+    const normalizedSync = normalizeDataSyncId(rawDataSyncId);
+    const isAnonVisitorToken = normalizedSync && /^V[0-9a-f]{8}$/i.test(normalizedSync);
+    const dataSyncId = pageId || (isAnonVisitorToken ? null : normalizedSync);
 
-    const authUserMatch = html.match(CONFIG_SESSION_INDEX);
+    const authUserMatch = loggedIn ? html.match(CONFIG_SESSION_INDEX) : null;
     const authUser = (authUserMatch && authUserMatch[1]) ? authUserMatch[1] : '0';
 
     const visitorMatch = html.match(CONFIG_VISITOR_DATA);
     const visitorData = (visitorMatch && visitorMatch[1].trim()) ? visitorMatch[1].trim() : null;
 
-    // A session is validly authenticated if either the HTML shell confirmed LOGGED_IN,
-    // or if the session carries an API SID (SAPISID) or a dataSyncId was extracted.
     const isAuthentic = loggedIn || hasApiSid(cookieStr);
 
     if (!isAuthentic) {
@@ -280,18 +284,14 @@ async function getAuthContext(ses) {
       }
       const authUser = currentSessionScope.authUser || '0';
       headers['X-Goog-AuthUser'] = authUser;
-      headers['x-goog-authuser'] = authUser;
       headers['X-Origin'] = MUSIC_ORIGIN;
-      headers['x-origin'] = MUSIC_ORIGIN;
       headers['Origin'] = MUSIC_ORIGIN;
       headers['Referer'] = `${MUSIC_ORIGIN}/`;
       if (currentSessionScope.pageId) {
         headers['X-Goog-PageId'] = currentSessionScope.pageId;
-        headers['x-goog-pageid'] = currentSessionScope.pageId;
       }
       if (currentSessionScope.visitorData) {
         headers['X-Goog-Visitor-Id'] = currentSessionScope.visitorData;
-        headers['x-goog-visitor-id'] = currentSessionScope.visitorData;
       }
     }
     return { headers, isLoggedIn, cookieStr };
@@ -307,12 +307,56 @@ function getDefaultHeaders() {
     'User-Agent': CHROME_UA,
     'Accept-Language': 'en-US,en;q=0.9',
     'X-Origin': MUSIC_ORIGIN,
-    'x-origin': MUSIC_ORIGIN,
     'Origin': MUSIC_ORIGIN,
     'Referer': `${MUSIC_ORIGIN}/`,
     'X-YouTube-Client-Name': WEB_REMIX_CLIENT_ID,
     'X-YouTube-Client-Version': WEB_REMIX_CLIENT_VERSION
   };
+}
+
+/**
+ * Deduplicates case-insensitive header keys so Node.js fetch (undici) never
+ * concatenates duplicate keys into comma-separated values like "0, 0".
+ */
+function sanitizeFetchHeaders(rawHeaders) {
+  const clean = {};
+  const seenLower = new Map();
+  for (const [k, v] of Object.entries(rawHeaders || {})) {
+    if (v === undefined || v === null) continue;
+    const lower = k.toLowerCase();
+    if (seenLower.has(lower)) {
+      delete clean[seenLower.get(lower)];
+    }
+    seenLower.set(lower, k);
+    clean[k] = String(v);
+  }
+  return clean;
+}
+
+function isPublicReadEndpoint(endpoint, body = {}) {
+  if (
+    endpoint === 'search' ||
+    endpoint === 'music/get_search_suggestions' ||
+    endpoint === 'next' ||
+    endpoint === 'player' ||
+    endpoint === 'get_transcript'
+  ) {
+    return true;
+  }
+  if (endpoint === 'browse') {
+    const bId = String(body?.browseId || '');
+    if (
+      bId.startsWith('FEmusic_library') ||
+      bId.startsWith('FEmusic_liked') ||
+      bId === 'FEmusic_history' ||
+      bId === 'VLLM' ||
+      bId === 'LM'
+    ) {
+      return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -327,6 +371,10 @@ async function postMusic(endpoint, body = {}, ses = null, queryParams = null) {
   const clientVersion = currentSessionScope.clientVersion || WEB_REMIX_CLIENT_VERSION;
   headers['X-YouTube-Client-Version'] = clientVersion;
 
+  const validDataSyncId = (currentSessionScope.dataSyncId && !/^V[0-9a-f]{8}$/i.test(currentSessionScope.dataSyncId))
+    ? currentSessionScope.dataSyncId
+    : null;
+
   const buildPayload = (includeDataSync = true) => ({
     context: {
       client: {
@@ -338,7 +386,7 @@ async function postMusic(endpoint, body = {}, ses = null, queryParams = null) {
       },
       user: {
         lockedSafetyMode: false,
-        ...(includeDataSync && currentSessionScope.dataSyncId ? { onBehalfOfUser: currentSessionScope.dataSyncId } : {})
+        ...(includeDataSync && validDataSyncId ? { onBehalfOfUser: validDataSyncId } : {})
       },
       request: {
         useSsl: true
@@ -356,22 +404,39 @@ async function postMusic(endpoint, body = {}, ses = null, queryParams = null) {
     }
   }
 
+  const reqHeaders = sanitizeFetchHeaders(headers);
   let response = await fetch(url, {
     method: 'POST',
-    headers,
+    headers: reqHeaders,
     body: JSON.stringify(buildPayload(true))
   });
 
   // If rejected with 400/401/403 and onBehalfOfUser or pageId was sent, retry once without onBehalfOfUser and X-Goog-PageId
   // (BitChord fallback for session scope mismatch where Google rejects outdated/guessed dataSyncId or brand pageId)
-  if (!response.ok && (response.status === 400 || response.status === 401 || response.status === 403) && (currentSessionScope.dataSyncId || currentSessionScope.pageId)) {
+  if (!response.ok && (response.status === 400 || response.status === 401 || response.status === 403) && (validDataSyncId || currentSessionScope.pageId)) {
     console.warn(`[InnerTube] HTTP ${response.status} on ${endpoint}; retrying without onBehalfOfUser and X-Goog-PageId`);
-    const fallbackHeaders = { ...headers };
+    const fallbackHeaders = { ...reqHeaders };
     delete fallbackHeaders['X-Goog-PageId'];
     delete fallbackHeaders['x-goog-pageid'];
     response = await fetch(url, {
       method: 'POST',
-      headers: fallbackHeaders,
+      headers: sanitizeFetchHeaders(fallbackHeaders),
+      body: JSON.stringify(buildPayload(false))
+    });
+  }
+
+  // If still rejected with 400/401/403 on a public catalogue endpoint (e.g., partial/expired cookie jar),
+  // retry anonymously with clean WEB_REMIX guest headers so Search / Home / Explore / Artist / Album never fail.
+  if (!response.ok && (response.status === 400 || response.status === 401 || response.status === 403) && reqHeaders['Cookie'] && isPublicReadEndpoint(endpoint, body)) {
+    console.warn(`[InnerTube] HTTP ${response.status} on public endpoint ${endpoint}; retrying anonymously`);
+    const anonHeaders = getDefaultHeaders();
+    anonHeaders['X-YouTube-Client-Version'] = clientVersion;
+    if (currentSessionScope.visitorData) {
+      anonHeaders['X-Goog-Visitor-Id'] = currentSessionScope.visitorData;
+    }
+    response = await fetch(url, {
+      method: 'POST',
+      headers: sanitizeFetchHeaders(anonHeaders),
       body: JSON.stringify(buildPayload(false))
     });
   }
@@ -380,7 +445,11 @@ async function postMusic(endpoint, body = {}, ses = null, queryParams = null) {
     throw new Error(`InnerTube HTTP ${response.status}: ${response.statusText}`);
   }
 
-  return await response.json();
+  const json = await response.json();
+  if (!currentSessionScope.visitorData && json?.responseContext?.visitorData) {
+    currentSessionScope.visitorData = json.responseContext.visitorData;
+  }
+  return json;
 }
 
 /**
@@ -559,6 +628,56 @@ function extractIdentityTokensFromAccountMenu(root) {
 }
 
 /**
+ * Fetches youtube.com's account switcher endpoint as a secondary channel/profile enumerator.
+ * Matches BitChord Innertube.kt accountSwitcher() lines 570-591.
+ */
+async function getAccountSwitcher(ses) {
+  if (!ses) return null;
+  try {
+    const { isLoggedIn, cookieStr } = await getAuthContext(ses);
+    if (!isLoggedIn || !cookieStr) return null;
+
+    let sapisid = null;
+    for (const part of cookieStr.split(';')) {
+      const eq = part.indexOf('=');
+      if (eq > 0) {
+        const k = part.slice(0, eq).trim();
+        const v = part.slice(eq + 1).trim();
+        if (k === 'SAPISID' || k === '__Secure-3PAPISID' || k === '__Secure-1PAPISID') {
+          sapisid = v;
+          break;
+        }
+      }
+    }
+
+    const ytOrigin = 'https://www.youtube.com';
+    const headers = {
+      'User-Agent': CHROME_UA,
+      'Accept-Language': 'en-US,en;q=0.9',
+      'X-Origin': ytOrigin,
+      'Referer': `${ytOrigin}/`,
+      'Cookie': cookieStr,
+      'X-Goog-AuthUser': currentSessionScope.authUser || '0'
+    };
+    if (sapisid) {
+      headers['Authorization'] = sapisidHash(sapisid, ytOrigin);
+    }
+
+    const res = await fetch(`${ytOrigin}/getAccountSwitcherEndpoint`, {
+      method: 'GET',
+      headers
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const cleanBody = text.includes(")]}'") ? text.slice(text.indexOf(")]}'") + 4).trim() : text.trim();
+    return JSON.parse(cleanBody);
+  } catch (err) {
+    console.warn('[InnerTube] getAccountSwitcher notice:', err.message);
+    return null;
+  }
+}
+
+/**
  * Retrieves the user's account info from YouTube Music when logged in.
  */
 async function getAccountInfo(ses) {
@@ -571,7 +690,13 @@ async function getAccountInfo(ses) {
       return { isLoggedIn: false, channels: [] };
     }
 
-    const data = await postMusic('account/account_menu', {}, ses);
+    let data = null;
+    try {
+      data = await postMusic('account/account_menu', {}, ses);
+    } catch (menuErr) {
+      console.warn('[InnerTube] account_menu notice:', menuErr.message);
+    }
+
     let name = 'Google User';
     let handle = '';
     let avatarUrl = '';
@@ -579,46 +704,83 @@ async function getAccountInfo(ses) {
     function walk(node) {
       if (!node || typeof node !== 'object') return;
       if (Array.isArray(node)) { node.forEach(walk); return; }
-      const h = node.activeAccountHeaderRenderer || node.accountHeaderRenderer || node.accountItemRenderer;
+      const h = node.activeAccountHeaderRenderer || node.accountHeaderRenderer || node.accountItemRenderer || node.accountItem;
       if (h) {
-        name = h.accountName?.runs?.[0]?.text ||
-               h.channelTitle?.runs?.[0]?.text ||
-               h.channelName?.runs?.[0]?.text ||
-               h.title?.runs?.[0]?.text ||
-               h.accountName?.simpleText ||
-               h.channelTitle?.simpleText ||
-               h.title?.simpleText ||
-               name;
-        handle = h.channelHandle?.runs?.[0]?.text ||
-                 h.email?.runs?.[0]?.text ||
-                 h.byline?.runs?.[0]?.text ||
-                 h.channelHandle?.simpleText ||
-                 h.email?.simpleText ||
-                 handle;
+        const candidateName = h.accountName?.runs?.[0]?.text ||
+                              h.channelTitle?.runs?.[0]?.text ||
+                              h.channelName?.runs?.[0]?.text ||
+                              h.title?.runs?.[0]?.text ||
+                              h.accountName?.simpleText ||
+                              h.channelTitle?.simpleText ||
+                              h.title?.simpleText;
+        if (candidateName && (name === 'Google User' || h.isSelected === true || node.activeAccountHeaderRenderer)) {
+          name = candidateName;
+        }
+        const candidateHandle = h.channelHandle?.runs?.[0]?.text ||
+                                h.email?.runs?.[0]?.text ||
+                                h.accountByline?.runs?.[0]?.text ||
+                                h.byline?.runs?.[0]?.text ||
+                                h.channelHandle?.simpleText ||
+                                h.email?.simpleText ||
+                                h.accountByline?.simpleText;
+        if (candidateHandle && (!handle || h.isSelected === true || node.activeAccountHeaderRenderer)) {
+          handle = candidateHandle;
+        }
         const thumbs = h.accountPhoto?.thumbnails || h.avatar?.thumbnails || h.thumbnail?.thumbnails || h.thumbnails || [];
-        if (thumbs.length > 0) {
+        if (thumbs.length > 0 && (!avatarUrl || h.isSelected === true || node.activeAccountHeaderRenderer)) {
           avatarUrl = thumbs[thumbs.length - 1].url;
         }
       }
+      if (node.googleAccountHeaderRenderer) {
+        const gh = node.googleAccountHeaderRenderer;
+        const ghName = gh.name?.runs?.[0]?.text || gh.name?.simpleText;
+        const ghEmail = gh.email?.runs?.[0]?.text || gh.email?.simpleText;
+        if (ghName && name === 'Google User') name = ghName;
+        if (ghEmail && !handle) handle = ghEmail;
+      }
       Object.values(node).forEach(walk);
     }
-    walk(data);
+    if (data) walk(data);
 
-    // Extract channels and identity tokens from account menu & accounts_list (BitChord architecture)
-    let channels = parseAccountChannels(data);
-    let tokens = extractIdentityTokensFromAccountMenu(data);
+    // Extract channels and identity tokens from account menu & accounts_list & accountSwitcher (BitChord architecture)
+    let channels = data ? parseAccountChannels(data) : [];
+    let tokens = data ? extractIdentityTokensFromAccountMenu(data) : { pageId: null, dataSyncId: null };
 
     if (channels.length === 0) {
       try {
         const listData = await postMusic('account/accounts_list', {}, ses);
-        const listChannels = parseAccountChannels(listData);
-        if (listChannels.length > 0) {
-          channels = listChannels;
-          const listTokens = extractIdentityTokensFromAccountMenu(listData);
-          if (!tokens.pageId && listTokens.pageId) tokens.pageId = listTokens.pageId;
-          if (!tokens.dataSyncId && listTokens.dataSyncId) tokens.dataSyncId = listTokens.dataSyncId;
+        if (listData) {
+          walk(listData);
+          const listChannels = parseAccountChannels(listData);
+          if (listChannels.length > 0) {
+            channels = listChannels;
+            const listTokens = extractIdentityTokensFromAccountMenu(listData);
+            if (!tokens.pageId && listTokens.pageId) tokens.pageId = listTokens.pageId;
+            if (!tokens.dataSyncId && listTokens.dataSyncId) tokens.dataSyncId = listTokens.dataSyncId;
+          }
         }
       } catch {}
+    }
+
+    if (channels.length === 0 || name === 'Google User') {
+      try {
+        const switcherData = await getAccountSwitcher(ses);
+        if (switcherData) {
+          walk(switcherData);
+          const switcherChannels = parseAccountChannels(switcherData);
+          if (switcherChannels.length > 0) {
+            channels = switcherChannels;
+            const switcherTokens = extractIdentityTokensFromAccountMenu(switcherData);
+            if (!tokens.pageId && switcherTokens.pageId) tokens.pageId = switcherTokens.pageId;
+            if (!tokens.dataSyncId && switcherTokens.dataSyncId) tokens.dataSyncId = switcherTokens.dataSyncId;
+          }
+        }
+      } catch {}
+    }
+
+    // If neither account_menu nor getAccountSwitcher returned any valid account data, throw to trigger fallback
+    if (!data && channels.length === 0 && name === 'Google User') {
+      throw new Error('Could not retrieve account details from YouTube Music');
     }
 
     if (tokens.pageId && !currentSessionScope.pageId) {
@@ -684,20 +846,22 @@ async function getAccountInfo(ses) {
         }
       } catch {}
 
+      const fallbackName = (savedAcc?.name && savedAcc.name !== 'Google User') ? savedAcc.name : 'YouTube Music';
+      const fallbackHandle = (savedAcc?.handle && savedAcc.handle !== '@user') ? savedAcc.handle : 'YouTube Music Account';
       return {
         isLoggedIn: true,
-        name: savedAcc?.name || 'Google User',
-        channelTitle: savedAcc?.channelTitle || savedAcc?.name || 'Google User',
-        handle: savedAcc?.handle || '@user',
+        name: fallbackName,
+        channelTitle: (savedAcc?.channelTitle && savedAcc.channelTitle !== 'Google User') ? savedAcc.channelTitle : fallbackName,
+        handle: fallbackHandle,
         avatarUrl: savedAcc?.avatarUrl || savedAcc?.photoUrl || '',
         photoUrl: savedAcc?.photoUrl || savedAcc?.avatarUrl || '',
         pageId: currentSessionScope.pageId || savedAcc?.pageId || null,
         dataSyncId: currentSessionScope.dataSyncId || savedAcc?.dataSyncId || null,
         authUser: currentSessionScope.authUser || savedAcc?.authUser || '0',
         channels: savedAcc?.channels || [{
-          name: savedAcc?.name || 'Google User',
-          subtitle: savedAcc?.handle || '@user',
-          handle: savedAcc?.handle || '@user',
+          name: fallbackName,
+          subtitle: fallbackHandle,
+          handle: fallbackHandle,
           thumbnailUrl: savedAcc?.avatarUrl || '',
           photoUrl: savedAcc?.photoUrl || '',
           pageId: currentSessionScope.pageId || null,
@@ -1619,11 +1783,84 @@ function parseSearchResults(data) {
     return item;
   }
 
-  function walk(node) {
+  function parseCardShelf(card) {
+    if (!card || typeof card !== 'object') return { topItem: null, cardArtist: null };
+    const title = (Array.isArray(card.title?.runs) ? card.title.runs.map(x => x.text).join('') : (card.title?.simpleText || '')) || '';
+    const subtitle = (Array.isArray(card.subtitle?.runs) ? card.subtitle.runs.map(x => x.text).join('') : (card.subtitle?.simpleText || '')) || '';
+    const thumbs = card.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+                   card.thumbnail?.thumbnails || [];
+    const cover = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
+
+    const onTap = card.onTap || card.title?.runs?.[0]?.navigationEndpoint || {};
+    const videoId = onTap.watchEndpoint?.videoId ||
+                    card.buttons?.[0]?.buttonRenderer?.command?.watchEndpoint?.videoId;
+    const browseId = onTap.browseEndpoint?.browseId ||
+                     card.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId;
+    const pageType = onTap.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType ||
+                     card.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType || '';
+
+    const isArtistCard = pageType.includes('ARTIST') || (browseId && browseId.startsWith('UC'));
+    const cardArtist = isArtistCard && title ? title : null;
+
+    if (!title) return { topItem: null, cardArtist };
+
+    if (videoId) {
+      const parts = subtitle.split(' • ').map(s => s.trim()).filter(Boolean);
+      const durPart = parts.find(p => /^\d+:\d{2}(:\d{2})?$/.test(p));
+      const artistPart = parts.find(p => !/^\d+:\d{2}(:\d{2})?$/.test(p) && !SEARCH_TYPE_WORDS.has(p.toLowerCase()) && !SEARCH_TALLY_REGEX.test(p)) || 'YouTube Music';
+      return {
+        topItem: classifyItem({
+          id: `yt-${videoId}`,
+          type: 'song',
+          isTopResult: true,
+          videoId,
+          browseId,
+          title,
+          artist: artistPart,
+          album: 'YouTube Music',
+          subtitle,
+          duration: parseDurationString(durPart) || 210,
+          durationStr: durPart || '3:30',
+          cover
+        }),
+        cardArtist
+      };
+    }
+
+    if (browseId) {
+      return {
+        topItem: classifyItem({
+          id: `browse-${browseId}`,
+          type: isArtistCard ? 'artist' : 'browse',
+          isTopResult: true,
+          browseId,
+          title,
+          artist: subtitle || 'Artist',
+          subtitle,
+          cover
+        }),
+        cardArtist
+      };
+    }
+
+    return { topItem: null, cardArtist };
+  }
+
+  function walk(node, fallbackArtist = null) {
     if (!node || typeof node !== 'object') return;
-    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (Array.isArray(node)) { node.forEach(el => walk(el, fallbackArtist)); return; }
+    if (node.musicCardShelfRenderer) {
+      const { topItem, cardArtist } = parseCardShelf(node.musicCardShelfRenderer);
+      if (topItem && !results.some(r => (r.videoId && r.videoId === topItem.videoId) || (r.browseId && r.browseId === topItem.browseId))) {
+        results.push(topItem);
+      }
+      if (Array.isArray(node.musicCardShelfRenderer.contents)) {
+        node.musicCardShelfRenderer.contents.forEach(child => walk(child, cardArtist || fallbackArtist));
+      }
+      return;
+    }
     if (node.musicResponsiveListItemRenderer) {
-      const song = parseResponsiveItem(node.musicResponsiveListItemRenderer);
+      const song = parseResponsiveItem(node.musicResponsiveListItemRenderer, fallbackArtist);
       if (song && !results.some(r => (r.videoId && r.videoId === song.videoId) || (r.browseId && r.browseId === song.browseId))) {
         results.push(classifyItem(song));
       }
@@ -1633,7 +1870,7 @@ function parseSearchResults(data) {
         results.push(classifyItem(card));
       }
     }
-    Object.values(node).forEach(walk);
+    Object.values(node).forEach(val => walk(val, fallbackArtist));
   }
   walk(sections.length > 0 ? sections : data);
 
@@ -2181,19 +2418,57 @@ function parseSectionList(sectionList) {
   return parseLibraryPlaylistsResponse(sectionList);
 }
 
-function parseResponsiveItem(r) {
+const SEARCH_TYPE_WORDS = new Set([
+  'song', 'video', 'album', 'single', 'ep', 'artist', 'playlist', 'podcast', 'episode', 'profile'
+]);
+const SEARCH_TALLY_REGEX = /^[\d.,]+\s*[KMB]?\s+(plays|views|likes|songs|tracks|subscribers|monthly\s+audience|audience|hours?|minutes?|seconds?)\b/i;
+
+function parseResponsiveItem(r, fallbackArtist = null) {
   const flexCols = r.flexColumns || [];
   const titleCol = flexCols[0]?.musicResponsiveListItemFlexColumnRenderer?.text;
   const title = (Array.isArray(titleCol?.runs) ? titleCol.runs.map(x => x.text).join('') : (titleCol?.simpleText || titleCol?.runs?.[0]?.text)) || '';
   if (!title) return null;
 
   const col1 = flexCols[1]?.musicResponsiveListItemFlexColumnRenderer?.text;
-  const artist = (Array.isArray(col1?.runs) ? col1.runs[0]?.text : col1?.simpleText) || 'YouTube Music';
-  const album = (Array.isArray(col1?.runs) && col1.runs.length > 2 ? col1.runs[2]?.text : null) || 'YouTube Music';
+  const col2 = flexCols[2]?.musicResponsiveListItemFlexColumnRenderer?.text;
+  const rawSubtitle = Array.isArray(col1?.runs)
+    ? col1.runs.map(x => x.text || '').join('')
+    : (col1?.simpleText || '');
+  const parts = rawSubtitle.split(' • ').map(s => s.trim()).filter(Boolean);
+
+  // Extract linked artist / album names from run browseEndpoints when present (BitChord InnertubeParser.kt creditsOf)
+  let linkedArtist = null;
+  let linkedAlbum = null;
+  const allSubtitleRuns = [
+    ...(Array.isArray(col1?.runs) ? col1.runs : []),
+    ...(Array.isArray(col2?.runs) ? col2.runs : [])
+  ];
+  for (const run of allSubtitleRuns) {
+    const bEp = run?.navigationEndpoint?.browseEndpoint;
+    const bId = bEp?.browseId || '';
+    const pType = bEp?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType || '';
+    if (!linkedArtist && (pType.includes('ARTIST') || bId.startsWith('UC')) && run.text) {
+      linkedArtist = run.text.trim();
+    } else if (!linkedAlbum && (pType.includes('ALBUM') || bId.startsWith('MPRE')) && run.text) {
+      linkedAlbum = run.text.trim();
+    }
+  }
+
+  // Filter out type words ("Song", "Video"), durations ("3:45"), and tallies ("5.4M plays")
+  const creditParts = parts.filter(p =>
+    !/^\d+:\d{2}(:\d{2})?$/.test(p) &&
+    !SEARCH_TYPE_WORDS.has(p.toLowerCase()) &&
+    !SEARCH_TALLY_REGEX.test(p)
+  );
+
+  const artist = linkedArtist || creditParts[0] || fallbackArtist || (parts[0] && !SEARCH_TYPE_WORDS.has(parts[0].toLowerCase()) ? parts[0] : 'YouTube Music');
+  const album = linkedAlbum || creditParts[1] || 'YouTube Music';
 
   const fixedCols = r.fixedColumns || [];
-  const durationText = fixedCols[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text ||
-                       (Array.isArray(col1?.runs) ? col1.runs.slice(-1)[0]?.text : null);
+  const fixedDur = fixedCols[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text ||
+                   fixedCols[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.simpleText;
+  const partDur = parts.find(p => /^\d+:\d{2}(:\d{2})?$/.test(p));
+  const durationText = fixedDur || partDur || null;
   const duration = parseDurationString(durationText) || 210;
 
   const videoId = r.playlistItemData?.videoId ||
@@ -2231,7 +2506,8 @@ function parseResponsiveItem(r) {
     videoId,
     browseId,
     title,
-    artist,
+    artist: isArtist ? (rawSubtitle || 'Artist') : artist,
+    subtitle: rawSubtitle,
     album,
     duration,
     durationStr: durationText || '3:30',
@@ -3673,5 +3949,8 @@ module.exports = {
   parseMoodsAndGenresResponse,
   trackPlayback,
   parseAccountChannels,
-  parsePlaylistResponse
+  parsePlaylistResponse,
+  sanitizeFetchHeaders,
+  parseSearchResults,
+  getAccountSwitcher
 };

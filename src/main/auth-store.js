@@ -31,12 +31,9 @@ function getAuthFilePath() {
     }
   } catch {}
 
-  // Fallback for Node.js / test environments
-  const homeDir = process.env.APPDATA ||
-    (process.platform === 'darwin'
-      ? path.join(process.env.HOME || '', 'Library', 'Application Support')
-      : path.join(process.env.HOME || '', '.config'));
-  const fallbackDir = path.join(homeDir, 'deja');
+  // Fallback for Node.js / test environments (isolated in tmpdir so unit tests never delete real userData auth)
+  const os = require('os');
+  const fallbackDir = path.join(os.tmpdir(), 'deja-test-auth');
   return path.join(fallbackDir, AUTH_FILE_NAME);
 }
 
