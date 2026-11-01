@@ -60,75 +60,125 @@
     </div>
   </header>
 
-  <!-- Hero Section -->
+  <!-- Hero Section (BitChord Copper-Mesh Architecture + Live Word-Synced Lyrics Showcase) -->
   <section class="hero-section">
     <div class="container">
-      <div class="pill-release">
-        <span class="pill-dot"></span>
-        <span>Deja 1.0.0 is officially released for Windows</span>
-        <button class="btn-open-android-modal" style="background:none; border:none; color:var(--ruby); font-weight:700; cursor:pointer; margin-left:6px;">· Android Soon →</button>
+      <div class="bitchord-hero-card" id="bitchord-hero-card">
+        <div class="copper-mesh-backdrop" aria-hidden="true">
+          <div class="copper-blob blob-1"></div>
+          <div class="copper-blob blob-2"></div>
+          <div class="copper-blob blob-3"></div>
+          <div class="copper-blob blob-4"></div>
+          <div class="copper-vignette"></div>
+        </div>
+
+        <div class="pill-release">
+          <span class="pill-dot"></span>
+          <span>Deja 1.0.0 is officially released for Windows</span>
+          <button class="btn-open-android-modal" style="background:none; border:none; color:var(--ruby); font-weight:700; cursor:pointer; margin-left:6px;">· Android Soon →</button>
+        </div>
+
+        <h1 class="hero-title">
+          <span class="hero-title-bright">Instant Stream.</span>
+          <span class="hero-title-muted">No Compromise.</span>
+        </h1>
+        <p class="hero-tagline">
+          The bespoke Apple Music-grade desktop &amp; mobile experience for YouTube Music. Built on the BitChord native audio engine with 60fps word-by-word synced lyrics, 160kbps Opus pipeline, and dynamic mesh ambient aura.
+        </p>
+
+        <!-- BitChord Feature Badges -->
+        <div class="hero-badges-strip">
+          <span class="hero-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+            <span>160kbps Opus</span>
+          </span>
+          <span class="hero-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M8 9h8"></path><path d="M8 13h6"></path></svg>
+            <span>Word-Synced TTML &amp; LRC</span>
+          </span>
+          <span class="hero-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            <span>Ad-Free for Premium / TOS Compliant</span>
+          </span>
+          <span class="hero-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+            <span>100% Open Source</span>
+          </span>
+        </div>
+
+        <div class="hero-cta-group">
+          <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.0.0.exe" class="btn-white-pill" id="btn-hero-download" title="Download standard Windows installer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+            </svg>
+            <span>Download v1.0.0 (.exe)</span>
+          </a>
+
+          <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.1.0.0.exe" class="btn-secondary" title="Portable zero-install standalone executable">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+            <span>Portable Deja 1.0.0.exe</span>
+          </a>
+
+          <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer" class="btn-secondary" title="Star Deja on GitHub">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+              <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.3 6.1 20.5l1.2-6.5-4.8-4.6 6.6-.9L12 2.5z"/>
+            </svg>
+            <span>Star on GitHub</span>
+          </a>
+        </div>
+
+        <div class="hero-subtext">
+          <span>Available on <a href="#download">Windows 10 / 11 (64-bit)</a>, <a href="https://github.com/Dathevinci/Deja/releases" target="_blank" rel="noopener noreferrer">Portable</a>, and <a href="#" class="btn-open-android-modal">Android</a> · </span>
+          <a href="https://github.com/Dathevinci/Deja/releases" target="_blank" rel="noopener noreferrer">All Releases</a>
+        </div>
+
+        <!-- BitChord Live Word-Synced Phone Showcase (Coldplay - Yellow) -->
+        <div class="phone-hero-stage" role="img" aria-label="Deja and BitChord lyrics screen playing Yellow by Coldplay with real-time word-by-word synced lyrics">
+          <div class="phone-bezel-outer">
+            <div class="phone-bezel-inner">
+              <div class="phone-screen">
+                <div class="phone-artwork-blur"></div>
+                <div class="phone-notch-row">
+                  <span class="phone-camera-dot"></span>
+                </div>
+                <div class="phone-grabber-row">
+                  <span class="phone-grabber-pill"></span>
+                </div>
+                <div class="phone-track-header">
+                  <div class="phone-track-art">
+                    <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200&auto=format&fit=crop&q=80" alt="Coldplay Parachutes" />
+                  </div>
+                  <div class="phone-track-meta">
+                    <div class="phone-track-title">Yellow</div>
+                    <div class="phone-track-artist">Coldplay</div>
+                  </div>
+                  <div class="phone-track-actions">
+                    <div class="phone-circle-btn" aria-hidden="true">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"><path d="M12 20.5s-7.5-4.6-9.2-9.4C1.6 7.6 3.9 4 7.4 4c2 0 3.5 1.1 4.6 2.7C13.1 5.1 14.6 4 16.6 4c3.5 0 5.8 3.6 4.6 7.1-1.7 4.8-9.2 9.4-9.2 9.4z"/></svg>
+                    </div>
+                    <div class="phone-circle-btn" aria-hidden="true">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="phone-lyrics-viewport" id="phone-lyrics-viewport">
+                  <div class="phone-lyrics-track" id="phone-lyrics-track">
+                    <!-- Populated and animated at 60fps by script.js -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <h1 class="hero-title">YouTube Music, in Apple perfection.</h1>
-      <p class="hero-tagline">
-        The bespoke Apple Music-grade desktop experience for YouTube Music. Built on the BitChord native audio engine with synced lyrics, 160kbps Opus pipeline, and dynamic mesh ambient aura.
-      </p>
-
-      <!-- BitChord Feature Badges -->
-      <div class="hero-badges-strip">
-        <span class="hero-badge">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
-          <span>160kbps Opus</span>
-        </span>
-        <span class="hero-badge">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M8 9h8"></path><path d="M8 13h6"></path></svg>
-          <span>LRCLIB Synced Lyrics</span>
-        </span>
-        <span class="hero-badge">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-          <span>Ad-Free for Premium / TOS Compliant</span>
-        </span>
-        <span class="hero-badge">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-          <span>100% Open Source</span>
-        </span>
-      </div>
-
-      <div class="hero-cta-group">
-        <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.0.0.exe" class="btn-ruby" id="btn-hero-download" title="Download standard Windows installer">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
-          </svg>
-          <span>Download Deja Setup 1.0.0.exe</span>
-        </a>
-
-        <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.1.0.0.exe" class="btn-secondary" title="Portable zero-install standalone executable">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
-            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
-            <line x1="6" y1="6" x2="6.01" y2="6"></line>
-            <line x1="6" y1="18" x2="6.01" y2="18"></line>
-          </svg>
-          <span>Download Deja 1.0.0.exe</span>
-        </a>
-
-        <button class="btn-secondary btn-open-android-modal" title="View Android development progress and roadmap">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-1.0003s.4482-.9993 1.0003-.9993c.551 0 .9992.4476.9992.9993 0 .5517-.4482 1.0003-1.0002 1.0003m-11.046 0c-.5511 0-.9993-.4486-.9993-1.0003s.4482-.9993 1.0003-.9993c.5511 0 .9993.4476.9993.9993 0 .5517-.4482 1.0003-1.0003 1.0003m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.4233 13.8533 8.081 12 8.081s-3.5902.3423-5.1368.8687L4.841 5.4468a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.152 5676l1.9972 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3433-4.1021-2.689-7.5743-6.1185-9.4396"/>
-          </svg>
-          <span>Android Coming Soon</span>
-        </button>
-      </div>
-
-      <div class="hero-subtext">
-        <span>Windows 10 / 11 (64-bit) · 107 MB · </span>
-        <a href="https://github.com/Dathevinci/Deja/releases" target="_blank" rel="noopener noreferrer">All Releases</a>
-        <span> · </span>
-        <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer">View on GitHub</a>
-      </div>
-
-      <!-- App Interface Mockup Frame -->
-      <div class="mockup-wrapper">
+      <!-- Desktop App Interface Mockup Frame -->
+      <div class="mockup-wrapper" style="margin-top: 40px;">
         <div class="mockup-window">
           <!-- Titlebar -->
           <div class="mockup-titlebar">
@@ -244,7 +294,7 @@
 
             <div class="player-right">
               <span class="tech-badge highlight" title="Pure YouTube 160kbps audio pipeline">160 kbps OPUS</span>
-              <span class="tech-badge" title="LRCLIB Millisecond-synced lyrics">LRCLIB</span>
+              <span class="tech-badge" title="Word-Synced TTML & LRCLIB">WORD SYNC</span>
               <span class="tech-badge" title="BitChord Studio Equalizer">EQ ON</span>
             </div>
           </div>
@@ -253,21 +303,243 @@
     </div>
   </section>
 
-  <!-- Ecosystem Integrations Section (matching BitChord reference) -->
-  <section class="ecosystem-section">
+  <!-- BitChord Replay Spotlight Section ("Replay your year, anytime.") -->
+  <section class="replay-section" id="replay-section" aria-labelledby="replay-title">
+    <div class="container">
+      <div class="replay-header">
+        <h2 id="replay-title" class="replay-heading">Replay your year, anytime.</h2>
+        <p class="replay-subheading">Your listening history turns into a live stats reel: minutes streamed, top artists, tracks and albums, always up to date.</p>
+      </div>
+
+      <ul class="replay-cards-list">
+        <li class="replay-card-item">
+          <a href="#download" class="replay-credit-card replay-card-purple" data-replay-card>
+            <div class="replay-card-mesh"></div>
+            <div class="replay-card-shade"></div>
+            <div class="replay-card-spotlight"></div>
+            <span class="replay-card-border"></span>
+            <div class="replay-card-body">
+              <div class="replay-card-top">
+                <p class="replay-card-eyebrow">Your listening experience</p>
+                <svg viewBox="0 0 730 484" class="replay-wave-mark" aria-hidden="true">
+                  <path d="M6.73729,316.937C20.201,294.159 49.6986,286.649 72.4033,300.174H72.4277C237.603,398.282 510.121,407.302 667.823,359.439C693.147,351.759 719.927,366.055 727.602,391.378C735.276,416.715 720.992,443.477 695.649,451.176C514.618,506.132 213.674,495.514 23.5058,382.622C0.678772,369.103 -6.78757,339.685 6.73729,316.937ZM77.8135,154.865C89.38,136.046 113.982,130.11 132.77,141.676C270.528,226.369 480.519,250.891 643.46,201.43C664.592,195.047 686.911,206.957 693.324,228.052C699.689,249.184 687.774,271.46 666.679,277.886C480.555,334.36 249.169,307.004 90.9707,209.79C72.1827,198.224 66.247,173.628 77.8135,154.865ZM140.542,15.3012C149.722,0.246392 169.428,-4.52761 184.482,4.71335C304.811,78.2128 456.29,94.8593 634.684,54.101C651.874,50.1843 669.01,60.9551 672.927,78.1518C676.862,95.3486 666.134,112.484 648.9,116.401C453.677,161.021 286.219,141.799 151.129,59.2417C136.074,50.0006 131.301,30.3561 140.542,15.3012Z"/>
+                </svg>
+              </div>
+              <div class="replay-card-middle">
+                <p class="replay-card-value">42,810</p>
+                <p class="replay-card-label">Minutes listened</p>
+              </div>
+              <div class="replay-card-bottom">
+                <div class="replay-card-holder-col">
+                  <p class="replay-card-holder">DEJA LISTENER</p>
+                  <p class="replay-card-detail">≈ 713 hrs · 29 days nonstop</p>
+                </div>
+                <div class="replay-card-since-col">
+                  <p class="replay-card-since-label">Member<br/>since</p>
+                  <p class="replay-card-since-val">04/25</p>
+                </div>
+              </div>
+            </div>
+          </a>
+        </li>
+
+        <li class="replay-card-item">
+          <a href="#download" class="replay-credit-card replay-card-amber" data-replay-card>
+            <div class="replay-card-mesh"></div>
+            <div class="replay-card-shade"></div>
+            <div class="replay-card-spotlight"></div>
+            <span class="replay-card-border"></span>
+            <div class="replay-card-body">
+              <div class="replay-card-top">
+                <p class="replay-card-eyebrow">Your listening experience</p>
+                <svg viewBox="0 0 730 484" class="replay-wave-mark" aria-hidden="true">
+                  <path d="M6.73729,316.937C20.201,294.159 49.6986,286.649 72.4033,300.174H72.4277C237.603,398.282 510.121,407.302 667.823,359.439C693.147,351.759 719.927,366.055 727.602,391.378C735.276,416.715 720.992,443.477 695.649,451.176C514.618,506.132 213.674,495.514 23.5058,382.622C0.678772,369.103 -6.78757,339.685 6.73729,316.937ZM77.8135,154.865C89.38,136.046 113.982,130.11 132.77,141.676C270.528,226.369 480.519,250.891 643.46,201.43C664.592,195.047 686.911,206.957 693.324,228.052C699.689,249.184 687.774,271.46 666.679,277.886C480.555,334.36 249.169,307.004 90.9707,209.79C72.1827,198.224 66.247,173.628 77.8135,154.865ZM140.542,15.3012C149.722,0.246392 169.428,-4.52761 184.482,4.71335C304.811,78.2128 456.29,94.8593 634.684,54.101C651.874,50.1843 669.01,60.9551 672.927,78.1518C676.862,95.3486 666.134,112.484 648.9,116.401C453.677,161.021 286.219,141.799 151.129,59.2417C136.074,50.0006 131.301,30.3561 140.542,15.3012Z"/>
+                </svg>
+              </div>
+              <div class="replay-card-middle">
+                <p class="replay-card-value">Coldplay</p>
+                <p class="replay-card-label">Top artist</p>
+              </div>
+              <div class="replay-card-bottom">
+                <div class="replay-card-holder-col">
+                  <p class="replay-card-holder">DEJA LISTENER</p>
+                  <p class="replay-card-detail">6,420 min streamed</p>
+                </div>
+                <div class="replay-card-since-col">
+                  <p class="replay-card-since-label">Member<br/>since</p>
+                  <p class="replay-card-since-val">04/25</p>
+                </div>
+              </div>
+            </div>
+          </a>
+        </li>
+
+        <li class="replay-card-item">
+          <a href="#download" class="replay-credit-card replay-card-rose" data-replay-card>
+            <div class="replay-card-mesh"></div>
+            <div class="replay-card-shade"></div>
+            <div class="replay-card-spotlight"></div>
+            <span class="replay-card-border"></span>
+            <div class="replay-card-body">
+              <div class="replay-card-top">
+                <p class="replay-card-eyebrow">Your listening experience</p>
+                <svg viewBox="0 0 730 484" class="replay-wave-mark" aria-hidden="true">
+                  <path d="M6.73729,316.937C20.201,294.159 49.6986,286.649 72.4033,300.174H72.4277C237.603,398.282 510.121,407.302 667.823,359.439C693.147,351.759 719.927,366.055 727.602,391.378C735.276,416.715 720.992,443.477 695.649,451.176C514.618,506.132 213.674,495.514 23.5058,382.622C0.678772,369.103 -6.78757,339.685 6.73729,316.937ZM77.8135,154.865C89.38,136.046 113.982,130.11 132.77,141.676C270.528,226.369 480.519,250.891 643.46,201.43C664.592,195.047 686.911,206.957 693.324,228.052C699.689,249.184 687.774,271.46 666.679,277.886C480.555,334.36 249.169,307.004 90.9707,209.79C72.1827,198.224 66.247,173.628 77.8135,154.865ZM140.542,15.3012C149.722,0.246392 169.428,-4.52761 184.482,4.71335C304.811,78.2128 456.29,94.8593 634.684,54.101C651.874,50.1843 669.01,60.9551 672.927,78.1518C676.862,95.3486 666.134,112.484 648.9,116.401C453.677,161.021 286.219,141.799 151.129,59.2417C136.074,50.0006 131.301,30.3561 140.542,15.3012Z"/>
+                </svg>
+              </div>
+              <div class="replay-card-middle">
+                <p class="replay-card-value">Yellow</p>
+                <p class="replay-card-label">Top track</p>
+              </div>
+              <div class="replay-card-bottom">
+                <div class="replay-card-holder-col">
+                  <p class="replay-card-holder">DEJA LISTENER</p>
+                  <p class="replay-card-detail">Coldplay · 184 plays</p>
+                </div>
+                <div class="replay-card-since-col">
+                  <p class="replay-card-since-label">Member<br/>since</p>
+                  <p class="replay-card-since-val">04/25</p>
+                </div>
+              </div>
+            </div>
+          </a>
+        </li>
+
+        <li class="replay-card-item">
+          <a href="#download" class="replay-credit-card replay-card-teal" data-replay-card>
+            <div class="replay-card-mesh"></div>
+            <div class="replay-card-shade"></div>
+            <div class="replay-card-spotlight"></div>
+            <span class="replay-card-border"></span>
+            <div class="replay-card-body">
+              <div class="replay-card-top">
+                <p class="replay-card-eyebrow">Your listening experience</p>
+                <svg viewBox="0 0 730 484" class="replay-wave-mark" aria-hidden="true">
+                  <path d="M6.73729,316.937C20.201,294.159 49.6986,286.649 72.4033,300.174H72.4277C237.603,398.282 510.121,407.302 667.823,359.439C693.147,351.759 719.927,366.055 727.602,391.378C735.276,416.715 720.992,443.477 695.649,451.176C514.618,506.132 213.674,495.514 23.5058,382.622C0.678772,369.103 -6.78757,339.685 6.73729,316.937ZM77.8135,154.865C89.38,136.046 113.982,130.11 132.77,141.676C270.528,226.369 480.519,250.891 643.46,201.43C664.592,195.047 686.911,206.957 693.324,228.052C699.689,249.184 687.774,271.46 666.679,277.886C480.555,334.36 249.169,307.004 90.9707,209.79C72.1827,198.224 66.247,173.628 77.8135,154.865ZM140.542,15.3012C149.722,0.246392 169.428,-4.52761 184.482,4.71335C304.811,78.2128 456.29,94.8593 634.684,54.101C651.874,50.1843 669.01,60.9551 672.927,78.1518C676.862,95.3486 666.134,112.484 648.9,116.401C453.677,161.021 286.219,141.799 151.129,59.2417C136.074,50.0006 131.301,30.3561 140.542,15.3012Z"/>
+                </svg>
+              </div>
+              <div class="replay-card-middle">
+                <p class="replay-card-value">Parachutes</p>
+                <p class="replay-card-label">Top album</p>
+              </div>
+              <div class="replay-card-bottom">
+                <div class="replay-card-holder-col">
+                  <p class="replay-card-holder">DEJA LISTENER</p>
+                  <p class="replay-card-detail">Coldplay · 412 plays</p>
+                </div>
+                <div class="replay-card-since-col">
+                  <p class="replay-card-since-label">Member<br/>since</p>
+                  <p class="replay-card-since-val">04/25</p>
+                </div>
+              </div>
+            </div>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Big Screen Showcase Section (matching BitChord "Now on the big screen.") -->
+  <section class="tv-section" id="big-screen-section" aria-labelledby="tv-title">
+    <div class="container">
+      <div class="tv-card">
+        <div class="tv-mesh-backdrop" aria-hidden="true">
+          <div class="tv-blob tv-blob-1"></div>
+          <div class="tv-blob tv-blob-2"></div>
+          <div class="tv-blob tv-blob-3"></div>
+          <div class="tv-blob tv-blob-4"></div>
+        </div>
+
+        <div class="tv-header">
+          <h2 id="tv-title" class="tv-heading">Now on the big screen.</h2>
+          <p class="tv-subheading">Deja puts full-screen artwork, word-by-word synced lyrics, and your YouTube Music queue on your desktop &amp; widescreen display.</p>
+        </div>
+
+        <div class="tv-frame-wrapper">
+          <div class="tv-bezel">
+            <div class="tv-screen" id="tv-screen-stage">
+              <!-- Slide 0: Now Playing -->
+              <div class="tv-slide active" data-tv-slide="0">
+                <div class="tv-slide-now-playing">
+                  <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80" alt="Parachutes" class="tv-np-art" />
+                  <div class="tv-np-meta">
+                    <span class="tv-np-pill">160 kbps Opus · Lossless Clock</span>
+                    <h3>Yellow</h3>
+                    <p>Coldplay — Parachutes</p>
+                    <div class="tv-np-progress"><span style="width: 48%;"></span></div>
+                  </div>
+                </div>
+              </div>
+              <!-- Slide 1: Synced Lyrics -->
+              <div class="tv-slide" data-tv-slide="1">
+                <div class="tv-slide-lyrics">
+                  <p class="tv-lyric-dim">Look at the stars</p>
+                  <p class="tv-lyric-lit">Look how they shine for you</p>
+                  <p class="tv-lyric-dim">And everything you do</p>
+                  <p class="tv-lyric-dim">Yeah, they were all yellow</p>
+                </div>
+              </div>
+              <!-- Slide 2: Word-by-Word Glow -->
+              <div class="tv-slide" data-tv-slide="2">
+                <div class="tv-slide-lyrics">
+                  <p class="tv-lyric-dim">I came along, I wrote a song for you</p>
+                  <p class="tv-lyric-lit">Your skin, oh yeah, your skin and bones</p>
+                  <p class="tv-lyric-dim">Turn into something beautiful</p>
+                </div>
+              </div>
+              <!-- Slide 3: Up Next Queue -->
+              <div class="tv-slide" data-tv-slide="3">
+                <div class="tv-slide-queue">
+                  <div class="tv-queue-row active"><span>01</span><strong>Yellow</strong><em>Coldplay · 4:26</em></div>
+                  <div class="tv-queue-row"><span>02</span><strong>Clocks</strong><em>Coldplay · 5:07</em></div>
+                  <div class="tv-queue-row"><span>03</span><strong>The Scientist</strong><em>Coldplay · 5:09</em></div>
+                  <div class="tv-queue-row"><span>04</span><strong>Sparks</strong><em>Coldplay · 3:47</em></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tv-stand" aria-hidden="true"></div>
+
+          <div class="tv-cta-wrap">
+            <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.0.0.exe" class="btn-white-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+              </svg>
+              <span>Download Deja Desktop v1.0.0</span>
+            </a>
+            <p class="tv-cta-caption">Windows 10 / 11 (x64) · Installer &amp; Portable</p>
+          </div>
+
+          <div class="tv-tablist" role="tablist" aria-label="Big screen views">
+            <button type="button" role="tab" aria-selected="true" aria-label="Now Playing" class="tv-tab-dot active" data-tv-tab="0"></button>
+            <button type="button" role="tab" aria-selected="false" aria-label="Synced lyrics" class="tv-tab-dot" data-tv-tab="1"></button>
+            <button type="button" role="tab" aria-selected="false" aria-label="Word-by-word glow" class="tv-tab-dot" data-tv-tab="2"></button>
+            <button type="button" role="tab" aria-selected="false" aria-label="Up Next" class="tv-tab-dot" data-tv-tab="3"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ecosystem Integrations Section (matching BitChord circular glass tiles) -->
+  <section class="ecosystem-section" id="integrations-section">
     <div class="container">
       <div class="ecosystem-header">
         <h2 class="ecosystem-title">Plays nicely with everything you already use.</h2>
-        <p class="ecosystem-subtitle">Native InnerTube streaming, character-synced lyrics, Discord Rich Presence, and studio audio enhancement, all built in.</p>
+        <p class="ecosystem-subtitle">Multi-provider word-synced lyrics, Discord Rich Presence, InnerTube account sync, and studio audio enhancement, all built in.</p>
       </div>
       <div class="ecosystem-chips">
         <div class="ecosystem-chip">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-          <span>YouTube Music</span>
+          <span>YouTube Music InnerTube</span>
         </div>
         <div class="ecosystem-chip">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M8 9h8"></path><path d="M8 13h6"></path></svg>
-          <span>LRCLIB Synced Lyrics</span>
+          <span>SimpMusic &amp; BetterLyrics TTML</span>
+        </div>
+        <div class="ecosystem-chip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+          <span>LRCLIB &amp; LyricsPlus</span>
         </div>
         <div class="ecosystem-chip">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.093.252-.19.372-.287a.075.075 0 0 1 .077-.01c3.931 1.793 8.18 1.793 12.061 0a.075.075 0 0 1 .078.01c.12.098.246.195.373.288a.077.077 0 0 1-.006.127c-.598.35-1.22.645-1.873.891a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
@@ -278,12 +550,8 @@
           <span>5-Band Studio Equalizer</span>
         </div>
         <div class="ecosystem-chip">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
-          <span>Dynamic 4-Color Mesh Aura</span>
-        </div>
-        <div class="ecosystem-chip">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
-          <span>1-Click Browser Sync</span>
+          <span>1-Click Browser &amp; Playlist Sync</span>
         </div>
       </div>
     </div>

@@ -4,11 +4,189 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  initPhoneHeroWordLyrics();
+  initReplayCardsSpotlight();
+  initBigScreenTabs();
   initPlayerMockup();
   initLyricsDemo();
   initEqualizerDemo();
   initModals();
 });
+
+// BitChord Hero: 60fps Word-Synced Coldplay "Yellow" Showcase
+function initPhoneHeroWordLyrics() {
+  const trackEl = document.getElementById('phone-lyrics-track');
+  if (!trackEl) return;
+
+  const YELLOW_LINES = [
+    {
+      timeMs: 0,
+      words: [
+        { text: 'Look', startMs: 200, endMs: 650 },
+        { text: 'at', startMs: 650, endMs: 950 },
+        { text: 'the', startMs: 950, endMs: 1300 },
+        { text: 'stars', startMs: 1300, endMs: 3200 }
+      ]
+    },
+    {
+      timeMs: 3400,
+      words: [
+        { text: 'Look', startMs: 3400, endMs: 3850 },
+        { text: 'how', startMs: 3850, endMs: 4250 },
+        { text: 'they', startMs: 4250, endMs: 4650 },
+        { text: 'shine', startMs: 4650, endMs: 5600 },
+        { text: 'for', startMs: 5600, endMs: 6050 },
+        { text: 'you', startMs: 6050, endMs: 7900 }
+      ]
+    },
+    {
+      timeMs: 8200,
+      words: [
+        { text: 'And', startMs: 8200, endMs: 8650 },
+        { text: 'everything', startMs: 8650, endMs: 9850 },
+        { text: 'you', startMs: 9850, endMs: 10350 },
+        { text: 'do', startMs: 10350, endMs: 12200 }
+      ]
+    },
+    {
+      timeMs: 12500,
+      words: [
+        { text: 'Yeah,', startMs: 12500, endMs: 13100 },
+        { text: 'they', startMs: 13100, endMs: 13550 },
+        { text: 'were', startMs: 13550, endMs: 14050 },
+        { text: 'all', startMs: 14050, endMs: 14650 },
+        { text: 'yellow', startMs: 14650, endMs: 16800 }
+      ]
+    },
+    {
+      timeMs: 17100,
+      words: [
+        { text: 'I', startMs: 17100, endMs: 17450 },
+        { text: 'came', startMs: 17450, endMs: 18050 },
+        { text: 'along,', startMs: 18050, endMs: 19200 },
+        { text: 'I', startMs: 19200, endMs: 19550 },
+        { text: 'wrote', startMs: 19550, endMs: 20150 },
+        { text: 'a', startMs: 20150, endMs: 20450 },
+        { text: 'song', startMs: 20450, endMs: 21250 },
+        { text: 'for', startMs: 21250, endMs: 21650 },
+        { text: 'you', startMs: 21650, endMs: 23400 }
+      ]
+    },
+    {
+      timeMs: 23700,
+      words: [
+        { text: 'Your', startMs: 23700, endMs: 24200 },
+        { text: 'skin,', startMs: 24200, endMs: 25300 },
+        { text: 'oh', startMs: 25300, endMs: 25800 },
+        { text: 'yeah,', startMs: 25800, endMs: 26600 },
+        { text: 'your', startMs: 26600, endMs: 27050 },
+        { text: 'skin', startMs: 27050, endMs: 27750 },
+        { text: 'and', startMs: 27750, endMs: 28150 },
+        { text: 'bones', startMs: 28150, endMs: 29800 }
+      ]
+    }
+  ];
+
+  const totalLoopMs = 30400;
+  trackEl.innerHTML = YELLOW_LINES.map((line, lIdx) => {
+    const wordsHtml = line.words.map((w, wIdx) =>
+      `<span class="phone-word" data-l="${lIdx}" data-w="${wIdx}" data-start="${w.startMs}" data-end="${w.endMs}">${w.text}</span>`
+    ).join('');
+    return `<div class="phone-lyric-line" data-line="${lIdx}">${wordsHtml}</div>`;
+  }).join('');
+
+  const lineEls = Array.from(trackEl.querySelectorAll('.phone-lyric-line'));
+  const wordElsByLine = lineEls.map(el => Array.from(el.querySelectorAll('.phone-word')));
+  let startWall = performance.now();
+  let lastActiveLine = -1;
+
+  function step(now) {
+    const t = (now - startWall) % totalLoopMs;
+    let activeIdx = 0;
+    for (let i = 0; i < YELLOW_LINES.length; i++) {
+      if (t >= YELLOW_LINES[i].timeMs - 180) {
+        activeIdx = i;
+      }
+    }
+
+    if (activeIdx !== lastActiveLine) {
+      lastActiveLine = activeIdx;
+      lineEls.forEach((el, idx) => {
+        el.classList.toggle('active', idx === activeIdx);
+        el.classList.toggle('past', idx < activeIdx);
+      });
+      const activeEl = lineEls[activeIdx];
+      if (activeEl) {
+        const offsetTop = Math.max(0, activeEl.offsetTop - 36);
+        trackEl.style.transform = `translate3d(0, ${-offsetTop}px, 0)`;
+      }
+    }
+
+    wordElsByLine.forEach((words, lIdx) => {
+      words.forEach((wEl) => {
+        const s = Number(wEl.dataset.start);
+        const e = Number(wEl.dataset.end);
+        if (lIdx < activeIdx || t >= e) {
+          wEl.classList.add('sung');
+          wEl.classList.remove('singing');
+          wEl.style.setProperty('--w-fill', '100%');
+        } else if (lIdx > activeIdx || t <= s) {
+          wEl.classList.remove('sung', 'singing');
+          wEl.style.setProperty('--w-fill', '0%');
+        } else {
+          const pct = Math.max(0, Math.min(100, ((t - s) / Math.max(1, e - s)) * 100));
+          wEl.classList.remove('sung');
+          wEl.classList.add('singing');
+          wEl.style.setProperty('--w-fill', `${pct.toFixed(1)}%`);
+        }
+      });
+    });
+
+    requestAnimationFrame(step);
+  }
+
+  requestAnimationFrame(step);
+}
+
+// Replay Credit Cards Interactive Cursor Spotlight
+function initReplayCardsSpotlight() {
+  const cards = document.querySelectorAll('[data-replay-card]');
+  cards.forEach((card) => {
+    card.addEventListener('pointermove', (e) => {
+      const rect = card.getBoundingClientRect();
+      card.style.setProperty('--spot-x', `${e.clientX - rect.left}px`);
+      card.style.setProperty('--spot-y', `${e.clientY - rect.top}px`);
+    });
+  });
+}
+
+// Big Screen 4-Tab Switcher
+function initBigScreenTabs() {
+  const tabs = Array.from(document.querySelectorAll('[data-tv-tab]'));
+  const slides = Array.from(document.querySelectorAll('[data-tv-slide]'));
+  if (!tabs.length || !slides.length) return;
+
+  let current = 0;
+  function selectSlide(idx) {
+    current = (idx + slides.length) % slides.length;
+    tabs.forEach((tab, i) => {
+      const active = i === current;
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    slides.forEach((slide, i) => {
+      slide.classList.toggle('active', i === current);
+    });
+  }
+
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => selectSlide(i));
+  });
+
+  setInterval(() => {
+    selectSlide(current + 1);
+  }, 5000);
+}
 
 // Interactive Player Mockup
 function initPlayerMockup() {

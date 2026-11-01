@@ -903,12 +903,18 @@ function setupDejaAudioElement() {
     const track = CATALOGUE_TRACKS[currentIndex];
     if (track && dejaAudio.duration && !isNaN(dejaAudio.duration) && Math.round(dejaAudio.duration) > 0) {
       const dur = Math.round(dejaAudio.duration);
-      if (dur !== track.duration) {
+      const prevDur = track.duration || 0;
+      const wasUnverified = Boolean(track._durationUnverified);
+      if (dur !== prevDur || wasUnverified) {
         track.duration = dur;
+        track._durationUnverified = false;
         const totalEl = document.getElementById('time-total');
         const expTotal = document.getElementById('exp-time-total');
         if (totalEl) totalEl.innerText = formatTime(dur);
         if (expTotal) expTotal.innerText = '-' + formatTime(dur);
+        if (wasUnverified || Math.abs(dur - prevDur) > 2) {
+          resolveSyncedLyrics(track, true);
+        }
       }
     }
     updateProgress();
@@ -1020,11 +1026,17 @@ async function resolveAndPlayTrack(track) {
           dejaAudio.currentTime = currentTime;
         }
         if (stream.duration && stream.duration > 0) {
+          const prevDur = track.duration || 0;
+          const wasUnverified = Boolean(track._durationUnverified);
           track.duration = stream.duration;
+          track._durationUnverified = false;
           const totalEl = document.getElementById('time-total');
           const expTotal = document.getElementById('exp-time-total');
           if (totalEl) totalEl.innerText = formatTime(track.duration);
-          if (expTotal) expTotal.innerText = formatTime(track.duration);
+          if (expTotal) expTotal.innerText = '-' + formatTime(track.duration);
+          if (wasUnverified || Math.abs(stream.duration - prevDur) > 2 || !track._lyricsResolved) {
+            resolveSyncedLyrics(track, true);
+          }
         }
         const p = dejaAudio.play();
         if (p) {
@@ -1490,7 +1502,8 @@ function createCatalogueItemFromLive(t) {
   const title = t.title || 'YouTube Track';
   const artist = t.artist || 'YouTube Music';
   const album = t.album || 'YouTube Music';
-  const duration = typeof t.duration === 'number' && t.duration > 0 ? t.duration : 210;
+  const hasExplicitDuration = typeof t.duration === 'number' && t.duration > 0;
+  const duration = hasExplicitDuration ? t.duration : 210;
   const cover = t.cover || (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '../../assets/icon.png');
 
   const itemObj = {
@@ -1500,6 +1513,7 @@ function createCatalogueItemFromLive(t) {
     artist: artist,
     album: album,
     duration: duration,
+    _durationUnverified: !hasExplicitDuration,
     durationStr: t.durationStr || formatTime(duration),
     genre: 'YouTube Music',
     year: '2026',
@@ -1512,7 +1526,6 @@ function createCatalogueItemFromLive(t) {
       { time: 12, text: 'Streamed directly from YouTube Music' }
     ]
   };
-  resolveSyncedLyrics(itemObj);
   return itemObj;
 }
 
@@ -4104,6 +4117,10 @@ function loadTrack(idx) {
   if (!track) return;
   currentTime = 0;
   lastActiveLyricIndex = -1;
+  lastScrollTargetIndex = -1;
+  if (typeof lyricClockReconciler !== 'undefined' && lyricClockReconciler) {
+    lyricClockReconciler.snap(0);
+  }
 
   if (typeof document === 'undefined') return;
 
@@ -4371,11 +4388,17 @@ function renderLyrics(lyrics) {
       container.addEventListener('pointerdown', onPreviewUserScroll, { passive: true });
     }
 
-    const linesHtml = safeLyrics.map((l, i) => `
-      <div class="apple-lyric-line ${isSynced && i === 0 ? 'active' : ''}" data-time="${l.time}" data-line-index="${i}">
-        ${escapeHTML(l.text)}
+    const linesHtml = safeLyrics.map((l, i) => {
+      const hasWords = Array.isArray(l.words) && l.words.length > 0;
+      const innerContent = hasWords
+        ? l.words.map(w => `<span class="lyric-word-span" data-start="${w.startTime}" data-end="${w.endTime}">${escapeHTML(w.text)}</span>`).join(' ')
+        : escapeHTML(l.text);
+      return `
+      <div class="apple-lyric-line ${isSynced && i === 0 ? 'active' : ''}${hasWords ? ' has-word-sync' : ''}" data-time="${l.time}" data-line-index="${i}">
+        ${innerContent}
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     if (container.id === 'expanded-lyrics-container') {
       const offsetBarHtml = `
@@ -4481,18 +4504,22 @@ function getPrimaryArtist(str) {
 }
 
 /**
- * Fetches and resolves millisecond-synced lyrics via LRCLIB and InnerTube
- * (BitChord LyricsRepository.kt and LrcLib.kt provider architecture)
- * Matches track duration within ±3 seconds tolerance
+ * Fetches and resolves word-synced / millisecond-synced lyrics via multi-provider racing
+ * (BitChord LyricsRepository.kt, SimpMusic, BetterLyrics, LyricsPlus, LrcLib, YouTube)
  */
-async function resolveSyncedLyrics(track) {
-  if (!track || track._lyricsResolved || track._lyricsFetching) return;
+async function resolveSyncedLyrics(track, forceRefresh = false) {
+  if (!track || track._lyricsFetching) return;
+  const alreadyHasWordSync = Array.isArray(track.lyrics) && track.lyrics.some(l => Array.isArray(l.words) && l.words.length > 0);
+  if (track._lyricsResolved && (!forceRefresh || alreadyHasWordSync)) return;
   track._lyricsFetching = true;
 
   const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
   const cleanTitle = cleanSearchTerm(track.title || '');
   const cleanArtist = cleanArtistTerm(track.artist || '');
   const primaryArtist = getPrimaryArtist(cleanArtist);
+  const verifiedDuration = (!track._durationUnverified && typeof track.duration === 'number' && track.duration > 0)
+    ? Math.round(track.duration)
+    : 0;
 
   // Build title candidates (including stripping artist prefix if present)
   const titleCandidates = [cleanTitle];
@@ -4529,15 +4556,13 @@ async function resolveSyncedLyrics(track) {
         videoId: vid,
         title: cleanTitle,
         artist: cleanArtist,
-        duration: track.duration
+        duration: verifiedDuration,
+        album: track.album || ''
       });
     }
 
     if (!resolved && typeof fetch === 'function' && cleanTitle) {
-      const durationParam = (track.duration && typeof track.duration === 'number' && track.duration > 0)
-        ? Math.round(track.duration)
-        : null;
-
+      const durationParam = verifiedDuration > 0 ? verifiedDuration : null;
       const artistCandidates = [cleanArtist, primaryArtist].filter(Boolean);
       const uniqueArtists = [...new Set(artistCandidates)];
 
@@ -4563,7 +4588,7 @@ async function resolveSyncedLyrics(track) {
             } catch {}
           }
 
-          // Try without duration parameter and check ±3 seconds tolerance
+          // Try without duration parameter and check ±4 seconds tolerance
           if (!resolved) {
             try {
               let getUrlNoDur = `https://lrclib.net/api/get?track_name=${encodeURIComponent(tCand)}`;
@@ -4573,7 +4598,7 @@ async function resolveSyncedLyrics(track) {
               if (res.ok) {
                 const data = await res.json();
                 if (data && data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
-                  if (!durationParam || Math.abs((data.duration || 0) - durationParam) <= 3) {
+                  if (!durationParam || Math.abs((data.duration || 0) - durationParam) <= 4) {
                     resolved = parseLrcLines(data.syncedLyrics);
                     break;
                   }
@@ -4584,7 +4609,7 @@ async function resolveSyncedLyrics(track) {
         }
       }
 
-      // 2. Fuzzy search fallback with ±3s duration filtering
+      // 2. Fuzzy search fallback with ±4s duration filtering (and closest fallback)
       if (!resolved) {
         const searchQueries = [];
         for (const tCand of titleCandidates) {
@@ -4608,7 +4633,7 @@ async function resolveSyncedLyrics(track) {
                 const syncedItems = items.filter(it => it && it.syncedLyrics && it.syncedLyrics.trim().length > 0);
                 if (syncedItems.length > 0) {
                   if (durationParam) {
-                    const closeItems = syncedItems.filter(it => Math.abs((it.duration || 0) - durationParam) <= 3);
+                    const closeItems = syncedItems.filter(it => Math.abs((it.duration || 0) - durationParam) <= 4);
                     if (closeItems.length > 0) {
                       closeItems.sort((a, b) => Math.abs((a.duration || 0) - durationParam) - Math.abs((b.duration || 0) - durationParam));
                       resolved = parseLrcLines(closeItems[0].syncedLyrics);
@@ -4662,7 +4687,7 @@ function parseLrcLines(lrcText) {
   if (!lrcText || typeof lrcText !== 'string') return [];
   const lines = lrcText.split(/\r?\n/);
   const stampRegex = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
-  const wordStampRegex = /<(?:\d{1,3}):(?:\d{2})(?:[.:](?:\d{2,3}))?>/g;
+  const wordStampRegex = /<(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?>/g;
   const result = [];
 
   // Parse standard LRC [offset: +/-ms] tag (positive delays lyrics; negative advances them)
@@ -4675,6 +4700,50 @@ function parseLrcLines(lrcText) {
     }
   }
 
+  const parseInlineWords = (lineBody) => {
+    if (!lineBody || !lineBody.includes('<')) return [];
+    wordStampRegex.lastIndex = 0;
+    const matches = [...lineBody.matchAll(wordStampRegex)];
+    if (matches.length === 0) return [];
+    const stamps = matches.map(m => {
+      const mins = parseInt(m[1], 10) || 0;
+      const secs = parseInt(m[2], 10) || 0;
+      let fracMs = 0;
+      if (m[3]) {
+        if (m[3].length === 2) fracMs = parseInt(m[3], 10) * 10;
+        else if (m[3].length === 1) fracMs = parseInt(m[3], 10) * 100;
+        else fracMs = parseInt(m[3].slice(0, 3), 10);
+      }
+      const raw = mins * 60 + secs + fracMs / 1000;
+      return {
+        timeSec: Math.max(0, Math.round((raw + fileOffsetSec) * 1000) / 1000),
+        startIdx: m.index,
+        endIdx: m.index + m[0].length
+      };
+    });
+    const words = [];
+    for (let i = 0; i < stamps.length; i++) {
+      const cur = stamps[i];
+      const next = i + 1 < stamps.length ? stamps[i + 1] : null;
+      const slice = lineBody.slice(cur.endIdx, next ? next.startIdx : lineBody.length).replace(/\s+/g, ' ').trim();
+      if (!slice) continue;
+      const startTime = cur.timeSec;
+      const endTime = Math.max(startTime + 0.08, Math.round((next ? next.timeSec : startTime + 0.38) * 1000) / 1000);
+      const parts = slice.split(' ').filter(Boolean);
+      if (parts.length === 1) {
+        words.push({ startTime, endTime, text: parts[0] });
+      } else {
+        const step = Math.max(0.08, endTime - startTime) / parts.length;
+        for (let p = 0; p < parts.length; p++) {
+          const wStart = Math.round((startTime + p * step) * 1000) / 1000;
+          const wEnd = Math.round((p === parts.length - 1 ? endTime : startTime + (p + 1) * step) * 1000) / 1000;
+          words.push({ startTime: wStart, endTime: Math.max(wStart + 0.05, wEnd), text: parts[p] });
+        }
+      }
+    }
+    return words.length >= 2 ? words : [];
+  };
+
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
     if (!trimmed || /^\[[A-Za-z]+:.*\]$/.test(trimmed)) continue;
@@ -4683,7 +4752,11 @@ function parseLrcLines(lrcText) {
     const matches = [...trimmed.matchAll(stampRegex)];
     if (matches.length === 0) continue;
 
-    let text = trimmed.replace(stampRegex, '').replace(wordStampRegex, '').replace(/\s+/g, ' ').trim();
+    const lineBody = trimmed.replace(stampRegex, '').trim();
+    const words = parseInlineWords(lineBody);
+    wordStampRegex.lastIndex = 0;
+    let text = lineBody.replace(wordStampRegex, '').replace(/\s+/g, ' ').trim();
+    if (!text && words.length > 0) text = words.map(w => w.text).join(' ');
     const displayText = text.length > 0 ? text : '♪';
 
     for (const match of matches) {
@@ -4697,7 +4770,11 @@ function parseLrcLines(lrcText) {
       }
       const rawTime = minutes * 60 + seconds + fractionMs / 1000;
       const timeInSec = Math.max(0, Math.round((rawTime + fileOffsetSec) * 1000) / 1000);
-      result.push({ time: timeInSec, text: displayText });
+      if (words.length > 0) {
+        result.push({ time: timeInSec, text: displayText, words: words.map(w => ({ ...w })) });
+      } else {
+        result.push({ time: timeInSec, text: displayText });
+      }
     }
   }
 
@@ -5006,12 +5083,18 @@ function tick() {
     currentTime = dejaAudio.currentTime;
     if (dejaAudio.duration && !isNaN(dejaAudio.duration) && Math.round(dejaAudio.duration) > 0) {
       const dur = Math.round(dejaAudio.duration);
-      if (dur !== track.duration) {
+      const prevDur = track.duration || 0;
+      const wasUnverified = Boolean(track._durationUnverified);
+      if (dur !== prevDur || wasUnverified) {
         track.duration = dur;
+        track._durationUnverified = false;
         const totalEl = document.getElementById('time-total');
         const expTotal = document.getElementById('exp-time-total');
         if (totalEl) totalEl.innerText = formatTime(dur);
         if (expTotal) expTotal.innerText = '-' + formatTime(dur);
+        if (wasUnverified || Math.abs(dur - prevDur) > 2) {
+          resolveSyncedLyrics(track, true);
+        }
       }
     }
     updateDynamicPipeline(dejaAudio);
@@ -5020,12 +5103,18 @@ function tick() {
       const ytSec = ytPlayer.getCurrentTime();
       if (typeof ytSec === 'number' && !isNaN(ytSec) && ytSec >= 0) currentTime = ytSec;
       const ytDur = Math.round(ytPlayer.getDuration());
-      if (ytDur > 0 && ytDur !== track.duration) {
+      const prevDur = track.duration || 0;
+      const wasUnverified = Boolean(track._durationUnverified);
+      if (ytDur > 0 && (ytDur !== prevDur || wasUnverified)) {
         track.duration = ytDur;
+        track._durationUnverified = false;
         const totalEl = document.getElementById('time-total');
         const expTotal = document.getElementById('exp-time-total');
         if (totalEl) totalEl.innerText = formatTime(ytDur);
         if (expTotal) expTotal.innerText = '-' + formatTime(ytDur);
+        if (wasUnverified || Math.abs(ytDur - prevDur) > 2) {
+          resolveSyncedLyrics(track, true);
+        }
       }
       updateDynamicPipeline(ytPlayer);
     } catch {}
@@ -5070,7 +5159,73 @@ function tick() {
   updateSyncedLyrics();
 }
 
+/**
+ * LyricClockReconciler (Matches BitChord LyricClock.kt)
+ * Smoothly interpolates playback position at 60fps between coarse HTML5 audio / YouTube IFrame ticks
+ * using monotonic wall-clock time while playing, and snaps immediately on pause or seek (> 1.25s).
+ */
+class LyricClockReconciler {
+  constructor() {
+    this.anchorPositionSec = 0;
+    this.anchorWallClockMs = 0;
+    this.wasPlaying = false;
+    this.lastReportedSec = -1;
+  }
+
+  _nowMs() {
+    return (typeof performance !== 'undefined' && typeof performance.now === 'function')
+      ? performance.now()
+      : Date.now();
+  }
+
+  snap(positionSec, nowMs = this._nowMs()) {
+    const safePos = Math.max(0, Number(positionSec) || 0);
+    this.anchorPositionSec = safePos;
+    this.anchorWallClockMs = nowMs;
+    this.lastReportedSec = safePos;
+    return safePos;
+  }
+
+  reconcile(reportedSec, isPlayingNow, nowMs = this._nowMs()) {
+    const safeReported = Math.max(0, Number(reportedSec) || 0);
+    if (!isPlayingNow) {
+      this.wasPlaying = false;
+      return this.snap(safeReported, nowMs);
+    }
+    if (!this.wasPlaying) {
+      this.wasPlaying = true;
+      return this.snap(safeReported, nowMs);
+    }
+
+    const elapsedSec = Math.max(0, (nowMs - this.anchorWallClockMs) / 1000);
+    const predictedSec = this.anchorPositionSec + elapsedSec;
+    const drift = Math.abs(safeReported - predictedSec);
+
+    // Discontinuity (seek or track restart > 1.25s)
+    if (drift > 1.25) {
+      return this.snap(safeReported, nowMs);
+    }
+
+    // Fresh sample arrived from player
+    if (Math.abs(safeReported - this.lastReportedSec) > 0.001) {
+      this.lastReportedSec = safeReported;
+      // Prevent tiny backward jitter when reported sample slightly lags wall-clock prediction
+      const smoothAnchor = (safeReported < predictedSec && (predictedSec - safeReported) < 0.16)
+        ? predictedSec
+        : safeReported;
+      this.anchorPositionSec = smoothAnchor;
+      this.anchorWallClockMs = nowMs;
+      return smoothAnchor;
+    }
+
+    // Between player updates: extrapolate smoothly up to 450ms ahead of last sample
+    return Math.min(predictedSec, this.anchorPositionSec + 0.45);
+  }
+}
+
+const lyricClockReconciler = new LyricClockReconciler();
 let lyricClockRaf = null;
+let lastScrollTargetIndex = -1;
 
 function startLyricClock() {
   if (typeof document === 'undefined') return;
@@ -5103,7 +5258,7 @@ function stopLyricClock() {
 
 /**
  * Fast-frequency Lyric Clock (BitChord LyricClock.kt)
- * Keeps lyrics and scrubbers updated with millisecond precision via HTML5 audio / RAF
+ * Keeps lyrics and scrubbers updated with millisecond precision via HTML5 audio / RAF + LyricClockReconciler
  */
 function tickLyricClock() {
   if (typeof document === 'undefined') return;
@@ -5112,12 +5267,12 @@ function tickLyricClock() {
   if (!track) return;
 
   if (isDirectStreamPlaying && dejaAudio && typeof dejaAudio.currentTime === 'number' && !isNaN(dejaAudio.currentTime)) {
-    currentTime = dejaAudio.currentTime;
+    currentTime = lyricClockReconciler.reconcile(dejaAudio.currentTime, !dejaAudio.paused);
   } else if (isYtReady && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
     try {
       const ytSec = ytPlayer.getCurrentTime();
       if (typeof ytSec === 'number' && !isNaN(ytSec) && ytSec >= 0) {
-        currentTime = ytSec;
+        currentTime = lyricClockReconciler.reconcile(ytSec, isYtPlaying);
       }
     } catch {}
   }
@@ -5132,6 +5287,7 @@ function seekTo(seconds) {
   previewUserScrolling = false;
   if (previewUserScrollTimer) clearTimeout(previewUserScrollTimer);
   currentTime = Math.max(0, Math.min(seconds, track.duration));
+  lyricClockReconciler.snap(currentTime);
   if (isDirectStreamPlaying && dejaAudio) {
     try {
       dejaAudio.currentTime = currentTime;
@@ -5177,10 +5333,10 @@ function updateProgress() {
 
 /**
  * Real-time Dynamic Lyrics Synchronization (BitChord PlayerLyrics.kt & LyricClock.kt)
- * Computes active line dynamically via monotonic timestamp resolution
- * Smooth spring-scrolling to vertical center (scrollIntoView({ behavior: 'smooth', block: 'center' }))
- * High-contrast glowing text on active line; dimmed blur on past/upcoming lines
- * User manual scrolling pauses auto-scroll for 3.5s then resumes
+ * - Computes active line & word-by-word sweep dynamically at 60fps
+ * - Uses BitChord dynamic pre-scroll lead (80ms–350ms) so smooth center-scroll lands on vocal onset
+ * - High-contrast glowing text on active line; dimmed blur on past/upcoming lines
+ * - User manual scrolling pauses auto-scroll for 3.5s then resumes
  */
 function updateSyncedLyrics(forceScroll = false) {
   if (typeof document === 'undefined') return;
@@ -5190,17 +5346,35 @@ function updateSyncedLyrics(forceScroll = false) {
   const lines = track.lyrics;
   const isSynced = lines.some(l => typeof l.time === 'number' && l.time > 0);
   let activeIndex = -1;
+  let scrollTargetIndex = -1;
+  let exactLyricsTime = 0;
 
   if (isSynced) {
     const userOffset = getTrackLyricsOffset(track);
-    const effectiveTime = adjustedLyricsPosition(currentTime, userOffset);
+    // True zero-lag lyrics clock (matching BitChord LyricClock.kt adjustedLyricsPosition)
+    exactLyricsTime = Math.max(0, currentTime - userOffset);
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].time <= effectiveTime) {
+      if (lines[i].time <= exactLyricsTime) {
         activeIndex = i;
       } else {
         break;
       }
     }
+
+    // Dynamic pre-scroll lead (matching BitChord PlayerLyrics.kt lines 136-143)
+    const curIdx = Math.max(0, activeIndex);
+    const nextIdx = Math.min(lines.length - 1, curIdx + 1);
+    const gap = Math.max(0, (lines[nextIdx]?.time || 0) - (lines[curIdx]?.time || 0));
+    const scrollLead = Math.min(0.35, Math.max(0.08, gap / 3));
+    const scrollCheckTime = exactLyricsTime + scrollLead;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].time <= scrollCheckTime) {
+        scrollTargetIndex = i;
+      } else {
+        break;
+      }
+    }
+    if (scrollTargetIndex < 0) scrollTargetIndex = activeIndex;
   }
 
   // Synchronize both drawer and Now Playing screen lyrics containers
@@ -5218,6 +5392,39 @@ function updateSyncedLyrics(forceScroll = false) {
       if (el.classList && el.classList.toggle) {
         el.classList.toggle('active', isActive);
       }
+
+      // Word-by-word sweep update (BitChord PlayerLyrics.kt WordSyncedLine)
+      if (el.querySelectorAll) {
+        const wordSpans = el.querySelectorAll('.lyric-word-span');
+        if (wordSpans && wordSpans.length > 0) {
+          wordSpans.forEach(span => {
+            if (!isActive) {
+              if (span.classList) {
+                span.classList.remove('word-active', 'word-sung');
+              }
+              if (span.style && span.style.removeProperty) {
+                span.style.removeProperty('--word-fill');
+              }
+              return;
+            }
+            const wStart = parseFloat(span.getAttribute ? span.getAttribute('data-start') : span.dataset?.start);
+            const wEnd = parseFloat(span.getAttribute ? span.getAttribute('data-end') : span.dataset?.end);
+            let progress = 0;
+            if (!isNaN(wStart) && !isNaN(wEnd)) {
+              if (exactLyricsTime >= wEnd) progress = 1;
+              else if (exactLyricsTime > wStart) progress = (exactLyricsTime - wStart) / Math.max(0.05, wEnd - wStart);
+            }
+            if (span.classList && span.classList.toggle) {
+              span.classList.toggle('word-sung', progress >= 1);
+              span.classList.toggle('word-active', progress > 0 && progress < 1);
+            }
+            if (span.style && span.style.setProperty) {
+              span.style.setProperty('--word-fill', `${(progress * 100).toFixed(1)}%`);
+            }
+          });
+        }
+      }
+
       if (el.style) {
         if (isSynced) {
           if (isActive) {
@@ -5250,9 +5457,10 @@ function updateSyncedLyrics(forceScroll = false) {
       }
     });
 
-    if (isSynced && activeIndex >= 0 && (activeIndex !== lastActiveLyricIndex || forceScroll)) {
+    const targetIdx = scrollTargetIndex >= 0 ? scrollTargetIndex : activeIndex;
+    if (isSynced && targetIdx >= 0 && (targetIdx !== lastScrollTargetIndex || activeIndex !== lastActiveLyricIndex || forceScroll)) {
       if (!previewUserScrolling || forceScroll) {
-        const activeEl = lyricElements[activeIndex];
+        const activeEl = lyricElements[targetIdx] || lyricElements[activeIndex];
         if (activeEl && typeof activeEl.scrollIntoView === 'function') {
           activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -5261,6 +5469,7 @@ function updateSyncedLyrics(forceScroll = false) {
   });
 
   lastActiveLyricIndex = activeIndex;
+  lastScrollTargetIndex = scrollTargetIndex;
 
   // Update active lyric preview capsule (.exp-lyric-preview / #exp-lyric-snippet-text / #exp-lyric-snippet)
   const expSnippet = (typeof document.getElementById === 'function' ? (document.getElementById('exp-lyric-snippet-text') || document.getElementById('exp-lyric-snippet')) : null) ||
@@ -6346,7 +6555,7 @@ function setupEvents() {
         if (statusEl) {
           statusEl.innerText = 'Connecting...';
         }
- {
+        if (api?.importSessionCookies) {
           const res = await api.importSessionCookies(text.trim());
           if (res && res.success) {
             if (statusEl) {
@@ -6871,6 +7080,8 @@ if (typeof module !== 'undefined' && module.exports) {
     setTrackLyricsOffset,
     formatLyricsOffset,
     nudgeLyricsOffset,
-    BASELINE_ACOUSTIC_OFFSET
+    BASELINE_ACOUSTIC_OFFSET,
+    LyricClockReconciler,
+    lyricClockReconciler
   };
 }

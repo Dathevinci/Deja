@@ -1417,6 +1417,48 @@ function runBitChordArchitectureTests() {
   assert.ok(docsCss.includes('.curated-marquee-section'), 'docs/style.css must style curated marquee section');
   assert.ok(docsCss.includes('.marquee-row-left') && docsCss.includes('.marquee-row-right'), 'docs/style.css must define dual-direction infinite marquee animations');
   assert.ok(docsCss.includes('.footer-disclaimers'), 'docs/style.css must style footer disclaimers');
+  assert.ok(docsHtml.includes('id="bitchord-hero-card"'), 'docs/index.html must include BitChord Copper-Mesh Hero Card');
+  assert.ok(docsHtml.includes('id="phone-lyrics-track"'), 'docs/index.html must include 60fps word-synced Coldplay Yellow phone showcase');
+  assert.ok(docsHtml.includes('id="replay-section"'), 'docs/index.html must include BitChord Replay credit-card spotlight section');
+  assert.ok(docsHtml.includes('id="big-screen-section"'), 'docs/index.html must include BitChord Big Screen 4-tab switcher section');
+
+  // 9.25 Verify Multi-Provider Word-Synced Lyrics (TTML + Enhanced LRC) & 60fps LyricClockReconciler
+  const ttmlSample = `
+    <tt xmlns="http://www.w3.org/ns/ttml">
+      <body>
+        <div>
+          <p begin="00:01.000" end="00:04.200">
+            <span begin="00:01.000" end="00:01.600">Look </span>
+            <span begin="00:01.600" end="00:02.100">at </span>
+            <span begin="00:02.100" end="00:02.600">the </span>
+            <span begin="00:02.600" end="00:04.200">stars</span>
+          </p>
+        </div>
+      </body>
+    </tt>
+  `;
+  const parsedTtml = innertube.parseTtmlLyrics(ttmlSample);
+  assert.ok(Array.isArray(parsedTtml) && parsedTtml.length === 1, 'parseTtmlLyrics must parse <p> line into synced array');
+  assert.strictEqual(parsedTtml[0].words.length, 4, 'parseTtmlLyrics must extract 4 word spans');
+  assert.strictEqual(parsedTtml[0].words[0].text, 'Look', 'First TTML word text must match');
+  assert.strictEqual(parsedTtml[0].words[3].endTime, 4.2, 'Last TTML word endTime must match');
+
+  const enhancedLrcSample = '[00:03.40] <00:03.40>Look <00:03.85>how <00:04.25>they <00:04.65>shine';
+  const parsedEnhancedLrc = innertube.parseLrcString(enhancedLrcSample);
+  assert.strictEqual(parsedEnhancedLrc.length, 1, 'parseLrcString must parse Enhanced LRC line');
+  assert.strictEqual(parsedEnhancedLrc[0].text, 'Look how they shine', 'parseLrcString must strip inline word tags from line text');
+  assert.ok(Array.isArray(parsedEnhancedLrc[0].words) && parsedEnhancedLrc[0].words.length === 4, 'parseLrcString must extract word timestamps from Enhanced LRC');
+  assert.strictEqual(parsedEnhancedLrc[0].words[0].startTime, 3.4, 'First Enhanced LRC word startTime must be 3.4s');
+  assert.strictEqual(parsedEnhancedLrc[0].words[0].endTime, 3.85, 'First Enhanced LRC word endTime must be inferred from next word');
+
+  assert.ok(typeof previewModule.LyricClockReconciler === 'function', 'preview.js must export LyricClockReconciler');
+  const testClock = new previewModule.LyricClockReconciler();
+  const baseT0 = testClock.reconcile(10.0, true, 1000);
+  assert.strictEqual(baseT0, 10.0, 'LyricClockReconciler initial reconcile must anchor at raw position');
+  const interpT1 = testClock.reconcile(10.0, true, 1050);
+  assert.ok(interpT1 >= 10.049 && interpT1 <= 10.051, 'LyricClockReconciler must advance monotonically using wall-clock delta between coarse audio ticks');
+  const seekSnap = testClock.reconcile(45.0, true, 1100);
+  assert.strictEqual(seekSnap, 45.0, 'LyricClockReconciler must snap immediately on seeks > 1.25s');
 
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }

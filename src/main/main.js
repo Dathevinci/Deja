@@ -1069,7 +1069,7 @@ ipcMain.handle('open-google-login', async (event, targetMethod) => {
           }
 
           const pageId = (activeProbe && activeProbe.pageId) || null;
-          const dataSyncId = normalizeDataSyncId(activeProbe && activeProbe.dataSyncId);
+          const dataSyncId = pageId || normalizeDataSyncId(activeProbe && activeProbe.dataSyncId);
           const authUser = (activeProbe && activeProbe.authUser) || '0';
           const visitorData = (activeProbe && activeProbe.visitorData) || null;
           const clientVersion = (activeProbe && activeProbe.clientVersion) || null;

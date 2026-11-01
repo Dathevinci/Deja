@@ -1260,6 +1260,42 @@ body.deja-playing .artwork-wrapper {
   background: transparent;
 }
 
+/* Word-by-word sweep (BitChord PlayerLyrics.kt WordSyncedLine) */
+.apple-lyric-line.has-word-sync.active {
+  text-shadow: none;
+}
+
+.lyric-word-span {
+  display: inline-block;
+  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), color 0.14s ease, filter 0.14s ease;
+  will-change: transform;
+}
+
+.apple-lyric-line.active .lyric-word-span {
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.apple-lyric-line.active .lyric-word-span.word-sung {
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: 0 2px 14px rgba(255, 255, 255, 0.28);
+}
+
+.apple-lyric-line.active .lyric-word-span.word-active {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 1) var(--word-fill, 50%),
+    rgba(255, 255, 255, 0.34) calc(var(--word-fill, 50%) + 12%),
+    rgba(255, 255, 255, 0.34) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  transform: translateY(-1.5px);
+  filter: drop-shadow(0 2px 12px rgba(255, 255, 255, 0.32));
+}
+
 /* Modal Backdrop & Dialog */
 .modal-backdrop {
   position: fixed;
