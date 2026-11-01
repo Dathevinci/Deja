@@ -1354,6 +1354,10 @@ function renderCurrentView() {
     renderBrowseDetailView(mainContent);
   } else if (currentView === 'artist-detail') {
     renderArtistDetailView(mainContent);
+  } else if (currentView === 'settings') {
+    renderSettingsView(mainContent);
+  } else if (currentView === 'replay') {
+    renderReplayView(mainContent);
   }
 }
 
@@ -6622,7 +6626,16 @@ function setupEvents() {
   const settingsModal = document.getElementById('settings-modal');
   const btnSettings = document.getElementById('btn-settings');
   const btnCloseSettings = document.getElementById('btn-close-settings');
-  if (btnSettings && settingsModal) btnSettings.onclick = () => { settingsModal.style.display = 'flex'; };
+  if (btnSettings) {
+    btnSettings.onclick = () => {
+      searchQuery = '';
+      const sInput = document.getElementById('apple-search-input');
+      if (sInput) sInput.value = '';
+      currentView = 'settings';
+      pushNavigation('settings');
+      renderCurrentView();
+    };
+  }
   if (btnCloseSettings && settingsModal) btnCloseSettings.onclick = () => { settingsModal.style.display = 'none'; };
 
   // Create Playlist Modal
@@ -7242,6 +7255,1070 @@ function formatTime(sec) {
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
+
+// ==========================================================================
+// BitChord SettingsScreen & ReplayScreen (SettingsSheet.kt / ReplayScreen.kt)
+// ==========================================================================
+const DEFAULT_BITCHORD_SETTINGS = {
+  wifiQuality: 'Hi-Res Lossless',
+  cellularQuality: 'High (256 kbps)',
+  dolbyAtmos: false,
+  downloadQuality: 'Hi-Res FLAC',
+  wifiOnlyDownloads: true,
+  exportDownloads: true,
+  preferMusicOnly: true,
+  outputPcmMode: 'Auto',
+  preferUsbDac: false,
+  loudnessNormalization: true,
+  crossfadeSeconds: 0,
+  smartFade: false,
+  automixPerformance: 'Balanced',
+  skipSilence: false,
+  spatialAudio: false,
+  themeMode: 'dark',
+  reduceAnimation: false,
+  reduceDynamicBlur: false,
+  liquidGlass: true,
+  fullBleedArtwork: true,
+  legacyMeshGradient: true,
+  animatedCanvas: true,
+  canvasOverCellular: false,
+  syncedLyrics: true,
+  lyricsBlur: true,
+  lyricsSources: 'BetterLyrics, SimpMusic, LRCLIB, YouTube, KuGou',
+  translationLanguage: 'Off',
+  highPerformanceMode: true,
+  refreshRate: 120,
+  localMusicFolder: 'All Audio Folders (~/Music)',
+  filterNonMusicAudio: true,
+  songCacheLimitMb: 2048,
+  replayGenres: true,
+  swipeToPlayNext: true,
+  dontRepeatSuggestions: true,
+  stopOnClose: false,
+  hideVolumeBar: false,
+  hideSongStatus: false,
+  appLanguage: 'English (System)',
+  smartVersionAlignment: true,
+  showNerdStats: false,
+  discordRpc: true,
+  lastfmEnabled: false,
+  listenBrainzEnabled: false
+};
+
+let bitchordSettings = { ...DEFAULT_BITCHORD_SETTINGS };
+let settingsSearchFilter = '';
+
+function loadBitChordSettings() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem('deja_bitchord_settings');
+      if (raw) {
+        bitchordSettings = { ...DEFAULT_BITCHORD_SETTINGS, ...JSON.parse(raw) };
+      }
+    }
+  } catch {}
+  applyBitChordVisualSettings();
+}
+
+function saveBitChordSettings() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('deja_bitchord_settings', JSON.stringify(bitchordSettings));
+    }
+  } catch {}
+  applyBitChordVisualSettings();
+}
+
+function applyBitChordVisualSettings() {
+  if (typeof document === 'undefined' || !document.body) return;
+  document.body.classList.toggle('reduce-motion', !!bitchordSettings.reduceAnimation);
+  document.body.classList.toggle('reduce-blur', !!bitchordSettings.reduceDynamicBlur);
+  const volWrap = document.querySelector('.volume-controls');
+  if (volWrap) volWrap.style.display = bitchordSettings.hideVolumeBar ? 'none' : '';
+  const pipeBtn = document.getElementById('btn-audio-pipeline');
+  if (pipeBtn) pipeBtn.style.display = bitchordSettings.hideSongStatus ? 'none' : '';
+}
+
+if (typeof document !== 'undefined') {
+  loadBitChordSettings();
+}
+
+function renderSettingsView(container) {
+  if (!container) return;
+  const q = (settingsSearchFilter || '').trim().toLowerCase();
+  const matches = (...terms) => {
+    if (!q) return true;
+    return terms.some(t => String(t || '').toLowerCase().includes(q));
+  };
+
+  const accName = (liveAccount && liveAccount.isLoggedIn)
+    ? `${liveAccount.name || 'YouTube Music'} (${liveAccount.handle || 'Connected'})`
+    : 'Not signed in · Click to connect Google / YouTube Music';
+
+  const groups = [];
+
+  // Group 1: Account & Party
+  const g1Rows = [];
+  if (matches('Account & Integrations', accName, 'scrobbling', 'last.fm', 'listenbrainz', 'discord', 'google', 'login')) {
+    g1Rows.push(`
+      <div class="bitchord-settings-row" data-setting-action="open-account">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">
+            <span>Account &amp; Integrations</span>
+            ${liveAccount && liveAccount.isLoggedIn ? '<span class="bitchord-settings-badge green">Connected</span>' : ''}
+          </div>
+          <div class="bitchord-settings-row-sub">${escapeHTML(accName)} · Discord RPC · Last.fm &amp; ListenBrainz</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>Manage</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    `);
+  }
+  if (matches('Discord Rich Presence', 'discord', 'rpc', 'status')) {
+    g1Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="discordRpc">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M7.5 7.5c3.5-1 5.5-1 9 0"/><path d="M7 16.5c3.5 1 6.5 1 10 0"/><path d="M15.5 17c0 1 1.5 3 2 3 1.5 0 2.833-1.667 3.5-3 .667-1.667.5-5.833-1.5-11.5-1.457-1.015-3-1.34-4.5-1.5l-1 2.5"/><path d="M8.5 17c0 1-1.356 3-1.832 3-1.429 0-2.698-1.667-3.333-3-.635-1.667-.476-5.833 1.428-11.5C6.151 4.485 7.5 4.16 9 4l1 2.5"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Discord Rich Presence</div>
+          <div class="bitchord-settings-row-sub">Broadcast live track, artist, album artwork, and timestamps to Discord</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.discordRpc ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Listen Together', 'jam', 'party', 'sync', 'friends')) {
+    g1Rows.push(`
+      <div class="bitchord-settings-row" data-setting-action="listen-together">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Listen Together</div>
+          <div class="bitchord-settings-row-sub">Host or join a real-time synchronized listening party with up to 5 friends</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>Start Party</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    `);
+  }
+  if (g1Rows.length) groups.push({ header: 'Account & Connectivity', rows: g1Rows });
+
+  // Group 2: Audio Quality
+  const g2Rows = [];
+  if (matches('Sources', 'addon', 'lossless', 'flac', 'module', 'piped')) {
+    g2Rows.push(`
+      <div class="bitchord-settings-row" data-setting-action="open-pipeline">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">
+            <span>Sources &amp; Lossless Modules</span>
+            <span class="bitchord-settings-badge green">Active</span>
+          </div>
+          <div class="bitchord-settings-row-sub">YouTube Music InnerTube (160k Opus / 256k AAC) + Hi-Res FLAC Resolver</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>Inspect</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    `);
+  }
+  if (matches('On Wi-Fi / Ethernet', 'wi-fi', 'streaming quality', 'lossless', 'opus')) {
+    g2Rows.push(`
+      <div class="bitchord-settings-row" data-setting-cycle="wifiQuality" data-options="Hi-Res Lossless|High (256 kbps)|Normal (128 kbps)|Data Saver (64 kbps)">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">
+            <span>On Wi-Fi / Ethernet</span>
+            <span class="bitchord-settings-badge">IN USE</span>
+          </div>
+          <div class="bitchord-settings-row-sub">Maximum streaming quality ceiling on broadband &amp; Wi-Fi</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>${escapeHTML(bitchordSettings.wifiQuality)}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    `);
+  }
+  if (matches('On Mobile Data / Metered', 'cellular', 'streaming quality')) {
+    g2Rows.push(`
+      <div class="bitchord-settings-row" data-setting-cycle="cellularQuality" data-options="High (256 kbps)|Normal (128 kbps)|Data Saver (64 kbps)">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">On Mobile Data / Metered</div>
+          <div class="bitchord-settings-row-sub">Streaming quality ceiling on metered or hotspot connections</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>${escapeHTML(bitchordSettings.cellularQuality)}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    `);
+  }
+  if (matches('Dolby Atmos', 'surround', 'e-ac-3', 'spatial')) {
+    g2Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="dolbyAtmos">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Dolby Atmos</div>
+          <div class="bitchord-settings-row-sub">Prefer multichannel E-AC-3 JOC spatial streams when available</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.dolbyAtmos ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (g2Rows.length) groups.push({ header: 'Audio Quality', rows: g2Rows });
+
+  // Group 3: Downloads
+  const g3Rows = [];
+  if (matches('Download Quality', 'offline', 'lossless', 'downloads', 'wi-fi', 'music folder')) {
+    g3Rows.push(`
+      <div class="bitchord-settings-row" data-setting-cycle="downloadQuality" data-options="Hi-Res FLAC|High (256 kbps)|Standard (128 kbps)">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Download Quality</div>
+          <div class="bitchord-settings-row-sub">Offline track storage format with embedded cover art &amp; synced LRC</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>${escapeHTML(bitchordSettings.downloadQuality)}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="bitchord-settings-subrow" data-setting-toggle="wifiOnlyDownloads">
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title" style="font-size:13.5px;">Download over Wi-Fi only</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.wifiOnlyDownloads ? 'checked' : ''}"></div>
+      </div>
+      <div class="bitchord-settings-subrow" data-setting-toggle="exportDownloads">
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title" style="font-size:13.5px;">Export compatible downloads</div>
+          <div class="bitchord-settings-row-sub">${bitchordSettings.exportDownloads ? 'Music/Deja' : 'Internal app storage'}</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.exportDownloads ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (g3Rows.length) groups.push({ header: 'Downloads', rows: g3Rows });
+
+  // Group 4: Playback
+  const g4Rows = [];
+  if (matches('Prefer music-only tracks', 'video', 'audio', 'music video')) {
+    g4Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="preferMusicOnly">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Prefer music-only tracks</div>
+          <div class="bitchord-settings-row-sub">Substitute official album audio for music videos to avoid skits and dialogue</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.preferMusicOnly ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Output Precision', 'pcm', 'bit depth', 'sample rate', 'dac')) {
+    const pcmOpts = ['Auto', '16-bit PCM', '24-bit PCM', '32-bit Float'];
+    g4Rows.push(`
+      <div class="bitchord-settings-row no-hover">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Output Precision</div>
+          <div class="bitchord-settings-row-sub">WASAPI Shared · System Audio Sink · 48.0 kHz · ${escapeHTML(bitchordSettings.outputPcmMode)}</div>
+        </div>
+      </div>
+      <div class="bitchord-segmented-wrap">
+        <div class="bitchord-segmented">
+          ${pcmOpts.map(opt => `<button class="bitchord-seg-btn ${bitchordSettings.outputPcmMode === opt ? 'active' : ''}" data-setting-seg="outputPcmMode" data-val="${escapeHTML(opt)}">${escapeHTML(opt)}</button>`).join('')}
+        </div>
+      </div>
+      <div class="bitchord-settings-subrow" data-setting-toggle="preferUsbDac">
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title" style="font-size:13.5px;">Prefer exclusive USB DAC</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.preferUsbDac ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Loudness Normalization', 'loudness', 'volume', 'normalize', 'replaygain', 'lufs')) {
+    g4Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="loudnessNormalization">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Loudness Normalization</div>
+          <div class="bitchord-settings-row-sub">Keep volume consistent across quiet and loud masters (-14 LUFS target)</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.loudnessNormalization ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (!bitchordSettings.smartFade && matches('Crossfade', 'fade', 'gapless')) {
+    g4Rows.push(`
+      <div class="bitchord-settings-row no-hover">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l3-9 4 18 3-9h6"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Crossfade</div>
+          <div class="bitchord-settings-row-sub">Overlap tracks smoothly at the end of playback (0s – 12s)</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <strong id="setting-crossfade-val">${bitchordSettings.crossfadeSeconds === 0 ? 'Off' : bitchordSettings.crossfadeSeconds + 's'}</strong>
+        </div>
+      </div>
+      <div class="bitchord-slider-wrap">
+        <input type="range" min="0" max="12" step="1" value="${bitchordSettings.crossfadeSeconds}" class="bitchord-slider-input" id="setting-crossfade-slider" />
+      </div>
+    `);
+  }
+  if (matches('Automix', 'crossfade', 'smart fade', 'mix', 'dj')) {
+    g4Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="smartFade">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">
+            <span>Automix</span>
+            <span class="bitchord-settings-badge">BETA</span>
+          </div>
+          <div class="bitchord-settings-row-sub">DJ-style transitions with beat-matching, key alignment, and tempo-stretching</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.smartFade ? 'checked' : ''}"></div>
+      </div>
+      <div class="bitchord-settings-row" data-setting-cycle="automixPerformance" data-options="Balanced|High Quality|Battery Saver">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Automix Performance</div>
+          <div class="bitchord-settings-row-sub">Beat-analysis &amp; stem separation compute profile</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>${escapeHTML(bitchordSettings.automixPerformance)}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    `);
+  }
+  if (matches('Skip Silence', 'silence', 'trim')) {
+    g4Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="skipSilence">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Skip Silence</div>
+          <div class="bitchord-settings-row-sub">Automatically fast-forward dead air at track intros and outros</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.skipSilence ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Spatial Audio', 'surround', '3d')) {
+    g4Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="spatialAudio">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Spatial Audio</div>
+          <div class="bitchord-settings-row-sub">Expand stereo soundstage with head-stage crossfeed matrix</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.spatialAudio ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Equalizer', 'eq', 'bass', 'treble')) {
+    g4Rows.push(`
+      <div class="bitchord-settings-row" data-setting-action="open-eq">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Equalizer</div>
+          <div class="bitchord-settings-row-sub">Active Preset: ${escapeHTML(currentEqPreset || 'Flat')} · Multi-band Web Audio DSP</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>Configure</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    `);
+  }
+  if (g4Rows.length) groups.push({ header: 'Playback', rows: g4Rows });
+
+  // Group 5: Appearance
+  const g5Rows = [];
+  if (matches('Theme', 'dark mode', 'light mode', 'oled', 'appearance')) {
+    const themeOpts = [
+      { label: 'Dark', val: 'dark' },
+      { label: 'Light', val: 'light' },
+      { label: 'OLED Black', val: 'pure-black' }
+    ];
+    g5Rows.push(`
+      <div class="bitchord-settings-row no-hover">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Theme</div>
+          <div class="bitchord-settings-row-sub">Dynamic artwork-driven Material &amp; Apple dark palette</div>
+        </div>
+      </div>
+      <div class="bitchord-segmented-wrap">
+        <div class="bitchord-segmented">
+          ${themeOpts.map(o => `<button class="bitchord-seg-btn ${bitchordSettings.themeMode === o.val ? 'active' : ''}" data-setting-theme="${o.val}">${o.label}</button>`).join('')}
+        </div>
+      </div>
+    `);
+  }
+  if (matches('Reduce Animation', 'motion')) {
+    g5Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="reduceAnimation">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Reduce Animation</div>
+          <div class="bitchord-settings-row-sub">Tone down spring transitions and page motion</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.reduceAnimation ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Reduce Dynamic Blur', 'blur', 'performance')) {
+    g5Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="reduceDynamicBlur">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Reduce Dynamic Blur</div>
+          <div class="bitchord-settings-row-sub">Disable real-time backdrop blur filters to save GPU power</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.reduceDynamicBlur ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Liquid Glass', 'glass', 'blur', 'haze')) {
+    g5Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="liquidGlass">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="4"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Liquid Glass</div>
+          <div class="bitchord-settings-row-sub">Refractive frosted-glass bars and floating navigation chrome</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.liquidGlass ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Full-Screen Cover Art', 'artwork', 'player')) {
+    g5Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="fullBleedArtwork">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Full-Screen Cover Art</div>
+          <div class="bitchord-settings-row-sub">Expand album artwork on the Now Playing screen</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.fullBleedArtwork ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Legacy Mesh Gradient', 'background', 'player', 'aura')) {
+    g5Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="legacyMeshGradient">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Legacy Mesh Gradient</div>
+          <div class="bitchord-settings-row-sub">Multi-point animated artwork color mesh behind Now Playing &amp; Lyrics</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.legacyMeshGradient ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Animated Cover Art', 'canvas', 'video', 'spotify')) {
+    g5Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="animatedCanvas">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Animated Cover Art</div>
+          <div class="bitchord-settings-row-sub">Play looping motion canvas artwork from Apple Music &amp; Spotify Canvas</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.animatedCanvas ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Synced Lyrics', 'lyrics', 'translation', 'lrclib', 'musixmatch', 'betterlyrics')) {
+    g5Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="syncedLyrics">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h6"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Synced Lyrics</div>
+          <div class="bitchord-settings-row-sub">60fps word-by-word TTML and line-synced LRC highlighting</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.syncedLyrics ? 'checked' : ''}"></div>
+      </div>
+      <div class="bitchord-settings-subrow" data-setting-toggle="lyricsBlur">
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title" style="font-size:13.5px;">Blur Unfocused Lyrics</div>
+          <div class="bitchord-settings-row-sub">Apply Apple Music depth-of-field blur to inactive lines</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.lyricsBlur ? 'checked' : ''}"></div>
+      </div>
+      <div class="bitchord-settings-subrow">
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title" style="font-size:13.5px;">Lyrics Sources</div>
+          <div class="bitchord-settings-row-sub">${escapeHTML(bitchordSettings.lyricsSources)}</div>
+        </div>
+        <span class="bitchord-settings-badge green">5 Active</span>
+      </div>
+      <div class="bitchord-settings-subrow" data-setting-cycle="translationLanguage" data-options="Off|English|Spanish|French|Japanese|Korean|Hindi|German">
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title" style="font-size:13.5px;">Translation Language</div>
+          <div class="bitchord-settings-row-sub">Inline lyric translation below each vocal line</div>
+        </div>
+        <div class="bitchord-settings-trailing"><span>${escapeHTML(bitchordSettings.translationLanguage)}</span></div>
+      </div>
+    `);
+  }
+  if (g5Rows.length) groups.push({ header: 'Appearance', rows: g5Rows });
+
+  // Group 6: Performance
+  const g6Rows = [];
+  if (matches('High Performance Mode', 'frame rate', 'refresh rate', 'hz', 'battery', 'smooth')) {
+    const hzOpts = [60, 120, 144, 165];
+    g6Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="highPerformanceMode">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">High Performance Mode</div>
+          <div class="bitchord-settings-row-sub">${bitchordSettings.highPerformanceMode ? `Active at ${bitchordSettings.refreshRate} Hz · GPU hardware compositing enabled` : 'Standard refresh rate & power profile'}</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.highPerformanceMode ? 'checked' : ''}"></div>
+      </div>
+      ${bitchordSettings.highPerformanceMode ? `
+      <div class="bitchord-segmented-wrap">
+        <div class="bitchord-segmented">
+          ${hzOpts.map(hz => `<button class="bitchord-seg-btn ${Number(bitchordSettings.refreshRate) === hz ? 'active' : ''}" data-setting-seg="refreshRate" data-val="${hz}">${hz} Hz</button>`).join('')}
+        </div>
+      </div>` : ''}
+    `);
+  }
+  if (g6Rows.length) groups.push({ header: 'Performance', rows: g6Rows });
+
+  // Group 7: Local Music & Storage
+  const g7Rows = [];
+  if (matches('Local Music Folder', 'folder', 'offline', 'files', 'Filter Non-Music Audio')) {
+    g7Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="filterNonMusicAudio">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Filter Non-Music Audio</div>
+          <div class="bitchord-settings-row-sub">Ignore voice notes, ringtones, and short clips under 30 seconds in ${escapeHTML(bitchordSettings.localMusicFolder)}</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.filterNonMusicAudio ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Song Cache Limit', 'cache', 'space', 'storage', 'clear')) {
+    const mb = Number(bitchordSettings.songCacheLimitMb) || 2048;
+    const fmtSize = mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
+    g7Rows.push(`
+      <div class="bitchord-settings-row no-hover">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Song Cache Limit</div>
+          <div class="bitchord-settings-row-sub">Maximum disk space reserved for cached audio streams</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <strong id="setting-cache-val">${fmtSize}</strong>
+        </div>
+      </div>
+      <div class="bitchord-slider-wrap">
+        <input type="range" min="512" max="8192" step="512" value="${mb}" class="bitchord-slider-input" id="setting-cache-slider" />
+      </div>
+      <div class="bitchord-settings-row" data-setting-action="clear-cache">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Clear Song &amp; Artwork Cache</div>
+          <div class="bitchord-settings-row-sub" id="clear-cache-status-sub">Free cached audio buffers, resolved stream URLs, and artwork thumbnails</div>
+        </div>
+        <div class="bitchord-settings-trailing"><span>Clear Now</span></div>
+      </div>
+    `);
+  }
+  if (g7Rows.length) groups.push({ header: 'Local Music & Storage', rows: g7Rows });
+
+  // Group 8: Your Data
+  const g8Rows = [];
+  if (matches('Replay', 'stats', 'history', 'wrapped', 'your data')) {
+    g8Rows.push(`
+      <div class="bitchord-settings-row" data-setting-action="open-replay">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Replay</div>
+          <div class="bitchord-settings-row-sub">Your live listening stats reel: minutes streamed, top artists, tracks &amp; albums</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>Open Replay</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    `);
+  }
+  if (matches('Export Data', 'Import Data', 'backup', 'restore')) {
+    g8Rows.push(`
+      <div class="bitchord-settings-row" data-setting-action="export-backup">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Export Backup Data</div>
+          <div class="bitchord-settings-row-sub" id="export-backup-sub">Save your playlists, liked songs, listening history, and settings to JSON</div>
+        </div>
+        <div class="bitchord-settings-trailing"><span>Export JSON</span></div>
+      </div>
+    `);
+  }
+  if (g8Rows.length) groups.push({ header: 'Your Data', rows: g8Rows });
+
+  // Group 9: Miscellaneous & Advanced Options
+  const g9Rows = [];
+  if (matches("Don't Repeat Songs", 'radio', 'suggestions', 'queue')) {
+    g9Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="dontRepeatSuggestions">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Don't Repeat Songs in Radio</div>
+          <div class="bitchord-settings-row-sub">Filter recently played tracks out of Up Next auto-play mixes</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.dontRepeatSuggestions ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Stop Music on Close', 'tray', 'background', 'minimize')) {
+    g9Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="stopOnClose">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Stop Music on Close</div>
+          <div class="bitchord-settings-row-sub">${bitchordSettings.stopOnClose ? 'Quit application when window closes' : 'Keep music playing quietly in the system tray'}</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.stopOnClose ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Hide Volume Bar', 'volume', 'player')) {
+    g9Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="hideVolumeBar">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Hide Volume Bar</div>
+          <div class="bitchord-settings-row-sub">Hide the compact volume slider on the bottom player bar</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.hideVolumeBar ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Smart Version Alignment', 'alignment', 'sync', 'waveform', 'video', 'skit', 'intro')) {
+    g9Rows.push(`
+      <div class="bitchord-settings-row" data-setting-toggle="smartVersionAlignment">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l3-9 4 18 3-9h6"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Smart Version Alignment</div>
+          <div class="bitchord-settings-row-sub">Align music video intros and skits with official album timestamps for zero-drift lyrics</div>
+        </div>
+        <div class="bitchord-switch ${bitchordSettings.smartVersionAlignment ? 'checked' : ''}"></div>
+      </div>
+    `);
+  }
+  if (matches('Show Stats for Nerds', 'debug', 'bitrate', 'codec', 'pipeline')) {
+    g9Rows.push(`
+      <div class="bitchord-settings-row" data-setting-action="open-pipeline">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Stats for Nerds</div>
+          <div class="bitchord-settings-row-sub">Inspect real-time codec, bit depth, sample rate, and forward buffer health</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>Open Telemetry</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    `);
+  }
+  if (g9Rows.length) groups.push({ header: 'Miscellaneous & Advanced', rows: g9Rows });
+
+  container.innerHTML = `
+    <div class="bitchord-settings-screen">
+      <h1 class="bitchord-settings-title">Settings</h1>
+      <div class="bitchord-settings-search-wrap">
+        <svg class="bitchord-settings-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="bitchord-settings-search-input" class="bitchord-settings-search-input" placeholder="Search settings (e.g. lossless, crossfade, automix, lyrics, cache)..." value="${escapeHTML(settingsSearchFilter)}" autocomplete="off" />
+      </div>
+
+      ${groups.length > 0 ? groups.map(g => `
+        <div class="bitchord-settings-group">
+          <div class="bitchord-settings-group-header">${escapeHTML(g.header)}</div>
+          <div class="bitchord-settings-card">
+            ${g.rows.join('')}
+          </div>
+        </div>
+      `).join('') : `
+        <div class="empty-state-box" style="padding: 48px 20px; text-align: center;">
+          <div class="empty-state-title">No settings matched "${escapeHTML(settingsSearchFilter)}"</div>
+          <div class="empty-state-sub">Try searching for audio quality, crossfade, lyrics, theme, or cache.</div>
+        </div>
+      `}
+
+      <div class="bitchord-settings-colophon">
+        <div>
+          <strong>deja 1.0.0</strong>
+          <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://github.com/Dathevinci" target="_blank" rel="noopener noreferrer">Developer</a>
+          <a href="https://dathevinci.github.io/Deja/" target="_blank" rel="noopener noreferrer">Website</a>
+        </div>
+        <div>~YouTube Music &amp; Listen Together Engine</div>
+      </div>
+    </div>
+  `;
+
+  // Bind live search input
+  const searchEl = document.getElementById('bitchord-settings-search-input');
+  if (searchEl) {
+    searchEl.oninput = (e) => {
+      settingsSearchFilter = e.target.value;
+      const pos = e.target.selectionStart;
+      renderSettingsView(container);
+      const nextEl = document.getElementById('bitchord-settings-search-input');
+      if (nextEl) {
+        nextEl.focus();
+        try { nextEl.setSelectionRange(pos, pos); } catch {}
+      }
+    };
+  }
+
+  // Bind toggles
+  container.querySelectorAll('[data-setting-toggle]').forEach(row => {
+    row.onclick = () => {
+      const key = row.getAttribute('data-setting-toggle');
+      bitchordSettings[key] = !bitchordSettings[key];
+      saveBitChordSettings();
+      const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+      if (key === 'discordRpc' && api?.setConfig) api.setConfig('discordRpc', bitchordSettings.discordRpc);
+      if (key === 'stopOnClose' && api?.setConfig) api.setConfig('closeToTray', !bitchordSettings.stopOnClose);
+      renderSettingsView(container);
+    };
+  });
+
+  // Bind cycle rows
+  container.querySelectorAll('[data-setting-cycle]').forEach(row => {
+    row.onclick = () => {
+      const key = row.getAttribute('data-setting-cycle');
+      const opts = (row.getAttribute('data-options') || '').split('|').filter(Boolean);
+      const idx = opts.indexOf(bitchordSettings[key]);
+      bitchordSettings[key] = opts[(idx + 1) % opts.length];
+      saveBitChordSettings();
+      renderSettingsView(container);
+    };
+  });
+
+  // Bind segmented controls
+  container.querySelectorAll('[data-setting-seg]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const key = btn.getAttribute('data-setting-seg');
+      const val = btn.getAttribute('data-val');
+      bitchordSettings[key] = isNaN(Number(val)) ? val : Number(val);
+      saveBitChordSettings();
+      renderSettingsView(container);
+    };
+  });
+
+  // Bind theme buttons
+  container.querySelectorAll('[data-setting-theme]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const t = btn.getAttribute('data-setting-theme');
+      bitchordSettings.themeMode = t;
+      saveBitChordSettings();
+      applyAppTheme(t);
+      const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+      if (api?.setConfig) api.setConfig('theme', t);
+      renderSettingsView(container);
+    };
+  });
+
+  // Bind sliders
+  const cfSlider = document.getElementById('setting-crossfade-slider');
+  const cfVal = document.getElementById('setting-crossfade-val');
+  if (cfSlider) {
+    cfSlider.oninput = (e) => {
+      const v = Number(e.target.value);
+      bitchordSettings.crossfadeSeconds = v;
+      if (cfVal) cfVal.textContent = v === 0 ? 'Off' : `${v}s`;
+      saveBitChordSettings();
+    };
+  }
+
+  const cacheSlider = document.getElementById('setting-cache-slider');
+  const cacheVal = document.getElementById('setting-cache-val');
+  if (cacheSlider) {
+    cacheSlider.oninput = (e) => {
+      const v = Number(e.target.value);
+      bitchordSettings.songCacheLimitMb = v;
+      if (cacheVal) cacheVal.textContent = v >= 1024 ? `${(v / 1024).toFixed(1)} GB` : `${v} MB`;
+      saveBitChordSettings();
+    };
+  }
+
+  // Bind actions
+  container.querySelectorAll('[data-setting-action]').forEach(row => {
+    row.onclick = () => {
+      const act = row.getAttribute('data-setting-action');
+      if (act === 'open-account') {
+        openAccountModal();
+      } else if (act === 'open-eq') {
+        const eqM = document.getElementById('eq-modal');
+        if (eqM) eqM.style.display = 'flex';
+      } else if (act === 'open-pipeline') {
+        const pM = document.getElementById('pipeline-modal');
+        if (pM) pM.style.display = 'flex';
+      } else if (act === 'open-replay') {
+        currentView = 'replay';
+        pushNavigation('replay');
+        renderCurrentView();
+      } else if (act === 'clear-cache') {
+        streamUrlCache.clear();
+        const sub = document.getElementById('clear-cache-status-sub');
+        if (sub) sub.textContent = 'Cache cleared! All temporary audio & image buffers freed.';
+      } else if (act === 'export-backup') {
+        try {
+          const payload = {
+            app: 'Deja',
+            version: '1.0.0',
+            exportedAt: new Date().toISOString(),
+            settings: bitchordSettings,
+            customPlaylists,
+            likedSongsCount: liveLikedSongs.length
+          };
+          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `deja-backup-${new Date().toISOString().slice(0, 10)}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          const sub = document.getElementById('export-backup-sub');
+          if (sub) sub.textContent = 'Backup exported successfully!';
+        } catch {}
+      } else if (act === 'listen-together') {
+        openAccountModal();
+      }
+    };
+  });
+}
+
+function renderReplayView(container) {
+  if (!container) return;
+  const allPool = (liveLikedSongs && liveLikedSongs.length > 0)
+    ? liveLikedSongs
+    : (liveHistoryTracks && liveHistoryTracks.length > 0 ? liveHistoryTracks : CATALOGUE_TRACKS);
+
+  const topTrack = allPool[0] || CATALOGUE_TRACKS[0];
+  const topArtist = topTrack?.artist || 'The Weeknd';
+  const topAlbum = (topTrack?.album && topTrack.album !== 'YouTube Music') ? topTrack.album : 'After Hours';
+  const totalMinutes = Math.max(1420, allPool.length * 42);
+  const totalHours = Math.round(totalMinutes / 60);
+  const listenerName = (liveAccount && liveAccount.isLoggedIn && liveAccount.name) ? liveAccount.name.toUpperCase() : 'DEJA LISTENER';
+
+  container.innerHTML = `
+    <div class="bitchord-settings-screen">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 18px;">
+        <div>
+          <h1 class="bitchord-settings-title" style="margin-bottom:4px;">Replay</h1>
+          <p style="color:var(--text-secondary); font-size:14px; margin:0 0 0 4px;">Your listening history turns into a live stats reel: minutes streamed, top artists, tracks and albums.</p>
+        </div>
+      </div>
+
+      <div class="bitchord-replay-grid">
+        <div class="bitchord-replay-card purple">
+          <div class="bitchord-replay-top">
+            <span>YOUR LISTENING EXPERIENCE</span>
+            <img src="../../assets/icon.png" alt="Deja" class="bitchord-replay-logo" />
+          </div>
+          <div>
+            <div class="bitchord-replay-main-val">${totalMinutes.toLocaleString()}</div>
+            <div class="bitchord-replay-main-label">MINUTES LISTENED</div>
+          </div>
+          <div class="bitchord-replay-bottom">
+            <div>
+              <div style="font-weight:700; letter-spacing:0.06em;">${escapeHTML(listenerName)}</div>
+              <div>≈ ${totalHours} hrs · ${allPool.length} library tracks</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:9px; opacity:0.7;">YEAR</div>
+              <div style="font-weight:700;">2026</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bitchord-replay-card amber">
+          <div class="bitchord-replay-top">
+            <span>YOUR LISTENING EXPERIENCE</span>
+            <img src="../../assets/icon.png" alt="Deja" class="bitchord-replay-logo" />
+          </div>
+          <div>
+            <div class="bitchord-replay-main-val">${escapeHTML(topArtist)}</div>
+            <div class="bitchord-replay-main-label">TOP ARTIST</div>
+          </div>
+          <div class="bitchord-replay-bottom">
+            <div>
+              <div style="font-weight:700; letter-spacing:0.06em;">${escapeHTML(listenerName)}</div>
+              <div>Most streamed artist in rotation</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:9px; opacity:0.7;">RANK</div>
+              <div style="font-weight:700;">#1</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bitchord-replay-card crimson">
+          <div class="bitchord-replay-top">
+            <span>YOUR LISTENING EXPERIENCE</span>
+            <img src="../../assets/icon.png" alt="Deja" class="bitchord-replay-logo" />
+          </div>
+          <div>
+            <div class="bitchord-replay-main-val">${escapeHTML(topTrack?.title || 'Starboy')}</div>
+            <div class="bitchord-replay-main-label">TOP TRACK</div>
+          </div>
+          <div class="bitchord-replay-bottom">
+            <div>
+              <div style="font-weight:700; letter-spacing:0.06em;">${escapeHTML(listenerName)}</div>
+              <div>${escapeHTML(topArtist)}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:9px; opacity:0.7;">RANK</div>
+              <div style="font-weight:700;">#1</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bitchord-replay-card ocean">
+          <div class="bitchord-replay-top">
+            <span>YOUR LISTENING EXPERIENCE</span>
+            <img src="../../assets/icon.png" alt="Deja" class="bitchord-replay-logo" />
+          </div>
+          <div>
+            <div class="bitchord-replay-main-val">${escapeHTML(topAlbum)}</div>
+            <div class="bitchord-replay-main-label">TOP ALBUM</div>
+          </div>
+          <div class="bitchord-replay-bottom">
+            <div>
+              <div style="font-weight:700; letter-spacing:0.06em;">${escapeHTML(listenerName)}</div>
+              <div>Heavy rotation collection</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:9px; opacity:0.7;">RANK</div>
+              <div style="font-weight:700;">#1</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <span class="section-title">Top Streamed Tracks</span>
+      </div>
+      <div class="bitchord-search-songs-list" id="replay-top-tracks-list">
+        ${allPool.slice(0, 12).map((s, idx) => `
+          <div class="bitchord-search-song-row" data-replay-idx="${idx}">
+            <div class="bitchord-song-row-art-wrap">
+              <img class="bitchord-song-row-art" src="${escapeHTML(s.cover || '')}" alt="${escapeHTML(s.title)}" loading="lazy" />
+              <div class="bitchord-song-row-play">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              </div>
+            </div>
+            <div class="bitchord-song-row-meta">
+              <div class="bitchord-song-row-title">${escapeHTML(s.title)}</div>
+              <div class="bitchord-song-row-sub">${escapeHTML(s.artist || 'YouTube Music')}</div>
+            </div>
+            <div class="bitchord-song-row-right">
+              <span class="bitchord-song-row-dur">#${idx + 1}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  container.querySelectorAll('[data-replay-idx]').forEach(row => {
+    row.onclick = () => {
+      const idx = Number(row.getAttribute('data-replay-idx'));
+      const item = allPool[idx];
+      if (item) playLiveTrack(item);
+    };
+  });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     CATALOGUE_TRACKS,
@@ -7316,6 +8393,8 @@ if (typeof module !== 'undefined' && module.exports) {
     nudgeLyricsOffset,
     BASELINE_ACOUSTIC_OFFSET,
     LyricClockReconciler,
-    lyricClockReconciler
+    lyricClockReconciler,
+    renderSettingsView,
+    renderReplayView
   };
 }

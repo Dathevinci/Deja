@@ -3,15 +3,27 @@ node_modules/
 
 # Production & Build Outputs
 dist/
+dist-apk/
 build/
+app/build/
+.gradle/
+.cxx/
 out/
 *.exe
+*.apk
+*.aab
 *.dmg
 *.AppImage
 *.deb
 *.rpm
 *.blockmap
 latest*.yml
+
+# Android Local & Signing Configs
+local.properties
+keystore.properties
+*.jks
+*.keystore
 
 # Logs & Diagnostics
 *.log

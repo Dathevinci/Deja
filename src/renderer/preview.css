@@ -290,10 +290,13 @@ body {
 }
 
 .brand-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(250, 45, 72, 0.35);
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 0 !important;
+  object-fit: contain !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 2px 8px rgba(250, 45, 72, 0.4));
 }
 
 .brand-text {
@@ -4045,4 +4048,392 @@ body,
 .bitchord-song-row-action:hover {
   background: rgba(255, 255, 255, 0.14);
   color: #FFFFFF;
+}
+
+
+/* ==========================================================================
+   BitChord SettingsScreen & ReplayScreen Styles (SettingsSheet.kt / ReplayScreen.kt)
+   ========================================================================== */
+.bitchord-settings-screen {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 8px 8px 64px 8px;
+  animation: bitchordViewFadeIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes bitchordViewFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.bitchord-settings-title {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-main);
+  margin: 4px 0 14px 4px;
+}
+
+.bitchord-settings-search-wrap {
+  position: relative;
+  margin-bottom: 22px;
+}
+
+.bitchord-settings-search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.bitchord-settings-search-input {
+  width: 100%;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  padding: 0 40px 0 44px;
+  color: var(--text-main);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bitchord-settings-search-input:focus {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(250, 45, 72, 0.55);
+  box-shadow: 0 0 0 3px rgba(250, 45, 72, 0.16);
+}
+
+.bitchord-settings-group {
+  margin-bottom: 22px;
+}
+
+.bitchord-settings-group-header {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 0 0 8px 14px;
+}
+
+.bitchord-settings-card {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 18px;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.bitchord-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  transition: background 0.16s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bitchord-settings-row:last-child {
+  border-bottom: none;
+}
+
+.bitchord-settings-row:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.bitchord-settings-row.no-hover {
+  cursor: default;
+}
+
+.bitchord-settings-row.no-hover:hover {
+  background: transparent;
+}
+
+.bitchord-settings-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bitchord-settings-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bitchord-settings-row-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bitchord-settings-row-sub {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.bitchord-settings-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(250, 45, 72, 0.16);
+  color: #FF5E76;
+  border: 1px solid rgba(250, 45, 72, 0.32);
+}
+
+.bitchord-settings-badge.green {
+  background: rgba(52, 199, 89, 0.16);
+  color: #4CD964;
+  border-color: rgba(52, 199, 89, 0.32);
+}
+
+.bitchord-settings-trailing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.bitchord-settings-subrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 18px 12px 68px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.bitchord-settings-subrow:last-child {
+  border-bottom: none;
+}
+
+/* iOS / Material 3 Switch */
+.bitchord-switch {
+  position: relative;
+  width: 44px;
+  height: 25px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  flex-shrink: 0;
+}
+
+.bitchord-switch.checked {
+  background: var(--apple-accent);
+  border-color: var(--apple-accent);
+}
+
+.bitchord-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bitchord-switch.checked::after {
+  transform: translateX(19px);
+}
+
+/* Segmented Control inside Settings Card */
+.bitchord-segmented-wrap {
+  padding: 2px 18px 14px 68px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.bitchord-segmented {
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  padding: 3px;
+  gap: 3px;
+  width: 100%;
+}
+
+.bitchord-seg-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bitchord-seg-btn:hover {
+  color: var(--text-main);
+}
+
+.bitchord-seg-btn.active {
+  background: rgba(250, 45, 72, 0.88);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(250, 45, 72, 0.32);
+}
+
+/* Slider Row inside Settings Card */
+.bitchord-slider-wrap {
+  padding: 0 18px 14px 68px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.bitchord-slider-input {
+  width: 100%;
+  accent-color: var(--apple-accent);
+  height: 5px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.bitchord-settings-colophon {
+  text-align: center;
+  margin-top: 28px;
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.bitchord-settings-colophon a {
+  color: var(--apple-accent);
+  text-decoration: underline;
+  margin: 0 6px;
+  cursor: pointer;
+}
+
+/* Replay Screen */
+.bitchord-replay-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+  margin-bottom: 32px;
+}
+
+.bitchord-replay-card {
+  position: relative;
+  border-radius: 22px;
+  padding: 22px;
+  color: #fff;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 195px;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bitchord-replay-card:hover {
+  transform: translateY(-4px);
+}
+
+.bitchord-replay-card.purple {
+  background: linear-gradient(135deg, #4b1d52 0%, #8c2246 55%, #2b132e 100%);
+}
+.bitchord-replay-card.amber {
+  background: linear-gradient(135deg, #7c3f09 0%, #a3520b 55%, #381e06 100%);
+}
+.bitchord-replay-card.crimson {
+  background: linear-gradient(135deg, #7d1924 0%, #a81c2e 55%, #300a10 100%);
+}
+.bitchord-replay-card.ocean {
+  background: linear-gradient(135deg, #0d415c 0%, #175c7d 55%, #07202e 100%);
+}
+
+.bitchord-replay-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.88;
+}
+
+.bitchord-replay-logo {
+  width: 34px !important;
+  height: 34px !important;
+  object-fit: contain !important;
+  background: transparent !important;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
+}
+
+.bitchord-replay-main-val {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 14px 0 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bitchord-replay-main-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+
+.bitchord-replay-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 18px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+/* Reduce Motion & Reduce Blur body helpers */
+body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+body.reduce-blur .app-ambient-backdrop,
+body.reduce-blur .apple-sidebar,
+body.reduce-blur .apple-player-bar,
+body.reduce-blur .bitchord-settings-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
