@@ -1987,7 +1987,7 @@ function updateAccountUI(acc) {
   if (syncStatusText) {
     if (acc.isLoggedIn) {
       const displayName = acc.channelTitle || acc.name || 'Account';
-      syncStatusText.innerHTML = `<span style="color:#34C759;font-weight:600;">✓ Connected to ${escapeHTML(displayName)} successfully!</span>`;
+      syncStatusText.innerHTML = `<span style="color:#34C759;font-weight:600;display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Connected to ${escapeHTML(displayName)} successfully!</span>`;
     } else {
       syncStatusText.innerText = 'Deja local sync listener is ready on localhost:3728';
     }
@@ -2118,7 +2118,7 @@ function renderAccountModalContent(forceLoginView = false) {
                 <span class="account-channel-name">${escapeHTML(ch.name)}</span>
                 <span class="account-channel-sub">${escapeHTML(ch.subtitle || ch.handle || '')}</span>
               </div>
-              ${isAct ? `<span class="account-channel-check">✓</span>` : ''}
+              ${isAct ? `<span class="account-channel-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>` : ''}
             </div>
           `;
         }).join('');

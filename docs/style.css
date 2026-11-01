@@ -303,6 +303,44 @@ body {
   line-height: 1.5;
 }
 
+/* Hero Badges Strip matching BitChord */
+.hero-badges-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 auto 32px;
+  max-width: 860px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.25s var(--ease-apple);
+}
+
+.hero-badge:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.hero-badge svg {
+  color: var(--ruby);
+}
+
 .hero-cta-group {
   display: flex;
   align-items: center;
@@ -645,6 +683,70 @@ body {
   background: var(--ruby-soft);
   color: var(--ruby);
   border-color: rgba(250, 45, 72, 0.3);
+}
+
+/* Ecosystem Integration Section (matching BitChord reference) */
+.ecosystem-section {
+  padding: 70px 0 30px;
+  text-align: center;
+}
+
+.ecosystem-header {
+  margin-bottom: 28px;
+}
+
+.ecosystem-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  margin-bottom: 12px;
+  background: linear-gradient(180deg, #FFFFFF 0%, rgba(255, 255, 255, 0.78) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ecosystem-subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.ecosystem-chips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.ecosystem-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.25s var(--ease-apple);
+}
+
+.ecosystem-chip:hover {
+  background: rgba(250, 45, 72, 0.08);
+  border-color: rgba(250, 45, 72, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.ecosystem-chip svg {
+  color: var(--ruby);
 }
 
 /* Feature Pillars Section */

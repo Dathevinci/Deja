@@ -575,7 +575,7 @@ function startSyncServer() {
 <body>
   <div class="card">
     <div id="status-card" class="success-overlay">
-      <h2>✓ Connected to Deja Successfully!</h2>
+      <h2>Connected to Deja Successfully!</h2>
       <p id="status-account-text">Account synchronized. You can return to Deja now.</p>
     </div>
 
@@ -589,10 +589,10 @@ function startSyncServer() {
       <div class="method-title">1. Drag Bookmarklet to Bookmarks Bar (Easiest)</div>
       <div class="method-desc">Drag the red button to your Bookmarks Bar. Then navigate to YouTube Music and click it!</div>
       <div style="text-align: center; margin: 10px 0 16px 0;">
-        <a class="bookmarklet-btn" href="javascript:(function(){var c=document.cookie;if(!c||c.indexOf('SAPISID')===-1){alert('Please navigate to music.youtube.com and make sure you are signed in first!');return;}fetch('http://127.0.0.1:3728/sync?c='+encodeURIComponent(c),{mode:'no-cors'}).then(function(){alert('Sync sent to Deja! Return to Deja now.');}).catch(function(e){alert('Could not reach Deja. Please make sure Deja is running!');});})()" title="Drag this button to your browser Bookmarks Bar!">★ Drag Me: "Sync to Deja"</a>
+        <a class="bookmarklet-btn" href="javascript:(function(){var c=document.cookie;if(!c||c.indexOf('SAPISID')===-1){alert('Please navigate to music.youtube.com and make sure you are signed in first!');return;}fetch('http://127.0.0.1:3728/sync?c='+encodeURIComponent(c),{mode:'no-cors'}).then(function(){alert('Sync sent to Deja! Return to Deja now.');}).catch(function(e){alert('Could not reach Deja. Please make sure Deja is running!');});})()" title="Drag this button to your browser Bookmarks Bar!">Drag Me: "Sync to Deja"</a>
       </div>
       <div style="display: flex; gap: 8px;">
-        <a href="https://music.youtube.com" target="_blank" class="btn btn-secondary" style="flex: 1;">Open YouTube Music ↗</a>
+        <a href="https://music.youtube.com" target="_blank" class="btn btn-secondary" style="flex: 1;">Open YouTube Music</a>
       </div>
     </div>
 
@@ -601,7 +601,7 @@ function startSyncServer() {
       <div class="method-desc">On <a href="https://music.youtube.com" target="_blank" style="color: #FA2D48;">music.youtube.com</a>, press <strong>F12</strong>, open Console, paste this snippet, and press Enter:</div>
       <div style="display: flex; gap: 8px;">
         <input type="text" id="snippet" readonly value="fetch('http://127.0.0.1:3728/sync?c=' + encodeURIComponent(document.cookie), { mode: 'no-cors' })" style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #aaa; padding: 8px 12px; font-family: monospace; font-size: 11px;">
-        <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('snippet').value); this.innerText='✓ Copied!'; setTimeout(() => this.innerText='Copy', 2000);">Copy</button>
+        <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('snippet').value); this.innerText='Copied!'; setTimeout(() => this.innerText='Copy', 2000);">Copy</button>
       </div>
     </div>
 
@@ -924,7 +924,7 @@ async function injectProfileConfirmationBar(win) {
       };
 
       var closeBtn = document.createElement('button');
-      closeBtn.innerText = '✕';
+      closeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
       closeBtn.style.background = 'none';
       closeBtn.style.border = 'none';
       closeBtn.style.color = 'rgba(255, 255, 255, 0.5)';
