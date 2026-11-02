@@ -17,6 +17,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Deja">
+  <script>
+    (function() {
+      var isStandalone = (window.navigator.standalone === true) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+      if (isStandalone && window.location.search.indexOf('web=1') === -1) {
+        window.location.replace('./app.html');
+      }
+    })();
+  </script>
   <link rel="shortcut icon" href="assets/icon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -174,11 +182,11 @@
             <span>Download Android (.apk)</span>
           </a>
 
-          <a href="#download" class="btn-secondary cta-ios-btn btn-open-ios-modal" title="Download Deja for iOS (.ipa &amp; WebApp)">
+          <a href="app.html" class="btn-secondary cta-ios-btn" title="Open Deja iOS App — Add to Home Screen in Safari (No Sideloading)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.96 6.33c.67-.81 1.12-1.94 1-3.08-.96.04-2.13.64-2.82 1.45-.61.7-.15 1.86-1.01 2.98 1.08.08 2.16-.54 2.83-1.35"/>
             </svg>
-            <span>iOS (.ipa / App)</span>
+            <span>iOS (Add to Home Screen)</span>
           </a>
 
           <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer" class="btn-secondary" title="Star Deja on GitHub">
@@ -1271,22 +1279,22 @@
         <!-- iOS (iPhone & iPad) Card -->
         <div class="download-card">
           <div>
-            <span class="download-type-pill primary">iOS 16.0+ · iPhone &amp; iPad</span>
-            <h3 class="download-target-title">iOS (.ipa &amp; WebApp)</h3>
+            <span class="download-type-pill primary">iOS 16.0+ · No Sideloading</span>
+            <h3 class="download-target-title">iOS Home Screen App</h3>
             <p class="download-target-desc">
-              Sideload the unsigned <code>Deja.ipa</code> via AltStore, SideStore, or Sideloadly, or install directly to your iPhone Home Screen via Safari.
+              Install Deja directly to your iPhone or iPad Home Screen via Safari (<strong>Share ↑ → Add to Home Screen</strong>) with zero sideloading, or download <code>Deja.ipa</code>.
             </p>
           </div>
           <div>
-            <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.ipa" class="btn-ruby" style="width: 100%; justify-content: center; margin-bottom: 8px;">
-              <span>Download Deja.ipa (v1.2.3)</span>
+            <a href="app.html" class="btn-ruby" style="width: 100%; justify-content: center; margin-bottom: 8px;">
+              <span>Open iOS App (Add to Home Screen)</span>
             </a>
             <button type="button" class="btn-secondary btn-open-ios-modal" style="width: 100%; justify-content: center;">
-              <span>iOS Install Guide →</span>
+              <span>How to Add to Home Screen / .ipa →</span>
             </button>
             <div class="download-meta">
-              <span>AltStore / SideStore / Safari PWA · </span>
-              <a href="https://github.com/Dathevinci/Deja/releases" target="_blank" rel="noopener noreferrer" style="color:var(--text-secondary);">All Releases</a>
+              <span>Safari Home Screen PWA · </span>
+              <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.ipa" style="color:var(--text-secondary);">Download .ipa</a>
             </div>
           </div>
         </div>
@@ -1363,17 +1371,18 @@
           <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.96 6.33c.67-.81 1.12-1.94 1-3.08-.96.04-2.13.64-2.82 1.45-.61.7-.15 1.86-1.01 2.98 1.08.08 2.16-.54 2.83-1.35"/>
         </svg>
       </div>
-      <h3 class="modal-title">Install Deja v1.2.3 on iOS</h3>
+      <h3 class="modal-title">Install Deja on iPhone &amp; iPad (No Sideloading)</h3>
       <p class="modal-text">
-        Get the full 2-Bit Deja experience on iPhone &amp; iPad with Apple Music Motion artwork and 60fps word-synced lyrics:
+        Install the full BitChord-style Deja Music Player directly onto your iOS Home Screen in 10 seconds — no AltStore, no PC, and never expires:
       </p>
       <div style="text-align:left; background:rgba(255,255,255,0.04); border:1.5px solid var(--border-prominent); border-radius:8px; padding:14px; margin-bottom:16px; font-size:13px; line-height:1.6;">
-        <div style="margin-bottom:8px;"><strong style="color:var(--text-primary);">Option 1 — Native Sideload (.ipa):</strong><br/>Download <code>Deja.ipa</code> and install with <strong>AltStore</strong>, <strong>SideStore</strong>, <strong>Sideloadly</strong>, or <strong>TrollStore</strong>.</div>
-        <div><strong style="color:var(--text-primary);">Option 2 — Instant Home Screen App:</strong><br/>In iOS Safari, tap <strong>Share</strong> <span style="display:inline-block; padding:0 5px; border:1px solid rgba(255,255,255,0.25); border-radius:4px;">↑</span> then select <strong>Add to Home Screen</strong> for full-screen standalone mode.</div>
+        <div style="margin-bottom:10px;"><strong style="color:var(--text-primary);">Step 1 — Open the iOS Web App in Safari:</strong><br/>Tap <strong>Launch iOS Web App</strong> below (or open <code>dathevinci.github.io/Deja/app.html</code> in Safari).</div>
+        <div style="margin-bottom:10px;"><strong style="color:var(--text-primary);">Step 2 — Tap Share <span style="display:inline-block; padding:0 5px; border:1px solid rgba(255,255,255,0.25); border-radius:4px;">↑</span> in Safari:</strong><br/>Scroll down the Share sheet and tap <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</div>
+        <div><strong style="color:var(--text-primary);">Optional — Native Sideload (.ipa):</strong><br/>Prefer a sideloaded bundle? Download <code>Deja.ipa</code> for AltStore, SideStore, or TrollStore.</div>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.ipa" class="btn-ruby" style="flex:1; justify-content:center;">Download Deja.ipa</a>
-        <a href="altstore://install?url=https://github.com/Dathevinci/Deja/releases/latest/download/Deja.ipa" class="btn-secondary" style="flex:1; justify-content:center;">Open in AltStore</a>
+        <a href="app.html" class="btn-ruby" style="flex:1.3; justify-content:center;">Launch iOS Web App →</a>
+        <a href="https://github.com/Dathevinci/Deja/releases/latest/download/Deja.ipa" class="btn-secondary" style="flex:1; justify-content:center;">Download Deja.ipa</a>
       </div>
     </div>
   </div>

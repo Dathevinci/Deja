@@ -1,0 +1,1989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Deja</title>
+  <meta name="description" content="Deja for iOS — BitChord Edition with Synced Lyrics, Apple Motion Art, and Dynamic Mesh Aura." />
+  <meta name="theme-color" content="#08080C" />
+
+  <!-- iOS Add to Home Screen (Full-Screen Native WebApp) Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Deja" />
+  <link rel="apple-touch-icon" href="assets/icon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icon.png" />
+  <link rel="apple-touch-startup-image" href="assets/logo.png" />
+  <link rel="icon" type="image/png" href="assets/icon.png" />
+  <link rel="manifest" href="manifest.json" />
+
+  <style>
+    :root {
+      --bg-base: #08080c;
+      --bg-elevated: rgba(24, 24, 32, 0.82);
+      --bg-card: rgba(255, 255, 255, 0.055);
+      --bg-card-active: rgba(255, 255, 255, 0.11);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-bright: rgba(255, 255, 255, 0.16);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255, 255, 255, 0.64);
+      --text-muted: rgba(255, 255, 255, 0.42);
+      --accent: #fa2d48;
+      --accent-soft: rgba(250, 45, 72, 0.18);
+      --aura-1: rgba(140, 45, 51, 0.48);
+      --aura-2: rgba(58, 34, 88, 0.42);
+      --aura-3: rgba(24, 38, 82, 0.36);
+      --aura-4: rgba(18, 18, 28, 0.55);
+      --safe-top: env(safe-area-inset-top, 16px);
+      --safe-bottom: env(safe-area-inset-bottom, 16px);
+      --apple-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    input {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    /* Ambient Mesh Background */
+    .ambient-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 18% 15%, var(--aura-1) 0%, transparent 55%),
+        radial-gradient(circle at 82% 22%, var(--aura-2) 0%, transparent 58%),
+        radial-gradient(circle at 50% 80%, var(--aura-3) 0%, transparent 62%),
+        var(--bg-base);
+      transition: background 0.8s ease;
+    }
+
+    /* App Shell */
+    .ios-app-shell {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    /* Add to Home Screen Guided Banner (Only shown when in browser, hidden when installed) */
+    .a2hs-banner {
+      margin: calc(var(--safe-top) + 6px) 14px 4px 14px;
+      padding: 11px 13px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(250, 45, 72, 0.22), rgba(32, 28, 44, 0.92));
+      border: 1px solid rgba(250, 45, 72, 0.42);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+    }
+    .a2hs-banner.hidden {
+      display: none !important;
+    }
+    .a2hs-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      flex-shrink: 0;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    .a2hs-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .a2hs-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+    .a2hs-sub {
+      font-size: 11.5px;
+      color: rgba(255, 255, 255, 0.82);
+      line-height: 1.35;
+    }
+    .a2hs-pill-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px 5px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.16);
+      font-weight: 700;
+      font-size: 11px;
+      color: #fff;
+    }
+    .a2hs-btn-guide {
+      background: #fff;
+      color: #09090d;
+      border: none;
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .a2hs-close {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 16px;
+      padding: 4px;
+      cursor: pointer;
+    }
+
+    /* Top App Header */
+    .ios-top-bar {
+      padding: calc(var(--safe-top) + 10px) 18px 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .ios-app-shell.has-a2hs .ios-top-bar {
+      padding-top: 8px;
+    }
+    .ios-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ios-brand img {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+    .ios-brand-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .ios-brand-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid rgba(250, 45, 72, 0.35);
+    }
+    .ios-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ios-icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* Main Scroll Area */
+    .ios-main-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 6px 16px 165px 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .ios-main-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Section Headings */
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin: 18px 0 10px 0;
+    }
+    .section-title {
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .section-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Filter Chips */
+    .chip-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+    .chip-row::-webkit-scrollbar { display: none; }
+    .ios-chip {
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 600;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .ios-chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* Horizontal Carousel */
+    .horiz-scroll {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin: 0 -16px;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+    .horiz-scroll::-webkit-scrollbar { display: none; }
+
+    .album-card {
+      width: 138px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .album-card-art-wrap {
+      position: relative;
+      width: 138px;
+      height: 138px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.05);
+      margin-bottom: 7px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    }
+    .album-card-art {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .album-card-play {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(12, 12, 18, 0.78);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .album-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .album-card-sub {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+
+    /* Song List Rows (BitChord Style) */
+    .song-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .song-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 10px;
+      border-radius: 13px;
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+      transition: background 0.18s ease, transform 0.15s ease;
+    }
+    .song-row:active {
+      transform: scale(0.985);
+      background: var(--bg-card-active);
+    }
+    .song-row.playing {
+      border-color: rgba(250, 45, 72, 0.45);
+      background: rgba(250, 45, 72, 0.12);
+    }
+    .song-row-art {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .song-row-meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .song-row-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .song-row.playing .song-row-title {
+      color: var(--accent);
+    }
+    .song-row-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+    .song-row-fav {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .song-row-fav.loved {
+      color: var(--accent);
+    }
+
+    /* Search Bar */
+    .ios-search-box {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-subtle);
+      border-radius: 13px;
+      padding: 10px 13px;
+      margin-bottom: 12px;
+    }
+    .ios-search-box input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-size: 15px;
+      font-family: inherit;
+    }
+    .ios-search-box input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Replay Cards */
+    .replay-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .replay-card {
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      position: relative;
+      overflow: hidden;
+    }
+    .replay-card.c1 { background: linear-gradient(135deg, #5d1b35, #1b1026); }
+    .replay-card.c2 { background: linear-gradient(135deg, #684414, #1e160d); }
+    .replay-card.c3 { background: linear-gradient(135deg, #6e1c26, #1c0f14); }
+    .replay-card.c4 { background: linear-gradient(135deg, #173d5c, #0e1a26); }
+    .replay-card-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.72);
+      margin-bottom: 8px;
+    }
+    .replay-card-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .replay-card-sub {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.68);
+      margin-top: 3px;
+    }
+
+    /* Settings List */
+    .settings-group {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .settings-row:last-child {
+      border-bottom: none;
+    }
+    .settings-row-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .settings-row-sub {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+    .ios-toggle {
+      width: 44px;
+      height: 26px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      border: none;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+    .ios-toggle.on {
+      background: var(--accent);
+    }
+    .ios-toggle::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s ease;
+    }
+    .ios-toggle.on::after {
+      transform: translateX(18px);
+    }
+
+    /* Floating Glass Mini-Player */
+    .ios-mini-player {
+      position: fixed;
+      left: 10px;
+      right: 10px;
+      bottom: calc(var(--safe-bottom) + 60px);
+      max-width: 500px;
+      margin: 0 auto;
+      height: 60px;
+      border-radius: 16px;
+      background: rgba(26, 26, 36, 0.88);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 10px;
+      z-index: 50;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .mini-progress-bar {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 2.5px;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.15s linear;
+    }
+    .mini-art-wrap {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .mini-art-wrap img,
+    .mini-art-wrap video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .mini-art-wrap video {
+      opacity: 0;
+      transition: opacity 0.35s ease;
+    }
+    .mini-art-wrap video.is-ready {
+      opacity: 1;
+    }
+    .mini-meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .mini-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mini-artist {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+    .mini-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* Bottom Glass Tab Bar */
+    .ios-tab-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: calc(var(--safe-bottom) + 54px);
+      padding-bottom: var(--safe-bottom);
+      background: rgba(12, 12, 18, 0.88);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 49;
+    }
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 0;
+      font-size: 10.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 0.18s ease;
+    }
+    .tab-btn.active {
+      color: var(--accent);
+    }
+
+    /* Full-Screen Slide-Up Now Playing Sheet */
+    .now-playing-sheet {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background:
+        radial-gradient(circle at 22% 18%, var(--aura-1) 0%, transparent 55%),
+        radial-gradient(circle at 78% 28%, var(--aura-2) 0%, transparent 60%),
+        radial-gradient(circle at 50% 82%, var(--aura-3) 0%, transparent 65%),
+        #07070b;
+      display: flex;
+      flex-direction: column;
+      padding: calc(var(--safe-top) + 8px) 22px calc(var(--safe-bottom) + 14px) 22px;
+      transform: translate3d(0, 105%, 0);
+      transition: transform 0.42s var(--apple-ease);
+    }
+    .now-playing-sheet.open {
+      transform: translate3d(0, 0, 0);
+    }
+
+    .np-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .np-dismiss-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .np-mode-pill {
+      display: inline-flex;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      padding: 3px;
+      gap: 2px;
+    }
+    .np-mode-btn {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 13px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .np-mode-btn.active {
+      background: rgba(255, 255, 255, 0.22);
+      color: #fff;
+    }
+
+    /* Stage Area: Artwork / Motion Video OR Synced Lyrics */
+    .np-stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      position: relative;
+      margin: 6px 0 14px 0;
+    }
+    .np-art-square {
+      width: min(82vw, 330px);
+      height: min(82vw, 330px);
+      border-radius: 22px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .np-art-square img,
+    .np-art-square video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .np-art-square video {
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .np-art-square video.is-ready {
+      opacity: 1;
+    }
+
+    /* Synced Lyrics Stage (BitChord PlayerLyrics.kt style) */
+    .np-lyrics-stage {
+      display: none;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 18px 4px 80px 4px;
+      mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
+    }
+    .np-lyrics-stage.active {
+      display: flex;
+    }
+    .np-lyrics-stage::-webkit-scrollbar { display: none; }
+    .ios-lyric-line {
+      font-size: 23px;
+      font-weight: 700;
+      line-height: 1.32;
+      padding: 10px 4px;
+      color: rgba(255, 255, 255, 0.36);
+      filter: blur(0.6px);
+      transform: scale(0.96);
+      transform-origin: left center;
+      transition: all 0.28s var(--apple-ease);
+      cursor: pointer;
+    }
+    .ios-lyric-line.active {
+      color: #ffffff;
+      filter: none;
+      transform: scale(1);
+      text-shadow: 0 4px 24px rgba(255, 255, 255, 0.35);
+    }
+    .ios-lyric-line.near {
+      color: rgba(255, 255, 255, 0.56);
+      filter: blur(0.2px);
+    }
+
+    /* Track Info & Controls */
+    .np-track-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .np-title {
+      font-size: 21px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .np-artist {
+      font-size: 14.5px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+    .np-lyric-capsule {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 9px 13px;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      cursor: pointer;
+    }
+    .np-lyric-capsule span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Scrubber */
+    .np-scrubber-wrap {
+      margin-bottom: 14px;
+    }
+    .np-scrubber-bar {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.16);
+      position: relative;
+      cursor: pointer;
+    }
+    .np-scrubber-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: #fff;
+      width: 0%;
+    }
+    .np-time-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    /* Transport Buttons */
+    .np-transport {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding: 0 8px;
+    }
+    .np-play-circle {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #fff;
+      color: #09090d;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 28px rgba(255, 255, 255, 0.25);
+      cursor: pointer;
+    }
+    .np-icon-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      padding: 8px;
+      cursor: pointer;
+      opacity: 0.88;
+    }
+    .np-icon-btn.active {
+      color: var(--accent);
+      opacity: 1;
+    }
+
+    /* Bottom Utility Row */
+    .np-bottom-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+    }
+    .np-pill-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-radius: 999px;
+      padding: 7px 15px;
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .np-pill-btn.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Install Guide Sheet Modal */
+    .ios-guide-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .ios-guide-modal.open {
+      display: flex;
+    }
+    .ios-guide-sheet {
+      width: 100%;
+      max-width: 500px;
+      background: #14141d;
+      border-top: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 24px 24px 0 0;
+      padding: 22px 20px calc(var(--safe-bottom) + 20px) 20px;
+    }
+    .guide-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 13px;
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.05);
+      margin-bottom: 8px;
+      font-size: 13.5px;
+    }
+    .guide-step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: 12.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-backdrop" id="ambient-backdrop"></div>
+
+  <!-- Hidden YouTube Player Fallback Container -->
+  <div style="position:fixed; left:-9999px; top:-9999px; width:1px; height:1px; overflow:hidden; pointer-events:none;">
+    <div id="ios-yt-player"></div>
+  </div>
+
+  <div class="ios-app-shell has-a2hs" id="ios-app-shell">
+    <!-- Add to Home Screen Banner (Visible in Safari browser, auto-hidden when launched from iOS Home Screen) -->
+    <div class="a2hs-banner" id="a2hs-banner">
+      <img src="assets/icon.png" alt="Deja" class="a2hs-logo" />
+      <div class="a2hs-body">
+        <div class="a2hs-title">Install Deja on iPhone (No Sideloading)</div>
+        <div class="a2hs-sub">Tap Safari <span class="a2hs-pill-icon">Share ↑</span> then <strong>Add to Home Screen</strong></div>
+      </div>
+      <button class="a2hs-btn-guide" id="btn-open-a2hs-guide">How to Install</button>
+      <button class="a2hs-close" id="btn-close-a2hs" aria-label="Dismiss">✕</button>
+    </div>
+
+    <!-- Top Bar -->
+    <header class="ios-top-bar">
+      <div class="ios-brand">
+        <img src="assets/icon.png" alt="Deja Logo" />
+        <span class="ios-brand-title" id="top-view-title">Home</span>
+        <span class="ios-brand-badge">v1.2.3 iOS</span>
+      </div>
+      <div class="ios-header-actions">
+        <button class="ios-icon-btn" id="btn-header-install" title="Add to iPhone Home Screen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        </button>
+        <a href="index.html?web=1" class="ios-icon-btn" title="Desktop & APK Downloads" style="text-decoration:none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </a>
+      </div>
+    </header>
+
+    <!-- Scrollable Tab Content -->
+    <main class="ios-main-scroll" id="ios-main-scroll"></main>
+
+    <!-- Floating Glass Mini-Player -->
+    <div class="ios-mini-player" id="ios-mini-player">
+      <div class="mini-art-wrap">
+        <img id="mini-art-img" src="assets/icon.png" alt="Cover" />
+        <video id="mini-motion-video" muted playsinline loop></video>
+      </div>
+      <div class="mini-meta">
+        <div class="mini-title" id="mini-title">Select a song</div>
+        <div class="mini-artist" id="mini-artist">Deja · YouTube Music</div>
+      </div>
+      <button class="mini-btn" id="mini-btn-play" aria-label="Play/Pause">
+        <svg id="mini-play-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+      </button>
+      <button class="mini-btn" id="mini-btn-next" aria-label="Next">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.2"/></svg>
+      </button>
+      <div class="mini-progress-bar" id="mini-progress-bar"></div>
+    </div>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="ios-tab-bar">
+      <button class="tab-btn active" data-tab="home">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <span>Home</span>
+      </button>
+      <button class="tab-btn" data-tab="search">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Search</span>
+      </button>
+      <button class="tab-btn" data-tab="library">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span>Library</span>
+      </button>
+      <button class="tab-btn" data-tab="replay">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Replay</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Slide-Up Full-Screen Now Playing Sheet -->
+  <section class="now-playing-sheet" id="now-playing-sheet">
+    <div class="np-top-bar">
+      <button class="np-dismiss-btn" id="btn-close-np" aria-label="Minimize">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="np-mode-pill">
+        <button class="np-mode-btn active" id="np-mode-song">Song</button>
+        <button class="np-mode-btn" id="np-mode-video">Motion</button>
+      </div>
+      <button class="np-dismiss-btn" id="btn-np-fav" aria-label="Like">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
+    </div>
+
+    <div class="np-stage">
+      <div class="np-art-square" id="np-art-square">
+        <img id="np-art-img" src="assets/icon.png" alt="Album Artwork" />
+        <video id="np-motion-video" muted playsinline loop></video>
+      </div>
+      <div class="np-lyrics-stage" id="np-lyrics-stage"></div>
+    </div>
+
+    <div class="np-track-row">
+      <div style="min-width:0; flex:1;">
+        <div class="np-title" id="np-title">Anti-Hero</div>
+        <div class="np-artist" id="np-artist">Taylor Swift • Midnights</div>
+      </div>
+      <span class="ios-brand-badge" id="np-codec-badge">AAC 256k</span>
+    </div>
+
+    <div class="np-lyric-capsule" id="np-lyric-capsule">
+      <span id="np-lyric-snippet">Tap for real-time synced lyrics</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+
+    <div class="np-scrubber-wrap">
+      <div class="np-scrubber-bar" id="np-scrubber-bar">
+        <div class="np-scrubber-fill" id="np-scrubber-fill"></div>
+      </div>
+      <div class="np-time-row">
+        <span id="np-time-cur">0:00</span>
+        <span id="np-time-rem">-3:20</span>
+      </div>
+    </div>
+
+    <div class="np-transport">
+      <button class="np-icon-btn" id="np-btn-shuffle" aria-label="Shuffle">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+      </button>
+      <button class="np-icon-btn" id="np-btn-prev" aria-label="Previous">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.4"/></svg>
+      </button>
+      <button class="np-play-circle" id="np-btn-play" aria-label="Play/Pause">
+        <svg id="np-play-icon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+      <button class="np-icon-btn" id="np-btn-next" aria-label="Next">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.4"/></svg>
+      </button>
+      <button class="np-icon-btn" id="np-btn-repeat" aria-label="Repeat">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+    </div>
+
+    <div class="np-bottom-row">
+      <button class="np-pill-btn" id="np-btn-lyrics">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Synced Lyrics</span>
+      </button>
+      <button class="np-pill-btn" id="np-btn-motion">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        <span>Apple Motion</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- iOS Add to Home Screen Step-by-Step Sheet -->
+  <div class="ios-guide-modal" id="ios-guide-modal">
+    <div class="ios-guide-sheet">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <img src="assets/icon.png" width="36" height="36" style="border-radius:9px;" alt="Deja" />
+          <div>
+            <div style="font-size:16px; font-weight:800;">Add Deja to Home Screen</div>
+            <div style="font-size:12px; color:var(--text-secondary);">Install on iOS without sideloading or AltStore</div>
+          </div>
+        </div>
+        <button class="a2hs-close" id="btn-close-guide-modal">✕</button>
+      </div>
+      <div class="guide-step">
+        <span class="guide-step-num">1</span>
+        <div>Tap the <strong>Share</strong> button <span class="a2hs-pill-icon">↑</span> at the bottom of Safari.</div>
+      </div>
+      <div class="guide-step">
+        <span class="guide-step-num">2</span>
+        <div>Scroll down and tap <strong>Add to Home Screen</strong> <span class="a2hs-pill-icon">+</span>.</div>
+      </div>
+      <div class="guide-step">
+        <span class="guide-step-num">3</span>
+        <div>Tap <strong>Add</strong> in the top-right corner. Launch <strong>Deja</strong> from your iPhone Home Screen for full-screen native mode!</div>
+      </div>
+      <button class="a2hs-btn-guide" id="btn-done-guide" style="width:100%; padding:12px; font-size:14px; margin-top:8px;">Got It</button>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // Deja iOS Home Screen Web App Engine (v1.2.3)
+    // =========================================================================
+    const DEFAULT_TRACKS = [
+      {
+        id: 'yt-b1kbLwvqugk',
+        videoId: 'b1kbLwvqugk',
+        title: 'Anti-Hero',
+        artist: 'Taylor Swift',
+        album: 'Midnights',
+        duration: 200,
+        cover: 'https://i.ytimg.com/vi/b1kbLwvqugk/hqdefault.jpg'
+      },
+      {
+        id: 'yt-ic8j13U_6_8',
+        videoId: 'ic8j13U_6_8',
+        title: 'Cruel Summer',
+        artist: 'Taylor Swift',
+        album: 'Lover',
+        duration: 178,
+        cover: 'https://i.ytimg.com/vi/ic8j13U_6_8/hqdefault.jpg'
+      },
+      {
+        id: 'yt-dQw4w9WgXcQ',
+        videoId: 'yKNxeF4KMsY',
+        title: 'Yellow',
+        artist: 'Coldplay',
+        album: 'Parachutes',
+        duration: 269,
+        cover: 'https://i.ytimg.com/vi/yKNxeF4KMsY/hqdefault.jpg'
+      },
+      {
+        id: 'yt-4NRXx6U8ABQ',
+        videoId: '4NRXx6U8ABQ',
+        title: 'Blinding Lights',
+        artist: 'The Weeknd',
+        album: 'After Hours',
+        duration: 200,
+        cover: 'https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg'
+      },
+      {
+        id: 'yt-kPa7bsKwL-c',
+        videoId: 'kPa7bsKwL-c',
+        title: 'Die With A Smile',
+        artist: 'Lady Gaga & Bruno Mars',
+        album: 'Die With A Smile',
+        duration: 251,
+        cover: 'https://i.ytimg.com/vi/kPa7bsKwL-c/hqdefault.jpg'
+      },
+      {
+        id: 'yt-eVli-tstM5E',
+        videoId: 'eVli-tstM5E',
+        title: 'Espresso',
+        artist: 'Sabrina Carpenter',
+        album: 'Short n\' Sweet',
+        duration: 175,
+        cover: 'https://i.ytimg.com/vi/eVli-tstM5E/hqdefault.jpg'
+      }
+    ];
+
+    const PIPED_INSTANCES = [
+      'https://pipedapi.kavin.rocks',
+      'https://api.piped.private.coffee',
+      'https://pipedapi.adminforge.de'
+    ];
+
+    let catalogue = [...DEFAULT_TRACKS];
+    let searchResults = [];
+    let currentTab = 'home';
+    let currentIndex = 0;
+    let isPlaying = false;
+    let isShuffle = false;
+    let repeatMode = 'off';
+    let currentTime = 0;
+    let lyricsOffset = Number(localStorage.getItem('deja_ios_lyrics_offset') || '0');
+    let motionEnabled = localStorage.getItem('deja_ios_motion') !== 'false';
+    let likedIds = new Set(JSON.parse(localStorage.getItem('deja_ios_liked') || '[]'));
+    let recentTracks = JSON.parse(localStorage.getItem('deja_ios_recent') || '[]');
+    let minutesListened = Number(localStorage.getItem('deja_ios_minutes') || '42');
+
+    const audioEl = new Audio();
+    audioEl.preload = 'auto';
+    audioEl.crossOrigin = 'anonymous';
+    let ytPlayer = null;
+    let isYtReady = false;
+    let usingYtFallback = false;
+    let activeLyrics = [];
+    let lastActiveLyricIdx = -1;
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function formatTime(sec) {
+      const s = Math.max(0, Math.floor(Number(sec) || 0));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return `${m}:${r < 10 ? '0' : ''}${r}`;
+    }
+
+    // Check if running as installed iOS Home Screen Standalone App
+    function checkStandaloneMode() {
+      const isStandalone = window.navigator.standalone === true ||
+        window.matchMedia('(display-mode: standalone)').matches ||
+        localStorage.getItem('deja_a2hs_dismissed') === '1';
+      const banner = document.getElementById('a2hs-banner');
+      const shell = document.getElementById('ios-app-shell');
+      if (isStandalone && banner) {
+        banner.classList.add('hidden');
+        shell?.classList.remove('has-a2hs');
+      }
+    }
+
+    // Extract 4-color Mesh Palette from Album Art
+    function updateAuraFromCover(imgUrl) {
+      if (!imgUrl) return;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = 12;
+          c.height = 12;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, 12, 12);
+          const d = ctx.getImageData(0, 0, 12, 12).data;
+          const samples = [];
+          for (let i = 0; i < d.length; i += 16) {
+            if (d[i + 3] > 128) samples.push([d[i], d[i + 1], d[i + 2]]);
+          }
+          if (samples.length >= 3) {
+            const c1 = samples[0];
+            const c2 = samples[Math.floor(samples.length / 2)];
+            const c3 = samples[samples.length - 1];
+            document.documentElement.style.setProperty('--aura-1', `rgba(${c1[0]}, ${c1[1]}, ${c1[2]}, 0.52)`);
+            document.documentElement.style.setProperty('--aura-2', `rgba(${c2[0]}, ${c2[1]}, ${c2[2]}, 0.44)`);
+            document.documentElement.style.setProperty('--aura-3', `rgba(${c3[0]}, ${c3[1]}, ${c3[2]}, 0.38)`);
+          }
+        } catch {}
+      };
+      img.src = imgUrl;
+    }
+
+    // Fetch Top Charts via Apple Music / iTunes RSS + Search API (100% CORS enabled on iOS Safari)
+    async function loadLiveCharts() {
+      try {
+        const res = await fetch('https://itunes.apple.com/search?term=top+hits+2025&entity=song&limit=18');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data.results) && data.results.length > 0) {
+          const mapped = data.results.filter(r => r.previewUrl && r.trackName).map(r => ({
+            id: `itunes-${r.trackId}`,
+            videoId: '',
+            title: r.trackName,
+            artist: r.artistName,
+            album: r.collectionName || 'Single',
+            duration: Math.round((r.trackTimeMillis || 180000) / 1000),
+            cover: (r.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+            streamUrl: r.previewUrl
+          }));
+          mapped.forEach(m => {
+            if (!catalogue.some(x => x.title.toLowerCase() === m.title.toLowerCase() && x.artist.toLowerCase() === m.artist.toLowerCase())) {
+              catalogue.push(m);
+            } else {
+              const existing = catalogue.find(x => x.title.toLowerCase() === m.title.toLowerCase());
+              if (existing && !existing.streamUrl) {
+                existing.streamUrl = m.streamUrl;
+                if (m.cover) existing.cover = m.cover;
+              }
+            }
+          });
+          if (currentTab === 'home') renderCurrentTab();
+        }
+      } catch {}
+    }
+
+    // Resolve Audio Stream (Piped YouTube Opus/M4A -> iTunes High-Res AAC -> YouTube IFrame)
+    async function resolveStreamForTrack(track) {
+      if (track.streamUrl) return track.streamUrl;
+
+      // 1. Try Piped YouTube Music stream if videoId is present
+      if (track.videoId) {
+        for (const base of PIPED_INSTANCES) {
+          try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 3200);
+            const r = await fetch(`${base}/streams/${encodeURIComponent(track.videoId)}`, { signal: ctrl.signal });
+            clearTimeout(timer);
+            if (r.ok) {
+              const d = await r.json();
+              if (Array.isArray(d.audioStreams) && d.audioStreams.length > 0) {
+                const m4a = d.audioStreams.find(s => (s.mimeType || '').includes('mp4')) || d.audioStreams[0];
+                if (m4a && m4a.url) {
+                  track.streamUrl = m4a.url;
+                  return m4a.url;
+                }
+              }
+            }
+          } catch {}
+        }
+      }
+
+      // 2. Query iTunes Search API for instant CORS-safe AAC stream + 1080p cover
+      try {
+        const q = encodeURIComponent(`${track.title} ${track.artist}`);
+        const r = await fetch(`https://itunes.apple.com/search?term=${q}&entity=song&limit=3`);
+        if (r.ok) {
+          const d = await r.json();
+          if (Array.isArray(d.results) && d.results.length > 0) {
+            const hit = d.results[0];
+            if (hit.artworkUrl100 && (!track.cover || track.cover.includes('ytimg'))) {
+              track.cover = hit.artworkUrl100.replace('100x100bb', '1000x1000bb');
+            }
+            if (hit.previewUrl) {
+              track.streamUrl = hit.previewUrl;
+              return hit.previewUrl;
+            }
+          }
+        }
+      } catch {}
+      return null;
+    }
+
+    // Fetch Synced Lyrics from LRCLIB (100% CORS enabled)
+    async function fetchSyncedLyricsForTrack(track) {
+      activeLyrics = [
+        { time: 0, text: `♪ ${track.title} — ${track.artist} ♪` }
+      ];
+      renderLyricsStage();
+      try {
+        const q = `https://lrclib.net/api/search?track_name=${encodeURIComponent(track.title)}&artist_name=${encodeURIComponent(track.artist)}`;
+        const r = await fetch(q);
+        if (!r.ok) return;
+        const list = await r.json();
+        if (Array.isArray(list) && list.length > 0) {
+          const best = list.find(x => x && x.syncedLyrics) || list[0];
+          if (best && best.syncedLyrics) {
+            const parsed = [];
+            const lines = best.syncedLyrics.split(/\r?\n/);
+            for (const line of lines) {
+              const m = line.match(/^\[(\d+):(\d+(?:\.\d+)?)\](.*)$/);
+              if (m) {
+                const t = parseInt(m[1], 10) * 60 + parseFloat(m[2]);
+                const txt = m[3].trim() || '♪';
+                parsed.push({ time: t, text: txt });
+              }
+            }
+            if (parsed.length > 0) {
+              activeLyrics = parsed;
+              renderLyricsStage();
+              updateLyricsSync(true);
+            }
+          }
+        }
+      } catch {}
+    }
+
+    function renderLyricsStage() {
+      const stage = document.getElementById('np-lyrics-stage');
+      if (!stage) return;
+      stage.innerHTML = activeLyrics.map((l, i) => `
+        <div class="ios-lyric-line ${i === 0 ? 'active' : ''}" data-idx="${i}" data-time="${l.time}">
+          ${escapeHtml(l.text)}
+        </div>
+      `).join('');
+      stage.querySelectorAll('.ios-lyric-line').forEach(el => {
+        el.onclick = () => {
+          const t = parseFloat(el.getAttribute('data-time')) || 0;
+          seekTo(t);
+        };
+      });
+    }
+
+    function updateLyricsSync(force = false) {
+      if (!activeLyrics.length) return;
+      const adj = Math.max(0, currentTime - lyricsOffset);
+      let idx = 0;
+      for (let i = 0; i < activeLyrics.length; i++) {
+        if (activeLyrics[i].time <= adj) idx = i;
+        else break;
+      }
+      const snippet = document.getElementById('np-lyric-snippet');
+      if (snippet && activeLyrics[idx]) {
+        snippet.textContent = activeLyrics[idx].text === '♪' && activeLyrics[idx + 1]
+          ? activeLyrics[idx + 1].text
+          : activeLyrics[idx].text;
+      }
+      if (idx === lastActiveLyricIdx && !force) return;
+      lastActiveLyricIdx = idx;
+
+      const stage = document.getElementById('np-lyrics-stage');
+      if (!stage) return;
+      const els = stage.querySelectorAll('.ios-lyric-line');
+      els.forEach((el, i) => {
+        const dist = Math.abs(i - idx);
+        el.classList.toggle('active', i === idx);
+        el.classList.toggle('near', dist === 1);
+      });
+      const activeEl = els[idx];
+      if (activeEl && stage.classList.contains('active')) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // Update iOS Lock Screen / Dynamic Island MediaSession
+    function updateMediaSession(track) {
+      if (!('mediaSession' in navigator) || !track) return;
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title,
+          artist: track.artist,
+          album: track.album || 'Deja',
+          artwork: [
+            { src: track.cover || 'assets/icon.png', sizes: '512x512', type: 'image/jpeg' }
+          ]
+        });
+        navigator.mediaSession.setActionHandler('play', () => playCurrent());
+        navigator.mediaSession.setActionHandler('pause', () => pauseCurrent());
+        navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack());
+        navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack());
+        navigator.mediaSession.setActionHandler('seekto', (d) => {
+          if (d && typeof d.seekTime === 'number') seekTo(d.seekTime);
+        });
+      } catch {}
+    }
+
+    async function selectAndPlayTrack(track) {
+      const idx = catalogue.findIndex(x => x.id === track.id);
+      if (idx === -1) {
+        catalogue.unshift(track);
+        currentIndex = 0;
+      } else {
+        currentIndex = idx;
+      }
+
+      // Save to Recent
+      recentTracks = [track, ...recentTracks.filter(x => x.id !== track.id)].slice(0, 20);
+      localStorage.setItem('deja_ios_recent', JSON.stringify(recentTracks));
+
+      currentTime = 0;
+      lastActiveLyricIdx = -1;
+      usingYtFallback = false;
+      updatePlayerUI(track);
+      updateAuraFromCover(track.cover);
+      fetchSyncedLyricsForTrack(track);
+
+      const streamUrl = await resolveStreamForTrack(track);
+      updatePlayerUI(track);
+      updateMediaSession(track);
+
+      if (streamUrl) {
+        try {
+          if (ytPlayer && isYtReady && typeof ytPlayer.stopVideo === 'function') {
+            ytPlayer.stopVideo();
+          }
+          audioEl.src = streamUrl;
+          audioEl.currentTime = 0;
+          await audioEl.play();
+          isPlaying = true;
+          updatePlayButtons();
+          return;
+        } catch {}
+      }
+
+      // Fallback to YouTube IFrame API if videoId is available
+      if (track.videoId && isYtReady && ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+        usingYtFallback = true;
+        ytPlayer.loadVideoById(track.videoId);
+        ytPlayer.playVideo();
+        isPlaying = true;
+        updatePlayButtons();
+      }
+    }
+
+    function updatePlayerUI(track) {
+      if (!track) return;
+      document.getElementById('mini-title').textContent = track.title;
+      document.getElementById('mini-artist').textContent = `${track.artist} • ${track.album || 'Deja'}`;
+      document.getElementById('mini-art-img').src = track.cover || 'assets/icon.png';
+
+      document.getElementById('np-title').textContent = track.title;
+      document.getElementById('np-artist').textContent = `${track.artist} • ${track.album || 'Deja'}`;
+      document.getElementById('np-art-img').src = track.cover || 'assets/icon.png';
+
+      const favBtn = document.getElementById('btn-np-fav');
+      if (favBtn) {
+        const loved = likedIds.has(track.id);
+        favBtn.style.color = loved ? '#fa2d48' : '#fff';
+      }
+      renderCurrentTab();
+    }
+
+    function updatePlayButtons() {
+      const playSvg = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+      const pauseSvg = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
+      const miniIcon = document.getElementById('mini-play-icon');
+      const npIcon = document.getElementById('np-play-icon');
+      if (miniIcon) miniIcon.innerHTML = isPlaying ? pauseSvg : playSvg;
+      if (npIcon) npIcon.innerHTML = isPlaying ? pauseSvg : playSvg;
+    }
+
+    function playCurrent() {
+      const track = catalogue[currentIndex] || catalogue[0];
+      if (!track) return;
+      if (usingYtFallback && isYtReady && ytPlayer) {
+        ytPlayer.playVideo();
+        isPlaying = true;
+        updatePlayButtons();
+      } else if (audioEl.src) {
+        audioEl.play().then(() => {
+          isPlaying = true;
+          updatePlayButtons();
+        }).catch(() => selectAndPlayTrack(track));
+      } else {
+        selectAndPlayTrack(track);
+      }
+    }
+
+    function pauseCurrent() {
+      isPlaying = false;
+      try { audioEl.pause(); } catch {}
+      if (isYtReady && ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+        try { ytPlayer.pauseVideo(); } catch {}
+      }
+      updatePlayButtons();
+    }
+
+    function togglePlay() {
+      if (isPlaying) pauseCurrent();
+      else playCurrent();
+    }
+
+    function nextTrack() {
+      if (!catalogue.length) return;
+      if (isShuffle) {
+        currentIndex = Math.floor(Math.random() * catalogue.length);
+      } else {
+        currentIndex = (currentIndex + 1) % catalogue.length;
+      }
+      selectAndPlayTrack(catalogue[currentIndex]);
+    }
+
+    function prevTrack() {
+      if (currentTime > 3) {
+        seekTo(0);
+        return;
+      }
+      currentIndex = (currentIndex - 1 + catalogue.length) % catalogue.length;
+      selectAndPlayTrack(catalogue[currentIndex]);
+    }
+
+    function seekTo(sec) {
+      currentTime = Math.max(0, sec);
+      if (usingYtFallback && isYtReady && ytPlayer && typeof ytPlayer.seekTo === 'function') {
+        ytPlayer.seekTo(currentTime, true);
+      } else if (audioEl.src) {
+        try { audioEl.currentTime = currentTime; } catch {}
+      }
+      updateProgressUI();
+      updateLyricsSync(true);
+    }
+
+    function updateProgressUI() {
+      const track = catalogue[currentIndex] || catalogue[0];
+      const dur = (audioEl.duration && isFinite(audioEl.duration)) ? audioEl.duration : (track?.duration || 180);
+      const pct = Math.min(100, Math.max(0, (currentTime / dur) * 100));
+      document.getElementById('mini-progress-bar').style.width = `${pct}%`;
+      document.getElementById('np-scrubber-fill').style.width = `${pct}%`;
+      document.getElementById('np-time-cur').textContent = formatTime(currentTime);
+      document.getElementById('np-time-rem').textContent = `-${formatTime(Math.max(0, dur - currentTime))}`;
+    }
+
+    audioEl.addEventListener('timeupdate', () => {
+      if (!usingYtFallback) {
+        currentTime = audioEl.currentTime || 0;
+        updateProgressUI();
+        updateLyricsSync();
+      }
+    });
+
+    audioEl.addEventListener('ended', () => {
+      if (repeatMode === 'one') {
+        seekTo(0);
+        playCurrent();
+      } else {
+        nextTrack();
+      }
+    });
+
+    // Live Search via iTunes + Piped
+    let searchTimer = null;
+    async function performSearch(query) {
+      const q = (query || '').trim();
+      if (!q) {
+        searchResults = [];
+        renderCurrentTab();
+        return;
+      }
+      try {
+        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=25`);
+        if (r.ok) {
+          const d = await r.json();
+          searchResults = (d.results || []).map(item => ({
+            id: `itunes-${item.trackId}`,
+            videoId: '',
+            title: item.trackName || 'Track',
+            artist: item.artistName || 'Artist',
+            album: item.collectionName || 'Album',
+            duration: Math.round((item.trackTimeMillis || 180000) / 1000),
+            cover: (item.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+            streamUrl: item.previewUrl || ''
+          }));
+          renderCurrentTab();
+        }
+      } catch {}
+    }
+
+    function toggleLike(track, e) {
+      if (e) e.stopPropagation();
+      if (likedIds.has(track.id)) likedIds.delete(track.id);
+      else likedIds.add(track.id);
+      localStorage.setItem('deja_ios_liked', JSON.stringify([...likedIds]));
+      updatePlayerUI(catalogue[currentIndex]);
+    }
+
+    // Render Tab Views
+    function renderCurrentTab() {
+      const main = document.getElementById('ios-main-scroll');
+      const titleEl = document.getElementById('top-view-title');
+      if (!main) return;
+      const curTrack = catalogue[currentIndex];
+
+      if (currentTab === 'home') {
+        if (titleEl) titleEl.textContent = 'Home';
+        main.innerHTML = `
+          <div class="section-header" style="margin-top:6px;">
+            <span class="section-title">Featured &amp; Motion</span>
+            <span class="section-sub">Apple Music &amp; YTM</span>
+          </div>
+          <div class="horiz-scroll">
+            ${catalogue.slice(0, 8).map((t, idx) => `
+              <div class="album-card" data-play-idx="${idx}">
+                <div class="album-card-art-wrap">
+                  <img class="album-card-art" src="${escapeHtml(t.cover)}" alt="${escapeHtml(t.title)}" loading="lazy" />
+                  <div class="album-card-play">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  </div>
+                </div>
+                <div class="album-card-title">${escapeHtml(t.title)}</div>
+                <div class="album-card-sub">${escapeHtml(t.artist)}</div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="section-header">
+            <span class="section-title">Quick Picks</span>
+            <span class="section-sub">Instant Stream</span>
+          </div>
+          <div class="song-list">
+            ${catalogue.map((t, idx) => `
+              <div class="song-row ${curTrack && curTrack.id === t.id ? 'playing' : ''}" data-play-idx="${idx}">
+                <img class="song-row-art" src="${escapeHtml(t.cover)}" alt="${escapeHtml(t.title)}" loading="lazy" />
+                <div class="song-row-meta">
+                  <div class="song-row-title">${escapeHtml(t.title)}</div>
+                  <div class="song-row-sub">${escapeHtml(t.artist)} • ${escapeHtml(t.album)}</div>
+                </div>
+                <button class="song-row-fav ${likedIds.has(t.id) ? 'loved' : ''}" data-fav-idx="${idx}" aria-label="Like">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="${likedIds.has(t.id) ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else if (currentTab === 'search') {
+        if (titleEl) titleEl.textContent = 'Search';
+        const existingInput = document.getElementById('ios-search-input');
+        const prevVal = existingInput ? existingInput.value : '';
+        const list = searchResults.length > 0 ? searchResults : catalogue;
+        main.innerHTML = `
+          <div class="ios-search-box">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="ios-search-input" placeholder="Search songs, artists, albums..." value="${escapeHtml(prevVal)}" />
+          </div>
+          <div class="section-header" style="margin-top:8px;">
+            <span class="section-title">${searchResults.length > 0 ? 'Top Results' : 'Trending Searches'}</span>
+            <span class="section-sub">${list.length} tracks</span>
+          </div>
+          <div class="song-list">
+            ${list.map((t, idx) => `
+              <div class="song-row ${curTrack && curTrack.id === t.id ? 'playing' : ''}" data-search-idx="${idx}">
+                <img class="song-row-art" src="${escapeHtml(t.cover)}" alt="${escapeHtml(t.title)}" loading="lazy" />
+                <div class="song-row-meta">
+                  <div class="song-row-title">${escapeHtml(t.title)}</div>
+                  <div class="song-row-sub">${escapeHtml(t.artist)} • ${escapeHtml(t.album)}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        const inp = document.getElementById('ios-search-input');
+        if (inp) {
+          inp.oninput = (e) => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => performSearch(e.target.value), 260);
+          };
+        }
+        main.querySelectorAll('[data-search-idx]').forEach(el => {
+          el.onclick = () => {
+            const item = list[Number(el.getAttribute('data-search-idx'))];
+            if (item) selectAndPlayTrack(item);
+          };
+        });
+        return;
+      } else if (currentTab === 'library') {
+        if (titleEl) titleEl.textContent = 'Library';
+        const likedList = catalogue.filter(t => likedIds.has(t.id));
+        const displayList = likedList.length > 0 ? likedList : (recentTracks.length > 0 ? recentTracks : catalogue.slice(0, 6));
+        main.innerHTML = `
+          <div class="section-header" style="margin-top:6px;">
+            <span class="section-title">Liked Songs (${likedList.length})</span>
+            <span class="section-sub">Saved on iPhone</span>
+          </div>
+          <div class="song-list">
+            ${displayList.map((t, idx) => `
+              <div class="song-row ${curTrack && curTrack.id === t.id ? 'playing' : ''}" data-lib-idx="${idx}">
+                <img class="song-row-art" src="${escapeHtml(t.cover)}" alt="${escapeHtml(t.title)}" />
+                <div class="song-row-meta">
+                  <div class="song-row-title">${escapeHtml(t.title)}</div>
+                  <div class="song-row-sub">${escapeHtml(t.artist)} • ${escapeHtml(t.album)}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        main.querySelectorAll('[data-lib-idx]').forEach(el => {
+          el.onclick = () => {
+            const item = displayList[Number(el.getAttribute('data-lib-idx'))];
+            if (item) selectAndPlayTrack(item);
+          };
+        });
+        return;
+      } else if (currentTab === 'replay') {
+        if (titleEl) titleEl.textContent = 'Replay & Settings';
+        const topTrack = recentTracks[0] || catalogue[0];
+        main.innerHTML = `
+          <div class="section-header" style="margin-top:6px;">
+            <span class="section-title">Your Deja Replay</span>
+            <span class="section-sub">Live Stats</span>
+          </div>
+          <div class="replay-grid">
+            <div class="replay-card c1">
+              <div class="replay-card-label">Minutes Listened</div>
+              <div class="replay-card-val">${minutesListened}m</div>
+              <div class="replay-card-sub">Deja iOS Listener</div>
+            </div>
+            <div class="replay-card c2">
+              <div class="replay-card-label">Top Artist</div>
+              <div class="replay-card-val">${escapeHtml(topTrack?.artist || 'Taylor Swift')}</div>
+              <div class="replay-card-sub">Most streamed</div>
+            </div>
+            <div class="replay-card c3">
+              <div class="replay-card-label">Top Track</div>
+              <div class="replay-card-val">${escapeHtml(topTrack?.title || 'Anti-Hero')}</div>
+              <div class="replay-card-sub">${escapeHtml(topTrack?.artist || '')}</div>
+            </div>
+            <div class="replay-card c4">
+              <div class="replay-card-label">Top Album</div>
+              <div class="replay-card-val">${escapeHtml(topTrack?.album || 'Midnights')}</div>
+              <div class="replay-card-sub">Lossless Aura</div>
+            </div>
+          </div>
+
+          <div class="section-header">
+            <span class="section-title">iOS App Settings</span>
+            <span class="section-sub">BitChord Engine</span>
+          </div>
+          <div class="settings-group">
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-title">Add to iPhone Home Screen</div>
+                <div class="settings-row-sub">Install full-screen without sideloading or PC</div>
+              </div>
+              <button class="a2hs-btn-guide" id="btn-settings-a2hs">Install Guide</button>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-title">Apple Music Motion Art</div>
+                <div class="settings-row-sub">Animated 1:1 album covers in Now Playing</div>
+              </div>
+              <button class="ios-toggle ${motionEnabled ? 'on' : ''}" id="toggle-motion"></button>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-title">iOS Lock Screen Controls</div>
+                <div class="settings-row-sub">Dynamic Island &amp; Control Center MediaSession</div>
+              </div>
+              <button class="ios-toggle on"></button>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-title">Deja Version</div>
+                <div class="settings-row-sub">v1.2.3 (BitChord iOS Home Screen Edition)</div>
+              </div>
+              <span class="ios-brand-badge">Up to Date</span>
+            </div>
+          </div>
+        `;
+        const btnA2hs = document.getElementById('btn-settings-a2hs');
+        if (btnA2hs) btnA2hs.onclick = () => document.getElementById('ios-guide-modal')?.classList.add('open');
+        const togMotion = document.getElementById('toggle-motion');
+        if (togMotion) {
+          togMotion.onclick = () => {
+            motionEnabled = !motionEnabled;
+            localStorage.setItem('deja_ios_motion', String(motionEnabled));
+            renderCurrentTab();
+          };
+        }
+        return;
+      }
+
+      // Bind play & like events on Home view
+      main.querySelectorAll('[data-play-idx]').forEach(el => {
+        el.onclick = (e) => {
+          if (e.target.closest('[data-fav-idx]')) return;
+          const idx = Number(el.getAttribute('data-play-idx'));
+          if (catalogue[idx]) selectAndPlayTrack(catalogue[idx]);
+        };
+      });
+      main.querySelectorAll('[data-fav-idx]').forEach(btn => {
+        btn.onclick = (e) => {
+          const idx = Number(btn.getAttribute('data-fav-idx'));
+          if (catalogue[idx]) toggleLike(catalogue[idx], e);
+        };
+      });
+    }
+
+    // Setup UI Event Listeners
+    function initEvents() {
+      checkStandaloneMode();
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentTab = btn.getAttribute('data-tab') || 'home';
+          renderCurrentTab();
+        };
+      });
+
+      document.getElementById('ios-mini-player').onclick = (e) => {
+        if (e.target.closest('#mini-btn-play') || e.target.closest('#mini-btn-next')) return;
+        document.getElementById('now-playing-sheet').classList.add('open');
+      };
+      document.getElementById('btn-close-np').onclick = () => {
+        document.getElementById('now-playing-sheet').classList.remove('open');
+      };
+
+      document.getElementById('mini-btn-play').onclick = (e) => { e.stopPropagation(); togglePlay(); };
+      document.getElementById('mini-btn-next').onclick = (e) => { e.stopPropagation(); nextTrack(); };
+      document.getElementById('np-btn-play').onclick = () => togglePlay();
+      document.getElementById('np-btn-next').onclick = () => nextTrack();
+      document.getElementById('np-btn-prev').onclick = () => prevTrack();
+
+      document.getElementById('np-btn-shuffle').onclick = (e) => {
+        isShuffle = !isShuffle;
+        e.currentTarget.classList.toggle('active', isShuffle);
+      };
+      document.getElementById('np-btn-repeat').onclick = (e) => {
+        repeatMode = repeatMode === 'off' ? 'one' : 'off';
+        e.currentTarget.classList.toggle('active', repeatMode === 'one');
+      };
+
+      const toggleLyricsView = () => {
+        const lyricsStage = document.getElementById('np-lyrics-stage');
+        const artSquare = document.getElementById('np-art-square');
+        const btnLyrics = document.getElementById('np-btn-lyrics');
+        const showing = lyricsStage.classList.toggle('active');
+        artSquare.style.display = showing ? 'none' : 'block';
+        btnLyrics.classList.toggle('active', showing);
+        if (showing) updateLyricsSync(true);
+      };
+      document.getElementById('np-btn-lyrics').onclick = toggleLyricsView;
+      document.getElementById('np-lyric-capsule').onclick = toggleLyricsView;
+
+      document.getElementById('btn-np-fav').onclick = (e) => {
+        const cur = catalogue[currentIndex];
+        if (cur) toggleLike(cur, e);
+      };
+
+      document.getElementById('np-scrubber-bar').onclick = (e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const dur = (audioEl.duration && isFinite(audioEl.duration)) ? audioEl.duration : (catalogue[currentIndex]?.duration || 180);
+        seekTo(ratio * dur);
+      };
+
+      // Add to Home Screen Guide Modal
+      const guideModal = document.getElementById('ios-guide-modal');
+      document.getElementById('btn-open-a2hs-guide').onclick = () => guideModal.classList.add('open');
+      document.getElementById('btn-header-install').onclick = () => guideModal.classList.add('open');
+      document.getElementById('btn-close-guide-modal').onclick = () => guideModal.classList.remove('open');
+      document.getElementById('btn-done-guide').onclick = () => guideModal.classList.remove('open');
+      document.getElementById('btn-close-a2hs').onclick = () => {
+        localStorage.setItem('deja_a2hs_dismissed', '1');
+        checkStandaloneMode();
+      };
+
+      // Load initial track metadata
+      updatePlayerUI(catalogue[0]);
+      updateAuraFromCover(catalogue[0].cover);
+      fetchSyncedLyricsForTrack(catalogue[0]);
+      loadLiveCharts();
+
+      // Register Service Worker for offline / Home Screen launch
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      }
+    }
+
+    // Load YouTube IFrame API as additional playback engine
+    window.onYouTubeIframeAPIReady = function () {
+      try {
+        ytPlayer = new YT.Player('ios-yt-player', {
+          height: '1',
+          width: '1',
+          videoId: 'b1kbLwvqugk',
+          playerVars: { playsinline: 1, autoplay: 0, controls: 0 },
+          events: {
+            onReady: () => { isYtReady = true; }
+          }
+        });
+      } catch {}
+    };
+    const ytScript = document.createElement('script');
+    ytScript.src = 'https://www.youtube.com/iframe_api';
+    ytScript.async = true;
+    document.head.appendChild(ytScript);
+
+    initEvents();
+  </script>
+</body>
+</html>

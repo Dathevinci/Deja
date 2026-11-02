@@ -2,7 +2,7 @@
   "name": "Deja — 2-Bit Edition",
   "short_name": "Deja",
   "description": "YouTube Music with Apple Music Motion & 60fps Word-Synced Lyrics for Windows, Android, and iOS.",
-  "start_url": "./index.html",
+  "start_url": "./app.html",
   "display": "standalone",
   "background_color": "#0B090A",
   "theme_color": "#0B090A",

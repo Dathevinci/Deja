@@ -1,7 +1,8 @@
-const CACHE_NAME = 'deja-2bit-v1.2.3';
+const CACHE_NAME = 'deja-2bit-v1.2.3-ios';
 const ASSETS = [
   './',
   './index.html',
+  './app.html',
   './style.css',
   './script.js',
   './manifest.json',
