@@ -58,6 +58,11 @@ app.userAgentFallback = CHROME_UA;
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // Prevent Google automation detection ("This browser or app may not be secure")
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+// v1.2 Performance & Hardware Acceleration Switches
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('enable-features', 'CanvasOopRasterization,BackForwardCache');
 
 let mainWindow = null;
 let forceShowTimeout = null;
@@ -1790,6 +1795,88 @@ async function handleGetLyrics(event, query) {
 ipcMain.handle('yt-get-lyrics', handleGetLyrics);
 ipcMain.handle('innertube-get-lyrics', handleGetLyrics);
 
+
+// ============================================================================
+// Deja v1.2 Over-The-Air (OTA) Update Checker & 1-Click Installer
+// Matches BitChord AppUpdateChecker.kt architecture for Desktop
+// ============================================================================
+const DEJA_LATEST_RELEASE_API = 'https://api.github.com/repos/Dathevinci/Deja/releases/latest';
+
+function isVersionNewer(latestStr, currentStr) {
+  const parse = (v) => String(v || '0').replace(/^v/i, '').split('-')[0].split('.').map(n => parseInt(n, 10) || 0);
+  const l = parse(latestStr);
+  const c = parse(currentStr);
+  const len = Math.max(l.length, c.length);
+  for (let i = 0; i < len; i++) {
+    const a = l[i] || 0;
+    const b = c[i] || 0;
+    if (a !== b) return a > b;
+  }
+  return false;
+}
+
+async function checkGitHubReleaseUpdate() {
+  try {
+    const currentVersion = app.getVersion() || '1.2.0';
+    const res = await fetch(DEJA_LATEST_RELEASE_API, {
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'Deja-Desktop-Updater/1.2'
+      }
+    });
+    if (!res.ok) return { updateAvailable: false, currentVersion };
+    const release = await res.json();
+    const latestTag = String(release.tag_name || '').trim();
+    const latestVersion = latestTag.replace(/^v/i, '');
+    const assets = Array.isArray(release.assets) ? release.assets : [];
+    const exeAsset = assets.find(a => a && a.name && /Setup.*\.exe$/i.test(a.name)) ||
+                     assets.find(a => a && a.name && /\.exe$/i.test(a.name));
+    const apkAsset = assets.find(a => a && a.name && /\.apk$/i.test(a.name));
+    const updateAvailable = isVersionNewer(latestVersion, currentVersion);
+    return {
+      updateAvailable,
+      currentVersion,
+      latestVersion,
+      releaseUrl: release.html_url || 'https://github.com/Dathevinci/Deja/releases/latest',
+      exeUrl: exeAsset ? exeAsset.browser_download_url : null,
+      apkUrl: apkAsset ? apkAsset.browser_download_url : null,
+      notes: release.body || ''
+    };
+  } catch (err) {
+    return { updateAvailable: false, currentVersion: app.getVersion() || '1.2.0', error: err.message };
+  }
+}
+
+ipcMain.handle('check-for-updates', async () => {
+  const info = await checkGitHubReleaseUpdate();
+  if (info && info.updateAvailable && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-available', info);
+  }
+  return info;
+});
+
+ipcMain.handle('install-update', async (event, downloadUrl) => {
+  try {
+    const targetUrl = downloadUrl || 'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.0.exe';
+    const tempDir = app.getPath('temp');
+    const installerPath = path.join(tempDir, `Deja-Update-Setup-${Date.now()}.exe`);
+    const res = await fetch(targetUrl, {
+      headers: { 'User-Agent': 'Deja-Desktop-Updater/1.2' }
+    });
+    if (!res.ok) {
+      await shell.openExternal('https://github.com/Dathevinci/Deja/releases/latest');
+      return { ok: true, openedExternal: true };
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    fs.writeFileSync(installerPath, buf);
+    await shell.openPath(installerPath);
+    return { ok: true, installerPath };
+  } catch (err) {
+    await shell.openExternal('https://github.com/Dathevinci/Deja/releases/latest');
+    return { ok: false, error: err.message };
+  }
+});
+
 // App Lifecycle
 app.whenReady().then(async () => {
   startSyncServer();
@@ -2028,6 +2115,12 @@ app.whenReady().then(async () => {
         }
       }
       pushStartupAuth();
+      setTimeout(async () => {
+        const up = await checkGitHubReleaseUpdate();
+        if (up && up.updateAvailable && mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update-available', up);
+        }
+      }, 3500);
     });
   }
 

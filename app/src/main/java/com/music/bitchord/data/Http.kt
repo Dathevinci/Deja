@@ -132,11 +132,14 @@ object Http {
     }
 
     val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(12, TimeUnit.SECONDS)
+        .readTimeout(25, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
-        .dispatcher(Dispatcher().apply { maxRequestsPerHost = 16 })
-        .connectionPool(ConnectionPool(16, 5, TimeUnit.MINUTES))
+        .dispatcher(Dispatcher().apply {
+            maxRequests = 64
+            maxRequestsPerHost = 24
+        })
+        .connectionPool(ConnectionPool(24, 5, TimeUnit.MINUTES))
         .addInterceptor(webDavInterceptor)
         .apply { if (USAGE_LOGGING_ENABLED) addNetworkInterceptor(usageInterceptor) }
         .build()

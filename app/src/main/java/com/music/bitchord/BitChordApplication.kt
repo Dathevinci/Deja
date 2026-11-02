@@ -51,13 +51,8 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
         val backgroundInit = thread(name = "startup-init") {
             SourceRegistry.init(this)
             InnerTubeXResolver.init(this)
-            // Its own directory: canvas clips are looping video, not audio, and
-            // belong in a cache AudioCache's own limit and eviction policy were
-            // never sized for. See CanvasCache's doc for why this one exists at
-            // all — it is the fix for canvas clips re-fetching the same few
-            // seconds of video from the network on every loop.
             CanvasCache.init(this)
-        }
+                    }
         // Migration-safe: an old single cookie becomes the first encrypted
         // session, while newer installs restore the profile the listener chose.
         val restoredSession = authStore.activeSession
@@ -94,16 +89,13 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
         OriginalVersion.init(this)
         // What's already saved to Downloads, so the song menu can say so
         // without a media-store query per row.
-        Downloads.init(this)
         // The device's own listening record. Opened here rather than in
         // PlaybackService because the Replay page reads it from the UI side and
         // both live in this process — one owner, one directory.
-        ListeningStats.init(this)
         // After AppSettings, whose switch decides whether half of it runs.
         ArtistFacts.init(this)
         // One cache directory can only be opened once per process, and
         // PlaybackService shares this one — so it's opened here, not there.
-        AudioCache.init(this)
         // The offscreen WebView that mints a Spotify access token from the
         // listener's own session cookie needs a Context, and nothing in the
         // suspend call chain that reaches it (a track's canvas lookup) has
@@ -149,18 +141,16 @@ class BitChordApplication : Application(), SingletonImageLoader.Factory {
             }
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.20)
+                    .maxSizePercent(context, 0.25)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(100L * 1024 * 1024)
+                    .maxSizeBytes(256L * 1024 * 1024)
                     .build()
             }
-            // Covers arriving with a hard cut read as the list flickering as
-            // it scrolls; a short fade reads as them developing.
-            .crossfade(200)
+            .crossfade(140)
             .build()
 
     private fun initLastfm() {

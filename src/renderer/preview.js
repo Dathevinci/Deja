@@ -1454,9 +1454,14 @@ function deriveTrackPalette(seed) {
  * Samples pixel data from an image and derives a 4-color dynamic mesh palette
  * following BitChord MeshGradient.kt (tuned & expandedToFour).
  */
+const extractedPaletteCache = new Map();
 function extractPaletteFromImage(imageUrl, callback) {
   if (typeof Image === 'undefined' || typeof document === 'undefined' || !imageUrl) {
     if (callback) callback(null);
+    return;
+  }
+  if (extractedPaletteCache.has(imageUrl)) {
+    if (callback) callback(extractedPaletteCache.get(imageUrl));
     return;
   }
 
@@ -1465,15 +1470,15 @@ function extractPaletteFromImage(imageUrl, callback) {
   img.onload = () => {
     try {
       const canvas = document.createElement('canvas');
-      canvas.width = 32;
-      canvas.height = 32;
+      canvas.width = 16;
+      canvas.height = 16;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         if (callback) callback(null);
         return;
       }
-      ctx.drawImage(img, 0, 0, 32, 32);
-      const imgData = ctx.getImageData(0, 0, 32, 32).data;
+      ctx.drawImage(img, 0, 0, 16, 16);
+      const imgData = ctx.getImageData(0, 0, 16, 16).data;
 
       // Sample colors from pixels
       const colors = [];
@@ -1523,6 +1528,7 @@ function extractPaletteFromImage(imageUrl, callback) {
         primaryB: pB
       };
 
+      extractedPaletteCache.set(imageUrl, palette);
       if (callback) callback(palette);
     } catch (e) {
       if (callback) callback({
@@ -4294,7 +4300,7 @@ function renderCardGridHTML(tracksList) {
     return `
       <div class="apple-music-card" onclick="selectTrack(${idx})">
         <div class="card-thumb-wrapper">
-          <img src="${t.cover}" class="card-thumb track-card-img" alt="${t.title}">
+          <img src="${t.cover}" class="card-thumb track-card-img" alt="${t.title}" loading="lazy" decoding="async">
           <div class="card-play-btn">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -5607,11 +5613,14 @@ if (typeof window !== 'undefined') {
   window.seekTo = seekTo;
 }
 
+let _lastRenderedTimeStr = '';
+let _lastRenderedRemStr = '';
 function updateProgress() {
   if (typeof document === 'undefined') return;
   const track = CATALOGUE_TRACKS[currentIndex];
   if (!track || !track.duration) return;
   const pct = Math.min(100, Math.max(0, (currentTime / track.duration) * 100));
+  const pctStr = `${pct.toFixed(2)}%`;
   const timeStr = formatTime(currentTime);
   const remainingSec = Math.max(0, track.duration - currentTime);
   const remainingStr = '-' + formatTime(remainingSec);
@@ -5619,18 +5628,20 @@ function updateProgress() {
   const curEl = document.getElementById('time-current');
   const fillEl = document.getElementById('scrubber-fill');
   const knobEl = document.getElementById('scrubber-knob');
-  if (curEl) curEl.innerText = timeStr;
-  if (fillEl) fillEl.style.width = `${pct}%`;
-  if (knobEl) knobEl.style.left = `${pct}%`;
+  if (curEl && timeStr !== _lastRenderedTimeStr) curEl.innerText = timeStr;
+  if (fillEl) fillEl.style.width = pctStr;
+  if (knobEl) knobEl.style.left = pctStr;
 
   const expCurEl = document.getElementById('exp-time-current');
   const expTotalEl = document.getElementById('exp-time-total');
   const expFillEl = document.getElementById('exp-scrubber-fill');
   const expKnobEl = document.getElementById('exp-scrubber-knob');
-  if (expCurEl) expCurEl.innerText = timeStr;
-  if (expTotalEl) expTotalEl.innerText = remainingStr;
-  if (expFillEl) expFillEl.style.width = `${pct}%`;
-  if (expKnobEl) expKnobEl.style.left = `${pct}%`;
+  if (expCurEl && timeStr !== _lastRenderedTimeStr) expCurEl.innerText = timeStr;
+  if (expTotalEl && remainingStr !== _lastRenderedRemStr) expTotalEl.innerText = remainingStr;
+  if (expFillEl) expFillEl.style.width = pctStr;
+  if (expKnobEl) expKnobEl.style.left = pctStr;
+  _lastRenderedTimeStr = timeStr;
+  _lastRenderedRemStr = remainingStr;
 }
 
 /**
@@ -5680,12 +5691,41 @@ function updateSyncedLyrics(forceScroll = false) {
   }
 
   // Synchronize both drawer and Now Playing screen lyrics containers
+  const lineChanged = (activeIndex !== lastActiveLyricIndex) || forceScroll;
   const containers = (typeof document.getElementById === 'function' ? [
     document.getElementById('lyrics-lines-container'),
     document.getElementById('expanded-lyrics-container')
   ] : []).filter(Boolean);
 
   containers.forEach(container => {
+    if (!lineChanged) {
+      // Fast path (60fps): Only update word-by-word sweep on the single active line!
+      if (isSynced && activeIndex >= 0 && container.querySelectorAll) {
+        const activeEl = container.querySelectorAll('.apple-lyric-line')?.[activeIndex];
+        if (activeEl && activeEl.querySelectorAll) {
+          const wordSpans = activeEl.querySelectorAll('.lyric-word-span');
+          if (wordSpans && wordSpans.length > 0) {
+            wordSpans.forEach(span => {
+              const wStart = parseFloat(span.getAttribute ? span.getAttribute('data-start') : span.dataset?.start);
+              const wEnd = parseFloat(span.getAttribute ? span.getAttribute('data-end') : span.dataset?.end);
+              let progress = 0;
+              if (!isNaN(wStart) && !isNaN(wEnd)) {
+                if (exactLyricsTime >= wEnd) progress = 1;
+                else if (exactLyricsTime > wStart) progress = (exactLyricsTime - wStart) / Math.max(0.05, wEnd - wStart);
+              }
+              if (span.classList && span.classList.toggle) {
+                span.classList.toggle('word-sung', progress >= 1);
+                span.classList.toggle('word-active', progress > 0 && progress < 1);
+              }
+              if (span.style && span.style.setProperty) {
+                span.style.setProperty('--word-fill', `${(progress * 100).toFixed(1)}%`);
+              }
+            });
+          }
+        }
+      }
+      return;
+    }
     if (!container.querySelectorAll) return;
     const lyricElements = container.querySelectorAll('.apple-lyric-line');
     if (!lyricElements) return;
@@ -8112,6 +8152,20 @@ function renderSettingsView(container) {
       </div>
     `);
   }
+  if (matches('Check for Updates', 'update', 'version', '1.2', 'release', 'upgrade')) {
+    g9Rows.push(`
+      <div class="bitchord-settings-row" data-setting-action="check-updates">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">App Updates &amp; Version</div>
+          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.2.0 (2-Bit Optimized Edition) — Click to check GitHub Releases for updates</div>
+        </div>
+        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.2.0</span>
+      </div>
+    `);
+  }
   if (g9Rows.length) groups.push({ header: 'Miscellaneous & Advanced', rows: g9Rows });
 
   container.innerHTML = `
@@ -8134,7 +8188,7 @@ function renderSettingsView(container) {
 
       <div class="bitchord-settings-colophon">
         <div>
-          <strong>deja 1.0.0</strong>
+          <strong>deja 1.2.0</strong>
           <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="https://github.com/Dathevinci" target="_blank" rel="noopener noreferrer">Developer</a>
           <a href="https://dathevinci.github.io/Deja/" target="_blank" rel="noopener noreferrer">Website</a>
@@ -8257,7 +8311,7 @@ function renderSettingsView(container) {
         try {
           const payload = {
             app: 'Deja',
-            version: '1.0.0',
+            version: '1.2.0',
             exportedAt: new Date().toISOString(),
             settings: bitchordSettings,
             customPlaylists,
@@ -8285,6 +8339,25 @@ function renderSettingsView(container) {
       } else if (act === 'open-downloads-folder') {
         const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
         if (api?.openDownloadsFolder) api.openDownloadsFolder();
+      } else if (act === 'check-updates') {
+        const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+        const sub = document.getElementById('settings-update-status-sub');
+        const badge = document.getElementById('settings-update-badge');
+        if (sub) sub.textContent = 'Checking GitHub Releases for newer version...';
+        if (api?.checkForUpdates) {
+          api.checkForUpdates().then(info => {
+            if (info && info.updateAvailable) {
+              if (sub) sub.textContent = `Update v${info.latestVersion} is available! Downloading & launching installer...`;
+              if (badge) badge.textContent = `Update v${info.latestVersion}`;
+              if (api.installUpdate) api.installUpdate(info.exeUrl);
+            } else {
+              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.2.0'}).`;
+              if (badge) badge.textContent = 'Up to Date';
+            }
+          }).catch(() => {
+            if (sub) sub.textContent = 'Deja v1.2.0 is up to date.';
+          });
+        }
       }
     };
   });
@@ -8898,6 +8971,22 @@ function onTrackChangedForVideoMode(track) {
 if (typeof document !== 'undefined') {
   const bindVideoAndDownloadControls = () => {
     refreshDownloadsList();
+    const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+    if (api?.onUpdateAvailable) {
+      api.onUpdateAvailable((info) => {
+        if (info && info.updateAvailable) {
+          showDownloadToast(`Deja v${info.latestVersion} Update Available!`, `Click to install the new v${info.latestVersion} update`, null);
+          const openBtn = document.getElementById('deja-dl-toast-open');
+          if (openBtn) {
+            openBtn.textContent = `Update to v${info.latestVersion}`;
+            openBtn.style.display = 'inline-flex';
+            openBtn.onclick = () => {
+              if (api.installUpdate) api.installUpdate(info.exeUrl);
+            };
+          }
+        }
+      });
+    }
 
     const btnDlBar = document.getElementById('btn-download-track');
     if (btnDlBar) {

@@ -4975,3 +4975,30 @@ body.deja-playing .now-playing-art-wrap,
 .deja-dl-toast-btn:hover {
   background: rgba(255, 255, 255, 0.22);
 }
+
+
+/* ============================================================================
+   Deja v1.2 Whole-App GPU, Compositor & Scrolling Optimizations
+   - Eliminates background 1920x1080 blur(72px) & mesh blob repaints when collapsed
+   - Enforces layout/style containment on cards and song rows for locked 60/120fps scrolling
+   ============================================================================ */
+.deja-expanded-player-view:not(.visible) .deja-player-ambient-aura,
+.deja-expanded-player-view:not(.visible) .deja-ambient-art-blur,
+.deja-expanded-player-view:not(.visible) .mesh-blob {
+  animation-play-state: paused !important;
+  will-change: auto !important;
+  display: none !important;
+}
+
+.apple-lyrics-drawer:not(.open):not(.visible) .lyrics-dynamic-aura {
+  animation-play-state: paused !important;
+  will-change: auto !important;
+  display: none !important;
+}
+
+.apple-music-card,
+.bitchord-search-song-row,
+.song-row,
+.bitchord-settings-card {
+  contain: layout style;
+}

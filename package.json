@@ -1,6 +1,6 @@
 {
   "name": "deja",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "A clean, modern Apple Music-styled desktop client for YouTube Music.",
   "main": "src/main/main.js",
   "author": "Deja Contributors",

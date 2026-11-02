@@ -43,6 +43,11 @@ const dejaAPI = {
   startCookieSyncServer: () => ipcRenderer.invoke('start-cookie-sync-server'),
   logoutGoogle: () => ipcRenderer.invoke('logout-google'),
   rateSong: (videoId, status) => ipcRenderer.invoke('yt-rate', { videoId, status }),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  installUpdate: (url) => ipcRenderer.invoke('install-update', url),
+  onUpdateAvailable: (callback) => {
+    ipcRenderer.on('update-available', (event, data) => callback(data));
+  },
   onDownloadProgress: (callback) => {
     ipcRenderer.on('download-progress', (event, data) => callback(data));
   },
