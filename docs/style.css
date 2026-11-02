@@ -2433,3 +2433,821 @@ body {
   .footer-content { flex-direction: column; text-align: center; gap: 16px; }
 }
 
+
+
+
+/* ==========================================================================
+   DEJA 2-BIT PIXEL ART & MOTION GRAPHICS UI/UX SYSTEM
+   4-Tone Palette derived directly from the Deja Fallen Angel 2-Bit Logo:
+   Bit 00 (Obsidian Ink): #0B090A
+   Bit 01 (Crimson Wing): #8C2D33 / #B8363F
+   Bit 10 (Ash Pewter)  : #8E8683
+   Bit 11 (Bone Ivory)  : #F4EFEA
+   ========================================================================== */
+
+:root {
+  --bit-00: #0B090A;
+  --bit-00-elevated: #141012;
+  --bit-00-panel: #1B1518;
+  --bit-01: #8C2D33;
+  --bit-01-bright: #C43B44;
+  --bit-01-deep: #4A181B;
+  --bit-10: #968E8B;
+  --bit-10-dim: #544D4B;
+  --bit-11: #F4EFEA;
+  --bit-11-pure: #FFFDF9;
+
+  --ruby: #C43B44;
+  --ruby-hover: #D94851;
+  --ruby-glow: rgba(196, 59, 68, 0.38);
+  --ruby-soft: rgba(140, 45, 51, 0.24);
+  --bg-base: var(--bit-00);
+  --bg-elevated: rgba(20, 16, 18, 0.92);
+  --bg-card: #141012;
+  --border-subtle: #332A2D;
+  --border-prominent: #5C4E52;
+  --text-primary: var(--bit-11);
+  --text-secondary: #B8B0AC;
+  --text-tertiary: var(--bit-10);
+
+  --font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-pixel: 'Silkscreen', 'JetBrains Mono', monospace;
+  --font-mono: 'JetBrains Mono', monospace;
+  --ease-apple: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --hard-shadow: 4px 4px 0px #000000;
+  --hard-shadow-crimson: 4px 4px 0px var(--bit-01-deep);
+  --hard-shadow-hover: 6px 6px 0px var(--bit-01);
+}
+
+/* Light 2-Bit Ivory Polarity (Matches the White/Alabaster Logo Background) */
+body.twobit-ivory {
+  --bit-00: #EFEAE4;
+  --bit-00-elevated: #F7F3EE;
+  --bit-00-panel: #FFFFFF;
+  --bit-01: #7A2227;
+  --bit-01-bright: #9E2A31;
+  --bit-01-deep: #4A181B;
+  --bit-10: #69615E;
+  --bit-10-dim: #BDB5B0;
+  --bit-11: #140F11;
+  --bit-11-pure: #090708;
+
+  --ruby: #8C2D33;
+  --ruby-hover: #6E1F24;
+  --ruby-glow: rgba(140, 45, 51, 0.25);
+  --ruby-soft: rgba(140, 45, 51, 0.12);
+  --bg-base: #EFEAE4;
+  --bg-elevated: rgba(247, 243, 238, 0.94);
+  --bg-card: #F8F5F0;
+  --border-subtle: #CFC7C0;
+  --border-prominent: #2E2528;
+  --text-primary: #140F11;
+  --text-secondary: #453D3F;
+  --text-tertiary: #73696B;
+  --hard-shadow: 4px 4px 0px #1C1517;
+  --hard-shadow-crimson: 4px 4px 0px #5E1D22;
+  --hard-shadow-hover: 6px 6px 0px #8C2D33;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  transition: background-color 0.45s var(--ease-apple), color 0.45s var(--ease-apple);
+}
+
+/* Crisp Pixel Rendering for 2-Bit Logos & Icons */
+.brand-icon,
+.twobit-hero-logo,
+.replay-wave-mark,
+.footer-brand img {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* 2-Bit Ambient Backdrop Canvas & Bayer Dither Pattern */
+.twobit-ambient-stage {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+#twobit-bg-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.75;
+}
+
+.twobit-bayer-overlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(rgba(244, 239, 234, 0.055) 1px, transparent 0),
+    radial-gradient(rgba(140, 45, 51, 0.07) 1px, transparent 0);
+  background-size: 8px 8px;
+  background-position: 0 0, 4px 4px;
+  pointer-events: none;
+}
+
+body.twobit-ivory .twobit-bayer-overlay {
+  background-image:
+    radial-gradient(rgba(20, 15, 17, 0.07) 1px, transparent 0),
+    radial-gradient(rgba(140, 45, 51, 0.06) 1px, transparent 0);
+}
+
+.twobit-scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0, 0, 0, 0.14) 3px,
+    rgba(0, 0, 0, 0.14) 4px
+  );
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+body.twobit-ivory .twobit-scanlines {
+  opacity: 0.12;
+}
+
+/* Suppress blurry rainbow orbs in favor of 2-bit dither ambiance */
+.mesh-orb.orb-violet,
+.mesh-orb.orb-indigo {
+  display: none;
+}
+
+.mesh-orb.orb-ruby {
+  background: radial-gradient(circle, rgba(140, 45, 51, 0.22) 0%, transparent 70%);
+  filter: blur(90px);
+}
+
+/* 2-Bit Navigation Header */
+.site-header {
+  background: var(--bg-elevated);
+  border-bottom: 2px solid var(--border-prominent);
+  box-shadow: 0 4px 0px rgba(0, 0, 0, 0.35);
+}
+
+.brand-name {
+  font-family: var(--font-pixel);
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.brand-badge,
+.pill-release,
+.section-tag,
+.showcase-badge,
+.download-type-pill,
+.tech-badge,
+.footer-version-tag {
+  font-family: var(--font-pixel);
+  border-radius: 4px !important;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.brand-badge {
+  background: var(--ruby-soft);
+  color: var(--ruby);
+  border: 1.5px solid var(--ruby);
+  box-shadow: 2px 2px 0px var(--bit-01-deep);
+}
+
+.nav-link {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: all 0.2s var(--ease-apple);
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: var(--ruby-soft);
+  border-color: var(--ruby);
+  transform: translateY(-1px);
+}
+
+/* 2-Bit Polarity Mode Toggle Button */
+.btn-twobit-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 2px solid var(--border-prominent);
+  padding: 7px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: var(--hard-shadow);
+  transition: all 0.2s var(--ease-apple);
+}
+
+.btn-twobit-mode:hover {
+  transform: translate(-2px, -2px);
+  border-color: var(--ruby);
+  box-shadow: var(--hard-shadow-hover);
+}
+
+.btn-twobit-mode:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px #000;
+}
+
+.twobit-swatch-group {
+  display: inline-grid;
+  grid-template-columns: repeat(2, 7px);
+  grid-template-rows: repeat(2, 7px);
+  gap: 1px;
+  border: 1px solid var(--border-prominent);
+}
+
+.twobit-swatch-group i {
+  display: block;
+  width: 7px;
+  height: 7px;
+}
+
+.twobit-swatch-group .sw-00 { background: #0B090A; }
+.twobit-swatch-group .sw-01 { background: #8C2D33; }
+.twobit-swatch-group .sw-10 { background: #968E8B; }
+.twobit-swatch-group .sw-11 { background: #F4EFEA; }
+
+/* 2-Bit Buttons (Tactile Stepped Pixel Borders & Offset Shadows) */
+.btn-ruby,
+.btn-secondary,
+.btn-github,
+.btn-white-pill {
+  font-family: var(--font-mono) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 6px !important;
+  border: 2px solid var(--bit-11) !important;
+  box-shadow: var(--hard-shadow) !important;
+  transition: transform 0.2s var(--ease-apple), box-shadow 0.2s var(--ease-apple), background-color 0.2s ease !important;
+}
+
+.btn-ruby {
+  background: var(--bit-01) !important;
+  color: #F4EFEA !important;
+  border-color: #F4EFEA !important;
+}
+
+.btn-ruby:hover {
+  background: var(--bit-01-bright) !important;
+  transform: translate(-3px, -3px) !important;
+  box-shadow: 6px 6px 0px #000000 !important;
+}
+
+.btn-white-pill {
+  background: var(--bit-11) !important;
+  color: var(--bit-00) !important;
+  border: 2px solid var(--bit-00) !important;
+  box-shadow: 4px 4px 0px var(--bit-01) !important;
+}
+
+.btn-white-pill:hover {
+  background: var(--bit-11-pure) !important;
+  transform: translate(-3px, -3px) !important;
+  box-shadow: 7px 7px 0px var(--bit-01-bright) !important;
+}
+
+.btn-secondary,
+.btn-github {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border: 2px solid var(--border-prominent) !important;
+}
+
+.btn-secondary:hover,
+.btn-github:hover {
+  background: var(--ruby-soft) !important;
+  border-color: var(--ruby) !important;
+  transform: translate(-3px, -3px) !important;
+  box-shadow: var(--hard-shadow-hover) !important;
+}
+
+/* Hero Card: 2-Bit Dither & Motion Graphics Architecture */
+.bitchord-hero-card {
+  border-radius: 12px !important;
+  background: var(--bg-card) !important;
+  border: 2px solid var(--border-prominent) !important;
+  box-shadow: 10px 10px 0px rgba(0, 0, 0, 0.72), 0 0 0 1px var(--border-subtle) !important;
+  padding: 28px 28px 0 !important;
+  position: relative;
+}
+
+body.twobit-ivory .bitchord-hero-card {
+  background: #F7F3EE !important;
+  box-shadow: 10px 10px 0px #1C1517 !important;
+}
+
+/* Replace muddy copper blobs with crisp 2-bit halftone dither grid inside hero */
+.copper-mesh-backdrop {
+  background-image:
+    linear-gradient(to right, rgba(140, 45, 51, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(140, 45, 51, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.copper-blob {
+  opacity: 0.22 !important;
+  filter: blur(70px);
+}
+
+.copper-blob.blob-1,
+.copper-blob.blob-2 {
+  background: radial-gradient(closest-side, rgba(140, 45, 51, 0.65) 0%, transparent 100%) !important;
+}
+
+.copper-blob.blob-3,
+.copper-blob.blob-4 {
+  background: radial-gradient(closest-side, rgba(150, 142, 139, 0.25) 0%, transparent 100%) !important;
+}
+
+/* 2-Bit HUD Telemetry Strip at Top of Hero */
+.twobit-hud-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 24px;
+  background: rgba(11, 9, 10, 0.65);
+  border: 1.5px solid var(--border-prominent);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+}
+
+body.twobit-ivory .twobit-hud-strip {
+  background: rgba(239, 234, 228, 0.85);
+}
+
+.hud-coord,
+.hud-fps {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.hud-fps {
+  color: var(--ruby);
+}
+
+.hud-palette-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.hud-bit {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border-prominent);
+}
+
+.hud-bit.bit-00 { background: #0B090A; color: #F4EFEA; }
+.hud-bit.bit-01 { background: #8C2D33; color: #F4EFEA; }
+.hud-bit.bit-10 { background: #968E8B; color: #0B090A; }
+.hud-bit.bit-11 { background: #F4EFEA; color: #0B090A; }
+
+/* 2-Bit Fallen Angel Emblem & Live Waveform Motion Stage */
+.twobit-angel-stage {
+  position: relative;
+  height: 210px;
+  max-width: 780px;
+  margin: 0 auto 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#twobit-hero-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.twobit-angel-medallion {
+  position: relative;
+  z-index: 2;
+  width: 156px;
+  height: 156px;
+  background: #F4EFEA;
+  border: 3px solid var(--bit-00);
+  outline: 2px solid var(--ruby);
+  border-radius: 12px;
+  box-shadow: 8px 8px 0px var(--bit-01-deep), 0 0 40px var(--ruby-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.35s var(--ease-spring), box-shadow 0.35s var(--ease-apple);
+  animation: angelFloat 4.8s ease-in-out infinite;
+  cursor: pointer;
+}
+
+.twobit-angel-medallion:hover {
+  transform: scale(1.07) rotate(-1.5deg);
+  box-shadow: 12px 12px 0px var(--ruby), 0 0 60px var(--ruby-glow);
+}
+
+@keyframes angelFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+.twobit-hero-logo {
+  width: 132px;
+  height: 132px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: contrast(1.06);
+}
+
+.angel-orbit-ring {
+  position: absolute;
+  border: 1.5px dashed var(--ruby);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.angel-orbit-ring.ring-outer {
+  inset: -22px;
+  opacity: 0.55;
+  animation: pixelSpin 24s steps(60) infinite;
+}
+
+.angel-orbit-ring.ring-inner {
+  inset: -11px;
+  border-style: dotted;
+  border-color: var(--text-primary);
+  opacity: 0.4;
+  animation: pixelSpin 16s steps(48) infinite reverse;
+}
+
+@keyframes pixelSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.pixel-corner {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--ruby);
+  border-style: solid;
+  pointer-events: none;
+}
+
+.pixel-corner.tl { top: -6px; left: -6px; border-width: 3px 0 0 3px; }
+.pixel-corner.tr { top: -6px; right: -6px; border-width: 3px 3px 0 0; }
+.pixel-corner.bl { bottom: -6px; left: -6px; border-width: 0 0 3px 3px; }
+.pixel-corner.br { bottom: -6px; right: -6px; border-width: 0 3px 3px 0; }
+
+/* Hero Typography in 2-Bit Style */
+.hero-title {
+  font-family: var(--font-pixel);
+  font-size: 50px;
+  line-height: 1.15;
+  letter-spacing: -1px;
+  text-transform: uppercase;
+  background: none !important;
+  -webkit-text-fill-color: initial !important;
+  color: var(--text-primary);
+  text-shadow: 4px 4px 0px var(--bit-01-deep);
+}
+
+body.twobit-ivory .hero-title {
+  text-shadow: 3px 3px 0px rgba(140, 45, 51, 0.28);
+}
+
+.hero-title-bright {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+}
+
+.hero-title-muted {
+  color: var(--ruby) !important;
+  -webkit-text-fill-color: var(--ruby) !important;
+}
+
+.hero-badge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-prominent);
+  box-shadow: 3px 3px 0px rgba(0, 0, 0, 0.45);
+}
+
+.hero-badge:hover {
+  border-color: var(--ruby);
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0px var(--bit-01-deep);
+}
+
+/* 2-Bit Phone Showcase Frame */
+.phone-bezel-outer {
+  border-radius: 24px !important;
+  background: #1C1618 !important;
+  border: 3px solid var(--bit-11) !important;
+  box-shadow: 10px 10px 0px var(--bit-01-deep) !important;
+}
+
+.phone-bezel-inner {
+  border-radius: 20px !important;
+}
+
+.phone-screen {
+  border-radius: 16px !important;
+  background: #0D0A0B !important;
+}
+
+.phone-artwork-blur {
+  background:
+    radial-gradient(rgba(244, 239, 234, 0.06) 1px, transparent 0),
+    linear-gradient(180deg, rgba(140, 45, 51, 0.36) 0%, #0D0A0B 75%) !important;
+  background-size: 6px 6px, 100% 100% !important;
+}
+
+.phone-lyric-line {
+  font-family: var(--font-family);
+}
+
+/* 2-Bit Desktop App Mockup Window */
+.mockup-window {
+  border-radius: 10px !important;
+  background: #110D0F !important;
+  border: 2px solid var(--border-prominent) !important;
+  box-shadow: 10px 10px 0px rgba(0, 0, 0, 0.8) !important;
+}
+
+.mockup-window:hover {
+  transform: translate(-3px, -3px);
+  border-color: var(--ruby) !important;
+  box-shadow: 13px 13px 0px var(--bit-01-deep) !important;
+}
+
+.mockup-titlebar {
+  background: #1B1518 !important;
+  border-bottom: 2px solid var(--border-subtle) !important;
+  font-family: var(--font-mono);
+}
+
+.light {
+  border-radius: 2px !important;
+}
+
+.light-red { background: #C43B44 !important; border-color: #F4EFEA !important; }
+.light-yellow { background: #968E8B !important; border-color: #F4EFEA !important; }
+.light-green { background: #F4EFEA !important; border-color: #968E8B !important; }
+
+.album-art-wrap {
+  border-radius: 6px !important;
+  border: 2px solid var(--border-prominent) !important;
+  box-shadow: 4px 4px 0px #000 !important;
+}
+
+.album-art-wrap img,
+.tv-np-art,
+.marquee-art-wrap img,
+.player-mini-art img,
+.phone-track-art img {
+  filter: contrast(1.08) saturate(0.88);
+  transition: filter 0.25s ease, transform 0.25s var(--ease-apple);
+}
+
+.album-card:hover .album-art-wrap img,
+.marquee-track-card:hover .marquee-art-wrap img {
+  filter: contrast(1.12) saturate(1.05);
+  transform: scale(1.04);
+}
+
+/* 2-Bit Replay Collector Cards */
+.replay-heading,
+.tv-heading,
+.ecosystem-title,
+.curated-marquee-title,
+.section-title,
+.showcase-title {
+  font-family: var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+}
+
+.ecosystem-title {
+  background: none !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+.replay-credit-card {
+  border-radius: 10px !important;
+  border: 2px solid var(--bit-11) !important;
+  box-shadow: 6px 6px 0px var(--bit-01-deep) !important;
+  background: #141012 !important;
+  transition: transform 0.25s var(--ease-apple), box-shadow 0.25s var(--ease-apple) !important;
+}
+
+.replay-credit-card:hover {
+  transform: translate(-4px, -4px) !important;
+  box-shadow: 10px 10px 0px var(--ruby) !important;
+}
+
+/* Style all 4 Replay cards in cohesive 2-Bit Dither Tones */
+.replay-card-purple .replay-card-mesh,
+.replay-card-amber .replay-card-mesh,
+.replay-card-rose .replay-card-mesh,
+.replay-card-teal .replay-card-mesh {
+  filter: none !important;
+  transform: none !important;
+  background-image:
+    radial-gradient(rgba(244, 239, 234, 0.1) 1px, transparent 0),
+    linear-gradient(135deg, #1E1518 0%, #4A181B 55%, #0D0A0B 100%) !important;
+  background-size: 6px 6px, 100% 100% !important;
+}
+
+.replay-card-amber .replay-card-mesh {
+  background-image:
+    radial-gradient(rgba(244, 239, 234, 0.12) 1px, transparent 0),
+    linear-gradient(135deg, #2A211E 0%, #6E2429 60%, #120E10 100%) !important;
+}
+
+.replay-card-teal .replay-card-mesh {
+  background-image:
+    radial-gradient(rgba(244, 239, 234, 0.12) 1px, transparent 0),
+    linear-gradient(135deg, #242022 0%, #3D3538 55%, #0D0A0B 100%) !important;
+}
+
+.replay-wave-mark {
+  background: #F4EFEA !important;
+  padding: 3px;
+  border: 1.5px solid #0B090A;
+  border-radius: 4px !important;
+  box-shadow: 2px 2px 0px #8C2D33 !important;
+}
+
+.replay-card-value {
+  font-family: var(--font-pixel);
+  font-size: 22px;
+  color: #F4EFEA !important;
+  background: none !important;
+  -webkit-text-fill-color: #F4EFEA !important;
+}
+
+/* Big Screen TV Section in 2-Bit Terminal Style */
+.tv-card {
+  border-radius: 12px !important;
+  background: var(--bg-card) !important;
+  border: 2px solid var(--border-prominent) !important;
+  box-shadow: 10px 10px 0px rgba(0, 0, 0, 0.65) !important;
+}
+
+.tv-blob {
+  background: rgba(140, 45, 51, 0.25) !important;
+}
+
+.tv-bezel {
+  border-radius: 8px !important;
+  border: 2px solid var(--bit-11) !important;
+  box-shadow: 8px 8px 0px var(--bit-01-deep) !important;
+}
+
+.tv-screen {
+  background:
+    radial-gradient(rgba(244, 239, 234, 0.06) 1px, transparent 0),
+    linear-gradient(135deg, #1A1215 0%, #0B090A 100%) !important;
+  background-size: 8px 8px, 100% 100% !important;
+}
+
+.tv-tab-dot {
+  border-radius: 2px !important;
+  height: 8px !important;
+  width: 8px !important;
+  border: 1px solid var(--bit-11) !important;
+}
+
+.tv-tab-dot.active {
+  width: 28px !important;
+  background: var(--ruby) !important;
+}
+
+/* Ecosystem Chips, Marquee Track Cards, Feature Cards & Download Cards */
+.ecosystem-chip,
+.marquee-track-card,
+.feature-card,
+.showcase-visual,
+.download-card,
+.download-fallback-banner {
+  border-radius: 8px !important;
+  background: var(--bg-card) !important;
+  border: 2px solid var(--border-prominent) !important;
+  box-shadow: var(--hard-shadow) !important;
+  transition: transform 0.22s var(--ease-apple), box-shadow 0.22s var(--ease-apple), border-color 0.22s ease !important;
+}
+
+.ecosystem-chip:hover,
+.marquee-track-card:hover,
+.feature-card:hover,
+.download-card:hover {
+  transform: translate(-3px, -3px) !important;
+  border-color: var(--ruby) !important;
+  box-shadow: var(--hard-shadow-hover) !important;
+}
+
+.feature-icon-wrap {
+  border-radius: 6px !important;
+  border: 2px solid var(--ruby) !important;
+  box-shadow: 3px 3px 0px var(--bit-01-deep);
+}
+
+.feature-card-title,
+.download-target-title {
+  font-family: var(--font-pixel);
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.marquee-container::before {
+  background: linear-gradient(to right, var(--bg-base) 0%, transparent 100%) !important;
+}
+
+.marquee-container::after {
+  background: linear-gradient(to left, var(--bg-base) 0%, transparent 100%) !important;
+}
+
+.marquee-title {
+  color: var(--text-primary) !important;
+  font-family: var(--font-mono);
+}
+
+.marquee-artist {
+  color: var(--text-secondary) !important;
+}
+
+/* Equalizer Bars in Stepped 2-Bit Blocks */
+.eq-track {
+  width: 14px !important;
+  border-radius: 3px !important;
+  border: 1.5px solid var(--border-prominent);
+  background: rgba(0, 0, 0, 0.35) !important;
+  overflow: hidden;
+}
+
+.eq-fill {
+  border-radius: 0 !important;
+  background: repeating-linear-gradient(
+    to top,
+    var(--ruby) 0px,
+    var(--ruby) 6px,
+    transparent 6px,
+    transparent 8px
+  ) !important;
+}
+
+.eq-preset-chip {
+  font-family: var(--font-mono);
+  border-radius: 4px !important;
+  border: 1.5px solid var(--border-prominent) !important;
+}
+
+/* Scroll-Triggered Motion Graphics Reveal States */
+.twobit-reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.55s var(--ease-apple), transform 0.55s var(--ease-apple);
+}
+
+.twobit-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}

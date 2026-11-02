@@ -4,6 +4,9 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  initTwoBitPolarityToggle();
+  initTwoBitMotionGraphics();
+  initScrollMotionReveal();
   initPhoneHeroWordLyrics();
   initReplayCardsSpotlight();
   initBigScreenTabs();
@@ -420,4 +423,247 @@ function initModals() {
       if (notifyInput) notifyInput.value = '';
     });
   }
+}
+
+
+
+// ==========================================================================
+// 2-Bit UI/UX Polarity Switcher (Ink Dark vs Ivory Alabaster)
+// ==========================================================================
+function initTwoBitPolarityToggle() {
+  const btn = document.getElementById('btn-twobit-polarity');
+  const label = document.getElementById('twobit-polarity-label');
+  const medallion = document.getElementById('twobit-angel-medallion');
+
+  function applyMode(mode) {
+    const isIvory = mode === 'ivory';
+    document.body.classList.toggle('twobit-ivory', isIvory);
+    if (label) {
+      label.textContent = isIvory ? '2-BIT: IVORY' : '2-BIT: INK';
+    }
+    try {
+      localStorage.setItem('deja_twobit_polarity', isIvory ? 'ivory' : 'ink');
+    } catch {}
+  }
+
+  try {
+    const saved = localStorage.getItem('deja_twobit_polarity');
+    if (saved === 'ivory') applyMode('ivory');
+  } catch {}
+
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const next = document.body.classList.contains('twobit-ivory') ? 'ink' : 'ivory';
+      applyMode(next);
+    });
+  }
+
+  if (medallion) {
+    medallion.addEventListener('click', () => {
+      const next = document.body.classList.contains('twobit-ivory') ? 'ink' : 'ivory';
+      applyMode(next);
+    });
+  }
+}
+
+// ==========================================================================
+// 60fps 2-Bit Motion Graphics Engine (Pixel Feathers + Stepped Audio Spectrum)
+// ==========================================================================
+function initTwoBitMotionGraphics() {
+  const bgCanvas = document.getElementById('twobit-bg-canvas');
+  const heroCanvas = document.getElementById('twobit-hero-canvas');
+  const fpsEl = document.getElementById('twobit-live-fps');
+
+  const PIXEL = 4; // 4px quantized 2-bit grid
+  let pointerX = window.innerWidth * 0.5;
+  let pointerY = window.innerHeight * 0.35;
+
+  window.addEventListener('pointermove', (e) => {
+    pointerX = e.clientX;
+    pointerY = e.clientY;
+  }, { passive: true });
+
+  // 1. Background 2-Bit Pixel Feather & Halftone Particle Field
+  let bgCtx = null;
+  const particles = [];
+  if (bgCanvas && bgCanvas.getContext) {
+    bgCtx = bgCanvas.getContext('2d');
+    const resizeBg = () => {
+      bgCanvas.width = window.innerWidth;
+      bgCanvas.height = window.innerHeight;
+    };
+    resizeBg();
+    window.addEventListener('resize', resizeBg);
+
+    const count = 42;
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        vx: (Math.random() - 0.5) * 0.35,
+        vy: 0.25 + Math.random() * 0.55,
+        kind: i % 3, // 0: pixel cross, 1: 2-bit feather sprite, 2: stepped square
+        bit: i % 2 === 0 ? 'crimson' : 'ash',
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
+  // 2. Hero Stage Symmetrical 2-Bit Spectrum & Quantized Waveform
+  let heroCtx = null;
+  if (heroCanvas && heroCanvas.getContext) {
+    heroCtx = heroCanvas.getContext('2d');
+  }
+
+  let lastFrame = performance.now();
+  let frameCounter = 0;
+
+  function renderMotionFrame(now) {
+    frameCounter++;
+    const t = now * 0.001;
+    const isIvory = document.body.classList.contains('twobit-ivory');
+
+    const colCrimson = isIvory ? '#8C2D33' : '#C43B44';
+    const colDeep = '#4A181B';
+    const colBone = isIvory ? '#140F11' : '#F4EFEA';
+    const colAsh = isIvory ? '#73696B' : '#968E8B';
+
+    // Update HUD telemetry counter periodically
+    if (fpsEl && frameCounter % 30 === 0) {
+      const dt = Math.max(1, now - lastFrame);
+      const fps = Math.min(60, Math.round(1000 / (dt / 30)));
+      fpsEl.textContent = `${fps || 60} FPS · OPUS 160K`;
+      lastFrame = now;
+    }
+
+    // Draw Background 2-Bit Pixel Field
+    if (bgCtx && bgCanvas) {
+      bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.x += p.vx + Math.sin(t + p.phase) * 0.18;
+        p.y += p.vy;
+
+        // Subtle cursor repulsion snapped to grid
+        const dx = p.x - pointerX;
+        const dy = p.y - pointerY;
+        const distSq = dx * dx + dy * dy;
+        if (distSq < 18000 && distSq > 1) {
+          const dist = Math.sqrt(distSq);
+          p.x += (dx / dist) * 0.9;
+          p.y += (dy / dist) * 0.9;
+        }
+
+        if (p.y > bgCanvas.height + 20) {
+          p.y = -16;
+          p.x = Math.random() * bgCanvas.width;
+        }
+        if (p.x < -20) p.x = bgCanvas.width + 16;
+        if (p.x > bgCanvas.width + 20) p.x = -16;
+
+        const gx = Math.floor(p.x / PIXEL) * PIXEL;
+        const gy = Math.floor(p.y / PIXEL) * PIXEL;
+
+        bgCtx.fillStyle = p.bit === 'crimson' ? colCrimson : colAsh;
+        bgCtx.globalAlpha = p.bit === 'crimson' ? 0.42 : 0.24;
+
+        if (p.kind === 0) {
+          // 2-Bit Plus Reticle
+          bgCtx.fillRect(gx, gy - PIXEL, PIXEL, PIXEL * 3);
+          bgCtx.fillRect(gx - PIXEL, gy, PIXEL * 3, PIXEL);
+        } else if (p.kind === 1) {
+          // Falling 2-Bit Angel Feather Sprite (stepped diagonal pixels)
+          bgCtx.fillRect(gx, gy, PIXEL * 2, PIXEL);
+          bgCtx.fillRect(gx + PIXEL, gy + PIXEL, PIXEL * 2, PIXEL);
+          bgCtx.fillRect(gx + PIXEL * 2, gy + PIXEL * 2, PIXEL, PIXEL);
+        } else {
+          // Quantized Dither Block
+          bgCtx.fillRect(gx, gy, PIXEL, PIXEL);
+        }
+      }
+      bgCtx.globalAlpha = 1;
+    }
+
+    // Draw Hero Stage 2-Bit Stepped Spectrum Bars Flanking the Angel Medallion
+    if (heroCtx && heroCanvas) {
+      const w = heroCanvas.width;
+      const h = heroCanvas.height;
+      heroCtx.clearRect(0, 0, w, h);
+
+      const centerX = w / 2;
+      const centerY = h / 2;
+      const numBarsPerSide = 16;
+      const barWidth = 8;
+      const barGap = 6;
+      const startOffset = 104; // Outside medallion
+
+      for (let i = 0; i < numBarsPerSide; i++) {
+        const waveA = Math.sin(t * 3.6 + i * 0.45);
+        const waveB = Math.cos(t * 2.1 - i * 0.3);
+        const falloff = 1 - (i / numBarsPerSide) * 0.58;
+        const normalized = Math.max(0.12, ((waveA * 0.5 + waveB * 0.5 + 1) * 0.5) * falloff);
+        const totalBlocks = Math.max(2, Math.round(normalized * 11));
+        const blockH = 5;
+        const blockGap = 2;
+
+        const leftX = Math.floor((centerX - startOffset - (i + 1) * (barWidth + barGap)) / 2) * 2;
+        const rightX = Math.floor((centerX + startOffset + i * (barWidth + barGap)) / 2) * 2;
+
+        for (let b = 0; b < totalBlocks; b++) {
+          const offsetY = b * (blockH + blockGap);
+          // Peak block uses Bone Ivory, upper blocks use Crimson, base uses Ash/Deep Crimson
+          if (b === totalBlocks - 1) {
+            heroCtx.fillStyle = colBone;
+          } else if (b >= totalBlocks * 0.55) {
+            heroCtx.fillStyle = colCrimson;
+          } else {
+            heroCtx.fillStyle = colDeep;
+          }
+
+          // Mirror vertically from center horizon
+          heroCtx.fillRect(leftX, centerY - offsetY - blockH, barWidth, blockH);
+          heroCtx.fillRect(leftX, centerY + offsetY + 2, barWidth, blockH);
+
+          heroCtx.fillRect(rightX, centerY - offsetY - blockH, barWidth, blockH);
+          heroCtx.fillRect(rightX, centerY + offsetY + 2, barWidth, blockH);
+        }
+      }
+
+      // Draw crisp horizontal 2-bit horizon scanline
+      heroCtx.fillStyle = colAsh;
+      heroCtx.globalAlpha = 0.32;
+      heroCtx.fillRect(24, centerY - 1, w - 48, 2);
+      heroCtx.globalAlpha = 1;
+    }
+
+    requestAnimationFrame(renderMotionFrame);
+  }
+
+  requestAnimationFrame(renderMotionFrame);
+}
+
+// ==========================================================================
+// Smooth Scroll-Triggered Motion Choreography
+// ==========================================================================
+function initScrollMotionReveal() {
+  const targets = document.querySelectorAll(
+    '.feature-card, .replay-credit-card, .download-card, .showcase-split, .tv-card, .ecosystem-chip, .mockup-window'
+  );
+  if (!('IntersectionObserver' in window)) return;
+
+  targets.forEach((el, idx) => {
+    el.classList.add('twobit-reveal');
+    el.style.transitionDelay = `${(idx % 4) * 55}ms`;
+  });
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  targets.forEach((el) => observer.observe(el));
 }
