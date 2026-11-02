@@ -109,10 +109,10 @@
     <string name="dolby_atmos_open_failed">Nie można było otworzyć ustawień Dolby Atmos</string>
     <string name="update_available">Dostępna aktualizacja: v%1$s</string>
     <string name="software_update">Aktualizacja oprogramowania</string>
-    <string name="update_available_body">deja %1$s jest dostępny do pobrania.</string>
-    <string name="update_downloading_body">Pobieranie deja %1$s…</string>
-    <string name="update_ready_body">deja %1$s jest gotowy do zainstalowania.</string>
-    <string name="update_failed_body">Nie udało się pobrać deja %1$s.</string>
+    <string name="update_available_body">bitchord %1$s jest dostępny do pobrania.</string>
+    <string name="update_downloading_body">Pobieranie bitchord %1$s…</string>
+    <string name="update_ready_body">bitchord %1$s jest gotowy do zainstalowania.</string>
+    <string name="update_failed_body">Nie udało się pobrać bitchord %1$s.</string>
     <string name="download_now">Pobierz teraz</string>
     <string name="install_now">Zainstaluj teraz</string>
     <string name="later">Później</string>
@@ -140,7 +140,7 @@
     <string name="widget_previous">Poprzedni</string>
     <string name="widget_artwork">Okładka albumu</string>
     <string name="widget_nothing_played">Nic nie zostało odtworzone</string>
-    <string name="widget_open_deja">Open Deja</string>
+    <string name="widget_open_bitchord">Open Deja</string>
     <string name="widget_preview_title">Tytuł utworu</string>
     <string name="widget_preview_artist">Artysta</string>
     <string name="widget_pill_label">Now playing 4×1</string>
@@ -360,7 +360,7 @@
     <string name="downloads_finished">Pobieranie · zakończone</string>
     <string name="downloading_progress">Pobieranie · %1$d%%</string>
     <string name="starting">Rozpoczynanie</string>
-    <string name="saved_to_deja_folder">Zapisano w Music/Deja</string>
+    <string name="saved_to_bitchord_folder">Zapisano w Music/Deja</string>
     <string name="nothing_downloading">Nic się nie pobiera</string>
     <string name="nothing_to_explore">Nie ma teraz nic do odkrycia</string>
     <string name="no_youtube_music_results">Brak wyników z YouTube Music</string>
@@ -632,7 +632,7 @@
     <string name="no_listening_history">brak historii odtwarzania</string>
     <string name="no_local_albums">Nic stąd jeszcze nie należy do albumu ani playlisty. Pobierz cały album lub playlistę, a pojawi się tutaj.</string>
     <string name="play_your_replay">Odtwórz swój Replay</string>
-    <string name="counted_on_device_with_deja">Obliczono na tym urządzeniu z Deja</string>
+    <string name="counted_on_device_with_bitchord">Obliczono na tym urządzeniu z Deja</string>
     <string name="this_month">Ten miesiąc</string>
     <string name="this_year">Ten rok</string>
     <string name="all_time">Cały czas</string>

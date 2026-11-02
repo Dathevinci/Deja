@@ -146,7 +146,7 @@
     <string name="widget_previous">Trước</string>
     <string name="widget_artwork">Ảnh bìa album</string>
     <string name="widget_nothing_played">Chưa phát bài nào</string>
-    <string name="widget_open_deja">Mở Deja</string>
+    <string name="widget_open_bitchord">Mở Deja</string>
     <string name="widget_preview_title">Tên bài hát</string>
     <string name="widget_preview_artist">Nghệ sĩ</string>
     <string name="widget_pill_label">Đang phát 4×1</string>
@@ -388,7 +388,7 @@
     <string name="start_radio">Phát radio</string>
     <string name="playing_radio">Đang phát %1$s Radio</string>
     <string name="radio_started">Đã bắt đầu radio %1$s</string>
-    <string name="saved_to_deja_folder">Đã lưu vào Music/Deja</string>
+    <string name="saved_to_bitchord_folder">Đã lưu vào Music/Deja</string>
     <string name="nothing_downloading">Không có nội dung đang tải</string>
     <string name="nothing_to_explore">Hiện không có gì để khám phá</string>
     <string name="no_youtube_music_results">Không có kết quả nào từ YouTube Music</string>
@@ -703,7 +703,7 @@
     </plurals>
     <string name="no_local_albums">Chưa có mục nào ở đây thuộc về một album hoặc danh sách phát. Tải xuống toàn bộ album hoặc danh sách phát và nội dung sẽ xuất hiện ở đây.</string>
     <string name="play_your_replay">Phát Replay của bạn</string>
-    <string name="counted_on_device_with_deja">Được thống kê trên thiết bị này bằng Deja</string>
+    <string name="counted_on_device_with_bitchord">Được thống kê trên thiết bị này bằng Deja</string>
     <string name="this_month">Tháng này</string>
     <string name="this_year">Năm nay</string>
     <string name="all_time">Tất cả thời gian</string>

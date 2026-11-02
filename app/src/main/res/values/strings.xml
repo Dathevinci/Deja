@@ -137,10 +137,10 @@
     <string name="dolby_atmos_open_failed">Couldn’t open Dolby Atmos settings</string>
     <string name="update_available">Update available: v%1$s</string>
     <string name="software_update">Software Update</string>
-    <string name="update_available_body">deja %1$s is available to download.</string>
-    <string name="update_downloading_body">Downloading deja %1$s…</string>
-    <string name="update_ready_body">deja %1$s is ready to install.</string>
-    <string name="update_failed_body">Couldn’t download deja %1$s.</string>
+    <string name="update_available_body">bitchord %1$s is available to download.</string>
+    <string name="update_downloading_body">Downloading bitchord %1$s…</string>
+    <string name="update_ready_body">bitchord %1$s is ready to install.</string>
+    <string name="update_failed_body">Couldn’t download bitchord %1$s.</string>
     <string name="download_now">Download Now</string>
     <string name="install_now">Install Now</string>
     <string name="later">Later</string>
@@ -175,7 +175,7 @@
     <string name="widget_previous">Previous</string>
     <string name="widget_artwork">Album art</string>
     <string name="widget_nothing_played">Nothing played yet</string>
-    <string name="widget_open_deja">Open Deja</string>
+    <string name="widget_open_bitchord">Open Deja</string>
     <string name="widget_preview_title">Song title</string>
     <string name="widget_preview_artist">Artist</string>
     <string name="widget_pill_label">Now playing 4×1</string>
@@ -507,7 +507,7 @@
     <string name="played_by">Played by %1$s</string>
     <string name="shared_link">Shared link</string>
     <string name="radio_started">%1$s radio started</string>
-    <string name="saved_to_deja_folder">Saved to Music/Deja</string>
+    <string name="saved_to_bitchord_folder">Saved to Music/Deja</string>
     <string name="nothing_downloading">Nothing downloading</string>
     <string name="nothing_to_explore">Nothing to explore right now</string>
     <string name="no_youtube_music_results">No results from YouTube Music</string>
@@ -851,7 +851,7 @@
     </plurals>
     <string name="no_local_albums">Nothing here belongs to an album or playlist yet. Download a complete album or playlist and it will appear here.</string>
     <string name="play_your_replay">Play your Replay</string>
-    <string name="counted_on_device_with_deja">Counted on this device with Deja</string>
+    <string name="counted_on_device_with_bitchord">Counted on this device with Deja</string>
     <string name="this_month">This month</string>
     <string name="this_year">This year</string>
     <string name="all_time">All time</string>
