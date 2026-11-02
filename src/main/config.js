@@ -18,7 +18,7 @@ const DEFAULT_CONFIG = {
     x: undefined,
     y: undefined
   },
-  minimizeToTray: true,
+  minimizeToTray: false,
   closeToTray: false,
   discordRPC: true,
   notifications: true,

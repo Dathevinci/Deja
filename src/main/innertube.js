@@ -3890,6 +3890,140 @@ async function getLyrics({ videoId, title, artist, duration, album }, ses) {
   return null;
 }
 
+/**
+ * Resolves a playable Music Video stream (direct MP4 video URL + official videoId)
+ * for Spotify-style "Switch to Video" mode.
+ */
+async function getVideoStream(videoId, ses, queryInfo = {}) {
+  let targetVideoId = videoId || '';
+  const title = queryInfo.title || '';
+  const artist = queryInfo.artist || '';
+
+  // If title & artist are provided, check if there is a dedicated Official Music Video on YTM
+  if (title && artist) {
+    try {
+      const q = `${title} ${artist} official video`.trim();
+      const searchRes = await search(q, ses, 'videos').catch(() => []);
+      const items = Array.isArray(searchRes) ? searchRes : (searchRes?.videos || searchRes?.results || []);
+      const firstVid = items.find(it => it && it.videoId);
+      if (firstVid && firstVid.videoId) {
+        targetVideoId = firstVid.videoId;
+      }
+    } catch {}
+  }
+
+  if (!targetVideoId) return null;
+
+  // 1. Try IOS client for direct MP4 video stream
+  try {
+    const iosVersion = '20.01.1';
+    const payload = {
+      context: {
+        client: {
+          clientName: 'IOS',
+          clientVersion: iosVersion,
+          deviceMake: 'Apple',
+          deviceModel: 'iPhone16,2',
+          hl: 'en',
+          gl: 'US'
+        }
+      },
+      videoId: targetVideoId,
+      contentCheckOk: true,
+      racyCheckOk: true
+    };
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': `com.google.ios.youtube/${iosVersion} (iPhone16,2; U; CPU iOS 18_1_1 like Mac OS X; en_US)`,
+        'X-YouTube-Client-Name': '5',
+        'X-YouTube-Client-Version': iosVersion
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const bestVid = extractBestVideoFormat(data, targetVideoId);
+      if (bestVid) return bestVid;
+    }
+  } catch (err) {
+    console.warn('[InnerTube] getVideoStream IOS attempt notice:', err.message);
+  }
+
+  // 2. Try ANDROID client for direct MP4 video stream
+  try {
+    const payload = {
+      context: {
+        client: {
+          clientName: 'ANDROID',
+          clientVersion: '19.09.37',
+          androidSdkVersion: 30,
+          hl: 'en',
+          gl: 'US'
+        }
+      },
+      videoId: targetVideoId,
+      contentCheckOk: true,
+      racyCheckOk: true
+    };
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+        'X-YouTube-Client-Name': '3',
+        'X-YouTube-Client-Version': '19.09.37'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const bestVid = extractBestVideoFormat(data, targetVideoId);
+      if (bestVid) return bestVid;
+    }
+  } catch (err) {
+    console.warn('[InnerTube] getVideoStream ANDROID attempt notice:', err.message);
+  }
+
+  return {
+    videoId: targetVideoId,
+    url: null,
+    embedUrl: `https://www.youtube.com/embed/${targetVideoId}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1`
+  };
+}
+
+function extractBestVideoFormat(data, videoId) {
+  if (!data || !data.streamingData) return null;
+  const muxed = (data.streamingData.formats || []).filter(f => f.url && f.mimeType && f.mimeType.startsWith('video/'));
+  const adaptive = (data.streamingData.adaptiveFormats || []).filter(f => f.url && f.mimeType && f.mimeType.startsWith('video/mp4'));
+  const candidates = muxed.length > 0 ? muxed : adaptive;
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => {
+    const aH = a.height || 0;
+    const bH = b.height || 0;
+    // Prefer 720p or 1080p
+    const aScore = aH <= 1080 ? aH : 500;
+    const bScore = bH <= 1080 ? bH : 500;
+    if (bScore !== aScore) return bScore - aScore;
+    return (b.bitrate || 0) - (a.bitrate || 0);
+  });
+
+  const chosen = candidates[0];
+  return {
+    videoId: videoId || data.videoDetails?.videoId || '',
+    url: chosen.url,
+    mimeType: chosen.mimeType,
+    width: chosen.width || 1280,
+    height: chosen.height || 720,
+    qualityLabel: chosen.qualityLabel || '720p HD',
+    isMuxed: muxed.includes(chosen),
+    title: data.videoDetails?.title || '',
+    embedUrl: `https://www.youtube.com/embed/${videoId || data.videoDetails?.videoId || ''}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1`
+  };
+}
+
 module.exports = {
   getAuthContext,
   getAccountInfo,
@@ -3906,6 +4040,8 @@ module.exports = {
   getNextQueue,
   getAudioStream,
   extractBestAudioFormat,
+  getVideoStream,
+  extractBestVideoFormat,
   getLyrics,
   fetchLrcLibLyrics,
   fetchSimpMusicLyrics,

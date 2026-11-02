@@ -1358,6 +1358,8 @@ function renderCurrentView() {
     renderSettingsView(mainContent);
   } else if (currentView === 'replay') {
     renderReplayView(mainContent);
+  } else if (currentView === 'downloads') {
+    renderDownloadsView(mainContent);
   }
 }
 
@@ -1387,22 +1389,50 @@ function hslToRgb(h, s, l) {
  * Follows BitChord MeshGradient.kt tuning:
  * Saturation boosted 1.35x (clamped <= 1.0) and lightness clamped in [0.28, 0.58].
  */
+/**
+ * Upgrades YouTube Music / Googleusercontent / i.ytimg.com thumbnail URLs
+ * to 1080x1080 Ultra-HD resolution for razor-sharp Now Playing and Card artwork.
+ */
+function upscaleArtworkUrl(url, videoId) {
+  if (!url || typeof url !== 'string') {
+    return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '../../assets/icon.png';
+  }
+  const trimmed = url.trim();
+  if (trimmed.startsWith('data:') || trimmed.startsWith('../../') || trimmed.startsWith('file:')) {
+    return trimmed;
+  }
+  if (trimmed.includes('googleusercontent.com') || trimmed.includes('ggpht.com')) {
+    if (/=w\d+-h\d+/.test(trimmed)) {
+      return trimmed.replace(/=w\d+-h\d+[^&?]*/, '=w1080-h1080-l95-rj');
+    }
+    if (/=s\d+/.test(trimmed)) {
+      return trimmed.replace(/=s\d+[^&?]*/, '=s1080');
+    }
+    return trimmed + '=w1080-h1080-l95-rj';
+  }
+  if (trimmed.includes('i.ytimg.com/vi/')) {
+    return trimmed.replace(/\/(default|mqdefault|sddefault)\.jpg/, '/hqdefault.jpg');
+  }
+  return trimmed;
+}
+
 function deriveTrackPalette(seed) {
+  // Neutral deep obsidian slate fallback so monochrome/live tracks never get fake red or muddy green backgrounds
   let hash = 0;
   const str = String(seed || 'deja-track');
   for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash = (hash << 5) - hash + (str.charCodeAt(i) * 37);
     hash |= 0;
   }
   const baseHue = Math.abs(hash) % 360;
   const hues = [
     baseHue,
-    (baseHue + 42) % 360,
-    (baseHue + 120) % 360,
-    (baseHue + 210) % 360
+    (baseHue + 30) % 360,
+    (baseHue + 60) % 360,
+    (baseHue + 90) % 360
   ];
-  const tunedSat = Math.min(1.0, 0.72 * 1.35); // BitChord tuned sat
-  const tunedLight = 0.44; // BitChord clamped lightness [0.28, 0.58]
+  const tunedSat = 0.72;
+  const tunedLight = 0.44;
 
   const rgbs = hues.map(h => hslToRgb(h, tunedSat, tunedLight));
   const pR = rgbs[0][0];
@@ -1410,10 +1440,10 @@ function deriveTrackPalette(seed) {
   const pB = rgbs[0][2];
 
   return {
-    c1: `rgba(${rgbs[0][0]}, ${rgbs[0][1]}, ${rgbs[0][2]}, 0.48)`,
-    c2: `rgba(${rgbs[1][0]}, ${rgbs[1][1]}, ${rgbs[1][2]}, 0.44)`,
-    c3: `rgba(${rgbs[2][0]}, ${rgbs[2][1]}, ${rgbs[2][2]}, 0.40)`,
-    c4: `rgba(${rgbs[3][0]}, ${rgbs[3][1]}, ${rgbs[3][2]}, 0.35)`,
+    c1: `rgba(${rgbs[0][0]}, ${rgbs[0][1]}, ${rgbs[0][2]}, 0.36)`,
+    c2: `rgba(${rgbs[1][0]}, ${rgbs[1][1]}, ${rgbs[1][2]}, 0.32)`,
+    c3: `rgba(${rgbs[2][0]}, ${rgbs[2][1]}, ${rgbs[2][2]}, 0.28)`,
+    c4: `rgba(${rgbs[3][0]}, ${rgbs[3][1]}, ${rgbs[3][2]}, 0.25)`,
     primaryR: pR,
     primaryG: pG,
     primaryB: pB
@@ -1473,10 +1503,10 @@ function extractPaletteFromImage(imageUrl, callback) {
         }
       }
 
-      // If fewer than 4, expand by shifting hue
+      // If fewer than 4 (e.g. monochrome/grayscale cover), expand by smooth luminance stepping (never fake green/red)
       while (chosen.length < 4) {
         const base = chosen[chosen.length - 1];
-        chosen.push([(base[0] + 50) % 255, (base[1] + 70) % 255, (base[2] + 90) % 255]);
+        chosen.push([Math.max(18, Math.round(base[0] * 0.78)), Math.max(18, Math.round(base[1] * 0.78)), Math.max(22, Math.round(base[2] * 0.78))]);
       }
 
       const pR = chosen[0][0];
@@ -1495,11 +1525,23 @@ function extractPaletteFromImage(imageUrl, callback) {
 
       if (callback) callback(palette);
     } catch (e) {
-      if (callback) callback(deriveTrackPalette(imageUrl));
+      if (callback) callback({
+        c1: 'rgba(34, 36, 44, 0.36)',
+        c2: 'rgba(26, 28, 36, 0.32)',
+        c3: 'rgba(20, 22, 30, 0.28)',
+        c4: 'rgba(28, 30, 38, 0.25)',
+        primaryR: 34, primaryG: 36, primaryB: 44
+      });
     }
   };
   img.onerror = () => {
-    if (callback) callback(deriveTrackPalette(imageUrl));
+    if (callback) callback({
+      c1: 'rgba(34, 36, 44, 0.36)',
+      c2: 'rgba(26, 28, 36, 0.32)',
+      c3: 'rgba(20, 22, 30, 0.28)',
+      c4: 'rgba(28, 30, 38, 0.25)',
+      primaryR: 34, primaryG: 36, primaryB: 44
+    });
   };
   img.src = imageUrl;
 }
@@ -1511,7 +1553,7 @@ function createCatalogueItemFromLive(t) {
   const album = t.album || 'YouTube Music';
   const hasExplicitDuration = typeof t.duration === 'number' && t.duration > 0;
   const duration = hasExplicitDuration ? t.duration : 210;
-  const cover = t.cover || (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '../../assets/icon.png');
+  const cover = upscaleArtworkUrl(t.cover, videoId);
 
   const itemObj = {
     id: t.id || (videoId ? `yt-${videoId}` : `track-${Math.random().toString(36).slice(2, 9)}`),
@@ -1539,7 +1581,7 @@ function createCatalogueItemFromLive(t) {
 function renderLiveCardHTML(item, globalCardId) {
   const safeTitle = escapeHTML(item.title || '');
   const safeSub = escapeHTML(item.subtitle || item.artist || 'YouTube Music');
-  const safeCover = escapeHTML(item.cover || '../../assets/icon.png');
+  const safeCover = escapeHTML(upscaleArtworkUrl(item.cover, item.videoId));
   const isBrowse = item.type === 'browse' || (!item.videoId && item.browseId);
 
   return `
@@ -4339,9 +4381,31 @@ function loadTrack(idx) {
   const expSnippet = (typeof document.getElementById === 'function' ? (document.getElementById('exp-lyric-snippet-text') || document.getElementById('exp-lyric-snippet')) : null) ||
                      (typeof document.querySelector === 'function' ? document.querySelector('.exp-lyric-snippet-text') : null);
 
+  const hiResCover = upscaleArtworkUrl(track.cover, track.videoId);
+  track.cover = hiResCover;
+  if (artEl) artEl.src = hiResCover;
   if (expandedTitle) expandedTitle.innerText = track.title;
   if (expandedArtist) expandedArtist.innerText = `${track.artist} • ${track.album}`;
-  if (expandedArtwork) expandedArtwork.src = track.cover;
+  if (expandedArtwork) {
+    expandedArtwork.onerror = () => {
+      if (track.videoId && !expandedArtwork.src.includes('hqdefault.jpg')) {
+        expandedArtwork.src = `https://i.ytimg.com/vi/${track.videoId}/hqdefault.jpg`;
+      }
+    };
+    expandedArtwork.src = hiResCover;
+  }
+  extractPaletteFromImage(hiResCover, (realPalette) => {
+    if (realPalette) {
+      track.palette = realPalette;
+      applyDynamicMeshAura(track);
+    }
+  });
+  if (typeof updateDownloadButtonsState === 'function') {
+    updateDownloadButtonsState(track);
+  }
+  if (typeof onTrackChangedForVideoMode === 'function') {
+    onTrackChangedForVideoMode(track);
+  }
   if (expPlayingFrom) expPlayingFrom.innerText = `Album • ${track.album || 'YouTube Music'}`;
   if (expTotal) expTotal.innerText = `-${formatTime(track.duration)}`;
   if (expCurrent) expCurrent.innerText = '0:00';
@@ -7490,7 +7554,52 @@ function renderSettingsView(container) {
 
   // Group 3: Downloads
   const g3Rows = [];
-  if (matches('Download Quality', 'offline', 'lossless', 'downloads', 'wi-fi', 'music folder')) {
+  const activeTrack = CATALOGUE_TRACKS[currentIndex] || CATALOGUE_TRACKS[0];
+  const dlCount = (typeof downloadedTracksList !== 'undefined' && Array.isArray(downloadedTracksList)) ? downloadedTracksList.length : 0;
+  if (matches('Download', 'offline', 'lossless', 'downloads', 'wi-fi', 'music folder')) {
+    g3Rows.push(`
+      <div class="bitchord-settings-row" data-setting-action="download-current-track">
+        <div class="bitchord-settings-icon" style="background: rgba(52, 199, 89, 0.16); color: #4CD964;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">
+            <span>Download Current Song</span>
+            <span class="bitchord-settings-badge green">1-CLICK SAVE</span>
+          </div>
+          <div class="bitchord-settings-row-sub">Save "${escapeHTML(activeTrack ? activeTrack.title : 'Current Track')}" by ${escapeHTML(activeTrack ? activeTrack.artist : 'Artist')} to Music/Deja</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span style="color:#4CD964; font-weight:700;">Download Now ↓</span>
+        </div>
+      </div>
+      <div class="bitchord-settings-row" data-setting-action="open-downloads-view">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Downloaded Songs Library</div>
+          <div class="bitchord-settings-row-sub">${dlCount} offline tracks downloaded · Manage or play offline songs</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>View Downloads</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="bitchord-settings-row" data-setting-action="open-downloads-folder">
+        <div class="bitchord-settings-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title">Open Downloads Folder</div>
+          <div class="bitchord-settings-row-sub">Show downloaded audio files in Windows Explorer (Music/Deja)</div>
+        </div>
+        <div class="bitchord-settings-trailing">
+          <span>Open Folder</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    `);
     g3Rows.push(`
       <div class="bitchord-settings-row" data-setting-cycle="downloadQuality" data-options="Hi-Res FLAC|High (256 kbps)|Standard (128 kbps)">
         <div class="bitchord-settings-icon">
@@ -8008,12 +8117,6 @@ function renderSettingsView(container) {
   container.innerHTML = `
     <div class="bitchord-settings-screen">
       <h1 class="bitchord-settings-title">Settings</h1>
-      <div class="bitchord-settings-search-wrap">
-        <svg class="bitchord-settings-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input type="text" id="bitchord-settings-search-input" class="bitchord-settings-search-input" placeholder="Search settings (e.g. lossless, crossfade, automix, lyrics, cache)..." value="${escapeHTML(settingsSearchFilter)}" autocomplete="off" />
-      </div>
 
       ${groups.length > 0 ? groups.map(g => `
         <div class="bitchord-settings-group">
@@ -8172,6 +8275,16 @@ function renderSettingsView(container) {
         } catch {}
       } else if (act === 'listen-together') {
         openAccountModal();
+      } else if (act === 'download-current-track') {
+        const cur = CATALOGUE_TRACKS[currentIndex] || CATALOGUE_TRACKS[0];
+        if (cur) triggerTrackDownload(cur);
+      } else if (act === 'open-downloads-view') {
+        currentView = 'downloads';
+        pushNavigation('downloads');
+        renderCurrentView();
+      } else if (act === 'open-downloads-folder') {
+        const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+        if (api?.openDownloadsFolder) api.openDownloadsFolder();
       }
     };
   });
@@ -8317,6 +8430,540 @@ function renderReplayView(container) {
       if (item) playLiveTrack(item);
     };
   });
+}
+
+
+// ============================================================================
+// Offline Track Downloads Manager & Spotify-Style Music Video Switcher
+// ============================================================================
+let downloadedTracksList = [];
+let downloadsFolderPath = 'Music/Deja';
+let isVideoModeActive = false;
+let isVideoDockOpen = false;
+let currentResolvedVideoId = null;
+
+async function refreshDownloadsList() {
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (!api || !api.getDownloads) return;
+  try {
+    const res = await api.getDownloads();
+    if (res && Array.isArray(res.items)) {
+      downloadedTracksList = res.items;
+      if (res.folder) downloadsFolderPath = res.folder;
+      const cur = CATALOGUE_TRACKS[currentIndex];
+      if (cur) updateDownloadButtonsState(cur);
+    }
+  } catch {}
+}
+
+function isTrackDownloaded(track) {
+  if (!track || !track.videoId) return false;
+  return downloadedTracksList.some(d => d.videoId === track.videoId);
+}
+
+function updateDownloadButtonsState(track) {
+  if (typeof document === 'undefined') return;
+  const downloaded = isTrackDownloaded(track);
+  const btnBar = document.getElementById('btn-download-track');
+  const btnExp = document.getElementById('exp-btn-download');
+  [btnBar, btnExp].forEach(btn => {
+    if (!btn) return;
+    btn.classList.toggle('downloaded', downloaded);
+    btn.title = downloaded ? 'Downloaded to Music/Deja (Click to open folder)' : 'Download Song to Music/Deja';
+  });
+}
+
+let downloadToastTimer = null;
+function showDownloadToast(title, sub, filePathToOpen = null) {
+  if (typeof document === 'undefined') return;
+  const toast = document.getElementById('deja-download-toast');
+  const titleEl = document.getElementById('deja-dl-toast-title');
+  const subEl = document.getElementById('deja-dl-toast-sub');
+  const openBtn = document.getElementById('deja-dl-toast-open');
+  const iconEl = document.getElementById('deja-dl-toast-icon');
+  if (!toast) return;
+
+  if (titleEl) titleEl.textContent = title;
+  if (subEl) subEl.textContent = sub;
+  if (iconEl) iconEl.textContent = filePathToOpen ? '✓' : '↓';
+  if (openBtn) {
+    if (filePathToOpen) {
+      openBtn.style.display = 'inline-flex';
+      openBtn.onclick = () => {
+        const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+        if (api?.openDownloadsFolder) api.openDownloadsFolder(filePathToOpen);
+      };
+    } else {
+      openBtn.style.display = 'none';
+    }
+  }
+  toast.style.display = 'flex';
+  if (downloadToastTimer) clearTimeout(downloadToastTimer);
+  downloadToastTimer = setTimeout(() => {
+    toast.style.display = 'none';
+  }, 6000);
+}
+
+async function triggerTrackDownload(track) {
+  const target = track || CATALOGUE_TRACKS[currentIndex] || CATALOGUE_TRACKS[0];
+  if (!target) return;
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+
+  if (isTrackDownloaded(target)) {
+    const existing = downloadedTracksList.find(d => d.videoId === target.videoId);
+    if (api?.openDownloadsFolder) {
+      api.openDownloadsFolder(existing ? existing.filePath : undefined);
+    }
+    showDownloadToast(`"${target.title}" is already downloaded`, `Saved in ${downloadsFolderPath}`, existing?.filePath || true);
+    return;
+  }
+
+  if (!target.videoId) {
+    // Fallback if sample track has no videoId: search YouTube Music for its videoId first
+    if (api?.searchYouTube) {
+      showDownloadToast(`Preparing "${target.title}"...`, `Resolving stream from YouTube Music...`);
+      try {
+        const results = await api.searchYouTube(`${target.title} ${target.artist}`, 'songs');
+        const list = Array.isArray(results) ? results : (results?.songs || results?.results || []);
+        if (list.length > 0 && list[0].videoId) {
+          target.videoId = list[0].videoId;
+        }
+      } catch {}
+    }
+  }
+
+  if (!api?.downloadTrack || !target.videoId) {
+    showDownloadToast(`Cannot download "${target.title}"`, `Play a live YouTube Music track to download.`);
+    return;
+  }
+
+  showDownloadToast(`Downloading "${target.title}"...`, `${target.artist} · Saving to Music/Deja`);
+  try {
+    const res = await api.downloadTrack({
+      videoId: target.videoId,
+      title: target.title,
+      artist: target.artist,
+      album: target.album,
+      cover: upscaleArtworkUrl(target.cover, target.videoId),
+      duration: target.duration
+    });
+    if (res && res.ok) {
+      await refreshDownloadsList();
+      showDownloadToast(`Downloaded "${target.title}"`, `Saved to ${res.filePath || 'Music/Deja'}`, res.filePath || true);
+      if (currentView === 'downloads' || currentView === 'settings') {
+        renderCurrentView();
+      }
+    } else {
+      showDownloadToast(`Download failed`, res?.error || 'Could not resolve audio stream');
+    }
+  } catch (err) {
+    showDownloadToast(`Download error`, err.message || 'Failed to save audio file');
+  }
+}
+
+function renderDownloadsView(container) {
+  if (!container) return;
+  const activeTrack = CATALOGUE_TRACKS[currentIndex] || CATALOGUE_TRACKS[0];
+
+  container.innerHTML = `
+    <div class="bitchord-settings-screen">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom: 22px;">
+        <div>
+          <h1 class="bitchord-settings-title" style="margin-bottom:4px;">Downloads</h1>
+          <p style="color:var(--text-secondary); font-size:14px; margin:0 0 0 4px;">Offline audio tracks saved to <code>${escapeHTML(downloadsFolderPath)}</code></p>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button class="btn-apple-primary" id="btn-dl-view-current" style="display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:999px; font-weight:600; cursor:pointer;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Download "${escapeHTML(activeTrack ? activeTrack.title : 'Current Song')}"</span>
+          </button>
+          <button class="btn-apple-secondary" id="btn-dl-view-open-folder" style="display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:999px; font-weight:600; cursor:pointer;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span>Open Folder</span>
+          </button>
+        </div>
+      </div>
+
+      ${downloadedTracksList.length > 0 ? `
+        <div class="bitchord-search-song-list">
+          ${downloadedTracksList.map((item, idx) => {
+            const sizeMb = item.fileSize ? (item.fileSize / (1024 * 1024)).toFixed(1) + ' MB' : 'Offline';
+            const coverUrl = upscaleArtworkUrl(item.cover, item.videoId);
+            return `
+              <div class="bitchord-search-song-row" data-dl-idx="${idx}">
+                <div class="bitchord-song-row-art-wrap">
+                  <img class="bitchord-song-row-art" src="${escapeHTML(coverUrl)}" alt="${escapeHTML(item.title)}" />
+                  <div class="bitchord-song-row-play">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  </div>
+                </div>
+                <div class="bitchord-song-row-meta">
+                  <div class="bitchord-song-row-title">${escapeHTML(item.title)}</div>
+                  <div class="bitchord-song-row-sub">${escapeHTML(item.artist)} • ${escapeHTML(item.album || 'Downloaded')}</div>
+                </div>
+                <span class="bitchord-settings-badge green">${escapeHTML(sizeMb)}</span>
+                <button class="bitchord-song-row-action" data-dl-show="${idx}" title="Show in Windows Explorer">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                </button>
+                <button class="bitchord-song-row-action" data-dl-delete="${idx}" title="Delete Download">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                </button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      ` : `
+        <div class="bitchord-settings-card" style="padding: 42px 24px; text-align: center;">
+          <div style="width:52px; height:52px; border-radius:50%; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; margin:0 auto 14px auto;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <h3 style="margin:0 0 6px 0; font-size:17px;">No Downloaded Songs Yet</h3>
+          <p style="margin:0 0 18px 0; color:var(--text-secondary); font-size:13.5px;">Click the download button (↓) on the player bar or click "Download Current Song" above to save tracks to <code>Music/Deja</code>.</p>
+        </div>
+      `}
+    </div>
+  `;
+
+  const btnCur = document.getElementById('btn-dl-view-current');
+  if (btnCur) {
+    btnCur.onclick = () => {
+      if (activeTrack) triggerTrackDownload(activeTrack);
+    };
+  }
+  const btnFolder = document.getElementById('btn-dl-view-open-folder');
+  if (btnFolder) {
+    btnFolder.onclick = () => {
+      const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+      if (api?.openDownloadsFolder) api.openDownloadsFolder();
+    };
+  }
+
+  container.querySelectorAll('[data-dl-idx]').forEach(row => {
+    row.onclick = (e) => {
+      if (e.target.closest('[data-dl-show]') || e.target.closest('[data-dl-delete]')) return;
+      const idx = Number(row.getAttribute('data-dl-idx'));
+      const item = downloadedTracksList[idx];
+      if (item) playLiveTrack(item);
+    };
+  });
+
+  container.querySelectorAll('[data-dl-show]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const idx = Number(btn.getAttribute('data-dl-show'));
+      const item = downloadedTracksList[idx];
+      const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+      if (item && api?.openDownloadsFolder) api.openDownloadsFolder(item.filePath);
+    };
+  });
+
+  container.querySelectorAll('[data-dl-delete]').forEach(btn => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const idx = Number(btn.getAttribute('data-dl-delete'));
+      const item = downloadedTracksList[idx];
+      const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+      if (item && api?.deleteDownload) {
+        await api.deleteDownload(item.videoId);
+        await refreshDownloadsList();
+        renderDownloadsView(container);
+      }
+    };
+  });
+}
+
+// ============================================================================
+// Spotify-Style Music Video Mode (Fullscreen Stage + Floating Corner Video Dock)
+// ============================================================================
+function stopAllVideoElements() {
+  if (typeof document === 'undefined') return;
+  ['expanded-video-el', 'dock-video-el'].forEach(id => {
+    const v = document.getElementById(id);
+    if (v) {
+      try { v.pause(); } catch {}
+      v.removeAttribute('src');
+    }
+  });
+  ['expanded-video-iframe', 'dock-video-iframe'].forEach(id => {
+    const f = document.getElementById(id);
+    if (f) {
+      f.src = 'about:blank';
+      f.style.display = 'none';
+    }
+  });
+}
+
+async function loadMusicVideoIntoStage(track, targetType) {
+  if (!track || typeof document === 'undefined') return;
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  const isDock = targetType === 'dock';
+  const videoEl = document.getElementById(isDock ? 'dock-video-el' : 'expanded-video-el');
+  const iframeEl = document.getElementById(isDock ? 'dock-video-iframe' : 'expanded-video-iframe');
+  const dockTitle = document.getElementById('deja-video-dock-title');
+
+  if (dockTitle) {
+    dockTitle.textContent = `${track.title} • ${track.artist}`;
+  }
+
+  let streamData = null;
+  if (api?.resolveVideoStream) {
+    try {
+      streamData = await api.resolveVideoStream({
+        videoId: track.videoId || '',
+        title: track.title || '',
+        artist: track.artist || ''
+      });
+    } catch {}
+  }
+
+  const resolvedVid = (streamData && streamData.videoId) || track.videoId || 'E9jGlwluIbk';
+  currentResolvedVideoId = resolvedVid;
+
+  if (streamData && streamData.url && videoEl) {
+    if (iframeEl) {
+      iframeEl.src = 'about:blank';
+      iframeEl.style.display = 'none';
+    }
+    videoEl.style.display = 'block';
+    videoEl.src = streamData.url;
+    const sameTrackStream = (resolvedVid === track.videoId) && isDirectStreamPlaying && dejaAudio && !dejaAudio.paused;
+    if (sameTrackStream) {
+      // Play HD video muted in exact sync with high-res 160kbps Opus audio stream
+      videoEl.muted = true;
+      videoEl.currentTime = dejaAudio.currentTime || currentTime || 0;
+    } else {
+      // Official Music Video has its own audio track; pause background audio so there's no double sound
+      if (dejaAudio && !dejaAudio.paused) {
+        try { dejaAudio.pause(); } catch {}
+      }
+      if (isYtReady && ytPlayer && isYtPlaying) {
+        try { ytPlayer.pauseVideo(); } catch {}
+      }
+      videoEl.muted = isMuted;
+      videoEl.volume = isMuted ? 0 : currentVolume;
+      if (currentTime > 2) {
+        videoEl.currentTime = currentTime;
+      }
+    }
+    videoEl.onerror = () => {
+      // Fallback to YouTube embed iframe if direct video stream fails
+      videoEl.style.display = 'none';
+      if (iframeEl) {
+        if (dejaAudio && !dejaAudio.paused) {
+          try { dejaAudio.pause(); } catch {}
+        }
+        iframeEl.style.display = 'block';
+        iframeEl.src = `https://www.youtube.com/embed/${resolvedVid}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&start=${Math.floor(currentTime || 0)}`;
+      }
+    };
+    const p = videoEl.play();
+    if (p) p.catch(() => {});
+  } else if (iframeEl) {
+    if (videoEl) {
+      try { videoEl.pause(); } catch {}
+      videoEl.style.display = 'none';
+    }
+    if (dejaAudio && !dejaAudio.paused) {
+      try { dejaAudio.pause(); } catch {}
+    }
+    iframeEl.style.display = 'block';
+    iframeEl.src = `https://www.youtube.com/embed/${resolvedVid}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&start=${Math.floor(currentTime || 0)}`;
+  }
+}
+
+function setExpandedMediaMode(mode) {
+  if (typeof document === 'undefined') return;
+  const artWrap = document.getElementById('now-playing-art-wrap');
+  const vidWrap = document.getElementById('expanded-video-container');
+  const lyricsWrap = document.getElementById('expanded-lyrics-container');
+  const btnSong = document.getElementById('exp-mode-song-btn');
+  const btnVid = document.getElementById('exp-mode-video-btn');
+  const btnExpVid = document.getElementById('exp-btn-video');
+  const btnBarVid = document.getElementById('btn-switch-video');
+  const dock = document.getElementById('deja-video-dock');
+
+  const track = CATALOGUE_TRACKS[currentIndex] || CATALOGUE_TRACKS[0];
+
+  if (mode === 'video') {
+    isVideoModeActive = true;
+    isVideoDockOpen = false;
+    if (dock) dock.style.display = 'none';
+    stopAllVideoElements();
+    if (artWrap) artWrap.style.display = 'none';
+    if (lyricsWrap) lyricsWrap.style.display = 'none';
+    if (vidWrap) vidWrap.style.display = 'block';
+    if (btnSong) btnSong.classList.remove('active');
+    if (btnVid) btnVid.classList.add('active');
+    if (btnExpVid) btnExpVid.classList.add('active');
+    if (btnBarVid) btnBarVid.classList.add('active');
+    loadMusicVideoIntoStage(track, 'expanded');
+  } else {
+    const wasVideo = isVideoModeActive;
+    isVideoModeActive = false;
+    stopAllVideoElements();
+    if (vidWrap) vidWrap.style.display = 'none';
+    if (artWrap) artWrap.style.display = '';
+    if (btnSong) btnSong.classList.add('active');
+    if (btnVid) btnVid.classList.remove('active');
+    if (btnExpVid) btnExpVid.classList.remove('active');
+    if (!isVideoDockOpen && btnBarVid) btnBarVid.classList.remove('active');
+    if (wasVideo && track && dejaAudio && dejaAudio.paused && isPlaying) {
+      dejaAudio.play().catch(() => {});
+    }
+  }
+}
+
+function toggleSpotifyVideoDock() {
+  if (typeof document === 'undefined') return;
+  const expView = document.getElementById('expanded-player-view');
+  const isExpandedVisible = expView && expView.classList.contains('visible');
+
+  if (isExpandedVisible) {
+    setExpandedMediaMode(isVideoModeActive ? 'song' : 'video');
+    return;
+  }
+
+  const dock = document.getElementById('deja-video-dock');
+  const btnBarVid = document.getElementById('btn-switch-video');
+  const track = CATALOGUE_TRACKS[currentIndex] || CATALOGUE_TRACKS[0];
+
+  if (isVideoDockOpen) {
+    isVideoDockOpen = false;
+    stopAllVideoElements();
+    if (dock) dock.style.display = 'none';
+    if (btnBarVid) btnBarVid.classList.remove('active');
+    if (track && dejaAudio && dejaAudio.paused && isPlaying) {
+      dejaAudio.play().catch(() => {});
+    }
+  } else {
+    isVideoDockOpen = true;
+    isVideoModeActive = false;
+    stopAllVideoElements();
+    if (dock) dock.style.display = 'block';
+    if (btnBarVid) btnBarVid.classList.add('active');
+    loadMusicVideoIntoStage(track, 'dock');
+  }
+}
+
+function onTrackChangedForVideoMode(track) {
+  if (isVideoModeActive) {
+    loadMusicVideoIntoStage(track, 'expanded');
+  } else if (isVideoDockOpen) {
+    loadMusicVideoIntoStage(track, 'dock');
+  }
+}
+
+if (typeof document !== 'undefined') {
+  const bindVideoAndDownloadControls = () => {
+    refreshDownloadsList();
+
+    const btnDlBar = document.getElementById('btn-download-track');
+    if (btnDlBar) {
+      btnDlBar.onclick = (e) => {
+        e.stopPropagation();
+        const cur = CATALOGUE_TRACKS[currentIndex] || CATALOGUE_TRACKS[0];
+        if (cur) triggerTrackDownload(cur);
+      };
+    }
+
+    const btnDlExp = document.getElementById('exp-btn-download');
+    if (btnDlExp) {
+      btnDlExp.onclick = (e) => {
+        e.stopPropagation();
+        const cur = CATALOGUE_TRACKS[currentIndex] || CATALOGUE_TRACKS[0];
+        if (cur) triggerTrackDownload(cur);
+      };
+    }
+
+    const btnVidBar = document.getElementById('btn-switch-video');
+    if (btnVidBar) {
+      btnVidBar.onclick = (e) => {
+        e.stopPropagation();
+        toggleSpotifyVideoDock();
+      };
+    }
+
+    const btnModeSong = document.getElementById('exp-mode-song-btn');
+    if (btnModeSong) {
+      btnModeSong.onclick = (e) => {
+        e.stopPropagation();
+        setExpandedMediaMode('song');
+      };
+    }
+
+    const btnModeVid = document.getElementById('exp-mode-video-btn');
+    if (btnModeVid) {
+      btnModeVid.onclick = (e) => {
+        e.stopPropagation();
+        setExpandedMediaMode('video');
+      };
+    }
+
+    const btnExpVid = document.getElementById('exp-btn-video');
+    if (btnExpVid) {
+      btnExpVid.onclick = (e) => {
+        e.stopPropagation();
+        setExpandedMediaMode(isVideoModeActive ? 'song' : 'video');
+      };
+    }
+
+    const btnDockClose = document.getElementById('btn-dock-close');
+    if (btnDockClose) {
+      btnDockClose.onclick = (e) => {
+        e.stopPropagation();
+        if (isVideoDockOpen) toggleSpotifyVideoDock();
+      };
+    }
+
+    const btnDockExpand = document.getElementById('btn-dock-expand');
+    if (btnDockExpand) {
+      btnDockExpand.onclick = (e) => {
+        e.stopPropagation();
+        const dock = document.getElementById('deja-video-dock');
+        if (dock) dock.style.display = 'none';
+        isVideoDockOpen = false;
+        const expView = document.getElementById('expanded-player-view');
+        if (expView) expView.classList.add('visible');
+        setExpandedMediaMode('video');
+      };
+    }
+
+    // Keep muted HD video synced with dejaAudio timeupdate
+    if (dejaAudio) {
+      dejaAudio.addEventListener('timeupdate', () => {
+        const activeVid = isVideoModeActive
+          ? document.getElementById('expanded-video-el')
+          : (isVideoDockOpen ? document.getElementById('dock-video-el') : null);
+        if (activeVid && activeVid.muted && activeVid.src && !activeVid.paused) {
+          if (Math.abs(activeVid.currentTime - dejaAudio.currentTime) > 0.45) {
+            activeVid.currentTime = dejaAudio.currentTime;
+          }
+        }
+      });
+      dejaAudio.addEventListener('play', () => {
+        const activeVid = isVideoModeActive
+          ? document.getElementById('expanded-video-el')
+          : (isVideoDockOpen ? document.getElementById('dock-video-el') : null);
+        if (activeVid && activeVid.muted && activeVid.src && activeVid.paused) {
+          activeVid.play().catch(() => {});
+        }
+      });
+      dejaAudio.addEventListener('pause', () => {
+        const activeVid = isVideoModeActive
+          ? document.getElementById('expanded-video-el')
+          : (isVideoDockOpen ? document.getElementById('dock-video-el') : null);
+        if (activeVid && activeVid.muted && activeVid.src && !activeVid.paused) {
+          try { activeVid.pause(); } catch {}
+        }
+      });
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindVideoAndDownloadControls);
+  } else {
+    setTimeout(bindVideoAndDownloadControls, 0);
+  }
 }
 
 if (typeof module !== 'undefined' && module.exports) {

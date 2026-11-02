@@ -152,22 +152,36 @@ function createWindow() {
 
     let x = savedBounds.x;
     let y = savedBounds.y;
+    let winWidth = savedBounds.width || 1260;
+    let winHeight = savedBounds.height || 780;
 
-    if (typeof x === 'number' && typeof y === 'number') {
-      try {
-        const displays = screen.getAllDisplays();
-        const isVisibleOnAnyDisplay = displays.some(d => {
-          const { x: dx, y: dy, width: dw, height: dh } = d.bounds;
-          return x >= dx && x < (dx + dw) && y >= dy && y < (dy + dh);
-        });
-        if (!isVisibleOnAnyDisplay) {
-          console.warn(`[Window] Saved position (${x}, ${y}) is outside all connected displays; centering.`);
-          x = undefined;
-          y = undefined;
+    try {
+      const primaryDisplay = screen.getPrimaryDisplay();
+      const workArea = primaryDisplay ? primaryDisplay.workArea : null;
+      if (workArea && workArea.width > 0 && workArea.height > 0) {
+        winWidth = Math.min(winWidth, workArea.width);
+        winHeight = Math.min(winHeight, workArea.height);
+        if (typeof x === 'number' && typeof y === 'number') {
+          const displays = screen.getAllDisplays();
+          const isVisibleOnAnyDisplay = displays.some(d => {
+            const { x: dx, y: dy, width: dw, height: dh } = d.workArea || d.bounds;
+            return x >= dx && x < (dx + dw) && y >= dy && y < (dy + dh);
+          });
+          if (!isVisibleOnAnyDisplay) {
+            x = undefined;
+            y = undefined;
+          } else {
+            if (y + winHeight > workArea.y + workArea.height) {
+              y = Math.max(workArea.y, workArea.y + workArea.height - winHeight);
+            }
+            if (x + winWidth > workArea.x + workArea.width) {
+              x = Math.max(workArea.x, workArea.x + workArea.width - winWidth);
+            }
+          }
         }
-      } catch (screenErr) {
-        console.warn('[Window] Could not check screen bounds:', screenErr.message);
       }
+    } catch (screenErr) {
+      console.warn('[Window] Could not check screen bounds:', screenErr.message);
     }
 
     const iconPath = process.platform === 'win32'
@@ -175,15 +189,16 @@ function createWindow() {
       : path.join(__dirname, '../../assets/icon.png');
 
     mainWindow = new BrowserWindow({
-      width: savedBounds.width || 1300,
-      height: savedBounds.height || 860,
+      width: winWidth,
+      height: winHeight,
       x: x,
       y: y,
       minWidth: 320,
       minHeight: 120,
       frame: false,
+      skipTaskbar: false,
       title: 'Deja - YouTube Music',
-      backgroundColor: '#141416',
+      backgroundColor: '#0b0b0e',
       icon: iconPath,
       webPreferences: {
         preload: path.join(__dirname, '../preload/preload.js'),
@@ -322,12 +337,17 @@ function createWindow() {
       }
     });
 
-    mainWindow.on('minimize', (e) => {
-      const hasTray = trayManager && trayManager.tray && !trayManager.tray.isDestroyed();
-      if (config.get('minimizeToTray') && hasTray) {
-        e.preventDefault();
-        mainWindow.hide();
-      }
+    mainWindow.on('minimize', () => {
+      // Always keep the app visible in the Windows taskbar when minimized
+      try {
+        mainWindow.setSkipTaskbar(false);
+      } catch {}
+    });
+
+    mainWindow.on('restore', () => {
+      try {
+        mainWindow.setSkipTaskbar(false);
+      } catch {}
     });
 
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -1561,6 +1581,198 @@ ipcMain.handle('yt-resolve-stream', async (event, videoId) => {
   } catch (err) {
     console.warn('[Stream] Audio stream resolution error:', err.message);
     return null;
+  }
+});
+
+// Direct Music Video Stream Resolution via InnerTube (Spotify-style Switch to Video)
+ipcMain.handle('yt-resolve-video', async (event, payload) => {
+  if (!payload) return null;
+  const videoId = typeof payload === 'string' ? payload : (payload.videoId || '');
+  const queryInfo = typeof payload === 'object' ? payload : {};
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    return await innertube.getVideoStream(videoId, ses, queryInfo);
+  } catch (err) {
+    console.warn('[Video] Music video stream resolution error:', err.message);
+    return null;
+  }
+});
+
+// Offline Audio Track Downloader & Manager (BitChord DownloadManagerSheet architecture)
+const fs = require('fs');
+const https = require('https');
+
+function getDejaDownloadsDir() {
+  try {
+    const musicDir = app.getPath('music');
+    const dir = path.join(musicDir, 'Deja');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    return dir;
+  } catch {
+    const fallback = path.join(app.getPath('userData'), 'Downloads');
+    if (!fs.existsSync(fallback)) {
+      fs.mkdirSync(fallback, { recursive: true });
+    }
+    return fallback;
+  }
+}
+
+function getDownloadsMetaPath() {
+  return path.join(app.getPath('userData'), 'deja-downloads.json');
+}
+
+function loadDownloadsMeta() {
+  try {
+    const p = getDownloadsMetaPath();
+    if (fs.existsSync(p)) {
+      const parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
+      if (Array.isArray(parsed)) {
+        return parsed.filter(item => item && item.filePath && fs.existsSync(item.filePath));
+      }
+    }
+  } catch {}
+  return [];
+}
+
+function saveDownloadsMeta(list) {
+  try {
+    fs.writeFileSync(getDownloadsMetaPath(), JSON.stringify(list, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('[Downloads] Failed to save metadata:', err.message);
+  }
+}
+
+ipcMain.handle('get-downloads', async () => {
+  const dir = getDejaDownloadsDir();
+  const items = loadDownloadsMeta();
+  return {
+    folder: dir,
+    items
+  };
+});
+
+ipcMain.handle('open-downloads-folder', async (event, targetFilePath) => {
+  try {
+    const dir = getDejaDownloadsDir();
+    if (targetFilePath && typeof targetFilePath === 'string' && fs.existsSync(targetFilePath)) {
+      shell.showItemInFolder(targetFilePath);
+      return { ok: true, path: targetFilePath };
+    }
+    await shell.openPath(dir);
+    return { ok: true, path: dir };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('delete-download', async (event, videoId) => {
+  try {
+    const list = loadDownloadsMeta();
+    const target = list.find(i => i.videoId === videoId || i.id === videoId);
+    if (target && target.filePath && fs.existsSync(target.filePath)) {
+      try { fs.unlinkSync(target.filePath); } catch {}
+    }
+    const next = list.filter(i => i.videoId !== videoId && i.id !== videoId);
+    saveDownloadsMeta(next);
+    return { ok: true, items: next };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('download-track', async (event, trackInfo) => {
+  if (!trackInfo || !trackInfo.videoId) {
+    return { ok: false, error: 'No videoId available for this track' };
+  }
+  const videoId = String(trackInfo.videoId);
+  const title = String(trackInfo.title || 'Track').trim();
+  const artist = String(trackInfo.artist || 'YouTube Music').trim();
+  const album = String(trackInfo.album || 'YouTube Music').trim();
+  const cover = String(trackInfo.cover || '');
+  const duration = Number(trackInfo.duration) || 210;
+
+  try {
+    const ses = session.fromPartition('persist:ytmusic');
+    const stream = await innertube.getAudioStream(videoId, ses);
+    if (!stream || !stream.url) {
+      return { ok: false, error: 'Could not resolve direct audio stream for download' };
+    }
+
+    const dir = getDejaDownloadsDir();
+    const ext = (stream.mimeType && stream.mimeType.includes('mp4')) ? 'm4a' : 'webm';
+    const safeName = `${artist} - ${title}`.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').slice(0, 140);
+    const filePath = path.join(dir, `${safeName}.${ext}`);
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('download-progress', {
+        videoId,
+        title,
+        artist,
+        progress: 5,
+        status: 'downloading'
+      });
+    }
+
+    const response = await fetch(stream.url, {
+      headers: {
+        'User-Agent': 'com.google.ios.youtube/20.01.1 (iPhone16,2; U; CPU iOS 18_1_1 like Mac OS X; en_US)'
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} while downloading stream`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    fs.writeFileSync(filePath, buffer);
+
+    const entry = {
+      id: `dl-${videoId}`,
+      videoId,
+      title,
+      artist,
+      album,
+      cover,
+      duration,
+      filePath,
+      fileSize: buffer.length,
+      mimeType: stream.mimeType || 'audio/webm',
+      bitrate: stream.bitrate || 160000,
+      downloadedAt: new Date().toISOString()
+    };
+
+    const existing = loadDownloadsMeta().filter(i => i.videoId !== videoId);
+    existing.unshift(entry);
+    saveDownloadsMeta(existing);
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('download-progress', {
+        videoId,
+        title,
+        artist,
+        progress: 100,
+        status: 'completed',
+        filePath,
+        entry
+      });
+    }
+
+    return { ok: true, filePath, entry, folder: dir };
+  } catch (err) {
+    console.warn('[Downloads] Error downloading track:', err.message);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('download-progress', {
+        videoId,
+        title,
+        artist,
+        progress: 0,
+        status: 'error',
+        error: err.message
+      });
+    }
+    return { ok: false, error: err.message };
   }
 });
 

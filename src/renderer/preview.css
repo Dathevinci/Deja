@@ -4437,3 +4437,395 @@ body.reduce-blur .bitchord-settings-card {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+
+/* ==========================================================================
+   BitChord Clean Obsidian Backdrop, High-Res Now Playing Stage,
+   Spotify-Style Video Switcher & Offline Downloads UI
+   ========================================================================== */
+
+:root {
+  --bg-main: #0b0b0e;
+  --bg-sidebar: rgba(16, 16, 20, 0.92);
+  --bg-header: rgba(14, 14, 18, 0.88);
+  --bg-player: rgba(18, 18, 22, 0.95);
+}
+
+/* Remove muddy green/red background tinting on main browsing screens */
+.app-ambient-backdrop {
+  opacity: 0.06 !important;
+  background: radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.06) 0%, transparent 55%) !important;
+}
+
+/* Remove intrusive ALBUM / YTM sticker overlaying Home & Explore card covers */
+.card-type-badge {
+  display: none !important;
+}
+
+/* Fix Sidebar vertical spacing and eliminate nested double scrollbars / double divider bars */
+.apple-sidebar {
+  padding: 12px 10px 10px 10px !important;
+}
+
+.sidebar-logo {
+  padding: 2px 8px 12px 8px !important;
+  margin-bottom: 8px !important;
+}
+
+.sidebar-group {
+  margin-bottom: 12px !important;
+}
+
+.sidebar-heading {
+  padding: 0 10px 4px 10px !important;
+  font-size: 10.5px !important;
+}
+
+.sidebar-link {
+  padding: 6.5px 10px !important;
+  font-size: 13px !important;
+  gap: 9px !important;
+}
+
+.sidebar-yt-playlists-scroll {
+  max-height: none !important;
+  overflow-y: visible !important;
+}
+
+.sidebar-account-footer {
+  padding: 8px 6px 4px 6px !important;
+  margin-top: 6px !important;
+}
+
+/* High-Resolution Fullscreen Now Playing Stage without Red Background Glow */
+.deja-expanded-player-view {
+  background: #08080b !important;
+}
+
+.deja-ambient-art-blur {
+  filter: blur(72px) saturate(125%) brightness(0.28) !important;
+  transform: scale(1.18) !important;
+  opacity: 0.9 !important;
+}
+
+.deja-ambient-mesh-overlay {
+  background: radial-gradient(circle at 20% 25%, var(--deja-aura-c1, rgba(38, 40, 48, 0.35)) 0%, transparent 60%),
+              radial-gradient(circle at 80% 20%, var(--deja-aura-c2, rgba(28, 30, 38, 0.32)) 0%, transparent 60%),
+              radial-gradient(circle at 25% 80%, var(--deja-aura-c3, rgba(24, 26, 34, 0.30)) 0%, transparent 60%),
+              radial-gradient(circle at 75% 75%, var(--deja-aura-c4, rgba(32, 34, 42, 0.30)) 0%, transparent 60%) !important;
+  opacity: 0.55 !important;
+}
+
+.deja-ambient-mesh-blobs {
+  opacity: 0.25 !important;
+}
+
+.mesh-blob.blob-1 { background: var(--deja-aura-c1, rgba(45, 48, 58, 0.35)) !important; }
+.mesh-blob.blob-2 { background: var(--deja-aura-c2, rgba(35, 38, 48, 0.30)) !important; }
+.mesh-blob.blob-3 { background: var(--deja-aura-c3, rgba(30, 32, 42, 0.28)) !important; }
+.mesh-blob.blob-4 { background: var(--deja-aura-c4, rgba(40, 42, 52, 0.28)) !important; }
+
+.deja-mesh-dark-scrim {
+  background: linear-gradient(180deg, rgba(8, 8, 12, 0.52) 0%, rgba(8, 8, 12, 0.86) 100%) !important;
+}
+
+/* Crisp High-Resolution Album Cover Container (No Red Box-Shadow Halo) */
+.expanded-artwork-container,
+#now-playing-art-wrap,
+.now-playing-art-wrap {
+  width: 370px !important;
+  height: 370px !important;
+  max-width: min(370px, 42vh) !important;
+  max-height: min(370px, 42vh) !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.85), 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+}
+
+body.deja-playing .expanded-artwork-container,
+.apple-player-bar.is-playing ~ .deja-expanded-player-view .expanded-artwork-container,
+.deja-expanded-player-view.is-playing .expanded-artwork-container,
+body.deja-playing #now-playing-art-wrap,
+.deja-expanded-player-view.is-playing #now-playing-art-wrap,
+body.deja-playing .now-playing-art-wrap,
+.deja-expanded-player-view.is-playing .now-playing-art-wrap {
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 255, 255, 0.07) !important;
+}
+
+/* Crisp Scrubber Track in Fullscreen Now Playing */
+#exp-scrubber-track {
+  height: 5px !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  border-radius: 999px !important;
+}
+
+#exp-scrubber-fill {
+  background: #FFFFFF !important;
+  border-radius: 999px !important;
+}
+
+/* Song | Video Segmented Mode Switcher Pill in Fullscreen Player */
+.exp-media-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.exp-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.exp-mode-btn:hover {
+  color: #FFFFFF;
+}
+
+.exp-mode-btn.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* 16:9 HD Music Video Stage inside Fullscreen Player */
+.expanded-video-container {
+  width: min(680px, 84vw);
+  aspect-ratio: 16 / 9;
+  max-height: 44vh;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 28px 75px rgba(0, 0, 0, 0.9);
+  position: relative;
+  z-index: 4;
+  flex-shrink: 0;
+}
+
+.expanded-video-el,
+.expanded-video-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  object-fit: contain;
+  background: #000;
+  display: block;
+}
+
+/* Spotify-Style "Video" Switch Button on Bottom Player Bar */
+.deja-video-switch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 4px;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.deja-video-switch-pill:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #FFFFFF;
+  transform: scale(1.04);
+}
+
+.deja-video-switch-pill.active,
+#exp-btn-video.active {
+  background: rgba(52, 199, 89, 0.2) !important;
+  border-color: rgba(52, 199, 89, 0.5) !important;
+  color: #4CD964 !important;
+}
+
+#btn-download-track.downloaded,
+#exp-btn-download.downloaded {
+  color: #4CD964 !important;
+}
+
+/* Spotify-Style Floating Music Video Dock (Bottom-Right Corner) */
+.deja-video-dock {
+  position: fixed;
+  right: 20px;
+  bottom: 94px;
+  width: 390px;
+  background: rgba(16, 16, 20, 0.97);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+  z-index: 9500;
+  overflow: hidden;
+  animation: bitchordViewFadeIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.deja-video-dock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.deja-video-dock-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+}
+
+.deja-video-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4CD964;
+  box-shadow: 0 0 8px rgba(76, 217, 100, 0.8);
+  flex-shrink: 0;
+}
+
+.deja-video-dock-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #FFFFFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deja-video-dock-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.deja-video-dock-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.deja-video-dock-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+}
+
+.deja-video-dock-body {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  position: relative;
+}
+
+.dock-video-el,
+.dock-video-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  object-fit: contain;
+  background: #000;
+  display: block;
+}
+
+/* Download Progress / Completion Toast */
+.deja-download-toast {
+  position: fixed;
+  right: 22px;
+  bottom: 96px;
+  background: rgba(22, 22, 28, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75);
+  z-index: 9800;
+  min-width: 290px;
+  max-width: 400px;
+}
+
+.deja-dl-toast-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(52, 199, 89, 0.18);
+  color: #4CD964;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.deja-dl-toast-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.deja-dl-toast-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFFFFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deja-dl-toast-sub {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deja-dl-toast-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  border-radius: 8px;
+  padding: 6px 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.deja-dl-toast-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
