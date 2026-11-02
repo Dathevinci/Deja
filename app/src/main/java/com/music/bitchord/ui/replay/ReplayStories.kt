@@ -408,12 +408,12 @@ private fun StoryChrome(
             Icon(
                 painter = painterResource(R.drawable.ic_logo),
                 contentDescription = null,
-                tint = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.size(width = 26.dp, height = 17.dp),
+                tint = Color.Unspecified,
+                modifier = Modifier.size(26.dp),
             )
             Spacer(Modifier.width(7.dp))
             Text(
-                text = "BitChord",
+                text = "Deja",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.W700,
                 color = Color.White.copy(alpha = 0.9f),

@@ -4602,14 +4602,93 @@ body.deja-playing .now-playing-art-wrap,
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
-/* 16:9 HD Music Video Stage inside Fullscreen Player */
-.expanded-video-container {
-  width: min(680px, 84vw);
-  aspect-ratio: 16 / 9;
-  max-height: 44vh;
-  border-radius: 18px;
+/* Spotify Canvas & Apple Music Motion Artwork Video Preview in Thumbnails */
+.artwork-wrapper {
+  position: relative;
   overflow: hidden;
-  background: #000000;
+}
+
+.mini-canvas-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.mini-canvas-video.is-ready {
+  opacity: 1;
+}
+
+.artwork-wrapper .artwork-overlay {
+  z-index: 2;
+}
+
+.expanded-artwork-container,
+#now-playing-art-wrap,
+.now-playing-art-wrap {
+  position: relative !important;
+  overflow: hidden !important;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease !important;
+}
+
+.expanded-artwork-container.video-mode-active,
+#now-playing-art-wrap.video-mode-active {
+  transform: scale(1.03);
+  border-color: rgba(255, 255, 255, 0.26) !important;
+  box-shadow: 0 34px 85px rgba(0, 0, 0, 0.92), 0 0 42px rgba(255, 255, 255, 0.1) !important;
+}
+
+.artwork-canvas-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.artwork-canvas-video.is-ready {
+  opacity: 1;
+}
+
+.artwork-canvas-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 3;
+  background: rgba(10, 10, 14, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+}
+
+.expanded-video-container {
+  width: 370px;
+  height: 370px;
+  max-width: min(370px, 42vh);
+  max-height: min(370px, 42vh);
+  border-radius: 20px;
+  overflow: hidden;
+  background: #08080b;
   border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 0 28px 75px rgba(0, 0, 0, 0.9);
   position: relative;
@@ -4617,13 +4696,12 @@ body.deja-playing .now-playing-art-wrap,
   flex-shrink: 0;
 }
 
-.expanded-video-el,
-.expanded-video-iframe {
+.expanded-video-el {
   width: 100%;
   height: 100%;
   border: none;
-  object-fit: contain;
-  background: #000;
+  object-fit: cover;
+  background: #08080b;
   display: block;
 }
 
@@ -4654,9 +4732,9 @@ body.deja-playing .now-playing-art-wrap,
 
 .deja-video-switch-pill.active,
 #exp-btn-video.active {
-  background: rgba(52, 199, 89, 0.2) !important;
-  border-color: rgba(52, 199, 89, 0.5) !important;
-  color: #4CD964 !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  border-color: rgba(255, 255, 255, 0.42) !important;
+  color: #FFFFFF !important;
 }
 
 #btn-download-track.downloaded,
@@ -4664,98 +4742,166 @@ body.deja-playing .now-playing-art-wrap,
   color: #4CD964 !important;
 }
 
-/* Spotify-Style Floating Music Video Dock (Bottom-Right Corner) */
+/* Spotify Canvas / Apple Music Video Thumbnail Preview Card (Docked Above Bottom-Left Artwork) */
 .deja-video-dock {
   position: fixed;
-  right: 20px;
-  bottom: 94px;
-  width: 390px;
-  background: rgba(16, 16, 20, 0.97);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 16px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+  left: 18px;
+  bottom: 92px;
+  width: 236px;
+  height: 236px;
+  background: #0b090a;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.88), 0 4px 18px rgba(0, 0, 0, 0.6);
   z-index: 9500;
   overflow: hidden;
-  animation: bitchordViewFadeIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: bitchordViewFadeIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.deja-video-dock-body {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: #0b090a;
+  overflow: hidden;
+}
+
+.dock-poster-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.92);
+  z-index: 1;
+}
+
+.dock-video-el {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  object-fit: cover;
+  background: transparent;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 2;
+}
+
+.dock-video-el.is-ready {
+  opacity: 1;
 }
 
 .deja-video-dock-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 10px 18px 10px;
+  background: linear-gradient(180deg, rgba(8, 8, 12, 0.78) 0%, rgba(8, 8, 12, 0) 100%);
 }
 
 .deja-video-dock-title-wrap {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-width: 0;
-  flex: 1;
+  gap: 6px;
+  background: rgba(12, 12, 16, 0.68);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 3px 9px;
+  border-radius: 999px;
 }
 
 .deja-video-live-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #4CD964;
-  box-shadow: 0 0 8px rgba(76, 217, 100, 0.8);
+  box-shadow: 0 0 8px rgba(76, 217, 100, 0.85);
   flex-shrink: 0;
 }
 
-.deja-video-dock-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #FFFFFF;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.deja-video-dock-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .deja-video-dock-actions {
   display: flex;
   align-items: center;
   gap: 4px;
+  opacity: 0.88;
+  transition: opacity 0.18s ease;
+}
+
+.deja-video-dock:hover .deja-video-dock-actions {
+  opacity: 1;
 }
 
 .deja-video-dock-btn {
   width: 26px;
   height: 26px;
-  border-radius: 7px;
-  border: none;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(12, 12, 16, 0.68);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .deja-video-dock-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.22);
   color: #FFFFFF;
+  transform: scale(1.06);
 }
 
-.deja-video-dock-body {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  position: relative;
+.deja-video-dock-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  padding: 22px 12px 10px 12px;
+  background: linear-gradient(0deg, rgba(8, 8, 12, 0.86) 0%, rgba(8, 8, 12, 0) 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  pointer-events: none;
 }
 
-.dock-video-el,
-.dock-video-iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-  object-fit: contain;
-  background: #000;
-  display: block;
+.deja-video-dock-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #FFFFFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.deja-video-dock-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.76);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
 /* Download Progress / Completion Toast */

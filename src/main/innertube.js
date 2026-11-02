@@ -3894,116 +3894,375 @@ async function getLyrics({ videoId, title, artist, duration, album }, ses) {
  * Resolves a playable Music Video stream (direct MP4 video URL + official videoId)
  * for Spotify-style "Switch to Video" mode.
  */
+// ============================================================================
+// BitChord 4-Source Canvas & Video Thumbnail Preview Engine
+// 1. Apple Music Editorial Motion Artwork (1080x1080 H.264 direct MP4)
+// 2. Tidal Video Cover (1280x1280 square looping MP4)
+// 3. Community Spotify Canvas Index (direct looping MP4)
+// 4. Direct YouTube IOS 1080p/720p MP4 stream (with VisitorData, zero iframe)
+// ============================================================================
+
+let cachedAppleBearer = null;
+let appleBearerExpiry = 0;
+let cachedCommunityCanvas = null;
+let communityCanvasFetchedAt = 0;
+const canvasResultCache = new Map();
+
+function normalizeCanvasMatch(str) {
+  return cleanSearchTerm(String(str || ''))
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function getAppleMusicWebBearer() {
+  const now = Date.now();
+  if (cachedAppleBearer && now < appleBearerExpiry - 60000) {
+    return cachedAppleBearer;
+  }
+  try {
+    const htmlRes = await fetch('https://music.apple.com/us/browse', {
+      headers: { 'User-Agent': CHROME_UA }
+    });
+    if (!htmlRes.ok) return null;
+    const html = await htmlRes.text();
+    const scripts = [...new Set([...html.matchAll(/\/assets\/index(?:-legacy)?[~-][A-Za-z0-9_-]+\.js/g)].map(m => m[0]))];
+    for (const path of scripts) {
+      const jsRes = await fetch(`https://music.apple.com${path}`, {
+        headers: { 'User-Agent': CHROME_UA }
+      });
+      if (!jsRes.ok) continue;
+      const js = await jsRes.text();
+      const jwts = [...new Set([...js.matchAll(/ey[A-Za-z0-9_-]+\.ey[A-Za-z0-9_-]+\.([A-Za-z0-9_-]+)/g)].map(m => m[0]))];
+      for (const jwt of jwts) {
+        try {
+          const parts = jwt.split('.');
+          const header = Buffer.from(parts[0], 'base64url').toString('utf8');
+          const payload = Buffer.from(parts[1], 'base64url').toString('utf8');
+          if (header.includes('WebPlayKid') || payload.includes('AMPWebPlay')) {
+            const expMatch = payload.match(/"exp"\s*:\s*(\d+)/);
+            const expMs = expMatch ? Number(expMatch[1]) * 1000 : (now + 3600000);
+            if (expMs > now) {
+              cachedAppleBearer = jwt;
+              appleBearerExpiry = expMs;
+              return jwt;
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.warn('[Canvas] Apple bearer scrape notice:', err.message);
+  }
+  return null;
+}
+
+async function resolveAppleM3u8ToDirectMp4(m3u8Url) {
+  if (!m3u8Url) return null;
+  try {
+    const res = await fetch(m3u8Url, { headers: { 'User-Agent': CHROME_UA } });
+    if (!res.ok) return null;
+    const masterTxt = await res.text();
+    // Extract all variant .m3u8 URLs
+    const lines = masterTxt.split(/\r?\n/).map(l => l.trim()).filter(l => l.startsWith('https://') && l.endsWith('.m3u8') && !l.includes('iframes'));
+    if (lines.length === 0) return null;
+
+    // Prefer H.264 (gr290 / gr280 / gr270 / gr265 / gr260 / gr250 / gr240) SDR square streams for universal HTML5 <video> decode
+    const h264Candidates = lines.filter(l => /_gr2\d\d_sdr_/.test(l));
+    const chosenVariant = h264Candidates.length > 0 ? h264Candidates[h264Candidates.length - 1] : lines[0];
+    // Apple's HLS fMP4 variants store the complete contiguous video at the exact same URL ending in -.mp4
+    const directMp4 = chosenVariant.replace(/\.m3u8$/, '-.mp4');
+    return directMp4;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAppleMusicCanvas(title, artist, album) {
+  if (!title || !artist) return null;
+  try {
+    const bearer = await getAppleMusicWebBearer();
+    if (!bearer) return null;
+    const cleanT = cleanSearchTerm(title);
+    const cleanA = cleanArtistTerm(artist);
+    const term = `${cleanA} ${cleanT} ${album || ''}`.trim();
+    const searchUrl = `https://amp-api.music.apple.com/v1/catalog/us/search?term=${encodeURIComponent(term)}&types=songs&limit=6&extend=editorialVideo&include=albums`;
+    const headers = {
+      'Authorization': `Bearer ${bearer}`,
+      'Origin': 'https://music.apple.com',
+      'Referer': 'https://music.apple.com/',
+      'User-Agent': CHROME_UA
+    };
+    const sRes = await fetch(searchUrl, { headers });
+    if (!sRes.ok) return null;
+    const sData = await sRes.json();
+    const songs = sData?.results?.songs?.data || [];
+    const wantT = normalizeCanvasMatch(cleanT);
+    const wantA = normalizeCanvasMatch(cleanA);
+
+    for (const song of songs) {
+      const attr = song?.attributes || {};
+      const gotT = normalizeCanvasMatch(attr.name || '');
+      const gotA = normalizeCanvasMatch(attr.artistName || '');
+      if (!gotT || !gotA) continue;
+      if (!(gotT.includes(wantT) || wantT.includes(gotT))) continue;
+      if (!(gotA.includes(wantA) || wantA.includes(gotA))) continue;
+
+      let edVid = attr.editorialVideo;
+      if (!edVid) {
+        let albumId = song?.relationships?.albums?.data?.[0]?.id;
+        if (!albumId && attr.url) {
+          const m = String(attr.url).match(/\/album\/[^/?]+\/(\d+)/);
+          if (m) albumId = m[1];
+        }
+        if (albumId) {
+          const aRes = await fetch(`https://amp-api.music.apple.com/v1/catalog/us/albums/${albumId}?extend=editorialVideo`, { headers });
+          if (aRes.ok) {
+            const aData = await aRes.json();
+            edVid = aData?.data?.[0]?.attributes?.editorialVideo;
+          }
+        }
+      }
+
+      if (edVid) {
+        const m3u8 = edVid.motionDetailSquare?.video ||
+                     edVid.motionSquareVideo1x1?.video ||
+                     edVid.motionDetailTall?.video ||
+                     edVid.motionTallVideo3x4?.video ||
+                     edVid.motionDetailRaw?.video;
+        const directMp4 = await resolveAppleM3u8ToDirectMp4(m3u8);
+        if (directMp4) {
+          return {
+            url: directMp4,
+            mimeType: 'video/mp4',
+            width: 1080,
+            height: 1080,
+            aspect: 'square',
+            source: 'Apple Music Motion',
+            qualityLabel: 'Apple Motion 1080p',
+            isCanvas: true,
+            title: attr.name || title
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Canvas] AppleMusicCanvas notice:', err.message);
+  }
+  return null;
+}
+
+async function fetchTidalCanvas(title, artist, album) {
+  if (!title || !artist) return null;
+  try {
+    const cleanT = cleanSearchTerm(title);
+    const cleanA = cleanArtistTerm(artist);
+    const query = `${cleanA} ${cleanT}`.trim();
+    const url = `https://api.tidal.com/v1/search?query=${encodeURIComponent(query)}&limit=10&types=TRACKS&countryCode=US`;
+    const res = await fetch(url, {
+      headers: {
+        'X-Tidal-Token': 'vNVdglQOjFJJGG2U',
+        'User-Agent': CHROME_UA
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items = data?.tracks?.items || [];
+    const wantT = normalizeCanvasMatch(cleanT);
+    const wantA = normalizeCanvasMatch(cleanA);
+
+    for (const track of items) {
+      const gotT = normalizeCanvasMatch(track?.title || '');
+      const gotArtists = (track?.artists || []).map(a => normalizeCanvasMatch(a?.name || '')).join(' ');
+      if (!(gotT.includes(wantT) || wantT.includes(gotT))) continue;
+      if (!(gotArtists.includes(wantA) || wantA.includes(gotArtists))) continue;
+      const videoCover = track?.album?.videoCover;
+      if (videoCover && typeof videoCover === 'string') {
+        const parts = videoCover.split('-');
+        if (parts.length === 5) {
+          return {
+            url: `https://resources.tidal.com/videos/${parts.join('/')}/1280x1280.mp4`,
+            mimeType: 'video/mp4',
+            width: 1280,
+            height: 1280,
+            aspect: 'square',
+            source: 'Tidal Video Cover',
+            qualityLabel: 'Canvas 1280p',
+            isCanvas: true,
+            title: track.title || title
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Canvas] TidalCanvas notice:', err.message);
+  }
+  return null;
+}
+
+async function fetchCommunityCanvas(title, artist) {
+  if (!title || !artist) return null;
+  try {
+    const now = Date.now();
+    if (!cachedCommunityCanvas || now - communityCanvasFetchedAt > 1800000) {
+      const res = await fetch('https://vivimusicanvas.mkmdevilmi.workers.dev/canvas.json', {
+        headers: { 'User-Agent': CHROME_UA }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.items)) {
+          cachedCommunityCanvas = data.items;
+          communityCanvasFetchedAt = now;
+        }
+      }
+    }
+    if (!Array.isArray(cachedCommunityCanvas)) return null;
+    const wantT = normalizeCanvasMatch(title);
+    const wantA = normalizeCanvasMatch(artist);
+    const hit = cachedCommunityCanvas.find(entry => {
+      const s = normalizeCanvasMatch(entry.song || '');
+      const a = normalizeCanvasMatch(entry.artist || '');
+      return s && a && (s.includes(wantT) || wantT.includes(s)) && (a.includes(wantA) || wantA.includes(a));
+    });
+    if (hit && hit.url) {
+      return {
+        url: hit.url,
+        mimeType: 'video/mp4',
+        width: 720,
+        height: 1280,
+        aspect: 'portrait',
+        source: 'Spotify Canvas',
+        qualityLabel: 'Spotify Canvas',
+        isCanvas: true,
+        title: hit.song || title
+      };
+    }
+  } catch (err) {
+    console.warn('[Canvas] CommunityCanvas notice:', err.message);
+  }
+  return null;
+}
+
+/**
+ * Resolves a playable Canvas / Motion Artwork or direct MP4 Music Video stream
+ * (BitChord CanvasRepository + Direct IOS MP4 with VisitorData, ZERO YouTube iframe).
+ */
 async function getVideoStream(videoId, ses, queryInfo = {}) {
-  let targetVideoId = videoId || '';
   const title = queryInfo.title || '';
   const artist = queryInfo.artist || '';
+  const album = queryInfo.album || '';
+  const preferFullVideo = queryInfo.mode === 'video';
+  const cacheKey = `${videoId || ''}|${title}|${artist}|${preferFullVideo ? 'vid' : 'canvas'}`;
 
-  // If title & artist are provided, check if there is a dedicated Official Music Video on YTM
-  if (title && artist) {
+  if (canvasResultCache.has(cacheKey)) {
+    return canvasResultCache.get(cacheKey);
+  }
+
+  // 1. Unless explicitly asking for full music video only, check Apple Music Motion / Tidal Video Cover / Spotify Canvas first!
+  if (title && artist && !preferFullVideo) {
+    const [appleHit, tidalHit, commHit] = await Promise.all([
+      fetchAppleMusicCanvas(title, artist, album).catch(() => null),
+      fetchTidalCanvas(title, artist, album).catch(() => null),
+      fetchCommunityCanvas(title, artist).catch(() => null)
+    ]);
+    const canvasWinner = appleHit || tidalHit || commHit;
+    if (canvasWinner) {
+      canvasResultCache.set(cacheKey, canvasWinner);
+      return canvasWinner;
+    }
+  }
+
+  // 2. Resolve direct chromeless MP4 stream from YouTube (IOS client with VisitorData)
+  let targetVideoId = (videoId && !String(videoId).startsWith('local-')) ? videoId : '';
+  if (title && artist && (!targetVideoId || preferFullVideo)) {
     try {
-      const q = `${title} ${artist} official video`.trim();
+      const q = `${cleanSearchTerm(title)} ${cleanArtistTerm(artist)} official video`.trim();
       const searchRes = await search(q, ses, 'videos').catch(() => []);
       const items = Array.isArray(searchRes) ? searchRes : (searchRes?.videos || searchRes?.results || []);
-      const firstVid = items.find(it => it && it.videoId);
+      const firstVid = items.find(it => it && it.videoId && !String(it.videoId).startsWith('local-'));
       if (firstVid && firstVid.videoId) {
         targetVideoId = firstVid.videoId;
       }
     } catch {}
   }
 
-  if (!targetVideoId) return null;
-
-  // 1. Try IOS client for direct MP4 video stream
-  try {
-    const iosVersion = '20.01.1';
-    const payload = {
-      context: {
-        client: {
-          clientName: 'IOS',
-          clientVersion: iosVersion,
-          deviceMake: 'Apple',
-          deviceModel: 'iPhone16,2',
-          hl: 'en',
-          gl: 'US'
-        }
-      },
-      videoId: targetVideoId,
-      contentCheckOk: true,
-      racyCheckOk: true
-    };
-    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-      method: 'POST',
-      headers: {
+  if (targetVideoId) {
+    try {
+      const vData = await ensureVisitorData().catch(() => '');
+      const iosVersion = '20.03.02';
+      const payload = {
+        context: {
+          client: {
+            clientName: 'IOS',
+            clientVersion: iosVersion,
+            deviceMake: 'Apple',
+            deviceModel: 'iPhone16,2',
+            hl: 'en',
+            gl: 'US',
+            visitorData: vData || undefined
+          }
+        },
+        videoId: targetVideoId,
+        contentCheckOk: true,
+        racyCheckOk: true
+      };
+      const headers = {
         'Content-Type': 'application/json',
-        'User-Agent': `com.google.ios.youtube/${iosVersion} (iPhone16,2; U; CPU iOS 18_1_1 like Mac OS X; en_US)`,
+        'User-Agent': `com.google.ios.youtube/${iosVersion} (iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X; en_US)`,
         'X-YouTube-Client-Name': '5',
         'X-YouTube-Client-Version': iosVersion
-      },
-      body: JSON.stringify(payload)
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const bestVid = extractBestVideoFormat(data, targetVideoId);
-      if (bestVid) return bestVid;
-    }
-  } catch (err) {
-    console.warn('[InnerTube] getVideoStream IOS attempt notice:', err.message);
-  }
+      };
+      if (vData) headers['X-Goog-Visitor-Id'] = vData;
 
-  // 2. Try ANDROID client for direct MP4 video stream
-  try {
-    const payload = {
-      context: {
-        client: {
-          clientName: 'ANDROID',
-          clientVersion: '19.09.37',
-          androidSdkVersion: 30,
-          hl: 'en',
-          gl: 'US'
+      const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const bestVid = extractBestVideoFormat(data, targetVideoId);
+        if (bestVid && bestVid.url) {
+          canvasResultCache.set(cacheKey, bestVid);
+          return bestVid;
         }
-      },
-      videoId: targetVideoId,
-      contentCheckOk: true,
-      racyCheckOk: true
-    };
-    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
-        'X-YouTube-Client-Name': '3',
-        'X-YouTube-Client-Version': '19.09.37'
-      },
-      body: JSON.stringify(payload)
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const bestVid = extractBestVideoFormat(data, targetVideoId);
-      if (bestVid) return bestVid;
+      }
+    } catch (err) {
+      console.warn('[InnerTube] getVideoStream IOS attempt notice:', err.message);
     }
-  } catch (err) {
-    console.warn('[InnerTube] getVideoStream ANDROID attempt notice:', err.message);
   }
 
-  return {
-    videoId: targetVideoId,
-    url: null,
-    embedUrl: `https://www.youtube.com/embed/${targetVideoId}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1`
-  };
+  // 3. If preferFullVideo missed or failed, fall back to Apple Music Motion / Tidal / Community Canvas so we always have a clean chromeless video!
+  if (title && artist && preferFullVideo) {
+    const [appleHit, tidalHit, commHit] = await Promise.all([
+      fetchAppleMusicCanvas(title, artist, album).catch(() => null),
+      fetchTidalCanvas(title, artist, album).catch(() => null),
+      fetchCommunityCanvas(title, artist).catch(() => null)
+    ]);
+    const fallbackCanvas = appleHit || tidalHit || commHit;
+    if (fallbackCanvas) {
+      canvasResultCache.set(cacheKey, fallbackCanvas);
+      return fallbackCanvas;
+    }
+  }
+
+  return null;
 }
 
 function extractBestVideoFormat(data, videoId) {
   if (!data || !data.streamingData) return null;
   const muxed = (data.streamingData.formats || []).filter(f => f.url && f.mimeType && f.mimeType.startsWith('video/'));
-  const adaptive = (data.streamingData.adaptiveFormats || []).filter(f => f.url && f.mimeType && f.mimeType.startsWith('video/mp4'));
-  const candidates = muxed.length > 0 ? muxed : adaptive;
+  const adaptive = (data.streamingData.adaptiveFormats || []).filter(f => f.url && f.mimeType && (f.mimeType.startsWith('video/mp4') || f.mimeType.startsWith('video/webm')));
+  const candidates = adaptive.length > 0 ? adaptive : muxed;
   if (candidates.length === 0) return null;
 
   candidates.sort((a, b) => {
+    const aMp4 = (a.mimeType && a.mimeType.includes('mp4') && a.mimeType.includes('avc1')) ? 1 : 0;
+    const bMp4 = (b.mimeType && b.mimeType.includes('mp4') && b.mimeType.includes('avc1')) ? 1 : 0;
+    if (aMp4 !== bMp4) return bMp4 - aMp4;
     const aH = a.height || 0;
     const bH = b.height || 0;
-    // Prefer 720p or 1080p
     const aScore = aH <= 1080 ? aH : 500;
     const bScore = bH <= 1080 ? bH : 500;
     if (bScore !== aScore) return bScore - aScore;
@@ -4017,10 +4276,12 @@ function extractBestVideoFormat(data, videoId) {
     mimeType: chosen.mimeType,
     width: chosen.width || 1280,
     height: chosen.height || 720,
-    qualityLabel: chosen.qualityLabel || '720p HD',
+    aspect: (chosen.width && chosen.height && chosen.width <= chosen.height) ? 'square' : 'wide',
+    source: 'YouTube Music Video',
+    qualityLabel: chosen.qualityLabel || '1080p HD',
     isMuxed: muxed.includes(chosen),
-    title: data.videoDetails?.title || '',
-    embedUrl: `https://www.youtube.com/embed/${videoId || data.videoDetails?.videoId || ''}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1`
+    isCanvas: false,
+    title: data.videoDetails?.title || ''
   };
 }
 

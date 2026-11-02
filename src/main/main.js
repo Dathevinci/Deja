@@ -1960,9 +1960,12 @@ app.whenReady().then(async () => {
         return callback({ cancel: false });
       }
 
-      // Only strip iframe restrictions or enable CORS for player media streaming and embed iframes
+      // Only strip iframe restrictions or enable CORS for player media streaming, Apple/Tidal/Spotify canvas MP4s, and embed iframes
       const isEmbedOrMedia = (
         details.url.includes('googlevideo.com') ||
+        details.url.includes('mvod.itunes.apple.com') ||
+        details.url.includes('resources.tidal.com') ||
+        details.url.includes('canvaz.scdn.co') ||
         details.url.includes('youtube.com/embed/') ||
         details.url.includes('youtube-nocookie.com/embed/')
       );

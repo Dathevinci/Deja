@@ -8673,101 +8673,130 @@ function renderDownloadsView(container) {
 }
 
 // ============================================================================
-// Spotify-Style Music Video Mode (Fullscreen Stage + Floating Corner Video Dock)
+// BitChord 4-Source Canvas & Video Cover Thumbnail Engine
+// (Apple Music Motion 1080x1080 • Tidal Video Cover • Spotify Canvas • Direct MP4)
+// Zero YouTube IFrames — Always Chromeless Native <video> Inside Thumbnails
 // ============================================================================
+const trackCanvasCache = new Map();
+let activeCanvasStreamData = null;
+let canvasRequestToken = 0;
+
 function stopAllVideoElements() {
   if (typeof document === 'undefined') return;
-  ['expanded-video-el', 'dock-video-el'].forEach(id => {
+  ['expanded-canvas-video', 'mini-canvas-video', 'expanded-video-el', 'dock-video-el'].forEach(id => {
     const v = document.getElementById(id);
     if (v) {
+      v.classList.remove('is-ready');
       try { v.pause(); } catch {}
       v.removeAttribute('src');
+      try { v.load(); } catch {}
     }
   });
-  ['expanded-video-iframe', 'dock-video-iframe'].forEach(id => {
-    const f = document.getElementById(id);
-    if (f) {
-      f.src = 'about:blank';
-      f.style.display = 'none';
+  const badge = document.getElementById('expanded-canvas-badge');
+  if (badge) badge.style.display = 'none';
+}
+
+function attachChromelessVideoSource(videoEl, streamData, syncWithAudio) {
+  if (!videoEl || !streamData || !streamData.url) return;
+  videoEl.muted = true;
+  videoEl.playsInline = true;
+  videoEl.loop = true;
+  videoEl.removeAttribute('controls');
+
+  if (videoEl.getAttribute('data-stream-url') === streamData.url && !videoEl.paused) {
+    videoEl.classList.add('is-ready');
+    return;
+  }
+
+  videoEl.classList.remove('is-ready');
+  videoEl.setAttribute('data-stream-url', streamData.url);
+  videoEl.src = streamData.url;
+
+  videoEl.onloadeddata = () => {
+    if (syncWithAudio && !streamData.isCanvas && dejaAudio && dejaAudio.currentTime > 1) {
+      try {
+        videoEl.currentTime = dejaAudio.currentTime % (videoEl.duration || 9999);
+      } catch {}
     }
-  });
+    videoEl.classList.add('is-ready');
+    const p = videoEl.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  };
+
+  videoEl.onerror = () => {
+    videoEl.classList.remove('is-ready');
+  };
+
+  const p = videoEl.play();
+  if (p && typeof p.catch === 'function') p.catch(() => {});
+}
+
+async function resolveTrackCanvasOrVideo(track) {
+  if (!track) return null;
+  const cacheKey = `${track.videoId || ''}::${track.title || ''}::${track.artist || ''}`;
+  if (trackCanvasCache.has(cacheKey)) {
+    return trackCanvasCache.get(cacheKey);
+  }
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (!api?.resolveVideoStream) return null;
+
+  try {
+    const streamData = await api.resolveVideoStream({
+      videoId: track.videoId || '',
+      title: track.title || '',
+      artist: track.artist || '',
+      album: track.album || ''
+    });
+    if (streamData && streamData.url) {
+      trackCanvasCache.set(cacheKey, streamData);
+      return streamData;
+    }
+  } catch {}
+  return null;
 }
 
 async function loadMusicVideoIntoStage(track, targetType) {
   if (!track || typeof document === 'undefined') return;
-  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
-  const isDock = targetType === 'dock';
-  const videoEl = document.getElementById(isDock ? 'dock-video-el' : 'expanded-video-el');
-  const iframeEl = document.getElementById(isDock ? 'dock-video-iframe' : 'expanded-video-iframe');
+  const reqId = ++canvasRequestToken;
+
   const dockTitle = document.getElementById('deja-video-dock-title');
+  const dockSub = document.getElementById('deja-video-dock-sub');
+  const dockPoster = document.getElementById('dock-poster-img');
+  const dockBadge = document.getElementById('deja-video-dock-badge');
+  const expBadge = document.getElementById('expanded-canvas-badge');
 
-  if (dockTitle) {
-    dockTitle.textContent = `${track.title} • ${track.artist}`;
+  if (dockTitle) dockTitle.textContent = track.title || 'Now Playing';
+  if (dockSub) dockSub.textContent = track.artist || 'YouTube Music';
+  if (dockPoster && track.cover) dockPoster.src = track.cover;
+
+  const streamData = await resolveTrackCanvasOrVideo(track);
+  if (reqId !== canvasRequestToken || !streamData || !streamData.url) return;
+
+  activeCanvasStreamData = streamData;
+  currentResolvedVideoId = streamData.videoId || track.videoId || '';
+
+  const badgeLabel = streamData.isCanvas
+    ? (streamData.source || 'Apple Motion')
+    : 'Video Preview';
+
+  if (dockBadge) dockBadge.textContent = badgeLabel;
+  if (expBadge) {
+    expBadge.textContent = badgeLabel;
+    expBadge.style.display = (isVideoModeActive || streamData.isCanvas) ? 'inline-block' : 'none';
   }
 
-  let streamData = null;
-  if (api?.resolveVideoStream) {
-    try {
-      streamData = await api.resolveVideoStream({
-        videoId: track.videoId || '',
-        title: track.title || '',
-        artist: track.artist || ''
-      });
-    } catch {}
+  // Always animate the mini bottom-bar thumbnail & Now Playing artwork thumbnail when Canvas or Video mode is active
+  const expCanvasEl = document.getElementById('expanded-canvas-video');
+  const miniCanvasEl = document.getElementById('mini-canvas-video');
+  const dockVideoEl = document.getElementById('dock-video-el');
+
+  if (isVideoModeActive || streamData.isCanvas) {
+    if (expCanvasEl) attachChromelessVideoSource(expCanvasEl, streamData, !streamData.isCanvas);
+    if (miniCanvasEl) attachChromelessVideoSource(miniCanvasEl, streamData, !streamData.isCanvas);
   }
 
-  const resolvedVid = (streamData && streamData.videoId) || track.videoId || 'E9jGlwluIbk';
-  currentResolvedVideoId = resolvedVid;
-
-  if (streamData && streamData.url && videoEl) {
-    if (iframeEl) {
-      iframeEl.src = 'about:blank';
-      iframeEl.style.display = 'none';
-    }
-    videoEl.style.display = 'block';
-    videoEl.src = streamData.url;
-    const sameTrackStream = (resolvedVid === track.videoId) && isDirectStreamPlaying && dejaAudio && !dejaAudio.paused;
-    if (sameTrackStream) {
-      // Play HD video muted in exact sync with high-res 160kbps Opus audio stream
-      videoEl.muted = true;
-      videoEl.currentTime = dejaAudio.currentTime || currentTime || 0;
-    } else {
-      // Official Music Video has its own audio track; pause background audio so there's no double sound
-      if (dejaAudio && !dejaAudio.paused) {
-        try { dejaAudio.pause(); } catch {}
-      }
-      if (isYtReady && ytPlayer && isYtPlaying) {
-        try { ytPlayer.pauseVideo(); } catch {}
-      }
-      videoEl.muted = isMuted;
-      videoEl.volume = isMuted ? 0 : currentVolume;
-      if (currentTime > 2) {
-        videoEl.currentTime = currentTime;
-      }
-    }
-    videoEl.onerror = () => {
-      // Fallback to YouTube embed iframe if direct video stream fails
-      videoEl.style.display = 'none';
-      if (iframeEl) {
-        if (dejaAudio && !dejaAudio.paused) {
-          try { dejaAudio.pause(); } catch {}
-        }
-        iframeEl.style.display = 'block';
-        iframeEl.src = `https://www.youtube.com/embed/${resolvedVid}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&start=${Math.floor(currentTime || 0)}`;
-      }
-    };
-    const p = videoEl.play();
-    if (p) p.catch(() => {});
-  } else if (iframeEl) {
-    if (videoEl) {
-      try { videoEl.pause(); } catch {}
-      videoEl.style.display = 'none';
-    }
-    if (dejaAudio && !dejaAudio.paused) {
-      try { dejaAudio.pause(); } catch {}
-    }
-    iframeEl.style.display = 'block';
-    iframeEl.src = `https://www.youtube.com/embed/${resolvedVid}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&start=${Math.floor(currentTime || 0)}`;
+  if (targetType === 'dock' || isVideoDockOpen) {
+    if (dockVideoEl) attachChromelessVideoSource(dockVideoEl, streamData, !streamData.isCanvas);
   }
 }
 
@@ -8780,35 +8809,49 @@ function setExpandedMediaMode(mode) {
   const btnVid = document.getElementById('exp-mode-video-btn');
   const btnExpVid = document.getElementById('exp-btn-video');
   const btnBarVid = document.getElementById('btn-switch-video');
-  const dock = document.getElementById('deja-video-dock');
+  const expBadge = document.getElementById('expanded-canvas-badge');
 
   const track = CATALOGUE_TRACKS[currentIndex] || CATALOGUE_TRACKS[0];
 
   if (mode === 'video') {
     isVideoModeActive = true;
-    isVideoDockOpen = false;
-    if (dock) dock.style.display = 'none';
-    stopAllVideoElements();
-    if (artWrap) artWrap.style.display = 'none';
+    // Keep the rounded square Now Playing thumbnail stage visible and play the chromeless video preview directly inside it!
+    if (vidWrap) vidWrap.style.display = 'none';
     if (lyricsWrap) lyricsWrap.style.display = 'none';
-    if (vidWrap) vidWrap.style.display = 'block';
+    if (artWrap) {
+      artWrap.style.display = '';
+      artWrap.classList.add('video-mode-active');
+    }
     if (btnSong) btnSong.classList.remove('active');
     if (btnVid) btnVid.classList.add('active');
     if (btnExpVid) btnExpVid.classList.add('active');
     if (btnBarVid) btnBarVid.classList.add('active');
     loadMusicVideoIntoStage(track, 'expanded');
   } else {
-    const wasVideo = isVideoModeActive;
     isVideoModeActive = false;
-    stopAllVideoElements();
     if (vidWrap) vidWrap.style.display = 'none';
-    if (artWrap) artWrap.style.display = '';
+    if (artWrap) {
+      artWrap.style.display = '';
+      artWrap.classList.remove('video-mode-active');
+    }
     if (btnSong) btnSong.classList.add('active');
     if (btnVid) btnVid.classList.remove('active');
     if (btnExpVid) btnExpVid.classList.remove('active');
     if (!isVideoDockOpen && btnBarVid) btnBarVid.classList.remove('active');
-    if (wasVideo && track && dejaAudio && dejaAudio.paused && isPlaying) {
-      dejaAudio.play().catch(() => {});
+
+    // If the current video is not a square Canvas, hide the video overlay when returning to Song mode
+    if (!activeCanvasStreamData || !activeCanvasStreamData.isCanvas) {
+      const expCanvasEl = document.getElementById('expanded-canvas-video');
+      const miniCanvasEl = document.getElementById('mini-canvas-video');
+      if (expCanvasEl) {
+        expCanvasEl.classList.remove('is-ready');
+        try { expCanvasEl.pause(); } catch {}
+      }
+      if (miniCanvasEl && !isVideoDockOpen) {
+        miniCanvasEl.classList.remove('is-ready');
+        try { miniCanvasEl.pause(); } catch {}
+      }
+      if (expBadge) expBadge.style.display = 'none';
     }
   }
 }
@@ -8829,16 +8872,15 @@ function toggleSpotifyVideoDock() {
 
   if (isVideoDockOpen) {
     isVideoDockOpen = false;
-    stopAllVideoElements();
     if (dock) dock.style.display = 'none';
-    if (btnBarVid) btnBarVid.classList.remove('active');
-    if (track && dejaAudio && dejaAudio.paused && isPlaying) {
-      dejaAudio.play().catch(() => {});
+    if (btnBarVid && !isVideoModeActive) btnBarVid.classList.remove('active');
+    const dockVideoEl = document.getElementById('dock-video-el');
+    if (dockVideoEl) {
+      dockVideoEl.classList.remove('is-ready');
+      try { dockVideoEl.pause(); } catch {}
     }
   } else {
     isVideoDockOpen = true;
-    isVideoModeActive = false;
-    stopAllVideoElements();
     if (dock) dock.style.display = 'block';
     if (btnBarVid) btnBarVid.classList.add('active');
     loadMusicVideoIntoStage(track, 'dock');
@@ -8846,11 +8888,11 @@ function toggleSpotifyVideoDock() {
 }
 
 function onTrackChangedForVideoMode(track) {
-  if (isVideoModeActive) {
-    loadMusicVideoIntoStage(track, 'expanded');
-  } else if (isVideoDockOpen) {
-    loadMusicVideoIntoStage(track, 'dock');
-  }
+  activeCanvasStreamData = null;
+  stopAllVideoElements();
+  if (!track) return;
+  // Automatically resolve Canvas / Motion artwork for every track (like BitChord's CanvasArtworkPlayer.kt)
+  loadMusicVideoIntoStage(track, isVideoDockOpen ? 'dock' : 'expanded');
 }
 
 if (typeof document !== 'undefined') {
@@ -8928,33 +8970,36 @@ if (typeof document !== 'undefined') {
       };
     }
 
-    // Keep muted HD video synced with dejaAudio timeupdate
+    // Keep non-looping HD video previews synced with dejaAudio playback
     if (dejaAudio) {
       dejaAudio.addEventListener('timeupdate', () => {
-        const activeVid = isVideoModeActive
-          ? document.getElementById('expanded-video-el')
-          : (isVideoDockOpen ? document.getElementById('dock-video-el') : null);
-        if (activeVid && activeVid.muted && activeVid.src && !activeVid.paused) {
-          if (Math.abs(activeVid.currentTime - dejaAudio.currentTime) > 0.45) {
-            activeVid.currentTime = dejaAudio.currentTime;
-          }
+        if (activeCanvasStreamData && !activeCanvasStreamData.isCanvas) {
+          ['expanded-canvas-video', 'dock-video-el', 'mini-canvas-video'].forEach(id => {
+            const v = document.getElementById(id);
+            if (v && v.src && !v.paused && v.classList.contains('is-ready')) {
+              if (Math.abs(v.currentTime - dejaAudio.currentTime) > 0.6) {
+                try { v.currentTime = dejaAudio.currentTime; } catch {}
+              }
+            }
+          });
         }
       });
       dejaAudio.addEventListener('play', () => {
-        const activeVid = isVideoModeActive
-          ? document.getElementById('expanded-video-el')
-          : (isVideoDockOpen ? document.getElementById('dock-video-el') : null);
-        if (activeVid && activeVid.muted && activeVid.src && activeVid.paused) {
-          activeVid.play().catch(() => {});
-        }
+        ['expanded-canvas-video', 'dock-video-el', 'mini-canvas-video'].forEach(id => {
+          const v = document.getElementById(id);
+          if (v && v.src && v.paused && v.classList.contains('is-ready')) {
+            const p = v.play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+          }
+        });
       });
       dejaAudio.addEventListener('pause', () => {
-        const activeVid = isVideoModeActive
-          ? document.getElementById('expanded-video-el')
-          : (isVideoDockOpen ? document.getElementById('dock-video-el') : null);
-        if (activeVid && activeVid.muted && activeVid.src && !activeVid.paused) {
-          try { activeVid.pause(); } catch {}
-        }
+        ['expanded-canvas-video', 'dock-video-el', 'mini-canvas-video'].forEach(id => {
+          const v = document.getElementById(id);
+          if (v && v.src && !v.paused) {
+            try { v.pause(); } catch {}
+          }
+        });
       });
     }
   };

@@ -317,8 +317,7 @@ fun FrostedTopBar(
                     Image(
                         painter = painterResource(R.drawable.ic_logo),
                         contentDescription = null,
-                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
-                        modifier = Modifier.height(18.dp),
+                        modifier = Modifier.size(26.dp),
                     )
                     // The dev flavor gets its own applicationId so it can sit
                     // installed next to the prod build; this badge is the
@@ -388,8 +387,7 @@ private fun FloatingAppMark(
             Image(
                 painter = painterResource(R.drawable.ic_logo),
                 contentDescription = null,
-                colorFilter = ColorFilter.tint(contentColor),
-                modifier = Modifier.size(width = 24.dp, height = 16.dp),
+                modifier = Modifier.size(26.dp),
             )
         }
         if (BuildConfig.FLAVOR == "dev") {

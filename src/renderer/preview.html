@@ -265,6 +265,7 @@
     <div class="player-left">
       <div class="artwork-wrapper" id="player-artwork-wrapper" title="Click to expand Now Playing">
         <img src="" alt="Album Artwork" id="player-artwork" class="player-artwork player-art-img">
+        <video id="mini-canvas-video" class="mini-canvas-video" muted loop playsinline></video>
         <div class="artwork-overlay">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 3 21 3 21 9"></polyline>
@@ -493,15 +494,16 @@
 
     <!-- Center & Controls Column -->
     <div class="expanded-player-content">
-      <!-- Center: Large prominent squircle album cover (360x360px with 20px squircle radius) -->
+      <!-- Center: Large prominent squircle album cover (370x370px with 20px squircle radius + Spotify/Apple Motion Video Preview) -->
       <div class="expanded-artwork-container now-playing-art-wrap" id="now-playing-art-wrap" data-legacy-id="expanded-artwork-container">
         <img src="" alt="Album Artwork" id="expanded-artwork-img" class="expanded-artwork-img now-playing-art">
+        <video id="expanded-canvas-video" class="artwork-canvas-video" muted loop playsinline></video>
+        <span class="artwork-canvas-badge" id="expanded-canvas-badge" style="display: none;">Apple Motion</span>
       </div>
 
-      <!-- Spotify / YouTube Music HD Music Video Stage -->
+      <!-- Chromeless Video Preview Stage (No YouTube IFrame) -->
       <div class="expanded-video-container" id="expanded-video-container" style="display: none;">
-        <video id="expanded-video-el" class="expanded-video-el" playsinline controls></video>
-        <iframe id="expanded-video-iframe" class="expanded-video-iframe" style="display: none;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        <video id="expanded-video-el" class="expanded-video-el" muted loop playsinline></video>
       </div>
 
       <!-- Now Playing Synced Lyrics Screen (BitChord NowPlayingScreen.kt) -->
@@ -1073,25 +1075,29 @@
     </div>
   </div>
 
-  <!-- Spotify-Style Floating Music Video Dock -->
+  <!-- Spotify Canvas / Apple Music Motion Video Thumbnail Preview Card -->
   <div class="deja-video-dock" id="deja-video-dock" style="display: none;">
-    <div class="deja-video-dock-header">
-      <div class="deja-video-dock-title-wrap">
-        <span class="deja-video-live-dot"></span>
-        <span class="deja-video-dock-title" id="deja-video-dock-title">Official Music Video</span>
-      </div>
-      <div class="deja-video-dock-actions">
-        <button class="deja-video-dock-btn" id="btn-dock-expand" title="Expand to Fullscreen Player">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-        </button>
-        <button class="deja-video-dock-btn" id="btn-dock-close" title="Switch Back to Audio">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-    </div>
     <div class="deja-video-dock-body">
-      <video id="dock-video-el" class="dock-video-el" playsinline controls></video>
-      <iframe id="dock-video-iframe" class="dock-video-iframe" style="display: none;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+      <img src="" alt="" id="dock-poster-img" class="dock-poster-img">
+      <video id="dock-video-el" class="dock-video-el" muted loop playsinline></video>
+      <div class="deja-video-dock-header">
+        <div class="deja-video-dock-title-wrap">
+          <span class="deja-video-live-dot"></span>
+          <span class="deja-video-dock-badge" id="deja-video-dock-badge">Apple Motion</span>
+        </div>
+        <div class="deja-video-dock-actions">
+          <button class="deja-video-dock-btn" id="btn-dock-expand" title="Expand to Now Playing">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          </button>
+          <button class="deja-video-dock-btn" id="btn-dock-close" title="Close Video Preview">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="deja-video-dock-footer">
+        <span class="deja-video-dock-title" id="deja-video-dock-title">Cruel Summer</span>
+        <span class="deja-video-dock-sub" id="deja-video-dock-sub">Taylor Swift</span>
+      </div>
     </div>
   </div>
 
