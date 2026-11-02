@@ -1815,13 +1815,17 @@ function isVersionNewer(latestStr, currentStr) {
   return false;
 }
 
+let cachedUpdateInstallerPath = null;
+let updateDownloadAbortController = null;
+
 async function checkGitHubReleaseUpdate() {
   try {
-    const currentVersion = app.getVersion() || '1.2.0';
+    const currentVersion = app.getVersion() || '1.2.2';
     const res = await fetch(DEJA_LATEST_RELEASE_API, {
       headers: {
         'Accept': 'application/vnd.github+json',
-        'User-Agent': 'Deja-Desktop-Updater/1.2'
+        'User-Agent': 'Deja-Desktop-Updater/1.2.2',
+        'Cache-Control': 'no-cache'
       }
     });
     if (!res.ok) return { updateAvailable: false, currentVersion };
@@ -1829,21 +1833,27 @@ async function checkGitHubReleaseUpdate() {
     const latestTag = String(release.tag_name || '').trim();
     const latestVersion = latestTag.replace(/^v/i, '');
     const assets = Array.isArray(release.assets) ? release.assets : [];
-    const exeAsset = assets.find(a => a && a.name && /Setup.*\.exe$/i.test(a.name)) ||
-                     assets.find(a => a && a.name && /\.exe$/i.test(a.name));
-    const apkAsset = assets.find(a => a && a.name && /\.apk$/i.test(a.name));
+    const exeAsset = assets.find(a => a && a.name && /^Deja\.Setup\.exe$/i.test(a.name)) ||
+                     assets.find(a => a && a.name && /Setup.*\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap')) ||
+                     assets.find(a => a && a.name && /\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap'));
+    const apkAsset = assets.find(a => a && a.name && /^Deja\.apk$/i.test(a.name)) ||
+                     assets.find(a => a && a.name && /\.apk$/i.test(a.name));
     const updateAvailable = isVersionNewer(latestVersion, currentVersion);
     return {
       updateAvailable,
       currentVersion,
       latestVersion,
       releaseUrl: release.html_url || 'https://github.com/Dathevinci/Deja/releases/latest',
-      exeUrl: exeAsset ? exeAsset.browser_download_url : null,
-      apkUrl: apkAsset ? apkAsset.browser_download_url : null,
+      exeUrl: exeAsset
+        ? exeAsset.browser_download_url
+        : `https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.${latestVersion}.exe`,
+      apkUrl: apkAsset
+        ? apkAsset.browser_download_url
+        : 'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.apk',
       notes: release.body || ''
     };
   } catch (err) {
-    return { updateAvailable: false, currentVersion: app.getVersion() || '1.2.0', error: err.message };
+    return { updateAvailable: false, currentVersion: app.getVersion() || '1.2.2', error: err.message };
   }
 }
 
@@ -1855,24 +1865,123 @@ ipcMain.handle('check-for-updates', async () => {
   return info;
 });
 
+ipcMain.handle('cancel-update-download', async () => {
+  if (updateDownloadAbortController) {
+    try { updateDownloadAbortController.abort(); } catch {}
+    updateDownloadAbortController = null;
+  }
+  return { ok: true };
+});
+
 ipcMain.handle('install-update', async (event, downloadUrl) => {
   try {
-    const targetUrl = downloadUrl || 'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.0.exe';
+    // If already downloaded in this session, launch immediately and close old app
+    if (cachedUpdateInstallerPath && fs.existsSync(cachedUpdateInstallerPath)) {
+      const { spawn } = require('child_process');
+      spawn(cachedUpdateInstallerPath, [], { detached: true, stdio: 'ignore' }).unref();
+      setTimeout(() => {
+        isQuitting = true;
+        app.quit();
+      }, 600);
+      return { ok: true, installerPath: cachedUpdateInstallerPath, launched: true };
+    }
+
+    const candidateUrls = [
+      downloadUrl,
+      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.exe',
+      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.2.exe',
+      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.1.exe'
+    ].filter(Boolean);
+
     const tempDir = app.getPath('temp');
     const installerPath = path.join(tempDir, `Deja-Update-Setup-${Date.now()}.exe`);
-    const res = await fetch(targetUrl, {
-      headers: { 'User-Agent': 'Deja-Desktop-Updater/1.2' }
-    });
-    if (!res.ok) {
-      await shell.openExternal('https://github.com/Dathevinci/Deja/releases/latest');
-      return { ok: true, openedExternal: true };
+    updateDownloadAbortController = new AbortController();
+
+    let res = null;
+    for (const u of candidateUrls) {
+      try {
+        const attempt = await fetch(u, {
+          headers: { 'User-Agent': 'Deja-Desktop-Updater/1.2.2' },
+          signal: updateDownloadAbortController.signal
+        });
+        if (attempt && attempt.ok) {
+          res = attempt;
+          break;
+        }
+      } catch (e) {
+        if (updateDownloadAbortController.signal.aborted) throw e;
+      }
     }
-    const buf = Buffer.from(await res.arrayBuffer());
-    fs.writeFileSync(installerPath, buf);
-    await shell.openPath(installerPath);
-    return { ok: true, installerPath };
+
+    if (!res || !res.ok) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-download-progress', { state: 'failed', message: 'Could not reach update server. Please try again.' });
+      }
+      return { ok: false, error: 'Download failed' };
+    }
+
+    const totalBytes = Number(res.headers.get('content-length')) || 112000000;
+    let receivedBytes = 0;
+    const fileStream = fs.createWriteStream(installerPath);
+
+    if (res.body && typeof res.body.getReader === 'function') {
+      const reader = res.body.getReader();
+      let lastEmit = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          const chunk = Buffer.from(value);
+          fileStream.write(chunk);
+          receivedBytes += chunk.length;
+          const now = Date.now();
+          if (now - lastEmit > 80 || receivedBytes >= totalBytes) {
+            lastEmit = now;
+            const fraction = Math.min(1, receivedBytes / totalBytes);
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('update-download-progress', {
+                state: 'downloading',
+                fraction,
+                percent: Math.round(fraction * 100),
+                receivedMb: (receivedBytes / (1024 * 1024)).toFixed(1),
+                totalMb: (totalBytes / (1024 * 1024)).toFixed(1)
+              });
+            }
+          }
+        }
+      }
+      await new Promise((resolve) => fileStream.end(resolve));
+    } else {
+      const buf = Buffer.from(await res.arrayBuffer());
+      fs.writeFileSync(installerPath, buf);
+    }
+
+    cachedUpdateInstallerPath = installerPath;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-download-progress', {
+        state: 'ready',
+        fraction: 1,
+        percent: 100,
+        installerPath
+      });
+    }
+
+    // Automatically launch the installer so the user updates in-place without going to GitHub
+    const { spawn } = require('child_process');
+    spawn(installerPath, [], { detached: true, stdio: 'ignore' }).unref();
+    setTimeout(() => {
+      isQuitting = true;
+      app.quit();
+    }, 900);
+
+    return { ok: true, installerPath, launched: true };
   } catch (err) {
-    await shell.openExternal('https://github.com/Dathevinci/Deja/releases/latest');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-download-progress', {
+        state: updateDownloadAbortController?.signal?.aborted ? 'idle' : 'failed',
+        message: err.message || 'Update interrupted'
+      });
+    }
     return { ok: false, error: err.message };
   }
 });
@@ -2115,12 +2224,14 @@ app.whenReady().then(async () => {
         }
       }
       pushStartupAuth();
-      setTimeout(async () => {
+      const triggerBackgroundUpdatePush = async () => {
         const up = await checkGitHubReleaseUpdate();
         if (up && up.updateAvailable && mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('update-available', up);
         }
-      }, 3500);
+      };
+      setTimeout(triggerBackgroundUpdatePush, 2200);
+      setInterval(triggerBackgroundUpdatePush, 5 * 60 * 1000);
     });
   }
 

@@ -5021,3 +5021,182 @@ body.deja-playing .now-playing-art-wrap,
               filter 0.42s ease !important;
   will-change: transform, opacity;
 }
+
+
+/* ============================================================================
+   BitChord Mobile-Style UI & In-App UpdateAvailableDialog (Matches Mobile App)
+   ============================================================================ */
+.bitchord-topbar-update-btn {
+  position: relative;
+  color: #4CD964 !important;
+  background: rgba(76, 217, 100, 0.14) !important;
+  border: 1px solid rgba(76, 217, 100, 0.35) !important;
+}
+
+.topbar-update-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4CD964;
+  box-shadow: 0 0 8px #4CD964;
+}
+
+.bitchord-update-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.36);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeInScrim 0.18s ease-out;
+}
+
+@keyframes fadeInScrim {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.bitchord-update-card {
+  width: 300px;
+  border-radius: 16px;
+  background: rgba(28, 28, 32, 0.84);
+  backdrop-filter: blur(38px) saturate(190%);
+  -webkit-backdrop-filter: blur(38px) saturate(190%);
+  border: 0.8px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  color: #FFFFFF;
+  text-align: center;
+  animation: popAlertCard 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes popAlertCard {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.bitchord-update-body {
+  padding: 20px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.bitchord-update-icon-pill {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.bitchord-update-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: #FFFFFF;
+}
+
+.bitchord-update-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 17px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.bitchord-update-progress-track {
+  margin-top: 12px;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.bitchord-update-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: #FA2D48;
+  transition: width 0.15s ease;
+}
+
+.bitchord-update-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #FF453A;
+}
+
+.bitchord-update-notes-wrap {
+  width: 100%;
+  text-align: left;
+}
+
+.bitchord-update-notes-heading {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.58);
+  margin-bottom: 6px;
+}
+
+.bitchord-update-notes-scroll {
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.bitchord-update-rule {
+  width: 100%;
+  height: 0.6px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.bitchord-update-action {
+  width: 100%;
+  height: 44px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 15px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.bitchord-update-action.primary {
+  color: #FA2D48;
+  font-weight: 600;
+}
+
+.bitchord-update-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.bitchord-update-action:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* BitChord Mobile-Grade Floating Frosted Pill Player Bar & Cards on Desktop */
+.player-bar,
+.deja-player-bar {
+  background: rgba(20, 20, 24, 0.82) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  border-top: 0.8px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.apple-sidebar {
+  background: rgba(14, 14, 18, 0.78) !important;
+  backdrop-filter: blur(36px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(190%) !important;
+  border-right: 0.8px solid rgba(255, 255, 255, 0.09) !important;
+}

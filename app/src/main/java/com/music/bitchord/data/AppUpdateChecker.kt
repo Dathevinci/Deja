@@ -99,17 +99,18 @@ object AppUpdateChecker {
      * [UpdateInfo.apkUrl] null and the UI falls back to opening the releases
      * page as before.
      */
-    private fun apkAssetUrl(release: JsonObject): String? = runCatching {
-        release["assets"]?.jsonArray
+    private fun apkAssetUrl(release: JsonObject): String = runCatching {
+        val apks = release["assets"]?.jsonArray
             ?.mapNotNull { it as? JsonObject }
-            ?.firstOrNull { asset ->
+            ?.filter { asset ->
                 asset["name"]?.jsonPrimitive?.contentOrNull?.endsWith(".apk", ignoreCase = true) == true &&
                     asset["state"]?.jsonPrimitive?.contentOrNull == "uploaded"
-            }
-            ?.get("browser_download_url")
-            ?.jsonPrimitive
-            ?.contentOrNull
-    }.getOrNull()
+            }.orEmpty()
+        val preferred = apks.firstOrNull {
+            it["name"]?.jsonPrimitive?.contentOrNull.equals("Deja.apk", ignoreCase = true)
+        } ?: apks.firstOrNull()
+        preferred?.get("browser_download_url")?.jsonPrimitive?.contentOrNull
+    }.getOrNull() ?: "https://github.com/Dathevinci/Deja/releases/latest/download/Deja.apk"
 
     /**
      * Streams the current update's APK into the app cache, reporting progress

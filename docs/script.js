@@ -14,7 +14,36 @@ document.addEventListener('DOMContentLoaded', () => {
   initLyricsDemo();
   initEqualizerDemo();
   initModals();
+  initLiveReleaseSync();
 });
+
+function initLiveReleaseSync() {
+  fetch('https://api.github.com/repos/Dathevinci/Deja/releases/latest')
+    .then(r => r.ok ? r.json() : null)
+    .then(rel => {
+      if (!rel || !rel.tag_name) return;
+      const ver = rel.tag_name.replace(/^v/i, '');
+      document.querySelectorAll('.brand-badge, .footer-version-tag').forEach(el => { el.textContent = 'v' + ver; });
+      const assets = Array.isArray(rel.assets) ? rel.assets : [];
+      const setupAsset = assets.find(a => a && a.name && /Setup.*\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap'));
+      const portAsset = assets.find(a => a && a.name && /^Deja[.-]\d+.*\.exe$/i.test(a.name) && !/Setup/i.test(a.name));
+      const apkAsset = assets.find(a => a && a.name && /^Deja\.apk$/i.test(a.name));
+      const ipaAsset = assets.find(a => a && a.name && /^Deja\.ipa$/i.test(a.name));
+      if (setupAsset && setupAsset.browser_download_url) {
+        document.querySelectorAll('a[href*="Deja.Setup"]').forEach(a => { a.href = setupAsset.browser_download_url; });
+      }
+      if (portAsset && portAsset.browser_download_url) {
+        document.querySelectorAll('a[href*="Deja.1."]').forEach(a => { a.href = portAsset.browser_download_url; });
+      }
+      if (apkAsset && apkAsset.browser_download_url) {
+        document.querySelectorAll('a[href*="Deja.apk"]').forEach(a => { a.href = apkAsset.browser_download_url; });
+      }
+      if (ipaAsset && ipaAsset.browser_download_url) {
+        document.querySelectorAll('a[href*="Deja.ipa"]').forEach(a => { a.href = ipaAsset.browser_download_url; });
+      }
+    })
+    .catch(() => {});
+}
 
 // BitChord Hero: 60fps Word-Synced Coldplay "Yellow" Showcase
 function initPhoneHeroWordLyrics() {

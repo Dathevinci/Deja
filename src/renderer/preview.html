@@ -41,6 +41,14 @@
     </div>
 
     <div class="top-right-section">
+      <button class="top-action-btn bitchord-topbar-update-btn" id="btn-topbar-update" title="Software Update Available" style="display:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="16 12 12 8 8 12"></polyline>
+          <line x1="12" y1="16" x2="12" y2="8"></line>
+        </svg>
+        <span class="topbar-update-dot"></span>
+      </button>
       <button class="top-action-btn" id="btn-toggle-lyrics" title="Live Synced Lyrics">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -1114,6 +1122,41 @@
   <!-- Hidden YouTube Player Host & Native BitChord HTML5 Audio Element -->
   <div id="yt-player-container" style="position: fixed; width: 320px; height: 180px; bottom: 10px; right: 10px; opacity: 0.001; pointer-events: none; z-index: -999;"></div>
   <audio id="deja-audio-element" preload="auto" style="display: none;"></audio>
+
+  
+  <!-- BitChord Mobile-Style Frosted Glass Software Update Alert (Matches UpdateAvailableDialog.kt) -->
+  <div class="bitchord-update-scrim" id="bitchord-update-dialog" style="display: none;">
+    <div class="bitchord-update-card" role="dialog" aria-labelledby="bitchord-update-title">
+      <div class="bitchord-update-body">
+        <div class="bitchord-update-icon-pill">
+          <img src="../../assets/icon.png" alt="Deja" width="28" height="28" style="border-radius:7px;" />
+        </div>
+        <div class="bitchord-update-title" id="bitchord-update-title">Software Update</div>
+        <div class="bitchord-update-sub" id="bitchord-update-sub">Deja v1.2.2 is available and ready to install.</div>
+
+        <div class="bitchord-update-progress-track" id="bitchord-update-progress-track" style="display: none;">
+          <div class="bitchord-update-progress-fill" id="bitchord-update-progress-fill" style="width: 0%;"></div>
+        </div>
+        <div class="bitchord-update-error" id="bitchord-update-error" style="display: none;"></div>
+
+        <div class="bitchord-update-notes-wrap" id="bitchord-update-notes-wrap">
+          <div class="bitchord-update-rule" style="margin: 12px 0 10px 0;"></div>
+          <div class="bitchord-update-notes-heading">What's New</div>
+          <div class="bitchord-update-notes-scroll" id="bitchord-update-notes">
+            • Seamless in-app OTA updates with live progress bar (no browser needed).<br/>
+            • BitChord mobile-grade frosted glass UI, floating pill player &amp; smooth 60fps word-synced lyrics.<br/>
+            • Exclusive Apple Music Motion animated artwork on PC &amp; Mobile.<br/>
+            • Official Deja Discord Rich Presence branding.
+          </div>
+        </div>
+      </div>
+
+      <div class="bitchord-update-rule"></div>
+      <button type="button" class="bitchord-update-action primary" id="bitchord-update-btn-primary">Download &amp; Install Now</button>
+      <div class="bitchord-update-rule"></div>
+      <button type="button" class="bitchord-update-action" id="bitchord-update-btn-secondary">Remind Me Later</button>
+    </div>
+  </div>
 
   <script src="preview.js"></script>
 </body>

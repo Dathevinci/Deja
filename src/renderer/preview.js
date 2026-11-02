@@ -8166,9 +8166,9 @@ function renderSettingsView(container) {
         </div>
         <div class="bitchord-settings-text">
           <div class="bitchord-settings-row-title">App Updates &amp; Version</div>
-          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.2.0 (2-Bit Optimized Edition) — Click to check GitHub Releases for updates</div>
+          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.2.2 (BitChord Edition) — Click to check &amp; install updates in-app</div>
         </div>
-        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.2.0</span>
+        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.2.2</span>
       </div>
     `);
   }
@@ -8194,7 +8194,7 @@ function renderSettingsView(container) {
 
       <div class="bitchord-settings-colophon">
         <div>
-          <strong>deja 1.2.0</strong>
+          <strong>deja 1.2.2</strong>
           <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="https://github.com/Dathevinci" target="_blank" rel="noopener noreferrer">Developer</a>
           <a href="https://dathevinci.github.io/Deja/" target="_blank" rel="noopener noreferrer">Website</a>
@@ -8353,15 +8353,15 @@ function renderSettingsView(container) {
         if (api?.checkForUpdates) {
           api.checkForUpdates().then(info => {
             if (info && info.updateAvailable) {
-              if (sub) sub.textContent = `Update v${info.latestVersion} is available! Downloading & launching installer...`;
+              if (sub) sub.textContent = `Update v${info.latestVersion} is available! Opening in-app installer...`;
               if (badge) badge.textContent = `Update v${info.latestVersion}`;
-              if (api.installUpdate) api.installUpdate(info.exeUrl);
+              openBitChordUpdateDialog(info);
             } else {
-              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.2.0'}).`;
+              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.2.2'}).`;
               if (badge) badge.textContent = 'Up to Date';
             }
           }).catch(() => {
-            if (sub) sub.textContent = 'Deja v1.2.0 is up to date.';
+            if (sub) sub.textContent = 'Deja v1.2.2 is up to date.';
           });
         }
       }
@@ -8966,6 +8966,135 @@ function toggleSpotifyVideoDock() {
   }
 }
 
+let latestPendingUpdateInfo = null;
+let isUpdateDownloading = false;
+
+function formatUpdateNotesHtml(md) {
+  if (!md || typeof md !== 'string') return '';
+  return escapeHTML(md)
+    .replace(/^###\s*(.+)$/gm, '<strong style="display:block; margin-bottom:4px; color:#fff;">$1</strong>')
+    .replace(/^[-*]\s+(.+)$/gm, '<div style="margin-bottom:4px;">• $1</div>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#fff;">$1</strong>')
+    .replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.1); padding:1px 4px; border-radius:4px;">$1</code>')
+    .replace(/\n/g, '<br/>');
+}
+
+function openBitChordUpdateDialog(info) {
+  if (typeof document === 'undefined' || !info) return;
+  latestPendingUpdateInfo = info;
+
+  const topBtn = document.getElementById('btn-topbar-update');
+  if (topBtn) {
+    topBtn.style.display = 'inline-flex';
+    topBtn.title = `Update Available: Deja v${info.latestVersion} (Click to Install)`;
+  }
+
+  const dialog = document.getElementById('bitchord-update-dialog');
+  const subEl = document.getElementById('bitchord-update-sub');
+  const notesEl = document.getElementById('bitchord-update-notes');
+  const primaryBtn = document.getElementById('bitchord-update-btn-primary');
+  const secondaryBtn = document.getElementById('bitchord-update-btn-secondary');
+  const progTrack = document.getElementById('bitchord-update-progress-track');
+  const errEl = document.getElementById('bitchord-update-error');
+  if (!dialog) return;
+
+  if (!isUpdateDownloading) {
+    if (subEl) subEl.textContent = `Deja v${info.latestVersion} is available and ready to install.`;
+    if (progTrack) progTrack.style.display = 'none';
+    if (errEl) errEl.style.display = 'none';
+    if (primaryBtn) primaryBtn.textContent = 'Download Now';
+    if (secondaryBtn) secondaryBtn.textContent = 'Remind Me Later';
+  }
+  if (notesEl && info.notes) {
+    notesEl.innerHTML = formatUpdateNotesHtml(info.notes);
+  }
+
+  dialog.style.display = 'flex';
+
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (primaryBtn) {
+    primaryBtn.onclick = () => {
+      if (isUpdateDownloading) return;
+      isUpdateDownloading = true;
+      if (subEl) subEl.textContent = `Downloading Deja v${info.latestVersion}…`;
+      if (progTrack) progTrack.style.display = 'block';
+      if (errEl) errEl.style.display = 'none';
+      primaryBtn.textContent = 'Downloading…';
+      if (secondaryBtn) secondaryBtn.textContent = 'Cancel';
+      if (api?.installUpdate) {
+        api.installUpdate(info.exeUrl);
+      }
+    };
+  }
+
+  if (secondaryBtn) {
+    secondaryBtn.onclick = () => {
+      if (isUpdateDownloading) {
+        isUpdateDownloading = false;
+        if (api?.cancelUpdateDownload) api.cancelUpdateDownload();
+        if (progTrack) progTrack.style.display = 'none';
+        if (subEl) subEl.textContent = `Deja v${info.latestVersion} is available and ready to install.`;
+        if (primaryBtn) primaryBtn.textContent = 'Download Now';
+        secondaryBtn.textContent = 'Remind Me Later';
+      } else {
+        dialog.style.display = 'none';
+      }
+    };
+  }
+
+  dialog.onclick = (e) => {
+    if (e.target === dialog && !isUpdateDownloading) {
+      dialog.style.display = 'none';
+    }
+  };
+}
+
+function handleBitChordUpdateProgress(prog) {
+  if (typeof document === 'undefined' || !prog) return;
+  const subEl = document.getElementById('bitchord-update-sub');
+  const progTrack = document.getElementById('bitchord-update-progress-track');
+  const progFill = document.getElementById('bitchord-update-progress-fill');
+  const primaryBtn = document.getElementById('bitchord-update-btn-primary');
+  const secondaryBtn = document.getElementById('bitchord-update-btn-secondary');
+  const errEl = document.getElementById('bitchord-update-error');
+  const ver = latestPendingUpdateInfo?.latestVersion || '1.2.2';
+
+  if (prog.state === 'downloading') {
+    isUpdateDownloading = true;
+    if (progTrack) progTrack.style.display = 'block';
+    if (progFill) progFill.style.width = `${prog.percent || 0}%`;
+    if (subEl) {
+      subEl.textContent = prog.receivedMb
+        ? `Downloading Deja v${ver}… (${prog.receivedMb} MB / ${prog.totalMb} MB)`
+        : `Downloading Deja v${ver}… ${prog.percent || 0}%`;
+    }
+    if (primaryBtn) primaryBtn.textContent = `Downloading (${prog.percent || 0}%)`;
+    if (secondaryBtn) secondaryBtn.textContent = 'Cancel';
+  } else if (prog.state === 'ready') {
+    isUpdateDownloading = false;
+    if (progTrack) progTrack.style.display = 'block';
+    if (progFill) progFill.style.width = '100%';
+    if (subEl) subEl.textContent = `Deja v${ver} is ready! Launching installer…`;
+    if (primaryBtn) {
+      primaryBtn.textContent = 'Install Now';
+      primaryBtn.onclick = () => {
+        const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+        if (api?.installUpdate) api.installUpdate(latestPendingUpdateInfo?.exeUrl);
+      };
+    }
+    if (secondaryBtn) secondaryBtn.textContent = 'Later';
+  } else if (prog.state === 'failed') {
+    isUpdateDownloading = false;
+    if (errEl) {
+      errEl.style.display = 'block';
+      errEl.textContent = prog.message || 'Download failed. Please try again.';
+    }
+    if (subEl) subEl.textContent = `Could not download Deja v${ver}.`;
+    if (primaryBtn) primaryBtn.textContent = 'Try Again';
+    if (secondaryBtn) secondaryBtn.textContent = 'Remind Me Later';
+  }
+}
+
 function onTrackChangedForVideoMode(track) {
   activeCanvasStreamData = null;
   stopAllVideoElements();
@@ -8981,17 +9110,26 @@ if (typeof document !== 'undefined') {
     if (api?.onUpdateAvailable) {
       api.onUpdateAvailable((info) => {
         if (info && info.updateAvailable) {
-          showDownloadToast(`Deja v${info.latestVersion} Update Available!`, `Click to install the new v${info.latestVersion} update`, null);
-          const openBtn = document.getElementById('deja-dl-toast-open');
-          if (openBtn) {
-            openBtn.textContent = `Update to v${info.latestVersion}`;
-            openBtn.style.display = 'inline-flex';
-            openBtn.onclick = () => {
-              if (api.installUpdate) api.installUpdate(info.exeUrl);
-            };
-          }
+          openBitChordUpdateDialog(info);
         }
       });
+    }
+    if (api?.onUpdateDownloadProgress) {
+      api.onUpdateDownloadProgress((prog) => {
+        handleBitChordUpdateProgress(prog);
+      });
+    }
+    const topUpdateBtn = document.getElementById('btn-topbar-update');
+    if (topUpdateBtn) {
+      topUpdateBtn.onclick = () => {
+        if (latestPendingUpdateInfo) {
+          openBitChordUpdateDialog(latestPendingUpdateInfo);
+        } else if (api?.checkForUpdates) {
+          api.checkForUpdates().then(info => {
+            if (info && info.updateAvailable) openBitChordUpdateDialog(info);
+          });
+        }
+      };
     }
 
     const btnDlBar = document.getElementById('btn-download-track');

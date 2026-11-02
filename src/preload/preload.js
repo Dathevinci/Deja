@@ -45,8 +45,12 @@ const dejaAPI = {
   rateSong: (videoId, status) => ipcRenderer.invoke('yt-rate', { videoId, status }),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   installUpdate: (url) => ipcRenderer.invoke('install-update', url),
+  cancelUpdateDownload: () => ipcRenderer.invoke('cancel-update-download'),
   onUpdateAvailable: (callback) => {
     ipcRenderer.on('update-available', (event, data) => callback(data));
+  },
+  onUpdateDownloadProgress: (callback) => {
+    ipcRenderer.on('update-download-progress', (event, data) => callback(data));
   },
   onDownloadProgress: (callback) => {
     ipcRenderer.on('download-progress', (event, data) => callback(data));
