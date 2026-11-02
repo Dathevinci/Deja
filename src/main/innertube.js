@@ -2561,16 +2561,30 @@ function parseTwoRowItem(r) {
                  r.thumbnail?.thumbnails || [];
   const cover = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '');
 
+  const subParts = subtitle.split('•').map(s => s.trim()).filter(Boolean);
+  const typeWords = new Set(['song', 'video', 'single', 'album', 'ep', 'playlist', 'artist', 'podcast', 'episode', 'chart']);
+  let extractedArtist = '';
+  for (const part of subParts) {
+    if (!typeWords.has(part.toLowerCase()) && !/^\d+([.,]\d+)?[KMB]?\s*(views|plays|subscribers)/i.test(part) && !/^\d{4}$/.test(part)) {
+      extractedArtist = part;
+      break;
+    }
+  }
+  if (!extractedArtist && subParts.length > 0) {
+    extractedArtist = subParts[subParts.length - 1];
+  }
+
   return {
     id: browseId ? `browse-${browseId}` : (videoId ? `yt-${videoId}` : `card-${Math.random().toString(36).slice(2, 9)}`),
     type: browseId ? (browseId.startsWith('UC') ? 'artist' : 'browse') : 'song',
     title,
     subtitle,
-    artist: subtitle.split('•')[0]?.trim() || 'YouTube Music',
-    album: title,
+    artist: extractedArtist || 'YouTube Music',
+    album: '',
     browseId,
     videoId,
     duration: 210,
+    _durationUnverified: true,
     cover
   };
 }
@@ -3273,6 +3287,93 @@ async function fetchSimpMusicLyrics(videoId, durationSeconds) {
   return null;
 }
 
+function sanitizeAlbumForLookup(album, title = '') {
+  if (!album || typeof album !== 'string') return '';
+  const trimmed = album.trim();
+  if (!trimmed) return '';
+  const lower = trimmed.toLowerCase();
+  if (['youtube music', 'single', 'song', 'video', 'album', 'ep', 'unknown album', 'deja'].includes(lower)) {
+    return '';
+  }
+  if (title && lower === String(title).trim().toLowerCase()) {
+    return '';
+  }
+  return trimmed;
+}
+
+/**
+ * Fetches Apple Music syllable/word-synced TTML lyrics via BiniLyrics (matching Android BiniLyrics.kt).
+ */
+async function fetchBiniLyrics(title, artist, durationSeconds, album = '') {
+  const cleanTitle = cleanSearchTerm(title);
+  const cleanArtist = cleanArtistTerm(artist);
+  if (!cleanTitle || !cleanArtist) return null;
+  const cleanAlbum = sanitizeAlbumForLookup(album, cleanTitle);
+
+  const queryBini = async (t, a, al) => {
+    try {
+      let url = `https://lyrics-api.binimum.org/?track=${encodeURIComponent(t)}&artist=${encodeURIComponent(a)}`;
+      if (al) url += `&album=${encodeURIComponent(al)}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': LRCLIB_USER_AGENT,
+          'Accept': 'application/json'
+        },
+        signal: controller.signal
+      }).finally(() => clearTimeout(timer));
+      if (!res.ok) return null;
+      const json = await res.json();
+      const results = Array.isArray(json?.results) ? json.results : [];
+      if (results.length === 0) return null;
+
+      const wantDurMs = durationSeconds && durationSeconds > 0 ? durationSeconds * 1000 : 0;
+      const ranked = results
+        .filter(r => r && typeof r.lyricsUrl === 'string' && r.lyricsUrl)
+        .sort((x, y) => {
+          if (wantDurMs > 0) {
+            const dx = Math.abs((Number(x.durationInMillis) || wantDurMs) - wantDurMs);
+            const dy = Math.abs((Number(y.durationInMillis) || wantDurMs) - wantDurMs);
+            return dx - dy;
+          }
+          return 0;
+        });
+
+      for (const hit of ranked.slice(0, 2)) {
+        if (wantDurMs > 0 && hit.durationInMillis && Math.abs(Number(hit.durationInMillis) - wantDurMs) > 15000) {
+          continue;
+        }
+        const ttmlCtrl = new AbortController();
+        const ttmlTimer = setTimeout(() => ttmlCtrl.abort(), 4500);
+        const ttmlRes = await fetch(hit.lyricsUrl, {
+          headers: { 'User-Agent': LRCLIB_USER_AGENT },
+          signal: ttmlCtrl.signal
+        }).finally(() => clearTimeout(ttmlTimer));
+        if (!ttmlRes.ok) continue;
+        const ttml = (await ttmlRes.text()).trim();
+        if (!ttml) continue;
+        const parsed = parseTtmlLyrics(ttml);
+        if (parsed && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return null;
+  };
+
+  if (cleanAlbum) {
+    const withAlbum = await queryBini(cleanTitle, cleanArtist, cleanAlbum);
+    if (withAlbum) return withAlbum;
+  }
+  const withoutAlbum = await queryBini(cleanTitle, cleanArtist, '');
+  if (withoutAlbum) return withoutAlbum;
+
+  const primaryArtist = getPrimaryArtist(cleanArtist);
+  if (primaryArtist && primaryArtist !== cleanArtist) {
+    return await queryBini(cleanTitle, primaryArtist, '');
+  }
+  return null;
+}
+
 /**
  * Fetches syllable/word-synced TTML lyrics from BetterLyrics API.
  * Matches BitChord BetterLyrics.kt provider architecture.
@@ -3281,14 +3382,13 @@ async function fetchBetterLyrics(title, artist, durationSeconds, album = '') {
   const cleanTitle = cleanSearchTerm(title);
   const cleanArtist = cleanArtistTerm(artist);
   if (!cleanTitle || !cleanArtist) return null;
+  const cleanAlbum = sanitizeAlbumForLookup(album, cleanTitle);
 
-  const queryTitleAndArtist = async (t, a, dur) => {
+  const queryOnce = async (t, a, dur, al) => {
     try {
       let url = `https://lyrics-api.boidu.dev/getLyrics?s=${encodeURIComponent(t)}&a=${encodeURIComponent(a)}`;
       if (dur && dur > 0) url += `&d=${Math.round(dur)}`;
-      if (album && typeof album === 'string' && album.trim()) {
-        url += `&al=${encodeURIComponent(album.trim())}`;
-      }
+      if (al) url += `&al=${encodeURIComponent(al)}`;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 4500);
       const res = await fetch(url, {
@@ -3308,6 +3408,19 @@ async function fetchBetterLyrics(title, artist, durationSeconds, album = '') {
     } catch {
       return null;
     }
+  };
+
+  const queryTitleAndArtist = async (t, a, dur) => {
+    if (cleanAlbum) {
+      const hitWithAlbum = await queryOnce(t, a, dur, cleanAlbum);
+      if (hitWithAlbum) return hitWithAlbum;
+    }
+    const hitNoAlbum = await queryOnce(t, a, dur, '');
+    if (hitNoAlbum) return hitNoAlbum;
+    if (dur && dur > 0) {
+      return await queryOnce(t, a, 0, '');
+    }
+    return null;
   };
 
   const primary = await queryTitleAndArtist(cleanTitle, cleanArtist, durationSeconds);
@@ -3842,6 +3955,7 @@ async function getLyrics({ videoId, title, artist, duration, album }, ses) {
   const hasLineSync = (lines) =>
     Array.isArray(lines) && lines.length > 1 && lines.some(l => l.time > 0);
 
+  const cleanAlbum = sanitizeAlbumForLookup(album, title);
   const tasks = [];
   if (videoId) {
     tasks.push(fetchSimpMusicLyrics(videoId, duration).catch(() => null));
@@ -3849,22 +3963,24 @@ async function getLyrics({ videoId, title, artist, duration, album }, ses) {
     tasks.push(Promise.resolve(null));
   }
   if (title) {
-    tasks.push(fetchBetterLyrics(title, artist || '', duration, album || '').catch(() => null));
+    tasks.push(fetchBiniLyrics(title, artist || '', duration, cleanAlbum).catch(() => null));
+    tasks.push(fetchBetterLyrics(title, artist || '', duration, cleanAlbum).catch(() => null));
     tasks.push(fetchLyricsPlus(title, artist || '', duration).catch(() => null));
     tasks.push(fetchLrcLibLyrics(title, artist || '', duration).catch(() => null));
   } else {
-    tasks.push(Promise.resolve(null), Promise.resolve(null), Promise.resolve(null));
+    tasks.push(Promise.resolve(null), Promise.resolve(null), Promise.resolve(null), Promise.resolve(null));
   }
 
-  const [simpLyrics, betterLyrics, plusLyrics, lrcLibLyrics] = await Promise.all(tasks);
-  const candidates = [simpLyrics, betterLyrics, plusLyrics, lrcLibLyrics].filter(c => Array.isArray(c) && c.length > 0);
+  const [simpLyrics, biniLyrics, betterLyrics, plusLyrics, lrcLibLyrics] = await Promise.all(tasks);
+  // Match Android BitChord provider order: BiniLyrics -> BetterLyrics -> SimpMusic -> LyricsPlus -> LRCLIB
+  const candidates = [biniLyrics, betterLyrics, simpLyrics, plusLyrics, lrcLibLyrics].filter(c => Array.isArray(c) && c.length > 0);
 
-  // 1. Prefer word-synced lyrics from any provider (in priority order: SimpMusic videoId -> BetterLyrics TTML -> LyricsPlus -> LRCLIB)
+  // 1. Prefer word-synced lyrics from any provider (in priority order: BiniLyrics -> BetterLyrics -> SimpMusic -> LyricsPlus -> LRCLIB)
   const wordSynced = candidates.find(hasWordSync);
   if (wordSynced) return wordSynced;
 
-  // 2. Otherwise take the highest-priority line-synced candidate (LRCLIB / SimpMusic / BetterLyrics / LyricsPlus)
-  const lineSynced = [lrcLibLyrics, simpLyrics, betterLyrics, plusLyrics].find(hasLineSync);
+  // 2. Otherwise take the highest-priority line-synced candidate
+  const lineSynced = [biniLyrics, betterLyrics, lrcLibLyrics, simpLyrics, plusLyrics].find(hasLineSync);
   if (lineSynced) return lineSynced;
 
   if (candidates.length > 0) {
@@ -3986,67 +4102,79 @@ async function fetchAppleMusicCanvas(title, artist, album) {
     if (!bearer) return null;
     const cleanT = cleanSearchTerm(title);
     const cleanA = cleanArtistTerm(artist);
-    const term = `${cleanA} ${cleanT} ${album || ''}`.trim();
-    const searchUrl = `https://amp-api.music.apple.com/v1/catalog/us/search?term=${encodeURIComponent(term)}&types=songs&limit=6&extend=editorialVideo&include=albums`;
+    const cleanAl = sanitizeAlbumForLookup(album, cleanT);
     const headers = {
       'Authorization': `Bearer ${bearer}`,
       'Origin': 'https://music.apple.com',
       'Referer': 'https://music.apple.com/',
       'User-Agent': CHROME_UA
     };
-    const sRes = await fetch(searchUrl, { headers });
-    if (!sRes.ok) return null;
-    const sData = await sRes.json();
-    const songs = sData?.results?.songs?.data || [];
-    const wantT = normalizeCanvasMatch(cleanT);
-    const wantA = normalizeCanvasMatch(cleanA);
 
-    for (const song of songs) {
-      const attr = song?.attributes || {};
-      const gotT = normalizeCanvasMatch(attr.name || '');
-      const gotA = normalizeCanvasMatch(attr.artistName || '');
-      if (!gotT || !gotA) continue;
-      if (!(gotT.includes(wantT) || wantT.includes(gotT))) continue;
-      if (!(gotA.includes(wantA) || wantA.includes(gotA))) continue;
+    const searchAppleTerm = async (termStr) => {
+      const searchUrl = `https://amp-api.music.apple.com/v1/catalog/us/search?term=${encodeURIComponent(termStr)}&types=songs&limit=8&extend=editorialVideo&include=albums`;
+      const sRes = await fetch(searchUrl, { headers });
+      if (!sRes.ok) return null;
+      const sData = await sRes.json();
+      const songs = sData?.results?.songs?.data || [];
+      const wantT = normalizeCanvasMatch(cleanT);
+      const wantA = normalizeCanvasMatch(cleanA);
+      const wantPrimaryA = normalizeCanvasMatch(getPrimaryArtist(cleanA));
 
-      let edVid = attr.editorialVideo;
-      if (!edVid) {
-        let albumId = song?.relationships?.albums?.data?.[0]?.id;
-        if (!albumId && attr.url) {
-          const m = String(attr.url).match(/\/album\/[^/?]+\/(\d+)/);
-          if (m) albumId = m[1];
+      for (const song of songs) {
+        const attr = song?.attributes || {};
+        const gotT = normalizeCanvasMatch(attr.name || '');
+        const gotA = normalizeCanvasMatch(attr.artistName || '');
+        if (!gotT || !gotA) continue;
+        if (!(gotT.includes(wantT) || wantT.includes(gotT))) continue;
+        const artistMatches = gotA.includes(wantA) || wantA.includes(gotA) || (wantPrimaryA && (gotA.includes(wantPrimaryA) || wantPrimaryA.includes(gotA)));
+        if (!artistMatches) continue;
+
+        let edVid = attr.editorialVideo;
+        if (!edVid) {
+          let albumId = song?.relationships?.albums?.data?.[0]?.id;
+          if (!albumId && attr.url) {
+            const m = String(attr.url).match(/\/album\/[^/?]+\/(\d+)/);
+            if (m) albumId = m[1];
+          }
+          if (albumId) {
+            const aRes = await fetch(`https://amp-api.music.apple.com/v1/catalog/us/albums/${albumId}?extend=editorialVideo`, { headers });
+            if (aRes.ok) {
+              const aData = await aRes.json();
+              edVid = aData?.data?.[0]?.attributes?.editorialVideo;
+            }
+          }
         }
-        if (albumId) {
-          const aRes = await fetch(`https://amp-api.music.apple.com/v1/catalog/us/albums/${albumId}?extend=editorialVideo`, { headers });
-          if (aRes.ok) {
-            const aData = await aRes.json();
-            edVid = aData?.data?.[0]?.attributes?.editorialVideo;
+
+        if (edVid) {
+          const m3u8 = edVid.motionDetailSquare?.video ||
+                       edVid.motionSquareVideo1x1?.video ||
+                       edVid.motionDetailTall?.video ||
+                       edVid.motionTallVideo3x4?.video ||
+                       edVid.motionDetailRaw?.video;
+          const directMp4 = await resolveAppleM3u8ToDirectMp4(m3u8);
+          if (directMp4) {
+            return {
+              url: directMp4,
+              mimeType: 'video/mp4',
+              width: 1080,
+              height: 1080,
+              aspect: 'square',
+              source: 'Apple Music Motion',
+              qualityLabel: 'Apple Motion 1080p',
+              isCanvas: true,
+              title: attr.name || title
+            };
           }
         }
       }
+      return null;
+    };
 
-      if (edVid) {
-        const m3u8 = edVid.motionDetailSquare?.video ||
-                     edVid.motionSquareVideo1x1?.video ||
-                     edVid.motionDetailTall?.video ||
-                     edVid.motionTallVideo3x4?.video ||
-                     edVid.motionDetailRaw?.video;
-        const directMp4 = await resolveAppleM3u8ToDirectMp4(m3u8);
-        if (directMp4) {
-          return {
-            url: directMp4,
-            mimeType: 'video/mp4',
-            width: 1080,
-            height: 1080,
-            aspect: 'square',
-            source: 'Apple Music Motion',
-            qualityLabel: 'Apple Motion 1080p',
-            isCanvas: true,
-            title: attr.name || title
-          };
-        }
-      }
+    if (cleanAl) {
+      const hitWithAlbum = await searchAppleTerm(`${cleanA} ${cleanT} ${cleanAl}`.trim());
+      if (hitWithAlbum) return hitWithAlbum;
     }
+    return await searchAppleTerm(`${cleanA} ${cleanT}`.trim());
   } catch (err) {
     console.warn('[Canvas] AppleMusicCanvas notice:', err.message);
   }
@@ -4152,98 +4280,18 @@ async function getVideoStream(videoId, ses, queryInfo = {}) {
   const title = queryInfo.title || '';
   const artist = queryInfo.artist || '';
   const album = queryInfo.album || '';
-  const preferFullVideo = queryInfo.mode === 'video';
-  const cacheKey = `${videoId || ''}|${title}|${artist}|${preferFullVideo ? 'vid' : 'canvas'}`;
+  const cacheKey = `apple-motion|${videoId || ''}|${title}|${artist}`;
 
   if (canvasResultCache.has(cacheKey)) {
     return canvasResultCache.get(cacheKey);
   }
 
-  // 1. Unless explicitly asking for full music video only, check Apple Music Motion / Tidal Video Cover / Spotify Canvas first!
-  if (title && artist && !preferFullVideo) {
-    const [appleHit, tidalHit, commHit] = await Promise.all([
-      fetchAppleMusicCanvas(title, artist, album).catch(() => null),
-      fetchTidalCanvas(title, artist, album).catch(() => null),
-      fetchCommunityCanvas(title, artist).catch(() => null)
-    ]);
-    const canvasWinner = appleHit || tidalHit || commHit;
-    if (canvasWinner) {
-      canvasResultCache.set(cacheKey, canvasWinner);
-      return canvasWinner;
-    }
-  }
-
-  // 2. Resolve direct chromeless MP4 stream from YouTube (IOS client with VisitorData)
-  let targetVideoId = (videoId && !String(videoId).startsWith('local-')) ? videoId : '';
-  if (title && artist && (!targetVideoId || preferFullVideo)) {
-    try {
-      const q = `${cleanSearchTerm(title)} ${cleanArtistTerm(artist)} official video`.trim();
-      const searchRes = await search(q, ses, 'videos').catch(() => []);
-      const items = Array.isArray(searchRes) ? searchRes : (searchRes?.videos || searchRes?.results || []);
-      const firstVid = items.find(it => it && it.videoId && !String(it.videoId).startsWith('local-'));
-      if (firstVid && firstVid.videoId) {
-        targetVideoId = firstVid.videoId;
-      }
-    } catch {}
-  }
-
-  if (targetVideoId) {
-    try {
-      const vData = await ensureVisitorData().catch(() => '');
-      const iosVersion = '20.03.02';
-      const payload = {
-        context: {
-          client: {
-            clientName: 'IOS',
-            clientVersion: iosVersion,
-            deviceMake: 'Apple',
-            deviceModel: 'iPhone16,2',
-            hl: 'en',
-            gl: 'US',
-            visitorData: vData || undefined
-          }
-        },
-        videoId: targetVideoId,
-        contentCheckOk: true,
-        racyCheckOk: true
-      };
-      const headers = {
-        'Content-Type': 'application/json',
-        'User-Agent': `com.google.ios.youtube/${iosVersion} (iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X; en_US)`,
-        'X-YouTube-Client-Name': '5',
-        'X-YouTube-Client-Version': iosVersion
-      };
-      if (vData) headers['X-Goog-Visitor-Id'] = vData;
-
-      const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const bestVid = extractBestVideoFormat(data, targetVideoId);
-        if (bestVid && bestVid.url) {
-          canvasResultCache.set(cacheKey, bestVid);
-          return bestVid;
-        }
-      }
-    } catch (err) {
-      console.warn('[InnerTube] getVideoStream IOS attempt notice:', err.message);
-    }
-  }
-
-  // 3. If preferFullVideo missed or failed, fall back to Apple Music Motion / Tidal / Community Canvas so we always have a clean chromeless video!
-  if (title && artist && preferFullVideo) {
-    const [appleHit, tidalHit, commHit] = await Promise.all([
-      fetchAppleMusicCanvas(title, artist, album).catch(() => null),
-      fetchTidalCanvas(title, artist, album).catch(() => null),
-      fetchCommunityCanvas(title, artist).catch(() => null)
-    ]);
-    const fallbackCanvas = appleHit || tidalHit || commHit;
-    if (fallbackCanvas) {
-      canvasResultCache.set(cacheKey, fallbackCanvas);
-      return fallbackCanvas;
+  // Exclusively resolve official Apple Music Motion animated artwork (1080x1080 H.264 square loop)
+  if (title && artist) {
+    const appleHit = await fetchAppleMusicCanvas(title, artist, album).catch(() => null);
+    if (appleHit) {
+      canvasResultCache.set(cacheKey, appleHit);
+      return appleHit;
     }
   }
 

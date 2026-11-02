@@ -1,0 +1,58 @@
+name: iOS Build & Release (.ipa)
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build Unsigned iOS App (Release)
+        working-directory: ios
+        run: |
+          xcodebuild -project Deja.xcodeproj \
+            -scheme Deja \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
+
+      - name: Package Deja.ipa
+        working-directory: ios
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/Deja.app Payload/
+          cp ../Logo.png Payload/Deja.app/AppIcon60x60@3x.png || true
+          zip -r9 Deja.ipa Payload
+
+      - name: Upload Deja.ipa Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Deja-iOS-IPA
+          path: ios/Deja.ipa
+
+      - name: Attach Deja.ipa to Latest GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v1.2.1 ios/Deja.ipa --clobber || true
+          gh release upload v1.2.0 ios/Deja.ipa --clobber || true

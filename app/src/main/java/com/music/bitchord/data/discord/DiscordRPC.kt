@@ -170,7 +170,7 @@ class DiscordRPC(
         const val PROJECT_URL = "https://github.com/Dathevinci/Deja"
 
         const val DEFAULT_BUTTON_1 = "Listen on YouTube Music"
-        const val DEFAULT_BUTTON_2 = "Visit BitChord"
+        const val DEFAULT_BUTTON_2 = "Visit Deja"
 
         /** Discord draws the sleeve at roughly 96dp; 480px covers it on any density. */
         private const val ART_PX = 480
@@ -183,7 +183,7 @@ class DiscordRPC(
          * APK — a `res/` drawable has no address the presence can carry.
          */
         private const val FALLBACK_ART_URL =
-            "https://raw.githubusercontent.com/Dathevinci/Deja/main/app/src/main/ic_launcher-playstore.png"
+            "https://raw.githubusercontent.com/Dathevinci/Deja/main/Logo.png"
 
         fun watchUrl(song: Song): String =
             "https://music.youtube.com/watch?v=${song.videoId}"

@@ -2,8 +2,9 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 
-// Standard registered Discord application client ID for YouTube Music / Deja
-const CLIENT_ID = '463097721130188830';
+// Standard registered Discord application client ID for Deja (Legacy ID: 463097721130188830)
+const CLIENT_ID = '1411019391843172514';
+const DEJA_LOGO_URL = 'https://raw.githubusercontent.com/Dathevinci/Deja/main/Logo.png';
 
 class DiscordPresence {
   constructor() {
@@ -200,9 +201,15 @@ class DiscordPresence {
 
     const isAd = !!data.isAd;
     const isPlaying = data.isPlaying !== false;
-    const title = isAd ? 'Advertisement (Google)' : (data.title || 'Unknown Title');
-    const artist = isAd ? 'Free Tier • Sponsored' : (data.artist || 'Unknown Artist');
-    const album = isAd ? 'YouTube Music Ads' : (data.album || 'YouTube Music');
+    const isIdleDefault = !isAd && data.title === 'Deja' && (!data.artist || data.artist === 'YouTube Music');
+    const title = isAd
+      ? 'Advertisement (Google)'
+      : (isIdleDefault ? 'Browsing Music' : (data.title || 'Unknown Title'));
+    const artist = isAd
+      ? 'Free Tier • Sponsored'
+      : (isIdleDefault ? 'Deja • 2-Bit Edition' : (data.artist || 'Unknown Artist'));
+    const rawAlbum = data.album && data.album !== 'YouTube Music' ? data.album : 'Deja';
+    const album = isAd ? 'YouTube Music Ads' : rawAlbum;
 
     const coverUrl = data.artworkUrl || data.coverUrl || data.cover;
     const hasValidCoverUrl = typeof coverUrl === 'string' && (coverUrl.startsWith('https://') || coverUrl.startsWith('http://'));
@@ -212,13 +219,16 @@ class DiscordPresence {
       : ((data.duration && data.currentTime != null) ? Math.max(0, data.duration - data.currentTime) : 0);
 
     const activity = {
+      name: 'Deja',
+      type: 2,
+      status_display_type: 1,
       details: title.length > 128 ? title.slice(0, 125) + '...' : title,
-      state: isAd ? artist : `by ${artist}`.slice(0, 128),
+      state: (isAd || isIdleDefault) ? artist : `by ${artist}`.slice(0, 128),
       assets: {
-        large_image: isAd ? 'deja_logo' : (hasValidCoverUrl ? coverUrl : 'deja_logo'),
+        large_image: isAd ? DEJA_LOGO_URL : (hasValidCoverUrl ? coverUrl : DEJA_LOGO_URL),
         large_text: album.slice(0, 128),
-        small_image: isPlaying ? 'play_icon' : 'pause_icon',
-        small_text: isAd ? 'Ad Playing' : (isPlaying ? 'Playing' : 'Paused')
+        small_image: DEJA_LOGO_URL,
+        small_text: isAd ? 'Ad Playing' : (isPlaying ? 'Listening on Deja' : 'Paused on Deja')
       }
     };
 

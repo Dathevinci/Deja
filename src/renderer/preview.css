@@ -5002,3 +5002,22 @@ body.deja-playing .now-playing-art-wrap,
 .bitchord-settings-card {
   contain: layout style;
 }
+
+
+/* Apple Music Motion Only Clean Stage */
+#expanded-canvas-badge,
+#deja-media-mode-switch,
+.exp-media-mode-pill,
+#btn-switch-video,
+#exp-btn-video,
+#deja-video-dock {
+  display: none !important;
+}
+
+.lyric-line {
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+              color 0.35s ease,
+              filter 0.42s ease !important;
+  will-change: transform, opacity;
+}

@@ -399,6 +399,32 @@ function initModals() {
     });
   }
 
+
+  // iOS Modal handlers
+  const iosModal = document.getElementById('ios-modal');
+  const openIosBtns = document.querySelectorAll('.btn-open-ios-modal');
+  const closeIosBtn = document.getElementById('btn-close-ios-modal');
+
+  openIosBtns.forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (iosModal) iosModal.classList.add('open');
+    });
+  });
+
+  if (closeIosBtn && iosModal) {
+    closeIosBtn.addEventListener('click', () => iosModal.classList.remove('open'));
+  }
+  if (iosModal) {
+    iosModal.addEventListener('click', (e) => {
+      if (e.target === iosModal) iosModal.classList.remove('open');
+    });
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
   if (notifyForm) {
     notifyForm.addEventListener('submit', (e) => {
       e.preventDefault();

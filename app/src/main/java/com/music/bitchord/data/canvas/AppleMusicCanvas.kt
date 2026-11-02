@@ -43,12 +43,28 @@ object AppleMusicCanvas {
         Locale.getDefault().country.takeIf { it.length == 2 }?.lowercase(Locale.ROOT) ?: "us"
     }
 
+    private fun sanitizeAlbum(album: String?, title: String): String? {
+        val trimmed = album?.trim().orEmpty()
+        if (trimmed.isEmpty()) return null
+        val lower = trimmed.lowercase(Locale.ROOT)
+        if (lower == "youtube music" || lower == "single" || lower == "song" || lower == "video" || lower == "album" || lower == "ep") {
+            return null
+        }
+        if (trimmed.equals(title.trim(), ignoreCase = true)) return null
+        return trimmed
+    }
+
     fun search(title: String, artist: String, album: String?): CanvasArtwork? {
         val bearer = token() ?: return null
+        val cleanAlbum = sanitizeAlbum(album, title)
+        searchInternal(bearer, title, artist, cleanAlbum)?.let { return it }
+        if (cleanAlbum != null) {
+            return searchInternal(bearer, title, artist, null)
+        }
+        return null
+    }
 
-        // The catalog search is term-based, so fold everything we know into
-        // the term — an artist name alone pulls in their whole discography and
-        // the scoring below then has to reject all of it.
+    private fun searchInternal(bearer: String, title: String, artist: String, album: String?): CanvasArtwork? {
         val term = buildString {
             if (!title.contains(artist, ignoreCase = true)) append(artist).append(' ')
             append(title)
@@ -89,8 +105,6 @@ object AppleMusicCanvas {
             val songArtist = attributes["artistName"]?.jsonPrimitive?.contentOrNull
             val albumName = attributes["albumName"]?.jsonPrimitive?.contentOrNull
 
-            // Some searches already carry the motion artwork inline, which
-            // saves the album round trip entirely.
             attributes["editorialVideo"]?.jsonObject?.let { video ->
                 motionUrls(video)?.let { (primary, alternate) ->
                     Log.d(TAG, "inline motion artwork for '$songName'")
@@ -194,7 +208,7 @@ object AppleMusicCanvas {
         val wanted = splitArtists(artist)
         val credited = splitArtists(hitArtist)
         if (wanted.isEmpty() || credited.isEmpty()) return null
-        if (!wanted.all { want -> credited.any { it == want } }) return null
+        if (!wanted.any { want -> credited.any { it == want || it.contains(want) || want.contains(it) } }) return null
 
         var score = 10
 

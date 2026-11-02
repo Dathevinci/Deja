@@ -3251,3 +3251,317 @@ body.twobit-ivory .hero-title {
   opacity: 1;
   transform: translateY(0);
 }
+
+
+/* ==========================================================================
+   Mobile Website Overhaul (Native 2-Bit Mobile Experience)
+   ========================================================================== */
+.download-cards-row {
+  grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)) !important;
+}
+
+.phone-track-art {
+  position: relative;
+  animation: appleMotionPulse 6s ease-in-out infinite;
+}
+
+@keyframes appleMotionPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
+  50% { transform: scale(1.06); box-shadow: 0 8px 24px rgba(196, 59, 68, 0.55); }
+}
+
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+
+  .container {
+    padding: 0 16px !important;
+  }
+
+  /* Sleek mobile header */
+  .site-header {
+    height: 60px !important;
+  }
+
+  .nav-container {
+    gap: 8px !important;
+  }
+
+  .brand-name {
+    font-size: 16px !important;
+  }
+
+  .brand-badge {
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+  }
+
+  .nav-links,
+  .nav-actions .btn-github {
+    display: none !important;
+  }
+
+  .nav-actions {
+    gap: 6px !important;
+  }
+
+  .btn-twobit-mode {
+    padding: 5px 8px !important;
+    font-size: 10px !important;
+  }
+
+  .twobit-swatch-group {
+    display: none !important;
+  }
+
+  .nav-actions .btn-ruby {
+    padding: 7px 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* Hero card tailored for mobile screens */
+  .hero-section {
+    padding: 82px 0 36px !important;
+  }
+
+  .bitchord-hero-card {
+    padding: 20px 16px 0 !important;
+    border-radius: 16px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .twobit-hud-strip {
+    margin: -20px -16px 18px -16px !important;
+    padding: 8px 12px !important;
+    font-size: 10px !important;
+    justify-content: space-between !important;
+  }
+
+  .hud-palette-pills {
+    display: none !important;
+  }
+
+  .twobit-angel-stage {
+    height: 150px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .twobit-angel-medallion {
+    width: 112px !important;
+    height: 112px !important;
+  }
+
+  .twobit-hero-logo {
+    width: 94px !important;
+    height: 94px !important;
+  }
+
+  .pill-release {
+    font-size: 11px !important;
+    padding: 6px 12px !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    text-align: center !important;
+    line-height: 1.4 !important;
+  }
+
+  .hero-title {
+    font-size: 28px !important;
+    line-height: 1.2 !important;
+    margin-bottom: 12px !important;
+  }
+
+  .hero-tagline {
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+    margin-bottom: 18px !important;
+    padding: 0 4px !important;
+  }
+
+  .hero-badges-strip {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    width: 100% !important;
+    margin-bottom: 20px !important;
+  }
+
+  .hero-badge {
+    justify-content: center !important;
+    font-size: 10.5px !important;
+    padding: 7px 8px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Prioritize Android & iOS buttons at top of CTA stack on mobile */
+  .hero-cta-group {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .hero-cta-group > a {
+    width: 100% !important;
+    justify-content: center !important;
+    height: 46px !important;
+    font-size: 13.5px !important;
+  }
+
+  .hero-cta-group .cta-mobile-primary {
+    order: -2 !important;
+    background: var(--ruby) !important;
+    color: #F4EFEA !important;
+    border-color: #F4EFEA !important;
+    box-shadow: 4px 4px 0px var(--bit-00) !important;
+  }
+
+  .hero-cta-group .cta-ios-btn {
+    order: -1 !important;
+    background: #F4EFEA !important;
+    color: #0B090A !important;
+    border-color: var(--ruby) !important;
+  }
+
+  /* Hide wide desktop window mockup on mobile & spotlight the Phone Hero Stage */
+  .mockup-wrapper {
+    display: none !important;
+  }
+
+  .phone-hero-stage {
+    height: 410px !important;
+    margin-top: 6px !important;
+  }
+
+  .phone-bezel-outer {
+    transform: scale(0.78) !important;
+    transform-origin: top center !important;
+  }
+
+  /* Horizontal snap-scroll carousel for Replay Collector Cards on mobile */
+  .replay-section,
+  .big-screen-section,
+  .features-section,
+  .showcase-split,
+  .download-section,
+  .ecosystem-section {
+    padding: 48px 0 !important;
+  }
+
+  .replay-heading,
+  .tv-heading,
+  .section-title,
+  .showcase-title,
+  .ecosystem-title,
+  .curated-marquee-title {
+    font-size: 22px !important;
+    line-height: 1.25 !important;
+  }
+
+  .replay-subheading,
+  .tv-subheading,
+  .section-description,
+  .showcase-text {
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  .replay-cards-grid {
+    display: flex !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 14px !important;
+    padding: 4px 4px 16px 4px !important;
+    margin: 0 -4px !important;
+  }
+
+  .replay-credit-card {
+    flex: 0 0 84% !important;
+    max-width: 310px !important;
+    scroll-snap-align: center !important;
+  }
+
+  /* Big Screen TV section responsive mobile card */
+  .tv-card {
+    padding: 24px 14px !important;
+  }
+
+  .tv-screen {
+    aspect-ratio: auto !important;
+    min-height: 250px !important;
+    padding: 16px !important;
+  }
+
+  .tv-slide-np {
+    flex-direction: column !important;
+    gap: 14px !important;
+    text-align: center !important;
+  }
+
+  .tv-np-art {
+    width: 96px !important;
+    height: 96px !important;
+  }
+
+  .tv-np-Lyrics {
+    font-size: 14px !important;
+    text-align: center !important;
+  }
+
+  /* Override inline 2-column grid on Showcase Split sections */
+  .showcase-split > .container {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+
+  .lyrics-box,
+  .eq-box {
+    padding: 18px 14px !important;
+  }
+
+  .lyrics-demo-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .lyric-line {
+    font-size: 16px !important;
+  }
+
+  .features-grid,
+  .download-cards-row {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .download-fallback-banner {
+    flex-direction: column !important;
+    padding: 18px !important;
+    gap: 12px !important;
+  }
+
+  .fallback-paths {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .hero-title {
+    font-size: 24px !important;
+  }
+
+  .phone-hero-stage {
+    height: 370px !important;
+  }
+
+  .phone-bezel-outer {
+    transform: scale(0.71) !important;
+  }
+}

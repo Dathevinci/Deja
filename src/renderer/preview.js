@@ -4767,8 +4767,7 @@ function getPrimaryArtist(str) {
  */
 async function resolveSyncedLyrics(track, forceRefresh = false) {
   if (!track || track._lyricsFetching) return;
-  const alreadyHasWordSync = Array.isArray(track.lyrics) && track.lyrics.some(l => Array.isArray(l.words) && l.words.length > 0);
-  if (track._lyricsResolved && (!forceRefresh || alreadyHasWordSync)) return;
+  if (track._lyricsResolved && !forceRefresh) return;
   track._lyricsFetching = true;
 
   const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
@@ -4810,12 +4809,16 @@ async function resolveSyncedLyrics(track, forceRefresh = false) {
     let resolved = null;
     if (api?.getLyrics) {
       const vid = track.videoId || (typeof track.id === 'string' && track.id.startsWith('yt-') ? track.id.slice(3) : (typeof track.id === 'string' && /^[A-Za-z0-9_-]{11}$/.test(track.id) ? track.id : null));
+      const rawAlbum = (track.album || '').trim();
+      const sanitizedAlbum = (rawAlbum && !/^(youtube music|single|song|video|album|ep|deja)$/i.test(rawAlbum) && rawAlbum.toLowerCase() !== cleanTitle.toLowerCase())
+        ? rawAlbum
+        : '';
       resolved = await api.getLyrics({
         videoId: vid,
         title: cleanTitle,
         artist: cleanArtist,
         duration: verifiedDuration,
-        album: track.album || ''
+        album: sanitizedAlbum
       });
     }
 
@@ -5769,22 +5772,25 @@ function updateSyncedLyrics(forceScroll = false) {
 
       if (el.style) {
         if (isSynced) {
+          const dist = activeIndex >= 0 ? Math.abs(idx - activeIndex) : 2;
+          el.style.fontSize = '26px';
+          el.style.transformOrigin = 'left center';
           if (isActive) {
             el.style.color = '#ffffff';
             el.style.fontWeight = '700';
-            el.style.fontSize = '28px';
-            el.style.textShadow = '0 4px 20px rgba(255,255,255,0.45)';
+            el.style.textShadow = '0 4px 24px rgba(255,255,255,0.38)';
             el.style.filter = 'none';
             el.style.opacity = '1';
-            el.style.transform = 'scale(1.02)';
+            el.style.transform = 'scale(1) translateZ(0)';
           } else {
-            el.style.color = 'rgba(255, 255, 255, 0.35)';
+            const fadedOpacity = dist === 1 ? '0.52' : (dist === 2 ? '0.36' : '0.24');
+            const blurPx = dist <= 1 ? '0.3px' : (dist === 2 ? '0.8px' : '1.2px');
+            el.style.color = 'rgba(255, 255, 255, 0.42)';
             el.style.fontWeight = '600';
-            el.style.fontSize = '24px';
             el.style.textShadow = 'none';
-            el.style.filter = 'blur(0.4px)';
-            el.style.opacity = '0.45';
-            el.style.transform = 'none';
+            el.style.filter = `blur(${blurPx})`;
+            el.style.opacity = fadedOpacity;
+            el.style.transform = 'scale(0.95) translateZ(0)';
           }
         } else {
           // Plain unsynced lyrics presentation (BitChord PlayerLyrics.kt lines 1686, 1694)
@@ -5800,7 +5806,7 @@ function updateSyncedLyrics(forceScroll = false) {
     });
 
     const targetIdx = scrollTargetIndex >= 0 ? scrollTargetIndex : activeIndex;
-    if (isSynced && targetIdx >= 0 && (targetIdx !== lastScrollTargetIndex || activeIndex !== lastActiveLyricIndex || forceScroll)) {
+    if (isSynced && targetIdx >= 0 && (targetIdx !== lastScrollTargetIndex || forceScroll)) {
       if (!previewUserScrolling || forceScroll) {
         const activeEl = lyricElements[targetIdx] || lyricElements[activeIndex];
         if (activeEl && typeof activeEl.scrollIntoView === 'function') {
@@ -8854,8 +8860,8 @@ async function loadMusicVideoIntoStage(track, targetType) {
 
   if (dockBadge) dockBadge.textContent = badgeLabel;
   if (expBadge) {
-    expBadge.textContent = badgeLabel;
-    expBadge.style.display = (isVideoModeActive || streamData.isCanvas) ? 'inline-block' : 'none';
+    expBadge.textContent = '';
+    expBadge.style.display = 'none';
   }
 
   // Always animate the mini bottom-bar thumbnail & Now Playing artwork thumbnail when Canvas or Video mode is active
