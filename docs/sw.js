@@ -1,4 +1,4 @@
-const CACHE_NAME = 'deja-2bit-v1.2.3-ios';
+const CACHE_NAME = 'deja-2bit-v1.2.4-ios';
 const ASSETS = [
   './',
   './index.html',
@@ -29,6 +29,6 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(event.request, { cache: 'no-store' }).catch(() => caches.match(event.request))
   );
 });

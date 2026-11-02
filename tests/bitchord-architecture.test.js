@@ -1619,6 +1619,16 @@ function runBitChordArchitectureTests() {
     'BitChordApplication.kt must call AudioCache.init(this) before AudioCache.clear()'
   );
 
+  // 9.29 Verify iOS Home Screen App (docs/app.html) Full-Length 320kbps Stream Engine, Deja App UI Parity & Duration-Matched Synced Lyrics
+  const iosAppHtmlPath = path.join(__dirname, '../docs/app.html');
+  assert.ok(fs.existsSync(iosAppHtmlPath), 'docs/app.html must exist for iOS Add-to-Home-Screen Web App');
+  const iosAppHtml = fs.readFileSync(iosAppHtmlPath, 'utf8');
+  assert.ok(iosAppHtml.includes('FULL_STREAM_MIRRORS'), 'docs/app.html must use full-length 320kbps studio stream mirrors instead of 30s iTunes previews');
+  assert.ok(iosAppHtml.includes('class="deja-titlebar"') && iosAppHtml.includes('class="apple-sidebar"'), 'docs/app.html must render the Deja App titlebar and sidebar');
+  assert.ok(iosAppHtml.includes('DAILY_CHARTS') && iosAppHtml.includes('WEEKLY_CHARTS'), 'docs/app.html must render Daily charts and Weekly charts matching the Deja App Home screen');
+  assert.ok(iosAppHtml.includes('id="expanded-player-view"') && iosAppHtml.includes('id="exp-lyric-snippet-wrap"'), 'docs/app.html must render the Expanded Now Playing screen and active lyric snippet pill');
+  assert.ok(iosAppHtml.includes('class LyricClockReconciler') && iosAppHtml.includes('parseLrcWithWordTimings'), 'docs/app.html must use 60fps LyricClockReconciler and word-synced LRC parser');
+
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
 
