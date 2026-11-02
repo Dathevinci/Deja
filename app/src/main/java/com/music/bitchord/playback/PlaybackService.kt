@@ -103,6 +103,7 @@ import com.music.bitchord.data.discord.DiscordRPC
 import com.music.bitchord.data.discord.discordAudioQualityLine
 import com.music.bitchord.data.innertube.PlaybackTracker
 import com.music.bitchord.data.stats.ListeningRecorder
+import com.music.bitchord.data.stats.ListeningStats
 import com.music.bitchord.data.innertube.PlayerClient
 import com.music.bitchord.data.innertube.StreamResolver
 import com.music.bitchord.data.model.LikeStatus
@@ -1500,6 +1501,9 @@ class PlaybackService : MediaLibraryService() {
         val defaultDataSourceFactory = SmbDataSource.RoutingFactory(
             DefaultDataSource.Factory(this, resolvingFactory),
         )
+        Downloads.init(this)
+        ListeningStats.init(this)
+        AudioCache.init(this)
         AudioCache.setUpstream(defaultDataSourceFactory)
         mediaSourceFactory = DefaultMediaSourceFactory(AudioCache.playbackFactory(defaultDataSourceFactory))
             .setLoadErrorHandlingPolicy(PermanentAwareLoadErrorPolicy())

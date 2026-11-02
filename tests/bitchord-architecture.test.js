@@ -1579,6 +1579,46 @@ function runBitChordArchitectureTests() {
   const replayDejas = (docsHtml.match(/<img src="assets\/icon\.png" alt="Deja Logo" class="replay-wave-mark"\s*\/>/g) || []).length;
   assert.strictEqual(replayDejas, 4, 'All 4 Replay cards in docs/index.html must display Deja icon logo');
 
+  // 9.28 Verify Desktop Synced Lyrics DOM Styling & Android AudioCache / Downloads / ListeningStats Initialization
+  const prevDocLyrics = global.document;
+  try {
+    const lineEls = [0, 1, 2].map(() => ({
+      style: {},
+      classList: { toggle: () => {}, add: () => {}, remove: () => {} },
+      querySelectorAll: () => [],
+      scrollIntoView: () => {}
+    }));
+    const mockLyricsContainer = {
+      querySelectorAll: (sel) => (sel === '.apple-lyric-line' ? lineEls : [])
+    };
+    global.document = {
+      getElementById: (id) => {
+        if (id === 'lyrics-lines-container' || id === 'expanded-lyrics-container') return mockLyricsContainer;
+        return null;
+      },
+      querySelector: () => null,
+      querySelectorAll: () => []
+    };
+    previewModule.seekTo(5);
+    previewModule.updateSyncedLyrics(true);
+    assert.strictEqual(lineEls[0].style.opacity, '1', 'Active lyric line must have opacity 1 without throwing ReferenceError');
+    assert.strictEqual(lineEls[1].style.opacity, '0.52', 'Adjacent lyric line (dist=1) must have opacity 0.52');
+    assert.strictEqual(lineEls[2].style.opacity, '0.36', 'Second lyric line (dist=2) must have opacity 0.36');
+    previewModule.seekTo(0);
+  } finally {
+    global.document = prevDocLyrics;
+  }
+
+  const appKtPath = path.join(__dirname, '../app/src/main/java/com/music/bitchord/BitChordApplication.kt');
+  const appKtCode = fs.readFileSync(appKtPath, 'utf8');
+  assert.ok(appKtCode.includes('Downloads.init(this)'), 'BitChordApplication.kt must initialize Downloads.init(this)');
+  assert.ok(appKtCode.includes('ListeningStats.init(this)'), 'BitChordApplication.kt must initialize ListeningStats.init(this)');
+  assert.ok(appKtCode.includes('AudioCache.init(this)'), 'BitChordApplication.kt must initialize AudioCache.init(this)');
+  assert.ok(
+    appKtCode.indexOf('AudioCache.init(this)') < appKtCode.indexOf('AudioCache.clear()'),
+    'BitChordApplication.kt must call AudioCache.init(this) before AudioCache.clear()'
+  );
+
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
 

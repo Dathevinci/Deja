@@ -142,7 +142,9 @@ object Downloads {
      */
     private val running = LinkedHashMap<String, Job?>()
 
+    @Synchronized
     fun init(context: Context) {
+        if (::prefs.isInitialized) return
         prefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
         _saved.value = runCatching {
             json.decodeFromString(serializer, prefs.getString(KEY_SAVED, null) ?: "{}")

@@ -106,7 +106,9 @@ object ListeningStats {
         val summary: ReplaySummary,
     )
 
+    @Synchronized
     fun init(context: Context) {
+        if (::directory.isInitialized) return
         directory = File(context.filesDir, DIRECTORY)
         // Opening a month means reading and parsing it, and the first thing to
         // ask for one is the playback sampler — on the main thread, a few

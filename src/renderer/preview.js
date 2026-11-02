@@ -5772,7 +5772,7 @@ function updateSyncedLyrics(forceScroll = false) {
 
       if (el.style) {
         if (isSynced) {
-          const dist = activeIndex >= 0 ? Math.abs(idx - activeIndex) : 2;
+          const dist = activeIndex >= 0 ? Math.abs(i - activeIndex) : 2;
           el.style.fontSize = '26px';
           el.style.transformOrigin = 'left center';
           if (isActive) {
@@ -8166,9 +8166,9 @@ function renderSettingsView(container) {
         </div>
         <div class="bitchord-settings-text">
           <div class="bitchord-settings-row-title">App Updates &amp; Version</div>
-          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.2.2 (BitChord Edition) — Click to check &amp; install updates in-app</div>
+          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.2.3 (BitChord Edition) — Click to check &amp; install updates in-app</div>
         </div>
-        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.2.2</span>
+        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.2.3</span>
       </div>
     `);
   }
@@ -8194,7 +8194,7 @@ function renderSettingsView(container) {
 
       <div class="bitchord-settings-colophon">
         <div>
-          <strong>deja 1.2.2</strong>
+          <strong>deja 1.2.3</strong>
           <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="https://github.com/Dathevinci" target="_blank" rel="noopener noreferrer">Developer</a>
           <a href="https://dathevinci.github.io/Deja/" target="_blank" rel="noopener noreferrer">Website</a>
@@ -8357,11 +8357,11 @@ function renderSettingsView(container) {
               if (badge) badge.textContent = `Update v${info.latestVersion}`;
               openBitChordUpdateDialog(info);
             } else {
-              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.2.2'}).`;
+              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.2.3'}).`;
               if (badge) badge.textContent = 'Up to Date';
             }
           }).catch(() => {
-            if (sub) sub.textContent = 'Deja v1.2.2 is up to date.';
+            if (sub) sub.textContent = 'Deja v1.2.3 is up to date.';
           });
         }
       }
@@ -9057,7 +9057,7 @@ function handleBitChordUpdateProgress(prog) {
   const primaryBtn = document.getElementById('bitchord-update-btn-primary');
   const secondaryBtn = document.getElementById('bitchord-update-btn-secondary');
   const errEl = document.getElementById('bitchord-update-error');
-  const ver = latestPendingUpdateInfo?.latestVersion || '1.2.2';
+  const ver = latestPendingUpdateInfo?.latestVersion || '1.2.3';
 
   if (prog.state === 'downloading') {
     isUpdateDownloading = true;

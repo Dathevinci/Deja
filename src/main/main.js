@@ -1820,11 +1820,11 @@ let updateDownloadAbortController = null;
 
 async function checkGitHubReleaseUpdate() {
   try {
-    const currentVersion = app.getVersion() || '1.2.2';
+    const currentVersion = app.getVersion() || '1.2.3';
     const res = await fetch(DEJA_LATEST_RELEASE_API, {
       headers: {
         'Accept': 'application/vnd.github+json',
-        'User-Agent': 'Deja-Desktop-Updater/1.2.2',
+        'User-Agent': 'Deja-Desktop-Updater/1.2.3',
         'Cache-Control': 'no-cache'
       }
     });
@@ -1853,7 +1853,7 @@ async function checkGitHubReleaseUpdate() {
       notes: release.body || ''
     };
   } catch (err) {
-    return { updateAvailable: false, currentVersion: app.getVersion() || '1.2.2', error: err.message };
+    return { updateAvailable: false, currentVersion: app.getVersion() || '1.2.3', error: err.message };
   }
 }
 
@@ -1889,7 +1889,7 @@ ipcMain.handle('install-update', async (event, downloadUrl) => {
     const candidateUrls = [
       downloadUrl,
       'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.exe',
-      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.2.exe',
+      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.3.exe',
       'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.1.exe'
     ].filter(Boolean);
 
@@ -1901,7 +1901,7 @@ ipcMain.handle('install-update', async (event, downloadUrl) => {
     for (const u of candidateUrls) {
       try {
         const attempt = await fetch(u, {
-          headers: { 'User-Agent': 'Deja-Desktop-Updater/1.2.2' },
+          headers: { 'User-Agent': 'Deja-Desktop-Updater/1.2.3' },
           signal: updateDownloadAbortController.signal
         });
         if (attempt && attempt.ok) {

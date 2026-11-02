@@ -195,7 +195,9 @@ object AudioCache {
      * it from. [SimpleCache] copes with files disappearing underneath it by
      * dropping the spans that named them.
      */
+    @Synchronized
     fun init(context: Context) {
+        if (::cache.isInitialized) return
         evictor.maxBytes = AppSettings.audioCacheLimitBytes.value
         cache = SimpleCache(
             File(context.cacheDir, "audio"),
@@ -242,7 +244,7 @@ object AudioCache {
         analysisHeadWant.clear()
         renditionKeys.clear()
         scope.launch {
-            cache.keys.toList().forEach { cache.removeResource(it) }
+            if (::cache.isInitialized) cache.keys.toList().forEach { runCatching { cache.removeResource(it) } }
             withContext(Dispatchers.Main) { onComplete() }
         }
     }

@@ -75,7 +75,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release upload v1.2.2 dist-apk/*.apk --clobber || true
+        gh release upload v1.2.3 dist-apk/*.apk --clobber || true
         gh release upload v1.2.1 dist-apk/*.apk --clobber || true
         gh release upload v1.2.0 dist-apk/*.apk --clobber || true
         gh release upload v1.0.0 dist-apk/*.apk --clobber || true

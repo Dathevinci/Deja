@@ -54,6 +54,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload v1.2.2 ios/Deja.ipa --clobber || true
+          gh release upload v1.2.3 ios/Deja.ipa --clobber || true
           gh release upload v1.2.1 ios/Deja.ipa --clobber || true
           gh release upload v1.2.0 ios/Deja.ipa --clobber || true
