@@ -499,8 +499,14 @@ ipcMain.handle('get-config', (event, key) => {
   return config.get(key);
 });
 
-ipcMain.handle('set-config', (event, payload) => {
+ipcMain.handle('set-config', (event, keyOrPayload, val) => {
+  const payload = typeof keyOrPayload === 'string'
+    ? { [keyOrPayload]: val }
+    : keyOrPayload;
   if (typeof payload === 'object' && payload !== null) {
+    if ('discordRpc' in payload && !('discordRPC' in payload)) {
+      payload.discordRPC = payload.discordRpc;
+    }
     if ('stopOnClose' in payload && !('closeToTray' in payload)) {
       payload.closeToTray = !payload.stopOnClose;
     }
@@ -557,7 +563,7 @@ ipcMain.handle('set-frame-rate', (event, hz) => {
   return { ok: true, frameRate: rate };
 });
 
-ipcMain.handle('clear-app-cache', async (event, opts = {}) => {
+async function handleClearAppCache(event, opts = {}) {
   const type = (opts && opts.type) || 'all';
   try {
     const ytSession = session.fromPartition('persist:ytmusic');
@@ -571,7 +577,9 @@ ipcMain.handle('clear-app-cache', async (event, opts = {}) => {
   } catch (err) {
     return { ok: false, error: err.message };
   }
-});
+}
+ipcMain.handle('clear-app-cache', handleClearAppCache);
+ipcMain.handle('clear-audio-cache', handleClearAppCache);
 
 function scanLocalAudioDirectory(targetDir, filterShortClips = true) {
   const fsMod = require('fs');

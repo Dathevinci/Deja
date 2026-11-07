@@ -8,7 +8,10 @@ const dejaAPI = {
   windowAction: (action) => ipcRenderer.invoke('window-action', action),
   sendTrackChanged: (track) => ipcRenderer.send('track-changed', track),
   getConfig: (key) => ipcRenderer.invoke('get-config', key),
-  setConfig: (payload) => ipcRenderer.invoke('set-config', payload),
+  setConfig: (keyOrPayload, val) => ipcRenderer.invoke(
+    'set-config',
+    typeof keyOrPayload === 'string' ? { [keyOrPayload]: val } : keyOrPayload
+  ),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   openGoogleLogin: (targetMethod) => ipcRenderer.invoke('open-google-login', targetMethod),
   toggleWebMode: () => ipcRenderer.invoke('toggle-web-mode'),
@@ -49,6 +52,7 @@ const dejaAPI = {
   selectLocalMusicFolder: (opts) => ipcRenderer.invoke('select-local-music-folder', opts),
   scanLocalMusic: (opts) => ipcRenderer.invoke('scan-local-music', opts),
   clearAppCache: (opts) => ipcRenderer.invoke('clear-app-cache', opts),
+  clearAudioCache: (opts) => ipcRenderer.invoke('clear-app-cache', opts),
   setFrameRate: (hz) => ipcRenderer.invoke('set-frame-rate', hz),
   updateDiscordSettings: (opts) => ipcRenderer.invoke('update-discord-settings', opts),
   probeAddonSource: (url) => ipcRenderer.invoke('probe-addon-source', url),

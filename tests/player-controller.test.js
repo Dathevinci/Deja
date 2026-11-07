@@ -203,6 +203,7 @@ function runPlayerControllerTests() {
   const mockApi = {
     windowAction: (act) => { apiCalls.push({ type: 'windowAction', act }); },
     sendTrackChanged: (track) => { apiCalls.push({ type: 'sendTrackChanged', track }); },
+    setConfig: (cfg) => { apiCalls.push({ type: 'setConfig', cfg }); },
     onPlayerAction: (cb) => { actionListeners.push(cb); },
     onMiniPlayerChanged: () => {}
   };
@@ -311,12 +312,33 @@ function runPlayerControllerTests() {
   dispatchAction({ action: 'volumeDown' });
   assert.strictEqual(mockVideo.volume <= 0.55, true, 'volumeDown action must decrease volume');
 
-  // 5. Verify Settings modal renders Apple Card (replacing blocking alert)
+  // 5. Verify Settings modal renders Apple Card & interactive preference toggles
   const settingsBtn = elements['deja-settings-btn'] || elements['sonora-settings-btn'];
   assert.ok(settingsBtn, 'Settings button must be present');
   settingsBtn.click();
   const modal = elements['deja-apple-modal'] || elements['sonora-apple-modal'];
   assert.ok(modal, 'Apple modal overlay must be rendered on settings click');
+  assert.ok(controller.preloadPrefs, 'controller.preloadPrefs must be exposed');
+  assert.strictEqual(controller.preloadPrefs.theme, 'dark');
+  assert.ok(elements['deja-pref-theme'], 'Theme preference row must exist in settings modal');
+  elements['deja-pref-theme'].click();
+  assert.strictEqual(controller.preloadPrefs.theme, 'pure-black', 'Clicking theme row must cycle to pure-black');
+  assert.strictEqual(documentMock.body.classList.contains('pure-black'), true, 'Body must have pure-black class');
+  assert.strictEqual(apiCalls.some(c => c.type === 'setConfig' && c.cfg.theme === 'pure-black'), true, 'Theme toggle must call api.setConfig');
+
+  assert.ok(elements['deja-pref-aura'], 'Dynamic aura row must exist in settings modal');
+  elements['deja-pref-aura'].click();
+  assert.strictEqual(controller.preloadPrefs.dynamicAura, false, 'Clicking aura row must toggle dynamicAura off');
+  assert.strictEqual(documentMock.body.classList.contains('reduce-motion'), true, 'Disabling dynamicAura must add reduce-motion class');
+
+  assert.ok(elements['deja-pref-discord'], 'Discord row must exist in settings modal');
+  elements['deja-pref-discord'].click();
+  assert.strictEqual(controller.preloadPrefs.discordRPC, false, 'Clicking discord row must toggle discordRPC off');
+
+  assert.ok(elements['deja-pref-tray'], 'Tray row must exist in settings modal');
+  elements['deja-pref-tray'].click();
+  assert.strictEqual(controller.preloadPrefs.closeToTray, true, 'Clicking tray row must toggle closeToTray on');
+
   const modalClose = elements['deja-modal-close'] || elements['sonora-modal-close'];
   assert.ok(modalClose, 'Modal close button must exist');
   modalClose.click();

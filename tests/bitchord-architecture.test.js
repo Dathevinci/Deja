@@ -1672,16 +1672,93 @@ function runBitChordArchitectureTests() {
   previewModule.updateBitChordSetting('crossfadeSeconds', 0);
   previewModule.updateBitChordSetting('stereoBalance', 0);
 
-  // Test renderSettingsView and renderReplayView DOM output
+  // Test renderSettingsView and renderReplayView DOM output & interactive handlers
+  assert.ok(html.includes('id="bitchord-backup-file-input"'), 'preview.html must include hidden #bitchord-backup-file-input for JSON backup restore');
+  assert.ok(preloadCode.includes('typeof keyOrPayload === \'string\' ? { [keyOrPayload]: val } : keyOrPayload'), 'preload.js setConfig must support both (key, val) and object payloads');
+  assert.ok(preloadCode.includes('clearAudioCache:'), 'preload.js must expose clearAudioCache alias');
+  assert.ok(mainCode.includes("ipcMain.handle('clear-audio-cache'"), 'main.js must register clear-audio-cache IPC handler');
+  assert.ok(mainCode.includes("payload.discordRPC = payload.discordRpc"), 'main.js set-config must normalize discordRpc to discordRPC');
+
+  const toggleRows = [
+    { attr: 'syncedLyrics', onclick: null, getAttribute: () => 'syncedLyrics' },
+    { attr: 'lyricsBlur', onclick: null, getAttribute: () => 'lyricsBlur' }
+  ];
+  const cycleRows = [
+    {
+      attr: 'translationLanguage',
+      onclick: null,
+      getAttribute: (name) => name === 'data-setting-cycle' ? 'translationLanguage' : 'Off|Spanish|French'
+    }
+  ];
   const mockSettingsContainer = {
     innerHTML: '',
-    querySelectorAll: () => []
+    querySelectorAll: (sel) => {
+      if (sel === '[data-setting-toggle]') return toggleRows;
+      if (sel === '[data-setting-cycle]') return cycleRows;
+      return [];
+    }
   };
   previewModule.renderSettingsView(mockSettingsContainer);
   assert.ok(mockSettingsContainer.innerHTML.includes('Account, Discord &amp; Scrobbling'), 'Settings view must render Account, Discord & Scrobbling row');
   assert.ok(mockSettingsContainer.innerHTML.includes('Sources &amp; Lossless Modules'), 'Settings view must render Sources & Lossless Modules row');
   assert.ok(mockSettingsContainer.innerHTML.includes('Equalizer &amp; Tone Pad'), 'Settings view must render Equalizer & Tone Pad row');
   assert.ok(mockSettingsContainer.innerHTML.includes('Import Backup Data'), 'Settings view must render Import Backup Data row');
+
+  // Verify clicking syncedLyrics / lyricsBlur toggles and translationLanguage cycle does not throw ReferenceError
+  assert.strictEqual(typeof toggleRows[0].onclick, 'function');
+  toggleRows[0].onclick();
+  assert.strictEqual(previewModule.getBitChordSettings().syncedLyrics, false, 'Clicking syncedLyrics toggle row must flip syncedLyrics to false');
+  toggleRows[0].onclick();
+  assert.strictEqual(previewModule.getBitChordSettings().syncedLyrics, true, 'Clicking syncedLyrics toggle row again must restore true');
+
+  assert.strictEqual(typeof cycleRows[0].onclick, 'function');
+  cycleRows[0].onclick();
+  assert.strictEqual(previewModule.getBitChordSettings().translationLanguage, 'Spanish', 'Clicking translationLanguage cycle row must advance to Spanish');
+  previewModule.updateBitChordSetting('translationLanguage', 'Off');
+
+  // Test handleBitChordPlaybackTick (skipSilence intro fast-forward & crossfade envelope)
+  previewModule.updateBitChordSetting('skipSilence', true);
+  previewModule.updateBitChordSetting('crossfadeSeconds', 6);
+  const mockTickAudio = { paused: false, duration: 180, currentTime: 0.2, volume: 1.0 };
+  previewModule.handleBitChordPlaybackTick(mockTickAudio);
+  assert.strictEqual(mockTickAudio.currentTime, 1.2, 'skipSilence must fast-forward intro dead air (<0.8s) to 1.2s');
+  mockTickAudio.currentTime = 177; // 3s remaining in 6s crossfade window
+  previewModule.handleBitChordPlaybackTick(mockTickAudio);
+  assert.ok(mockTickAudio.volume < 0.6 && mockTickAudio.volume > 0, 'Crossfade window must attenuate audio volume near end of track');
+  previewModule.updateBitChordSetting('skipSilence', false);
+  previewModule.updateBitChordSetting('crossfadeSeconds', 0);
+
+  // Test updateSyncedLyrics respecting lyricsBlur=false and syncedLyrics=false
+  const prevDocBlur = global.document;
+  try {
+    const lineEls = [0, 1].map(() => ({
+      style: {},
+      classList: { toggle: () => {}, add: () => {}, remove: () => {} },
+      querySelectorAll: () => [],
+      scrollIntoView: () => {}
+    }));
+    const mockLyricsC = {
+      querySelectorAll: (sel) => (sel === '.apple-lyric-line' ? lineEls : [])
+    };
+    global.document = {
+      getElementById: (id) => (id === 'lyrics-lines-container' ? mockLyricsC : null),
+      querySelector: () => null,
+      querySelectorAll: () => []
+    };
+    previewModule.updateBitChordSetting('lyricsBlur', false);
+    previewModule.seekTo(5);
+    previewModule.updateSyncedLyrics(true);
+    assert.strictEqual(lineEls[1].style.filter, 'none', 'Inactive lyric line must have filter: none when lyricsBlur is false');
+
+    previewModule.updateBitChordSetting('syncedLyrics', false);
+    previewModule.updateSyncedLyrics(true);
+    assert.strictEqual(lineEls[0].style.fontSize, '22px', 'Lyrics must use 22px unsynced presentation when syncedLyrics is false');
+  } finally {
+    previewModule.updateBitChordSetting('lyricsBlur', true);
+    previewModule.updateBitChordSetting('syncedLyrics', true);
+    previewModule.seekTo(0);
+    global.document = prevDocBlur;
+  }
 
   const mockReplayContainer = {
     innerHTML: '',

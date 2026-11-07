@@ -2714,16 +2714,122 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     });
   }
 
+  const preloadPrefs = {
+    theme: 'dark',
+    dynamicAura: true,
+    discordRPC: true,
+    closeToTray: false,
+    hardwareAcceleration: true
+  };
+
+  function applyPreloadThemeClasses() {
+    if (typeof document === 'undefined' || !document.body || !document.body.classList) return;
+    document.body.classList.remove('apple-dark', 'apple-light', 'pure-black');
+    if (preloadPrefs.theme === 'light') {
+      document.body.classList.add('apple-light');
+    } else if (preloadPrefs.theme === 'pure-black') {
+      document.body.classList.add('pure-black');
+    } else {
+      document.body.classList.add('apple-dark');
+    }
+    document.body.classList.toggle('reduce-motion', !preloadPrefs.dynamicAura);
+  }
+
   function openSettingsModal() {
+    const themeLabel = preloadPrefs.theme === 'pure-black'
+      ? 'OLED Black'
+      : (preloadPrefs.theme === 'light' ? 'Light' : 'Dark');
+
     renderAppleModal({
       title: 'Deja Preferences',
-      rows: [
-        { label: 'Theme Styling', desc: 'BitChord & macOS Apple Music Acrylic Glass', badge: 'Active' },
-        { label: 'Ad Monetization Policy', desc: 'Non-harming: Free users receive Google ads; Premium users enjoy native ad-free playback', badge: 'Compliant' },
-        { label: 'Dynamic Mesh Aura', desc: '4-color luminous mesh background crossfaded at 1.4s', badge: 'Enabled' },
-        { label: 'Discord Rich Presence', desc: 'Real-time song & artist status display on Discord', badge: 'Enabled' },
-        { label: 'Hardware Acceleration', desc: 'Chromium GPU compositor for high performance', badge: 'Enabled' }
-      ]
+      customBody: `
+        <div class="deja-modal-row sonora-modal-row" id="deja-pref-theme" style="cursor: pointer;" title="Click to cycle Dark / OLED Black / Light">
+          <div>
+            <div class="deja-modal-label sonora-modal-label">Theme Styling</div>
+            <div class="deja-modal-desc sonora-modal-desc">BitChord &amp; macOS Apple Music Acrylic Glass (${escapeHtml(themeLabel)})</div>
+          </div>
+          <span class="deja-modal-badge sonora-modal-badge" id="deja-pref-theme-badge">${escapeHtml(themeLabel)}</span>
+        </div>
+        <div class="deja-modal-row sonora-modal-row">
+          <div>
+            <div class="deja-modal-label sonora-modal-label">Ad Monetization Policy</div>
+            <div class="deja-modal-desc sonora-modal-desc">Non-harming: Free users receive Google ads; Premium users enjoy native ad-free playback</div>
+          </div>
+          <span class="deja-modal-badge sonora-modal-badge">Compliant</span>
+        </div>
+        <div class="deja-modal-row sonora-modal-row" id="deja-pref-aura" style="cursor: pointer;" title="Click to toggle Dynamic Mesh Aura">
+          <div>
+            <div class="deja-modal-label sonora-modal-label">Dynamic Mesh Aura</div>
+            <div class="deja-modal-desc sonora-modal-desc">4-color luminous mesh background crossfaded at 1.4s</div>
+          </div>
+          <span class="deja-modal-badge sonora-modal-badge" id="deja-pref-aura-badge">${preloadPrefs.dynamicAura ? 'Enabled' : 'Disabled'}</span>
+        </div>
+        <div class="deja-modal-row sonora-modal-row" id="deja-pref-discord" style="cursor: pointer;" title="Click to toggle Discord Rich Presence">
+          <div>
+            <div class="deja-modal-label sonora-modal-label">Discord Rich Presence</div>
+            <div class="deja-modal-desc sonora-modal-desc">Real-time song &amp; artist status display on Discord</div>
+          </div>
+          <span class="deja-modal-badge sonora-modal-badge" id="deja-pref-discord-badge">${preloadPrefs.discordRPC ? 'Enabled' : 'Disabled'}</span>
+        </div>
+        <div class="deja-modal-row sonora-modal-row" id="deja-pref-tray" style="cursor: pointer;" title="Click to toggle Close to System Tray">
+          <div>
+            <div class="deja-modal-label sonora-modal-label">Close to System Tray</div>
+            <div class="deja-modal-desc sonora-modal-desc">${preloadPrefs.closeToTray ? 'Keep music playing in background tray when window closes' : 'Stop playback and quit when window closes'}</div>
+          </div>
+          <span class="deja-modal-badge sonora-modal-badge" id="deja-pref-tray-badge">${preloadPrefs.closeToTray ? 'Enabled' : 'Disabled'}</span>
+        </div>
+        <div class="deja-modal-row sonora-modal-row" id="deja-pref-hw" style="cursor: pointer;" title="Click to toggle Hardware Acceleration">
+          <div>
+            <div class="deja-modal-label sonora-modal-label">Hardware Acceleration</div>
+            <div class="deja-modal-desc sonora-modal-desc">Chromium GPU compositor for high performance</div>
+          </div>
+          <span class="deja-modal-badge sonora-modal-badge" id="deja-pref-hw-badge">${preloadPrefs.hardwareAcceleration ? 'Enabled' : 'Disabled'}</span>
+        </div>
+        <div class="deja-modal-row sonora-modal-row" id="deja-pref-eq" style="cursor: pointer;" title="Click to open Equalizer">
+          <div>
+            <div class="deja-modal-label sonora-modal-label">Equalizer &amp; Sound Enhancement</div>
+            <div class="deja-modal-desc sonora-modal-desc">Active Preset: ${escapeHtml(AudioEqualizer.currentPreset)}</div>
+          </div>
+          <span class="deja-modal-badge sonora-modal-badge">Configure</span>
+        </div>
+      `,
+      onMount: (overlay) => {
+        const bindRow = (id, handler) => {
+          const el = overlay.querySelector(`#${id}`) || getEl(id);
+          if (el) el.onclick = handler;
+        };
+        bindRow('deja-pref-theme', () => {
+          const order = ['dark', 'pure-black', 'light'];
+          preloadPrefs.theme = order[(order.indexOf(preloadPrefs.theme) + 1) % order.length];
+          applyPreloadThemeClasses();
+          if (api?.setConfig) api.setConfig({ theme: preloadPrefs.theme });
+          openSettingsModal();
+        });
+        bindRow('deja-pref-aura', () => {
+          preloadPrefs.dynamicAura = !preloadPrefs.dynamicAura;
+          applyPreloadThemeClasses();
+          if (api?.setConfig) api.setConfig({ dynamicAura: preloadPrefs.dynamicAura });
+          openSettingsModal();
+        });
+        bindRow('deja-pref-discord', () => {
+          preloadPrefs.discordRPC = !preloadPrefs.discordRPC;
+          if (api?.setConfig) api.setConfig({ discordRPC: preloadPrefs.discordRPC });
+          openSettingsModal();
+        });
+        bindRow('deja-pref-tray', () => {
+          preloadPrefs.closeToTray = !preloadPrefs.closeToTray;
+          if (api?.setConfig) api.setConfig({ closeToTray: preloadPrefs.closeToTray });
+          openSettingsModal();
+        });
+        bindRow('deja-pref-hw', () => {
+          preloadPrefs.hardwareAcceleration = !preloadPrefs.hardwareAcceleration;
+          if (api?.setConfig) api.setConfig({ hardwareAcceleration: preloadPrefs.hardwareAcceleration });
+          openSettingsModal();
+        });
+        bindRow('deja-pref-eq', () => {
+          openEqualizerModal();
+        });
+      }
     });
   }
 
@@ -2731,10 +2837,10 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     renderAppleModal({
       title: 'About Deja',
       rows: [
-        { label: 'Version', desc: 'Deja Desktop Client v1.0.0 (BitChord Engine)', badge: 'v1.0.0' },
+        { label: 'Version', desc: 'Deja Desktop Client v1.2.3 (BitChord Engine)', badge: 'v1.2.3' },
         { label: 'Design System', desc: 'BitChord luminous mesh aura & Apple Music fluid glassmorphism', badge: 'BitChord' },
         { label: 'Google TOS Disclosure', desc: 'Not affiliated with Google LLC. Respects all YouTube content licensing and advertisement rules.', badge: 'Verified' },
-        { label: 'License', desc: 'MIT Open Source License - Ready for GitHub community publication', badge: 'MIT' }
+        { label: 'License', desc: 'GPLv3 Open Source License', badge: 'GPLv3' }
       ]
     });
   }
@@ -2822,6 +2928,8 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     SleepTimer,
     AudioPipeline,
     AudioEqualizer,
+    preloadPrefs,
+    openSettingsModal,
     toggleLyricsDrawer,
     updatePreloadLiveLyrics,
     resolvePreloadLyrics,

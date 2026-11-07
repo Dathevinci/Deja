@@ -1011,7 +1011,11 @@ async function resolveAndPlayTrack(track) {
     isYtPlaying = false;
   }
 
-  // Ensure AudioContext is resumed if suspended
+  // Ensure AudioContext & 5-band Equalizer graph are initialized and resumed
+  try {
+    ensureAudioGraph();
+    applyBitChordAudioDspSettings();
+  } catch {}
   if (audioContext && audioContext.state === 'suspended') {
     audioContext.resume().catch(() => {});
   }
@@ -4330,7 +4334,22 @@ function selectTrack(idx) {
   if (api?.getNextQueue && track.videoId && (!userQueue || userQueue.length === 0)) {
     api.getNextQueue(track.videoId).then(queueItems => {
       if ((!userQueue || userQueue.length === 0) && queueItems && queueItems.length > 0) {
-        userQueue = queueItems.map(qi => createCatalogueItemFromLive(qi));
+        const seenIds = new Set();
+        if (typeof bitchordSettings !== 'undefined' && bitchordSettings.dontRepeatSuggestions) {
+          if (track.videoId) seenIds.add(track.videoId);
+          if (track.id) seenIds.add(track.id);
+        }
+        const mapped = [];
+        for (const qi of queueItems) {
+          const item = createCatalogueItemFromLive(qi);
+          const key = item.videoId || item.id || `${item.title}-${item.artist}`;
+          if (typeof bitchordSettings !== 'undefined' && bitchordSettings.dontRepeatSuggestions && seenIds.has(key)) {
+            continue;
+          }
+          seenIds.add(key);
+          mapped.push(item);
+        }
+        userQueue = mapped;
         renderPreviewQueue();
       }
     }).catch(err => {
@@ -5668,7 +5687,8 @@ function updateSyncedLyrics(forceScroll = false) {
   if (!track || !track.lyrics || track.lyrics.length === 0) return;
 
   const lines = track.lyrics;
-  const isSynced = lines.some(l => typeof l.time === 'number' && l.time > 0);
+  const syncedEnabled = (typeof bitchordSettings === 'undefined' || bitchordSettings.syncedLyrics !== false);
+  const isSynced = syncedEnabled && lines.some(l => typeof l.time === 'number' && l.time > 0);
   let activeIndex = -1;
   let scrollTargetIndex = -1;
   let exactLyricsTime = 0;
@@ -5793,10 +5813,11 @@ function updateSyncedLyrics(forceScroll = false) {
           } else {
             const fadedOpacity = dist === 1 ? '0.52' : (dist === 2 ? '0.36' : '0.24');
             const blurPx = dist <= 1 ? '0.3px' : (dist === 2 ? '0.8px' : '1.2px');
+            const allowBlur = (typeof bitchordSettings === 'undefined') || (bitchordSettings.lyricsBlur !== false && !bitchordSettings.reduceDynamicBlur);
             el.style.color = 'rgba(255, 255, 255, 0.42)';
             el.style.fontWeight = '600';
             el.style.textShadow = 'none';
-            el.style.filter = `blur(${blurPx})`;
+            el.style.filter = allowBlur ? `blur(${blurPx})` : 'none';
             el.style.opacity = fadedOpacity;
             el.style.transform = 'scale(0.95) translateZ(0)';
           }
@@ -7125,6 +7146,14 @@ function setupEvents() {
   if (api?.getConfig) {
     api.getConfig().then(cfg => {
       if (!cfg) return;
+      if (cfg.bitchordSettings && typeof cfg.bitchordSettings === 'object') {
+        const hasLocal = typeof localStorage !== 'undefined' && !!localStorage.getItem('deja_bitchord_settings');
+        if (!hasLocal) {
+          bitchordSettings = { ...DEFAULT_BITCHORD_SETTINGS, ...cfg.bitchordSettings };
+          applyBitChordVisualSettings();
+          applyBitChordAudioDspSettings();
+        }
+      }
       if (prefThemeSelect && cfg.theme) {
         prefThemeSelect.value = cfg.theme;
         applyAppTheme(cfg.theme);
@@ -7296,7 +7325,7 @@ function setupEvents() {
       }
 
       // 2. If any modal is currently visible, dismiss it first
-      const openModal = ['account-login-modal', 'pipeline-modal', 'sleep-modal', 'eq-modal', 'create-playlist-modal', 'add-to-playlist-modal', 'settings-modal'].find(id => {
+      const openModal = ['bitchord-submodal-overlay', 'account-login-modal', 'pipeline-modal', 'sleep-modal', 'eq-modal', 'create-playlist-modal', 'add-to-playlist-modal', 'settings-modal'].find(id => {
         const el = document.getElementById(id);
         return el && el.style.display && el.style.display !== 'none';
       });
@@ -7401,6 +7430,9 @@ function applyAppTheme(theme) {
     document.body.classList.add('apple-light');
   } else if (theme === 'pure-black') {
     document.body.classList.add('pure-black');
+  } else if (theme === 'system') {
+    const prefersLight = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: light)').matches;
+    document.body.classList.add(prefersLight ? 'apple-light' : 'apple-dark');
   } else {
     document.body.classList.add('apple-dark');
   }
@@ -7865,6 +7897,7 @@ function syncEqualizerModalUI() {
 
 function initEqualizerModalControls() {
   if (typeof document === 'undefined') return;
+  try { ensureAudioGraph(); } catch {}
   const eqModal = document.getElementById('eq-modal');
   if (!eqModal || eqModal.__dejaEqControlsBound) return;
   eqModal.__dejaEqControlsBound = true;
@@ -9383,8 +9416,10 @@ function renderSettingsView(container) {
       if (key === 'discordRpc' && api?.setConfig) api.setConfig('discordRpc', bitchordSettings.discordRpc);
       if (key === 'stopOnClose' && api?.setConfig) api.setConfig('closeToTray', !bitchordSettings.stopOnClose);
       if (key === 'translationLanguage' || key === 'syncedLyrics' || key === 'lyricsBlur') {
-        if (Array.isArray(currentSyncedLyrics) && currentSyncedLyrics.length > 0) {
-          renderLyrics(currentSyncedLyrics);
+        const activeLyrics = CATALOGUE_TRACKS[currentIndex]?.lyrics;
+        if (Array.isArray(activeLyrics) && activeLyrics.length > 0) {
+          renderLyrics(activeLyrics);
+          updateSyncedLyrics(true);
         }
       }
       renderSettingsView(container);
@@ -9399,8 +9434,12 @@ function renderSettingsView(container) {
       const idx = opts.indexOf(bitchordSettings[key]);
       bitchordSettings[key] = opts[(idx + 1) % opts.length];
       saveBitChordSettings();
-      if (key === 'translationLanguage' && Array.isArray(currentSyncedLyrics) && currentSyncedLyrics.length > 0) {
-        renderLyrics(currentSyncedLyrics);
+      if (key === 'translationLanguage') {
+        const activeLyrics = CATALOGUE_TRACKS[currentIndex]?.lyrics;
+        if (Array.isArray(activeLyrics) && activeLyrics.length > 0) {
+          renderLyrics(activeLyrics);
+          updateSyncedLyrics(true);
+        }
       }
       renderSettingsView(container);
     };
@@ -9807,6 +9846,11 @@ async function triggerTrackDownload(track) {
   if (!target) return;
   const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
 
+  if (typeof bitchordSettings !== 'undefined' && bitchordSettings.wifiOnlyDownloads && bitchordSettings.meteredConnection) {
+    showDownloadToast(`Download paused (Wi-Fi Only)`, `Disable "Treat current network as metered hotspot" or "Download over Wi-Fi only" in Settings.`);
+    return;
+  }
+
   if (isTrackDownloaded(target)) {
     const existing = downloadedTracksList.find(d => d.videoId === target.videoId);
     if (api?.openDownloadsFolder) {
@@ -10058,6 +10102,10 @@ async function resolveTrackCanvasOrVideo(track) {
 async function loadMusicVideoIntoStage(track, targetType) {
   if (!track || typeof document === 'undefined') return;
   if (typeof bitchordSettings !== 'undefined' && !bitchordSettings.animatedCanvas && !isVideoModeActive) {
+    stopAllVideoElements();
+    return;
+  }
+  if (typeof bitchordSettings !== 'undefined' && bitchordSettings.meteredConnection && !bitchordSettings.canvasOverCellular && !isVideoModeActive) {
     stopAllVideoElements();
     return;
   }
