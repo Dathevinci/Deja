@@ -1619,15 +1619,76 @@ function runBitChordArchitectureTests() {
     'BitChordApplication.kt must call AudioCache.init(this) before AudioCache.clear()'
   );
 
-  // 9.29 Verify iOS Home Screen App (docs/app.html) Full-Length 320kbps Stream Engine, Deja App UI Parity & Duration-Matched Synced Lyrics
-  const iosAppHtmlPath = path.join(__dirname, '../docs/app.html');
-  assert.ok(fs.existsSync(iosAppHtmlPath), 'docs/app.html must exist for iOS Add-to-Home-Screen Web App');
-  const iosAppHtml = fs.readFileSync(iosAppHtmlPath, 'utf8');
-  assert.ok(iosAppHtml.includes('FULL_STREAM_MIRRORS'), 'docs/app.html must use full-length 320kbps studio stream mirrors instead of 30s iTunes previews');
-  assert.ok(iosAppHtml.includes('class="deja-titlebar"') && iosAppHtml.includes('class="apple-sidebar"'), 'docs/app.html must render the Deja App titlebar and sidebar');
-  assert.ok(iosAppHtml.includes('DAILY_CHARTS') && iosAppHtml.includes('WEEKLY_CHARTS'), 'docs/app.html must render Daily charts and Weekly charts matching the Deja App Home screen');
-  assert.ok(iosAppHtml.includes('id="expanded-player-view"') && iosAppHtml.includes('id="exp-lyric-snippet-wrap"'), 'docs/app.html must render the Expanded Now Playing screen and active lyric snippet pill');
-  assert.ok(iosAppHtml.includes('class LyricClockReconciler') && iosAppHtml.includes('parseLrcWithWordTimings'), 'docs/app.html must use 60fps LyricClockReconciler and word-synced LRC parser');
+  // 9.29 Verify Complete iOS Removal & Full BitChord Desktop Settings Engine (EQ + 2D Tone Pad, Sub-Modals, Lyric Translation, Backup Import/Export, Replay)
+  assert.ok(!fs.existsSync(path.join(__dirname, '../ios')), 'ios/ directory must be removed');
+  assert.ok(!fs.existsSync(path.join(__dirname, '../docs/app.html')), 'docs/app.html iOS web app must be removed');
+  assert.ok(!fs.existsSync(path.join(__dirname, '../docs/manifest.json')), 'docs/manifest.json iOS PWA manifest must be removed');
+  assert.ok(!fs.existsSync(path.join(__dirname, '../docs/sw.js')), 'docs/sw.js iOS service worker must be removed');
+  assert.ok(!fs.existsSync(path.join(__dirname, '../.github/workflows/ios.yml')), '.github/workflows/ios.yml must be removed');
+  const readmeCode = fs.readFileSync(path.join(__dirname, '../README.md'), 'utf8');
+  assert.ok(!readmeCode.includes('Deja.ipa') && !/\biOS\b/.test(readmeCode), 'README.md must not reference iOS or Deja.ipa');
+  assert.ok(!docsHtml.includes('Deja.ipa') && !docsHtml.includes('id="ios-install-modal"'), 'docs/index.html must not contain iOS install modal or Deja.ipa');
+
+  // Verify BitChord Desktop Settings exports and defaults
+  assert.ok(previewModule.DEFAULT_BITCHORD_SETTINGS && typeof previewModule.DEFAULT_BITCHORD_SETTINGS === 'object', 'preview.js must export DEFAULT_BITCHORD_SETTINGS');
+  assert.strictEqual(typeof previewModule.getBitChordSettings, 'function', 'preview.js must export getBitChordSettings');
+  assert.strictEqual(typeof previewModule.updateBitChordSetting, 'function', 'preview.js must export updateBitChordSetting');
+  assert.strictEqual(typeof previewModule.computeDynamicTonePadGains, 'function', 'preview.js must export computeDynamicTonePadGains');
+  assert.strictEqual(typeof previewModule.getInlineLyricTranslation, 'function', 'preview.js must export getInlineLyricTranslation');
+  assert.strictEqual(typeof previewModule.importBitChordBackupData, 'function', 'preview.js must export importBitChordBackupData');
+  assert.strictEqual(typeof previewModule.openAccountScrobblingSubModal, 'function', 'preview.js must export openAccountScrobblingSubModal');
+  assert.strictEqual(typeof previewModule.openSourcesSubModal, 'function', 'preview.js must export openSourcesSubModal');
+  assert.strictEqual(typeof previewModule.openListenTogetherSubModal, 'function', 'preview.js must export openListenTogetherSubModal');
+  assert.strictEqual(typeof previewModule.openLyricsSourcesSubModal, 'function', 'preview.js must export openLyricsSourcesSubModal');
+  assert.strictEqual(typeof previewModule.openLocalMusicBrowserSubModal, 'function', 'preview.js must export openLocalMusicBrowserSubModal');
+
+  // Test 2D Dynamic Tone Pad gain calculation & boundary clamping
+  const neutralGains = previewModule.computeDynamicTonePadGains(0, 0);
+  assert.deepStrictEqual(neutralGains, [0, 0, 0, 0, 0], 'Center tone pad (0,0) must yield flat 0dB across all 5 bands');
+  const brightForwardGains = previewModule.computeDynamicTonePadGains(1, 1);
+  assert.strictEqual(brightForwardGains.length, 5);
+  assert.ok(brightForwardGains[0] < 0 && brightForwardGains[2] > 0 && brightForwardGains[3] > 0, 'Bright + Mid-forward tone pad must cut sub-bass and boost mid/presence');
+  const clampedGains = previewModule.computeDynamicTonePadGains(99, -99);
+  clampedGains.forEach(g => assert.ok(g >= -12 && g <= 12, 'Tone pad gains must clamp within [-12, +12] dB'));
+
+  // Test Inline Lyric Translation helper (Off, empty, existing TTML translation, dictionary lookup)
+  assert.strictEqual(previewModule.getInlineLyricTranslation('I love the night', 'Off'), '', 'Translation must be empty when language is Off');
+  assert.strictEqual(previewModule.getInlineLyricTranslation('♪', 'Spanish'), '', 'Musical note placeholder must not be translated');
+  assert.strictEqual(previewModule.getInlineLyricTranslation('Look at the stars', 'Spanish', 'Mira las estrellas'), 'Mira las estrellas', 'Existing TTML translation must take precedence');
+  const dictTranslated = previewModule.getInlineLyricTranslation('love in the night', 'Spanish');
+  assert.ok(dictTranslated.includes('amor') && dictTranslated.includes('noche'), 'Dictionary translation must translate known words into target language');
+
+  // Test Backup Import & Settings update edge cases
+  assert.strictEqual(previewModule.importBitChordBackupData('not-valid-json{{{'), false, 'Invalid JSON backup must return false safely');
+  assert.strictEqual(previewModule.importBitChordBackupData(null), false, 'Null backup input must return false safely');
+  const backupOk = previewModule.importBitChordBackupData(JSON.stringify({
+    settings: { crossfadeSeconds: 7, translationLanguage: 'Spanish', stereoBalance: -25 }
+  }));
+  assert.strictEqual(backupOk, true, 'Valid backup JSON must import and return true');
+  assert.strictEqual(previewModule.getBitChordSettings().crossfadeSeconds, 7);
+  assert.strictEqual(previewModule.getBitChordSettings().translationLanguage, 'Spanish');
+  assert.strictEqual(previewModule.getBitChordSettings().stereoBalance, -25);
+  previewModule.updateBitChordSetting('translationLanguage', 'Off');
+  previewModule.updateBitChordSetting('crossfadeSeconds', 0);
+  previewModule.updateBitChordSetting('stereoBalance', 0);
+
+  // Test renderSettingsView and renderReplayView DOM output
+  const mockSettingsContainer = {
+    innerHTML: '',
+    querySelectorAll: () => []
+  };
+  previewModule.renderSettingsView(mockSettingsContainer);
+  assert.ok(mockSettingsContainer.innerHTML.includes('Account, Discord &amp; Scrobbling'), 'Settings view must render Account, Discord & Scrobbling row');
+  assert.ok(mockSettingsContainer.innerHTML.includes('Sources &amp; Lossless Modules'), 'Settings view must render Sources & Lossless Modules row');
+  assert.ok(mockSettingsContainer.innerHTML.includes('Equalizer &amp; Tone Pad'), 'Settings view must render Equalizer & Tone Pad row');
+  assert.ok(mockSettingsContainer.innerHTML.includes('Import Backup Data'), 'Settings view must render Import Backup Data row');
+
+  const mockReplayContainer = {
+    innerHTML: '',
+    querySelectorAll: () => []
+  };
+  previewModule.renderReplayView(mockReplayContainer);
+  assert.ok(mockReplayContainer.innerHTML.includes('MINUTES LISTENED') && mockReplayContainer.innerHTML.includes('Top Genres'), 'Replay view must render stats cards and Top Genres section');
 
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
@@ -1637,5 +1698,3 @@ module.exports = runBitChordArchitectureTests;
 if (require.main === module) {
   runBitChordArchitectureTests();
 }
-
-

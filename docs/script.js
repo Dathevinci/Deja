@@ -28,7 +28,6 @@ function initLiveReleaseSync() {
       const setupAsset = assets.find(a => a && a.name && /Setup.*\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap'));
       const portAsset = assets.find(a => a && a.name && /^Deja[.-]\d+.*\.exe$/i.test(a.name) && !/Setup/i.test(a.name));
       const apkAsset = assets.find(a => a && a.name && /^Deja\.apk$/i.test(a.name));
-      const ipaAsset = assets.find(a => a && a.name && /^Deja\.ipa$/i.test(a.name));
       if (setupAsset && setupAsset.browser_download_url) {
         document.querySelectorAll('a[href*="Deja.Setup"]').forEach(a => { a.href = setupAsset.browser_download_url; });
       }
@@ -37,9 +36,6 @@ function initLiveReleaseSync() {
       }
       if (apkAsset && apkAsset.browser_download_url) {
         document.querySelectorAll('a[href*="Deja.apk"]').forEach(a => { a.href = apkAsset.browser_download_url; });
-      }
-      if (ipaAsset && ipaAsset.browser_download_url) {
-        document.querySelectorAll('a[href*="Deja.ipa"]').forEach(a => { a.href = ipaAsset.browser_download_url; });
       }
     })
     .catch(() => {});
@@ -426,32 +422,6 @@ function initModals() {
         androidModal.classList.remove('open');
       }
     });
-  }
-
-
-  // iOS Modal handlers
-  const iosModal = document.getElementById('ios-modal');
-  const openIosBtns = document.querySelectorAll('.btn-open-ios-modal');
-  const closeIosBtn = document.getElementById('btn-close-ios-modal');
-
-  openIosBtns.forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (iosModal) iosModal.classList.add('open');
-    });
-  });
-
-  if (closeIosBtn && iosModal) {
-    closeIosBtn.addEventListener('click', () => iosModal.classList.remove('open'));
-  }
-  if (iosModal) {
-    iosModal.addEventListener('click', (e) => {
-      if (e.target === iosModal) iosModal.classList.remove('open');
-    });
-  }
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
 
   if (notifyForm) {

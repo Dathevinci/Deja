@@ -507,6 +507,21 @@
         <img src="" alt="Album Artwork" id="expanded-artwork-img" class="expanded-artwork-img now-playing-art">
         <video id="expanded-canvas-video" class="artwork-canvas-video" muted loop playsinline></video>
         <span class="artwork-canvas-badge" id="expanded-canvas-badge" style="display: none;">Apple Motion</span>
+        <span class="artwork-automix-badge" id="player-automix-badge" style="display: none;">Automix Smart Fade</span>
+        <div class="player-nerd-stats-overlay" id="player-nerd-stats-overlay" style="display: none;">
+          <div class="nerd-stats-header">
+            <span class="nerd-stats-dot"></span>
+            <span>BITCHORD NERD STATS</span>
+          </div>
+          <div class="nerd-stats-grid" id="player-nerd-stats-body">
+            <div><span>Codec:</span> <strong id="nerd-stat-codec">Opus 251 (WebM)</strong></div>
+            <div><span>Bitrate:</span> <strong id="nerd-stat-bitrate">160 kbps</strong></div>
+            <div><span>Sample Rate:</span> <strong id="nerd-stat-srate">48.0 kHz</strong></div>
+            <div><span>PCM Mode:</span> <strong id="nerd-stat-pcm">Auto (Float32)</strong></div>
+            <div><span>DSP Chain:</span> <strong id="nerd-stat-dsp">Loudness Norm • EQ Flat</strong></div>
+            <div><span>Output Sink:</span> <strong id="nerd-stat-dac">System Default</strong></div>
+          </div>
+        </div>
       </div>
 
       <!-- Chromeless Video Preview Stage (No YouTube IFrame) -->
@@ -829,17 +844,108 @@
     </div>
   </div>
 
-  <!-- Equalizer Modal (GraphicEq) -->
+  <!-- Equalizer Modal (BitChord EqualizerScreen.kt) -->
   <div class="modal-backdrop" id="eq-modal" style="display: none;">
-    <div class="apple-modal-box">
+    <div class="apple-modal-box eq-modal-box">
       <div class="modal-header">
-        <h2>Sound Enhancement & Equalizer</h2>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <h2>Sound Enhancement & Equalizer</h2>
+          <label class="bitchord-switch" title="Enable Equalizer DSP">
+            <input type="checkbox" id="eq-master-switch" checked />
+            <span class="bitchord-switch-slider"></span>
+          </label>
+        </div>
         <button class="modal-close-btn" id="btn-close-eq">&times;</button>
       </div>
-      <div class="modal-body">
-        <div id="eq-status-text" style="margin-bottom: 12px; font-size: 13px; color: var(--apple-text-secondary);">
-          Active Preset: <strong>Flat</strong>
+      <div class="modal-body eq-modal-body">
+        <div class="eq-top-bar">
+          <div id="eq-status-text" style="font-size: 13px; color: var(--apple-text-secondary);">
+            Active Preset: <strong>Flat</strong>
+          </div>
+          <div class="apple-segmented-control eq-mode-tabs" id="eq-mode-tabs">
+            <button type="button" class="segmented-tab active" id="eq-mode-manual" data-eq-mode="manual">Manual 5-Band</button>
+            <button type="button" class="segmented-tab" id="eq-mode-dynamic" data-eq-mode="dynamic">Dynamic Tone Pad</button>
+          </div>
         </div>
+
+        <!-- Manual 5-Band Parametric EQ Sliders (EqualizerScreen.kt) -->
+        <div class="eq-manual-panel" id="eq-manual-panel">
+          <div class="eq-sliders-header">
+            <span>5-Band Parametric Filter (-12 dB to +12 dB)</span>
+            <button type="button" class="btn-eq-mini-reset" id="btn-eq-reset-flat">Reset to Flat</button>
+          </div>
+          <div class="eq-sliders-grid" id="eq-sliders-grid">
+            <div class="eq-band-col">
+              <span class="eq-band-db" id="eq-db-0">0.0 dB</span>
+              <input type="range" class="eq-band-slider" id="eq-band-0" data-band-idx="0" min="-12" max="12" step="0.5" value="0" />
+              <span class="eq-band-freq">60 Hz</span>
+              <small class="eq-band-label">Sub</small>
+            </div>
+            <div class="eq-band-col">
+              <span class="eq-band-db" id="eq-db-1">0.0 dB</span>
+              <input type="range" class="eq-band-slider" id="eq-band-1" data-band-idx="1" min="-12" max="12" step="0.5" value="0" />
+              <span class="eq-band-freq">250 Hz</span>
+              <small class="eq-band-label">Low-Mid</small>
+            </div>
+            <div class="eq-band-col">
+              <span class="eq-band-db" id="eq-db-2">0.0 dB</span>
+              <input type="range" class="eq-band-slider" id="eq-band-2" data-band-idx="2" min="-12" max="12" step="0.5" value="0" />
+              <span class="eq-band-freq">1 kHz</span>
+              <small class="eq-band-label">Mid</small>
+            </div>
+            <div class="eq-band-col">
+              <span class="eq-band-db" id="eq-db-3">0.0 dB</span>
+              <input type="range" class="eq-band-slider" id="eq-band-3" data-band-idx="3" min="-12" max="12" step="0.5" value="0" />
+              <span class="eq-band-freq">4 kHz</span>
+              <small class="eq-band-label">Presence</small>
+            </div>
+            <div class="eq-band-col">
+              <span class="eq-band-db" id="eq-db-4">0.0 dB</span>
+              <input type="range" class="eq-band-slider" id="eq-band-4" data-band-idx="4" min="-12" max="12" step="0.5" value="0" />
+              <span class="eq-band-freq">12 kHz</span>
+              <small class="eq-band-label">Air</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic 2D Tone Pad (EqualizerScreen.kt Dynamic Tone Mode) -->
+        <div class="eq-dynamic-panel" id="eq-dynamic-panel" style="display: none;">
+          <div class="eq-sliders-header">
+            <span>Drag puck to sculpt tone (Warm/Bright × Scooped/Mid-Forward)</span>
+            <div class="eq-bw-toggle">
+              <button type="button" class="eq-bw-btn active" id="eq-bw-broad" data-bw="broad">Broad Q</button>
+              <button type="button" class="eq-bw-btn" id="eq-bw-focused" data-bw="focused">Focused Q</button>
+            </div>
+          </div>
+          <div class="eq-tone-pad" id="eq-tone-pad">
+            <span class="tone-axis-label top">Mid-Forward</span>
+            <span class="tone-axis-label bottom">Scooped</span>
+            <span class="tone-axis-label left">Warm</span>
+            <span class="tone-axis-label right">Bright</span>
+            <div class="tone-pad-crosshair-h"></div>
+            <div class="tone-pad-crosshair-v"></div>
+            <div class="tone-pad-puck" id="eq-tone-puck" style="left: 50%; top: 50%;"></div>
+          </div>
+          <div class="eq-tone-coords" id="eq-tone-coords">Tilt: Neutral (0%) • Mid Focus: Neutral (0%)</div>
+        </div>
+
+        <!-- Stereo Balance Control (EqualizerScreen.kt) -->
+        <div class="eq-balance-card">
+          <div class="eq-balance-header">
+            <span>Stereo Channel Balance</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <strong id="eq-balance-val">Center (0%)</strong>
+              <button type="button" class="btn-eq-mini-reset" id="btn-eq-balance-center">Center</button>
+            </div>
+          </div>
+          <div class="eq-balance-slider-row">
+            <span class="eq-bal-side">L</span>
+            <input type="range" id="eq-balance-slider" min="-100" max="100" step="1" value="0" />
+            <span class="eq-bal-side">R</span>
+          </div>
+        </div>
+
+        <div class="eq-presets-heading">Reference Presets</div>
         <div class="deja-picker-options" id="eq-picker-options">
           <button class="deja-picker-btn selected" data-eq="Flat">
             <span>Flat</span>
@@ -1155,6 +1261,17 @@
       <button type="button" class="bitchord-update-action primary" id="bitchord-update-btn-primary">Download &amp; Install Now</button>
       <div class="bitchord-update-rule"></div>
       <button type="button" class="bitchord-update-action" id="bitchord-update-btn-secondary">Remind Me Later</button>
+    </div>
+  </div>
+
+  <!-- BitChord Settings Sub-Screen & Picker Sheet Overlay -->
+  <div class="modal-backdrop bitchord-submodal-backdrop" id="bitchord-submodal-overlay" style="display: none;">
+    <div class="apple-modal-box bitchord-submodal-box" id="bitchord-submodal-box">
+      <div class="modal-header">
+        <h2 id="bitchord-submodal-title">Settings</h2>
+        <button class="modal-close-btn" id="btn-close-bitchord-submodal">&times;</button>
+      </div>
+      <div class="modal-body" id="bitchord-submodal-body"></div>
     </div>
   </div>
 

@@ -46,6 +46,12 @@ const dejaAPI = {
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   installUpdate: (url) => ipcRenderer.invoke('install-update', url),
   cancelUpdateDownload: () => ipcRenderer.invoke('cancel-update-download'),
+  selectLocalMusicFolder: (opts) => ipcRenderer.invoke('select-local-music-folder', opts),
+  scanLocalMusic: (opts) => ipcRenderer.invoke('scan-local-music', opts),
+  clearAppCache: (opts) => ipcRenderer.invoke('clear-app-cache', opts),
+  setFrameRate: (hz) => ipcRenderer.invoke('set-frame-rate', hz),
+  updateDiscordSettings: (opts) => ipcRenderer.invoke('update-discord-settings', opts),
+  probeAddonSource: (url) => ipcRenderer.invoke('probe-addon-source', url),
   onUpdateAvailable: (callback) => {
     ipcRenderer.on('update-available', (event, data) => callback(data));
   },

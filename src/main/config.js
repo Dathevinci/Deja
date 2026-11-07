@@ -29,7 +29,14 @@ const DEFAULT_CONFIG = {
   volume: 1.0,
   audioQuality: 'high',
   equalizerPreset: 'Flat',
-  equalizerGains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  equalizerGains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  bitchordSettings: {},
+  localMusicFolder: 'All Audio Folders (~/Music)',
+  filterNonMusicAudio: true,
+  discordUseDetails: false,
+  discordShowAudioQuality: true,
+  discordStatus: 'online',
+  discordActivityName: 'Deja'
 };
 
 class ConfigManager {

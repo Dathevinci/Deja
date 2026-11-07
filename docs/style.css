@@ -3397,7 +3397,7 @@ body.twobit-ivory .hero-title {
     text-overflow: ellipsis !important;
   }
 
-  /* Prioritize Android & iOS buttons at top of CTA stack on mobile */
+  /* Prioritize Android button at top of CTA stack on mobile */
   .hero-cta-group {
     flex-direction: column !important;
     width: 100% !important;
@@ -3418,13 +3418,6 @@ body.twobit-ivory .hero-title {
     color: #F4EFEA !important;
     border-color: #F4EFEA !important;
     box-shadow: 4px 4px 0px var(--bit-00) !important;
-  }
-
-  .hero-cta-group .cta-ios-btn {
-    order: -1 !important;
-    background: #F4EFEA !important;
-    color: #0B090A !important;
-    border-color: var(--ruby) !important;
   }
 
   /* Hide wide desktop window mockup on mobile & spotlight the Phone Hero Stage */

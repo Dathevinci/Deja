@@ -16,6 +16,11 @@ class DiscordPresence {
     this.currentActivity = null;
     this.pendingActivity = null;
     this.currentPipe = 0;
+    this.useDetails = false;
+    this.showAudioQuality = true;
+    this.activityName = 'Deja';
+    this.presenceStatus = 'online';
+    this.audioQualityLabel = '160kbps Opus';
   }
 
   init(enabled = true) {
@@ -32,6 +37,36 @@ class DiscordPresence {
       this.disconnect();
     } else {
       this.connect();
+      if (this.pendingActivity) {
+        this.updateActivity(this.pendingActivity);
+      }
+    }
+  }
+
+  updateSettings(opts = {}) {
+    if (!opts || typeof opts !== 'object') return;
+    if ('enabled' in opts || 'discordRPC' in opts || 'discordRpc' in opts) {
+      const en = opts.enabled ?? opts.discordRPC ?? opts.discordRpc;
+      this.setEnabled(en);
+    }
+    if (typeof opts.useDetails === 'boolean' || typeof opts.discordUseDetails === 'boolean') {
+      this.useDetails = Boolean(opts.useDetails ?? opts.discordUseDetails);
+    }
+    if (typeof opts.showAudioQuality === 'boolean' || typeof opts.discordShowAudioQuality === 'boolean') {
+      this.showAudioQuality = Boolean(opts.showAudioQuality ?? opts.discordShowAudioQuality);
+    }
+    if (typeof opts.activityName === 'string' || typeof opts.discordActivityName === 'string') {
+      const name = String(opts.activityName ?? opts.discordActivityName).trim();
+      this.activityName = name || 'Deja';
+    }
+    if (typeof opts.status === 'string' || typeof opts.discordStatus === 'string') {
+      this.presenceStatus = String((opts.status ?? opts.discordStatus) || 'online');
+    }
+    if (typeof opts.audioQualityLabel === 'string' && opts.audioQualityLabel.trim()) {
+      this.audioQualityLabel = opts.audioQualityLabel.trim();
+    }
+    if (this.enabled && this.pendingActivity) {
+      this.updateActivity(this.pendingActivity);
     }
   }
 
@@ -209,7 +244,10 @@ class DiscordPresence {
       ? 'Free Tier • Sponsored'
       : (isIdleDefault ? 'Deja • 2-Bit Edition' : (data.artist || 'Unknown Artist'));
     const rawAlbum = data.album && data.album !== 'YouTube Music' ? data.album : 'Deja';
-    const album = isAd ? 'YouTube Music Ads' : rawAlbum;
+    const qualitySuffix = (this.showAudioQuality && !isAd && (data.audioQuality || this.audioQualityLabel))
+      ? ` · ${data.audioQuality || this.audioQualityLabel}`
+      : '';
+    const album = isAd ? 'YouTube Music Ads' : `${rawAlbum}${qualitySuffix}`;
 
     const coverUrl = data.artworkUrl || data.coverUrl || data.cover;
     const hasValidCoverUrl = typeof coverUrl === 'string' && (coverUrl.startsWith('https://') || coverUrl.startsWith('http://'));
@@ -219,16 +257,16 @@ class DiscordPresence {
       : ((data.duration && data.currentTime != null) ? Math.max(0, data.duration - data.currentTime) : 0);
 
     const activity = {
-      name: 'Deja',
+      name: this.useDetails && !isIdleDefault ? title.slice(0, 128) : (this.activityName || 'Deja'),
       type: 2,
-      status_display_type: 1,
+      status_display_type: this.useDetails ? 2 : 1,
       details: title.length > 128 ? title.slice(0, 125) + '...' : title,
       state: (isAd || isIdleDefault) ? artist : `by ${artist}`.slice(0, 128),
       assets: {
         large_image: isAd ? DEJA_LOGO_URL : (hasValidCoverUrl ? coverUrl : DEJA_LOGO_URL),
         large_text: album.slice(0, 128),
         small_image: DEJA_LOGO_URL,
-        small_text: isAd ? 'Ad Playing' : (isPlaying ? 'Listening on Deja' : 'Paused on Deja')
+        small_text: isAd ? 'Ad Playing' : (isPlaying ? `Listening on ${this.activityName || 'Deja'}${qualitySuffix}` : `Paused on ${this.activityName || 'Deja'}`).slice(0, 128)
       }
     };
 

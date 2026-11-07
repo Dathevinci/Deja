@@ -500,14 +500,209 @@ ipcMain.handle('get-config', (event, key) => {
 });
 
 ipcMain.handle('set-config', (event, payload) => {
-  if (typeof payload === 'object') {
+  if (typeof payload === 'object' && payload !== null) {
+    if ('stopOnClose' in payload && !('closeToTray' in payload)) {
+      payload.closeToTray = !payload.stopOnClose;
+    }
     config.set(payload);
-    if ('discordRPC' in payload) {
-      discord.setEnabled(payload.discordRPC);
+    if ('discordRPC' in payload || 'discordUseDetails' in payload || 'discordShowAudioQuality' in payload || 'discordActivityName' in payload || 'discordStatus' in payload) {
+      discord.updateSettings(payload);
+    }
+    if (payload.bitchordSettings && typeof payload.bitchordSettings === 'object') {
+      const bs = payload.bitchordSettings;
+      if (typeof bs.discordRpc === 'boolean' || typeof bs.discordUseDetails === 'boolean' || typeof bs.discordShowAudioQuality === 'boolean' || typeof bs.discordActivityName === 'string') {
+        discord.updateSettings({
+          enabled: bs.discordRpc,
+          useDetails: bs.discordUseDetails,
+          showAudioQuality: bs.discordShowAudioQuality,
+          activityName: bs.discordActivityName,
+          status: bs.discordStatus,
+          audioQualityLabel: bs.wifiQuality
+        });
+      }
+      if (typeof bs.stopOnClose === 'boolean') {
+        config.set('closeToTray', !bs.stopOnClose);
+      }
     }
     return true;
   }
   return false;
+});
+
+ipcMain.handle('update-discord-settings', (event, opts) => {
+  if (opts && typeof opts === 'object') {
+    config.set({
+      discordRPC: opts.enabled ?? opts.discordRpc ?? config.get('discordRPC'),
+      discordUseDetails: opts.useDetails ?? opts.discordUseDetails ?? config.get('discordUseDetails'),
+      discordShowAudioQuality: opts.showAudioQuality ?? opts.discordShowAudioQuality ?? config.get('discordShowAudioQuality'),
+      discordActivityName: opts.activityName ?? opts.discordActivityName ?? config.get('discordActivityName'),
+      discordStatus: opts.status ?? opts.discordStatus ?? config.get('discordStatus')
+    });
+    discord.updateSettings(opts);
+    return { ok: true };
+  }
+  return { ok: false };
+});
+
+ipcMain.handle('set-frame-rate', (event, hz) => {
+  const rate = Math.max(30, Math.min(240, Number(hz) || 60));
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+    try {
+      mainWindow.webContents.setFrameRate(rate);
+      return { ok: true, frameRate: rate };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }
+  return { ok: true, frameRate: rate };
+});
+
+ipcMain.handle('clear-app-cache', async (event, opts = {}) => {
+  const type = (opts && opts.type) || 'all';
+  try {
+    const ytSession = session.fromPartition('persist:ytmusic');
+    if (session.defaultSession && typeof session.defaultSession.clearCache === 'function') {
+      await session.defaultSession.clearCache();
+    }
+    if (ytSession && typeof ytSession.clearCache === 'function') {
+      await ytSession.clearCache();
+    }
+    return { ok: true, clearedType: type, timestamp: Date.now() };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+function scanLocalAudioDirectory(targetDir, filterShortClips = true) {
+  const fsMod = require('fs');
+  const results = [];
+  if (!targetDir || !fsMod.existsSync(targetDir)) return results;
+  const audioExts = new Set(['.mp3', '.flac', '.m4a', '.wav', '.ogg', '.opus', '.aac', '.webm']);
+  const walk = (dir, depth = 0) => {
+    if (depth > 3 || results.length >= 250) return;
+    let entries = [];
+    try {
+      entries = fsMod.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of entries) {
+      if (results.length >= 250) break;
+      const fullPath = path.join(dir, ent.name);
+      if (ent.isDirectory()) {
+        if (!ent.name.startsWith('.') && ent.name !== 'node_modules') {
+          walk(fullPath, depth + 1);
+        }
+      } else if (ent.isFile()) {
+        const ext = path.extname(ent.name).toLowerCase();
+        if (audioExts.has(ext)) {
+          try {
+            const stat = fsMod.statSync(fullPath);
+            // Filter non-music voice clips (<30s approximated as <240KB for compressed audio)
+            if (filterShortClips && stat.size < 240 * 1024) continue;
+            const base = path.basename(ent.name, ext);
+            const parts = base.includes(' - ') ? base.split(' - ') : [ 'Local Artist', base ];
+            const artist = parts.length > 1 ? parts[0].trim() : 'Local Library';
+            const title = parts.length > 1 ? parts.slice(1).join(' - ').trim() : base.trim();
+            const estDur = Math.max(30, Math.min(600, Math.round(stat.size / 24000)));
+            results.push({
+              id: `local-${Buffer.from(fullPath).toString('base64').slice(0, 16)}`,
+              title,
+              artist,
+              album: path.basename(dir) || 'Local Files',
+              duration: estDur,
+              filePath: fullPath,
+              fileUrl: `file:///${fullPath.replace(/\\/g, '/')}`,
+              fileSize: stat.size,
+              ext: ext.slice(1).toUpperCase()
+            });
+          } catch {}
+        }
+      }
+    }
+  };
+  walk(targetDir, 0);
+  return results;
+}
+
+ipcMain.handle('scan-local-music', async (event, opts = {}) => {
+  try {
+    const rawFolder = (opts && opts.folder) || config.get('localMusicFolder') || 'All Audio Folders (~/Music)';
+    const filterShort = opts && typeof opts.filterNonMusicAudio === 'boolean'
+      ? opts.filterNonMusicAudio
+      : Boolean(config.get('filterNonMusicAudio') !== false);
+    const resolvedDir = (!rawFolder || rawFolder.includes('~/Music') || rawFolder.startsWith('All Audio'))
+      ? app.getPath('music')
+      : rawFolder;
+    const tracks = scanLocalAudioDirectory(resolvedDir, filterShort);
+    return { ok: true, folder: rawFolder, resolvedDir, tracks };
+  } catch (err) {
+    return { ok: false, error: err.message, tracks: [] };
+  }
+});
+
+ipcMain.handle('select-local-music-folder', async (event, opts = {}) => {
+  try {
+    if (opts && opts.reset) {
+      const defLabel = 'All Audio Folders (~/Music)';
+      config.set('localMusicFolder', defLabel);
+      const tracks = scanLocalAudioDirectory(app.getPath('music'), opts.filterNonMusicAudio !== false);
+      return { ok: true, folder: defLabel, tracks };
+    }
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return { ok: false, canceled: true };
+    }
+    const res = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select Local Music Folder',
+      defaultPath: app.getPath('music'),
+      properties: ['openDirectory']
+    });
+    if (res.canceled || !res.filePaths || res.filePaths.length === 0) {
+      return { ok: false, canceled: true };
+    }
+    const chosen = res.filePaths[0];
+    config.set('localMusicFolder', chosen);
+    const tracks = scanLocalAudioDirectory(chosen, opts.filterNonMusicAudio !== false);
+    return { ok: true, folder: chosen, tracks };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('probe-addon-source', async (event, url) => {
+  if (!url || typeof url !== 'string' || !/^https?:\/\//i.test(url.trim())) {
+    return { ok: false, error: 'URL must start with https:// or http://' };
+  }
+  const target = url.trim();
+  const t0 = Date.now();
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(target, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json, text/plain, */*', 'User-Agent': 'Deja-BitChord-Sources/1.2.3' },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    const latencyMs = Date.now() - t0;
+    let manifestName = '';
+    try {
+      const json = await res.json();
+      manifestName = json.name || json.title || json.id || '';
+    } catch {}
+    return {
+      ok: res.ok,
+      status: res.status,
+      latencyMs,
+      name: manifestName || new URL(target).hostname
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      latencyMs: Date.now() - t0,
+      error: err.message || 'Unreachable'
+    };
+  }
 });
 
 ipcMain.handle('open-external', (event, url) => {
@@ -1607,8 +1802,19 @@ ipcMain.handle('yt-resolve-video', async (event, payload) => {
 const fs = require('fs');
 const https = require('https');
 
-function getDejaDownloadsDir() {
+function getDejaDownloadsDir(exportToPublicMusic = true) {
   try {
+    const bs = config.get('bitchordSettings') || {};
+    const shouldExport = typeof exportToPublicMusic === 'boolean'
+      ? exportToPublicMusic
+      : (bs.exportDownloads !== false);
+    if (!shouldExport) {
+      const internalDir = path.join(app.getPath('userData'), 'Downloads');
+      if (!fs.existsSync(internalDir)) {
+        fs.mkdirSync(internalDir, { recursive: true });
+      }
+      return internalDir;
+    }
     const musicDir = app.getPath('music');
     const dir = path.join(musicDir, 'Deja');
     if (!fs.existsSync(dir)) {
@@ -1697,6 +1903,11 @@ ipcMain.handle('download-track', async (event, trackInfo) => {
   const album = String(trackInfo.album || 'YouTube Music').trim();
   const cover = String(trackInfo.cover || '');
   const duration = Number(trackInfo.duration) || 210;
+  const bs = config.get('bitchordSettings') || {};
+  const exportToPublic = typeof trackInfo.exportDownloads === 'boolean'
+    ? trackInfo.exportDownloads
+    : (bs.exportDownloads !== false);
+  const dlQuality = String(trackInfo.downloadQuality || bs.downloadQuality || 'Hi-Res FLAC');
 
   try {
     const ses = session.fromPartition('persist:ytmusic');
@@ -1705,7 +1916,7 @@ ipcMain.handle('download-track', async (event, trackInfo) => {
       return { ok: false, error: 'Could not resolve direct audio stream for download' };
     }
 
-    const dir = getDejaDownloadsDir();
+    const dir = getDejaDownloadsDir(exportToPublic);
     const ext = (stream.mimeType && stream.mimeType.includes('mp4')) ? 'm4a' : 'webm';
     const safeName = `${artist} - ${title}`.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').slice(0, 140);
     const filePath = path.join(dir, `${safeName}.${ext}`);
@@ -1715,6 +1926,7 @@ ipcMain.handle('download-track', async (event, trackInfo) => {
         videoId,
         title,
         artist,
+        quality: dlQuality,
         progress: 5,
         status: 'downloading'
       });
@@ -1745,6 +1957,8 @@ ipcMain.handle('download-track', async (event, trackInfo) => {
       fileSize: buffer.length,
       mimeType: stream.mimeType || 'audio/webm',
       bitrate: stream.bitrate || 160000,
+      quality: dlQuality,
+      exportedToMusic: exportToPublic,
       downloadedAt: new Date().toISOString()
     };
 
