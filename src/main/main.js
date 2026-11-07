@@ -1781,11 +1781,24 @@ ipcMain.handle('yt-rate', async (event, { videoId, status }) => {
 });
 
 // Direct Audio Stream Resolution via InnerTube (BitChord architecture)
-ipcMain.handle('yt-resolve-stream', async (event, videoId) => {
-  if (!videoId || typeof videoId !== 'string') return null;
+ipcMain.handle('yt-resolve-stream', async (event, videoIdOrPayload, optsArg) => {
+  const videoId = typeof videoIdOrPayload === 'string'
+    ? videoIdOrPayload
+    : (videoIdOrPayload && typeof videoIdOrPayload.videoId === 'string' ? videoIdOrPayload.videoId : '');
+  if (!videoId) return null;
+  const savedSettings = config.get('bitchordSettings', {}) || {};
+  const mergedOpts = Object.assign(
+    {
+      quality: savedSettings.meteredConnection ? savedSettings.cellularQuality : savedSettings.wifiQuality,
+      dolbyAtmos: savedSettings.dolbyAtmos,
+      preferMusicOnly: savedSettings.preferMusicOnly
+    },
+    typeof videoIdOrPayload === 'object' && videoIdOrPayload ? videoIdOrPayload : {},
+    typeof optsArg === 'object' && optsArg ? optsArg : {}
+  );
   try {
     const ses = session.fromPartition('persist:ytmusic');
-    return await innertube.getAudioStream(videoId, ses);
+    return await innertube.getAudioStream(videoId, ses, mergedOpts);
   } catch (err) {
     console.warn('[Stream] Audio stream resolution error:', err.message);
     return null;

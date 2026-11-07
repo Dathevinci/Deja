@@ -2607,7 +2607,7 @@ function parseDurationString(str) {
  * Tries ANDROID_MUSIC client context, IOS client context, and authenticated session context.
  * Parses streamingData.adaptiveFormats / formats (audio/webm; codecs="opus" or audio/mp4).
  */
-async function getAudioStream(videoId, ses) {
+async function getAudioStream(videoId, ses, opts = {}) {
   if (!videoId || typeof videoId !== 'string') return null;
 
   // 1. IOS client context (BitChord iOS PlayerClient.kt - high-compatibility direct stream)
@@ -2640,7 +2640,7 @@ async function getAudioStream(videoId, ses) {
     });
     if (res.ok) {
       const data = await res.json();
-      const best = extractBestAudioFormat(data);
+      const best = extractBestAudioFormat(data, opts);
       if (best) return best;
     }
   } catch (err) {
@@ -2675,7 +2675,7 @@ async function getAudioStream(videoId, ses) {
     });
     if (res.ok) {
       const data = await res.json();
-      const best = extractBestAudioFormat(data);
+      const best = extractBestAudioFormat(data, opts);
       if (best) return best;
     }
   } catch (err) {
@@ -2689,7 +2689,7 @@ async function getAudioStream(videoId, ses) {
       contentCheckOk: true,
       racyCheckOk: true
     }, ses);
-    const best = extractBestAudioFormat(data);
+    const best = extractBestAudioFormat(data, opts);
     if (best) return best;
   } catch (err) {
     console.warn('[InnerTube] getAudioStream session attempt notice:', err.message);
@@ -2698,7 +2698,7 @@ async function getAudioStream(videoId, ses) {
   return null;
 }
 
-function extractBestAudioFormat(data) {
+function extractBestAudioFormat(data, opts = {}) {
   if (!data || !data.streamingData) return null;
   const formats = (data.streamingData.adaptiveFormats || []).concat(data.streamingData.formats || []);
   const audioFormats = formats.filter(f => f.mimeType && f.mimeType.startsWith('audio/'));
@@ -2708,15 +2708,54 @@ function extractBestAudioFormat(data) {
   const direct = audioFormats.filter(f => !!f.url);
   if (direct.length === 0) return null;
 
-  // Prioritize audio/webm; codecs="opus" (160k, 70k, 50k) or audio/mp4 (128k) by highest bitrate
-  direct.sort((a, b) => {
+  const qualityStr = String(opts && opts.quality ? opts.quality : '').toLowerCase();
+  const wantDolbyAtmos = Boolean(opts && opts.dolbyAtmos);
+  let bitrateCeiling = Infinity;
+  if (qualityStr.includes('data saver') || qualityStr.includes('64')) {
+    bitrateCeiling = 80000;
+  } else if (qualityStr.includes('normal') || qualityStr.includes('128')) {
+    bitrateCeiling = 145000;
+  }
+
+  let pool = direct;
+  if (Number.isFinite(bitrateCeiling)) {
+    const withinCeiling = direct.filter(f => (f.bitrate || 0) <= bitrateCeiling);
+    if (withinCeiling.length > 0) {
+      pool = withinCeiling;
+    } else {
+      // If all formats exceed the ceiling, pick the lowest-bitrate stream to honor data-saving intent
+      const sortedAsc = [...direct].sort((a, b) => (a.bitrate || 0) - (b.bitrate || 0));
+      const chosenLow = sortedAsc[0];
+      return {
+        url: chosenLow.url,
+        mimeType: chosenLow.mimeType,
+        bitrate: chosenLow.bitrate,
+        itag: chosenLow.itag,
+        contentLength: chosenLow.contentLength,
+        duration: chosenLow.approxDurationMs ? Math.round(Number(chosenLow.approxDurationMs) / 1000) : null,
+        loudnessDb: data.playerConfig?.audioConfig?.loudnessDb
+      };
+    }
+  }
+
+  // Prioritize Dolby Atmos / E-AC-3 when requested, otherwise highest bitrate within ceiling (with Opus preferred for comparable bitrates)
+  const sorted = [...pool].sort((a, b) => {
+    if (wantDolbyAtmos) {
+      const aSpatial = ((a.mimeType && (a.mimeType.includes('ec-3') || a.mimeType.includes('ac-3'))) || (a.audioChannels && a.audioChannels > 2)) ? 1 : 0;
+      const bSpatial = ((b.mimeType && (b.mimeType.includes('ec-3') || b.mimeType.includes('ac-3'))) || (b.audioChannels && b.audioChannels > 2)) ? 1 : 0;
+      if (aSpatial !== bSpatial) return bSpatial - aSpatial;
+    }
+    const brDiff = (b.bitrate || 0) - (a.bitrate || 0);
+    if (Number.isFinite(bitrateCeiling) && Math.abs(brDiff) > 25000) {
+      return brDiff;
+    }
     const aOpus = (a.mimeType && a.mimeType.includes('opus')) ? 1 : 0;
     const bOpus = (b.mimeType && b.mimeType.includes('opus')) ? 1 : 0;
     if (aOpus !== bOpus) return bOpus - aOpus;
-    return (b.bitrate || 0) - (a.bitrate || 0);
+    return brDiff;
   });
 
-  const chosen = direct[0];
+  const chosen = sorted[0];
   return {
     url: chosen.url,
     mimeType: chosen.mimeType,
@@ -3949,38 +3988,64 @@ async function fetchYouTubeTranscriptLyrics(videoId, ses) {
  * Prefers word-synced lyrics over line-synced lyrics, then falls back to YouTube timed transcripts
  * and YouTube Music InnerTube plain lyrics.
  */
-async function getLyrics({ videoId, title, artist, duration, album }, ses) {
+async function getLyrics({ videoId, title, artist, duration, album, sources }, ses) {
   const hasWordSync = (lines) =>
     Array.isArray(lines) && lines.some(l => Array.isArray(l.words) && l.words.length > 0);
   const hasLineSync = (lines) =>
     Array.isArray(lines) && lines.length > 1 && lines.some(l => l.time > 0);
 
+  const defaultOrder = ['BiniLyrics', 'BetterLyrics', 'SimpMusic', 'LyricsPlus', 'LRCLIB'];
+  const activeSources = Array.isArray(sources)
+    ? sources.map(s => (typeof s === 'string' ? s : (s && s.enabled !== false ? s.id : null))).filter(Boolean)
+    : defaultOrder;
+
+  if (Array.isArray(sources) && activeSources.length === 0) {
+    return null;
+  }
+
+  const isSourceEnabled = (id) => activeSources.includes(id);
+
   const cleanAlbum = sanitizeAlbumForLookup(album, title);
-  const tasks = [];
-  if (videoId) {
-    tasks.push(fetchSimpMusicLyrics(videoId, duration).catch(() => null));
-  } else {
-    tasks.push(Promise.resolve(null));
-  }
-  if (title) {
-    tasks.push(fetchBiniLyrics(title, artist || '', duration, cleanAlbum).catch(() => null));
-    tasks.push(fetchBetterLyrics(title, artist || '', duration, cleanAlbum).catch(() => null));
-    tasks.push(fetchLyricsPlus(title, artist || '', duration).catch(() => null));
-    tasks.push(fetchLrcLibLyrics(title, artist || '', duration).catch(() => null));
-  } else {
-    tasks.push(Promise.resolve(null), Promise.resolve(null), Promise.resolve(null), Promise.resolve(null));
-  }
+  const tasks = [
+    (videoId && isSourceEnabled('SimpMusic'))
+      ? fetchSimpMusicLyrics(videoId, duration).catch(() => null)
+      : Promise.resolve(null),
+    (title && isSourceEnabled('BiniLyrics'))
+      ? fetchBiniLyrics(title, artist || '', duration, cleanAlbum).catch(() => null)
+      : Promise.resolve(null),
+    (title && isSourceEnabled('BetterLyrics'))
+      ? fetchBetterLyrics(title, artist || '', duration, cleanAlbum).catch(() => null)
+      : Promise.resolve(null),
+    (title && isSourceEnabled('LyricsPlus'))
+      ? fetchLyricsPlus(title, artist || '', duration).catch(() => null)
+      : Promise.resolve(null),
+    (title && isSourceEnabled('LRCLIB'))
+      ? fetchLrcLibLyrics(title, artist || '', duration).catch(() => null)
+      : Promise.resolve(null)
+  ];
 
   const [simpLyrics, biniLyrics, betterLyrics, plusLyrics, lrcLibLyrics] = await Promise.all(tasks);
-  // Match Android BitChord provider order: BiniLyrics -> BetterLyrics -> SimpMusic -> LyricsPlus -> LRCLIB
-  const candidates = [biniLyrics, betterLyrics, simpLyrics, plusLyrics, lrcLibLyrics].filter(c => Array.isArray(c) && c.length > 0);
+  const byId = {
+    BiniLyrics: biniLyrics,
+    BetterLyrics: betterLyrics,
+    SimpMusic: simpLyrics,
+    LyricsPlus: plusLyrics,
+    LRCLIB: lrcLibLyrics
+  };
 
-  // 1. Prefer word-synced lyrics from any provider (in priority order: BiniLyrics -> BetterLyrics -> SimpMusic -> LyricsPlus -> LRCLIB)
+  // Match configured provider priority order (defaulting to BiniLyrics -> BetterLyrics -> SimpMusic -> LyricsPlus -> LRCLIB)
+  const orderedIds = activeSources.filter(id => Object.prototype.hasOwnProperty.call(byId, id));
+  const candidates = orderedIds.map(id => byId[id]).filter(c => Array.isArray(c) && c.length > 0);
+
+  // 1. Prefer word-synced lyrics from any enabled provider in priority order
   const wordSynced = candidates.find(hasWordSync);
   if (wordSynced) return wordSynced;
 
   // 2. Otherwise take the highest-priority line-synced candidate
-  const lineSynced = [biniLyrics, betterLyrics, lrcLibLyrics, simpLyrics, plusLyrics].find(hasLineSync);
+  const lineOrder = Array.isArray(sources)
+    ? orderedIds
+    : ['BiniLyrics', 'BetterLyrics', 'LRCLIB', 'SimpMusic', 'LyricsPlus'];
+  const lineSynced = lineOrder.map(id => byId[id]).filter(c => Array.isArray(c) && c.length > 0).find(hasLineSync);
   if (lineSynced) return lineSynced;
 
   if (candidates.length > 0) {

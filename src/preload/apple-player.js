@@ -2692,6 +2692,9 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
           btn.onclick = () => {
             const preset = btn.dataset.eq;
             AudioEqualizer.applyPreset(preset);
+            if (api && typeof api.setConfig === 'function') {
+              api.setConfig({ eqPreset: preset });
+            }
             overlay.remove();
           };
         });
@@ -2733,6 +2736,21 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
       document.body.classList.add('apple-dark');
     }
     document.body.classList.toggle('reduce-motion', !preloadPrefs.dynamicAura);
+  }
+
+  if (api && typeof api.getConfig === 'function') {
+    Promise.resolve(api.getConfig()).then(cfg => {
+      if (!cfg || typeof cfg !== 'object') return;
+      if (typeof cfg.theme === 'string') preloadPrefs.theme = cfg.theme;
+      if (typeof cfg.dynamicAura === 'boolean') preloadPrefs.dynamicAura = cfg.dynamicAura;
+      if (typeof cfg.discordRPC === 'boolean') preloadPrefs.discordRPC = cfg.discordRPC;
+      if (typeof cfg.closeToTray === 'boolean') preloadPrefs.closeToTray = cfg.closeToTray;
+      if (typeof cfg.hardwareAcceleration === 'boolean') preloadPrefs.hardwareAcceleration = cfg.hardwareAcceleration;
+      if (typeof cfg.eqPreset === 'string' && AudioEqualizer.presets[cfg.eqPreset]) {
+        AudioEqualizer.applyPreset(cfg.eqPreset);
+      }
+      applyPreloadThemeClasses();
+    }).catch(() => {});
   }
 
   function openSettingsModal() {

@@ -993,6 +993,8 @@ function sendFinalWatchtimePing() {
   lastReportedWatchSeconds = 0;
 }
 
+const streamUrlCache = new Map();
+
 async function resolveAndPlayTrack(track) {
   if (!track) return;
   const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
@@ -1022,12 +1024,40 @@ async function resolveAndPlayTrack(track) {
 
   if (api?.resolveAudioStream && track.videoId) {
     try {
-      const stream = await api.resolveAudioStream(track.videoId);
+      const activeQuality = (typeof bitchordSettings !== 'undefined' && bitchordSettings)
+        ? (bitchordSettings.meteredConnection ? bitchordSettings.cellularQuality : bitchordSettings.wifiQuality)
+        : 'Hi-Res Lossless';
+      const streamOpts = {
+        quality: activeQuality,
+        dolbyAtmos: Boolean(typeof bitchordSettings !== 'undefined' && bitchordSettings.dolbyAtmos),
+        preferMusicOnly: typeof bitchordSettings !== 'undefined' ? bitchordSettings.preferMusicOnly !== false : true
+      };
+      const cacheKey = `${track.videoId}::${streamOpts.quality || ''}::${streamOpts.dolbyAtmos ? 'atmos' : 'std'}`;
+      let stream = null;
+      const cachedEntry = streamUrlCache.get(cacheKey);
+      if (cachedEntry && cachedEntry.stream && cachedEntry.fn === api.resolveAudioStream && (Date.now() - cachedEntry.ts < 15 * 60 * 1000)) {
+        stream = cachedEntry.stream;
+      } else {
+        stream = await api.resolveAudioStream(track.videoId, streamOpts);
+        if (stream && stream.url) {
+          const maxEntries = Math.max(8, Math.floor((Number(bitchordSettings?.songCacheLimitMb) || 2048) / 8));
+          if (streamUrlCache.size >= maxEntries) {
+            const oldestKey = streamUrlCache.keys().next().value;
+            if (oldestKey !== undefined) streamUrlCache.delete(oldestKey);
+          }
+          streamUrlCache.set(cacheKey, { stream, ts: Date.now(), fn: api.resolveAudioStream });
+        }
+      }
       if (stream && stream.url && dejaAudio) {
         currentStreamMeta = stream;
         isDirectStreamPlaying = true;
         dejaAudio.src = stream.url;
-        dejaAudio.volume = isMuted ? 0 : currentVolume;
+        try { applyBitChordAudioDspSettings(); } catch {}
+        if (typeof applyVolume === 'function') {
+          applyVolume(currentVolume);
+        } else {
+          dejaAudio.volume = isMuted ? 0 : currentVolume;
+        }
         if (currentTime > 0) {
           dejaAudio.currentTime = currentTime;
         }
@@ -4566,11 +4596,17 @@ function formatLyricsOffset(offset) {
 }
 
 function adjustedLyricsPosition(currentTime, offsetSec = 0) {
-  return Math.max(0, Math.round((currentTime - (offsetSec + BASELINE_ACOUSTIC_OFFSET)) * 1000) / 1000);
+  const smartCal = (typeof bitchordSettings === 'undefined' || bitchordSettings.smartVersionAlignment !== false)
+    ? BASELINE_ACOUSTIC_OFFSET
+    : 0;
+  return Math.max(0, Math.round((currentTime - (offsetSec + smartCal)) * 1000) / 1000);
 }
 
 function adjustedLyricsSeekTarget(lineTime, offsetSec = 0) {
-  return Math.max(0, Math.round((lineTime + (offsetSec + BASELINE_ACOUSTIC_OFFSET)) * 1000) / 1000);
+  const smartCal = (typeof bitchordSettings === 'undefined' || bitchordSettings.smartVersionAlignment !== false)
+    ? BASELINE_ACOUSTIC_OFFSET
+    : 0;
+  return Math.max(0, Math.round((lineTime + (offsetSec + smartCal)) * 1000) / 1000);
 }
 
 function nudgeLyricsOffset(delta, reset = false) {
@@ -4833,8 +4869,13 @@ async function resolveSyncedLyrics(track, forceRefresh = false) {
   }
 
   try {
+    const configuredSources = (typeof bitchordSettings !== 'undefined' && Array.isArray(bitchordSettings.lyricsSourcesConfig))
+      ? bitchordSettings.lyricsSourcesConfig.filter(s => s && s.enabled !== false).map(s => s.id)
+      : ['BiniLyrics', 'BetterLyrics', 'SimpMusic', 'LyricsPlus', 'LRCLIB'];
+    const lrcLibEnabled = configuredSources.includes('LRCLIB');
+
     let resolved = null;
-    if (api?.getLyrics) {
+    if (configuredSources.length > 0 && api?.getLyrics) {
       const vid = track.videoId || (typeof track.id === 'string' && track.id.startsWith('yt-') ? track.id.slice(3) : (typeof track.id === 'string' && /^[A-Za-z0-9_-]{11}$/.test(track.id) ? track.id : null));
       const rawAlbum = (track.album || '').trim();
       const sanitizedAlbum = (rawAlbum && !/^(youtube music|single|song|video|album|ep|deja)$/i.test(rawAlbum) && rawAlbum.toLowerCase() !== cleanTitle.toLowerCase())
@@ -4845,11 +4886,12 @@ async function resolveSyncedLyrics(track, forceRefresh = false) {
         title: cleanTitle,
         artist: cleanArtist,
         duration: verifiedDuration,
-        album: sanitizedAlbum
+        album: sanitizedAlbum,
+        sources: configuredSources
       });
     }
 
-    if (!resolved && typeof fetch === 'function' && cleanTitle) {
+    if (!resolved && lrcLibEnabled && typeof fetch === 'function' && cleanTitle) {
       const durationParam = verifiedDuration > 0 ? verifiedDuration : null;
       const artistCandidates = [cleanArtist, primaryArtist].filter(Boolean);
       const uniqueArtists = [...new Set(artistCandidates)];
@@ -5695,8 +5737,20 @@ function updateSyncedLyrics(forceScroll = false) {
 
   if (isSynced) {
     const userOffset = getTrackLyricsOffset(track);
+    let smartAlignOffset = 0;
+    if (typeof bitchordSettings === 'undefined' || bitchordSettings.smartVersionAlignment !== false) {
+      if (typeof track._smartAlignmentOffsetSec === 'number') {
+        smartAlignOffset = track._smartAlignmentOffsetSec;
+      } else if (isVideoModeActive && track.duration && lines.length > 2) {
+        const lastLyricTime = lines[lines.length - 1]?.time || 0;
+        const delta = track.duration - lastLyricTime;
+        if (delta >= 8 && delta <= 45) {
+          smartAlignOffset = Math.min(20, Math.round((delta - 6) * 10) / 10);
+        }
+      }
+    }
     // True zero-lag lyrics clock (matching BitChord LyricClock.kt adjustedLyricsPosition)
-    exactLyricsTime = Math.max(0, currentTime - userOffset);
+    exactLyricsTime = Math.max(0, currentTime - userOffset - smartAlignOffset);
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].time <= exactLyricsTime) {
         activeIndex = i;
@@ -6158,17 +6212,36 @@ function adjustVolume(delta) {
   applyVolume(currentVolume);
 }
 
+function getLoudnessCeiling() {
+  if (typeof bitchordSettings === 'undefined' || !bitchordSettings.loudnessNormalization) return 1.0;
+  if (currentStreamMeta && typeof currentStreamMeta.loudnessDb === 'number' && currentStreamMeta.loudnessDb > 0) {
+    return Math.max(0.5, Math.min(0.95, Math.pow(10, -currentStreamMeta.loudnessDb / 20)));
+  }
+  return 0.92;
+}
+
 function applyVolume(vol) {
-  const fill = document.getElementById('volume-fill');
-  if (fill) fill.style.width = `${vol * 100}%`;
-  const expFill = document.getElementById('exp-volume-fill');
-  if (expFill) expFill.style.width = `${vol * 100}%`;
+  if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+    const fill = document.getElementById('volume-fill');
+    if (fill) fill.style.width = `${vol * 100}%`;
+    const expFill = document.getElementById('exp-volume-fill');
+    if (expFill) expFill.style.width = `${vol * 100}%`;
+  }
+
+  const normFactor = (typeof bitchordSettings !== 'undefined' && bitchordSettings.loudnessNormalization) ? 0.88 : 1.0;
+  const spatialBoost = (typeof bitchordSettings !== 'undefined' && bitchordSettings.spatialAudio) ? 1.06 : 1.0;
+  const targetMasterGain = Math.min(1.0, (isMuted ? 0 : vol) * 0.2 * normFactor * spatialBoost);
 
   if (masterGain && audioContext) {
-    masterGain.gain.setValueAtTime(vol * 0.2, audioContext.currentTime);
+    if (typeof masterGain.gain.setValueAtTime === 'function') {
+      masterGain.gain.setValueAtTime(targetMasterGain, audioContext.currentTime || 0);
+    } else {
+      masterGain.gain.value = targetMasterGain;
+    }
   }
   if (dejaAudio) {
-    dejaAudio.volume = isMuted ? 0 : vol;
+    const normCeiling = getLoudnessCeiling();
+    dejaAudio.volume = isMuted ? 0 : Math.max(0, Math.min(1, vol * normCeiling));
   }
   if (isYtReady && ytPlayer && typeof ytPlayer.setVolume === 'function') {
     try {
@@ -6176,7 +6249,8 @@ function applyVolume(vol) {
         ytPlayer.mute();
       } else {
         ytPlayer.unMute();
-        ytPlayer.setVolume(Math.round(vol * 100));
+        const normCeiling = getLoudnessCeiling();
+        ytPlayer.setVolume(Math.round(vol * normCeiling * 100));
       }
     } catch {}
   }
@@ -6247,6 +6321,17 @@ function notifyTrackState() {
         coverUrl: track.cover,
         isAd: !!track.isAd
       });
+    }
+    if (isPlaying && !track.isAd && typeof bitchordSettings !== 'undefined' && (bitchordSettings.lastfmEnabled || bitchordSettings.listenBrainzEnabled)) {
+      window.__dejaLastScrobble = {
+        title: track.title,
+        artist: track.artist,
+        album: track.album,
+        duration: track.duration,
+        timestamp: Math.floor(Date.now() / 1000),
+        lastfm: Boolean(bitchordSettings.lastfmEnabled),
+        listenBrainz: Boolean(bitchordSettings.listenBrainzEnabled)
+      };
     }
   }
 }
@@ -7337,8 +7422,8 @@ function setupEvents() {
       }
 
       // 3. If lyrics drawer, song menu, or queue drawer is open, dismiss it
-      const lyricsDrawer = document.getElementById('lyrics-drawer');
-      if (lyricsDrawer && lyricsDrawer.classList.contains('visible')) {
+      const lyricsDrawer = document.getElementById('apple-lyrics-drawer') || document.getElementById('lyrics-drawer');
+      if (lyricsDrawer && (lyricsDrawer.classList.contains('visible') || lyricsDrawer.classList.contains('active'))) {
         closeLyricsDrawer();
         return;
       }
@@ -7349,7 +7434,7 @@ function setupEvents() {
       }
       const queueDrawer = document.getElementById('apple-queue-drawer');
       if (queueDrawer && (queueDrawer.classList.contains('visible') || queueDrawer.classList.contains('active'))) {
-        queueDrawer.classList.remove('visible', 'active');
+        closeQueueDrawer();
         return;
       }
 
@@ -7424,17 +7509,22 @@ function setupIPC() {
 }
 
 function applyAppTheme(theme) {
-  if (typeof document === 'undefined') return;
-  document.body.classList.remove('apple-dark', 'apple-light', 'pure-black');
+  if (typeof document === 'undefined' || !document.body || !document.body.classList) return;
+  if (typeof document.body.classList.remove === 'function') {
+    document.body.classList.remove('apple-dark', 'apple-light', 'pure-black');
+  }
+  const addCls = (cls) => {
+    if (typeof document.body.classList.add === 'function') document.body.classList.add(cls);
+  };
   if (theme === 'light') {
-    document.body.classList.add('apple-light');
+    addCls('apple-light');
   } else if (theme === 'pure-black') {
-    document.body.classList.add('pure-black');
+    addCls('pure-black');
   } else if (theme === 'system') {
     const prefersLight = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: light)').matches;
-    document.body.classList.add(prefersLight ? 'apple-light' : 'apple-dark');
+    addCls(prefersLight ? 'apple-light' : 'apple-dark');
   } else {
-    document.body.classList.add('apple-dark');
+    addCls('apple-dark');
   }
 }
 
@@ -7663,6 +7753,29 @@ function applyBitChordVisualSettings() {
   if (!bitchordSettings.animatedCanvas && typeof stopAllVideoElements === 'function' && !isVideoModeActive) {
     stopAllVideoElements();
   }
+
+  const rawLang = String(bitchordSettings.appLanguage || 'English (System)');
+  const langMap = {
+    Spanish: 'es',
+    French: 'fr',
+    German: 'de',
+    Japanese: 'ja',
+    Korean: 'ko',
+    Hindi: 'hi'
+  };
+  let langCode = 'en';
+  for (const [key, code] of Object.entries(langMap)) {
+    if (rawLang.includes(key)) {
+      langCode = code;
+      break;
+    }
+  }
+  if (document.documentElement) {
+    document.documentElement.lang = langCode;
+  }
+  if (document.body.dataset) {
+    document.body.dataset.appLang = langCode;
+  }
 }
 
 function computeDynamicTonePadGains(x, y) {
@@ -7725,7 +7838,7 @@ function applyBitChordAudioDspSettings() {
   }
 
   if (typeof dejaAudio !== 'undefined' && dejaAudio && !isMuted) {
-    const normCeiling = bitchordSettings.loudnessNormalization ? 0.92 : 1.0;
+    const normCeiling = getLoudnessCeiling();
     dejaAudio.volume = Math.max(0, Math.min(1, currentVolume * normCeiling));
   }
 
@@ -7796,7 +7909,7 @@ function handleBitChordPlaybackTick(audioEl) {
     : (Number(bitchordSettings.crossfadeSeconds) || 0);
 
   if (fadeWindow > 0 && dur > fadeWindow * 2 && !isMuted) {
-    const normCeiling = bitchordSettings.loudnessNormalization ? 0.92 : 1.0;
+    const normCeiling = getLoudnessCeiling();
     const baseVol = Math.max(0, Math.min(1, currentVolume * normCeiling));
     if (rem <= fadeWindow && rem > 0) {
       const ratio = Math.max(0.08, rem / fadeWindow);
@@ -7858,6 +7971,14 @@ function syncEqualizerModalUI() {
     const val = Number(bands[i]) || 0;
     if (slider) slider.value = String(val);
     if (dbEl) dbEl.textContent = `${val > 0 ? '+' : ''}${val.toFixed(1)} dB`;
+  }
+
+  const presetWrap = document.getElementById('eq-preset-pills');
+  if (presetWrap && typeof presetWrap.querySelectorAll === 'function') {
+    presetWrap.querySelectorAll('.eq-preset-btn').forEach(btn => {
+      const pName = btn.getAttribute('data-preset') || btn.textContent.trim();
+      btn.classList.toggle('active', pName === (currentEqPreset || 'Flat'));
+    });
   }
 
   const puck = document.getElementById('eq-tone-puck');
@@ -7932,16 +8053,6 @@ function initEqualizerModalControls() {
         }
         bitchordSettings.equalizerBands[i] = v;
         currentEqPreset = 'Custom';
-        EQ_PRESETS['Custom'] = {
-          b60: bitchordSettings.equalizerBands[0],
-          b250: bitchordSettings.equalizerBands[1],
-          b1k: bitchordSettings.equalizerBands[2],
-          b4k: bitchordSettings.equalizerBands[3],
-          b12k: bitchordSettings.equalizerBands[4],
-          bass: bitchordSettings.equalizerBands[0],
-          mid: bitchordSettings.equalizerBands[2],
-          treble: bitchordSettings.equalizerBands[4]
-        };
         saveBitChordSettings();
         syncEqualizerModalUI();
       };
@@ -7973,16 +8084,6 @@ function initEqualizerModalControls() {
       bitchordSettings.tonePadY = ty;
       bitchordSettings.equalizerBands = computeDynamicTonePadGains(tx, ty);
       currentEqPreset = 'Dynamic Tone';
-      EQ_PRESETS['Dynamic Tone'] = {
-        b60: bitchordSettings.equalizerBands[0],
-        b250: bitchordSettings.equalizerBands[1],
-        b1k: bitchordSettings.equalizerBands[2],
-        b4k: bitchordSettings.equalizerBands[3],
-        b12k: bitchordSettings.equalizerBands[4],
-        bass: bitchordSettings.equalizerBands[0],
-        mid: bitchordSettings.equalizerBands[2],
-        treble: bitchordSettings.equalizerBands[4]
-      };
       saveBitChordSettings();
       syncEqualizerModalUI();
     };
@@ -8186,6 +8287,9 @@ function openAccountScrobblingSubModal() {
   });
 }
 
+let lastExportBackupStatus = '';
+let lastImportBackupStatus = '';
+
 function openSourcesSubModal() {
   const renderBody = () => {
     const sources = Array.isArray(bitchordSettings.addonSources) ? bitchordSettings.addonSources : [];
@@ -8196,11 +8300,14 @@ function openSourcesSubModal() {
         <div id="bc-sources-list">
           ${sources.map((src, idx) => `
             <div class="bc-source-item">
-              <div style="min-width:0; flex:1;">
-                <div style="font-weight:700; font-size:13px; color:var(--text-main);">${escapeHTML(src.name)}</div>
-                <div style="font-size:11px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis;">${escapeHTML(src.url)}</div>
-                <div style="font-size:11px; color:#4CD964; margin-top:2px;" id="bc-src-status-${idx}">${escapeHTML(src.status || 'Ready')}</div>
-              </div>
+              <label style="display:flex; align-items:center; gap:10px; min-width:0; flex:1; cursor:pointer;">
+                <input type="checkbox" data-toggle-src="${idx}" ${src.enabled !== false ? 'checked' : ''} />
+                <div style="min-width:0; flex:1;">
+                  <div style="font-weight:700; font-size:13px; color:var(--text-main);">${escapeHTML(src.name)}</div>
+                  <div style="font-size:11px; color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis;">${escapeHTML(src.url)}</div>
+                  <div style="font-size:11px; color:#4CD964; margin-top:2px;" id="bc-src-status-${idx}">${escapeHTML(src.status || 'Ready')}</div>
+                </div>
+              </label>
               <div style="display:flex; align-items:center; gap:6px;">
                 <button type="button" class="btn-eq-mini-reset" data-probe-src="${idx}">Health Check</button>
                 ${!src.builtIn ? `<button type="button" class="btn-eq-mini-reset" data-del-src="${idx}" style="color:#FF453A;">Remove</button>` : ''}
@@ -8224,6 +8331,16 @@ function openSourcesSubModal() {
       </div>
     `;
     openBitChordSubModal('Sources & Lossless Modules', html, (body) => {
+      body.querySelectorAll('[data-toggle-src]').forEach(cb => {
+        cb.onchange = (e) => {
+          const idx = Number(cb.getAttribute('data-toggle-src'));
+          if (bitchordSettings.addonSources[idx]) {
+            bitchordSettings.addonSources[idx].enabled = !!e.target.checked;
+            saveBitChordSettings();
+            if (currentView === 'settings') renderCurrentView();
+          }
+        };
+      });
       body.querySelectorAll('[data-probe-src]').forEach(btn => {
         btn.onclick = async () => {
           const idx = Number(btn.getAttribute('data-probe-src'));
@@ -8397,6 +8514,11 @@ function openLyricsSourcesSubModal() {
         bitchordSettings.lyricsSourcesConfig = list;
         bitchordSettings.lyricsSources = enabledIds.length > 0 ? enabledIds.join(', ') : 'None';
         saveBitChordSettings();
+        const curTrack = CATALOGUE_TRACKS[currentIndex];
+        if (curTrack) {
+          curTrack._lyricsResolved = false;
+          resolveSyncedLyrics(curTrack, true);
+        }
         if (currentView === 'settings') renderCurrentView();
       };
       body.querySelectorAll('[data-lyr-src-toggle]').forEach(cb => {
@@ -8462,9 +8584,46 @@ function openLocalMusicBrowserSubModal() {
         row.onclick = () => {
           const idx = Number(row.getAttribute('data-local-play'));
           const tr = scannedLocalMusicTracks[idx];
-          if (tr && dejaAudio && tr.fileUrl) {
-            dejaAudio.src = tr.fileUrl;
-            dejaAudio.play().catch(() => {});
+          if (tr && tr.fileUrl) {
+            let catIdx = CATALOGUE_TRACKS.findIndex(c => c.id === tr.id || c.fileUrl === tr.fileUrl);
+            if (catIdx === -1) {
+              const localItem = {
+                id: tr.id || `local-${Date.now()}`,
+                videoId: '',
+                fileUrl: tr.fileUrl,
+                title: tr.title || 'Local Track',
+                artist: tr.artist || 'Local Artist',
+                album: tr.album || 'Local Files',
+                duration: tr.duration || 180,
+                cover: tr.cover || CATALOGUE_TRACKS[0]?.cover || '',
+                palette: CATALOGUE_TRACKS[0]?.palette || ['#FA2D48', '#141419', '#2A1B24', '#FF6B81'],
+                lyrics: [{ time: 0, text: 'Local audio file playback' }]
+              };
+              CATALOGUE_TRACKS.push(localItem);
+              catIdx = CATALOGUE_TRACKS.length - 1;
+            }
+            currentIndex = catIdx;
+            currentTime = 0;
+            const activeLocal = CATALOGUE_TRACKS[currentIndex];
+            if (typeof document !== 'undefined') {
+              const pTitle = document.getElementById('player-title');
+              const pArtist = document.getElementById('player-artist');
+              const eTitle = document.getElementById('exp-title');
+              const eArtist = document.getElementById('exp-artist');
+              if (pTitle) pTitle.innerText = activeLocal.title;
+              if (pArtist) pArtist.innerText = activeLocal.artist;
+              if (eTitle) eTitle.innerText = activeLocal.title;
+              if (eArtist) eArtist.innerText = activeLocal.artist;
+            }
+            if (dejaAudio) {
+              isDirectStreamPlaying = true;
+              dejaAudio.src = tr.fileUrl;
+              const p = dejaAudio.play();
+              if (p && typeof p.catch === 'function') p.catch(() => {});
+              isPlaying = true;
+              updatePlayButton();
+              notifyTrackState();
+            }
             close();
           }
         };
@@ -8484,22 +8643,114 @@ function openLocalMusicBrowserSubModal() {
 function importBitChordBackupData(rawJson) {
   try {
     const data = typeof rawJson === 'string' ? JSON.parse(rawJson) : rawJson;
-    if (!data || typeof data !== 'object') return false;
-    if (data.settings && typeof data.settings === 'object') {
-      bitchordSettings = { ...DEFAULT_BITCHORD_SETTINGS, ...bitchordSettings, ...data.settings };
-      saveBitChordSettings();
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      lastImportBackupStatus = 'Invalid backup JSON file.';
+      return false;
     }
-    if (Array.isArray(data.customPlaylists)) {
-      customPlaylists = data.customPlaylists;
+
+    const incomingSettings = (data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings))
+      ? data.settings
+      : ((data.bitchordSettings && typeof data.bitchordSettings === 'object' && !Array.isArray(data.bitchordSettings))
+        ? data.bitchordSettings
+        : null);
+    const hasPlaylists = Array.isArray(data.customPlaylists);
+    const hasLoved = Array.isArray(data.lovedTrackIds);
+    const hasHistory = Array.isArray(data.months) || Array.isArray(data.history);
+
+    if (!incomingSettings && !hasPlaylists && !hasLoved && !hasHistory) {
+      lastImportBackupStatus = 'Invalid backup JSON file.';
+      return false;
+    }
+
+    if (incomingSettings) {
+      const sanitized = { ...incomingSettings };
+      if ('equalizerBands' in sanitized) {
+        if (Array.isArray(sanitized.equalizerBands)) {
+          sanitized.equalizerBands = [0, 1, 2, 3, 4].map(i => {
+            const v = Number(sanitized.equalizerBands[i]);
+            return Number.isFinite(v) ? Math.max(-12, Math.min(12, v)) : (Number(bitchordSettings.equalizerBands?.[i]) || 0);
+          });
+        } else {
+          delete sanitized.equalizerBands;
+        }
+      }
+      if ('lyricsSourcesConfig' in sanitized) {
+        if (Array.isArray(sanitized.lyricsSourcesConfig) && sanitized.lyricsSourcesConfig.length > 0) {
+          sanitized.lyricsSourcesConfig = sanitized.lyricsSourcesConfig
+            .filter(s => s && typeof s === 'object' && typeof s.id === 'string')
+            .map(s => ({ id: s.id, label: s.label || s.id, enabled: s.enabled !== false }));
+          if (sanitized.lyricsSourcesConfig.length === 0) {
+            delete sanitized.lyricsSourcesConfig;
+          }
+        } else {
+          delete sanitized.lyricsSourcesConfig;
+        }
+      }
+      if ('addonSources' in sanitized) {
+        if (Array.isArray(sanitized.addonSources) && sanitized.addonSources.length > 0) {
+          sanitized.addonSources = sanitized.addonSources
+            .filter(s => s && typeof s === 'object' && typeof s.name === 'string' && typeof s.url === 'string');
+          if (sanitized.addonSources.length === 0) {
+            delete sanitized.addonSources;
+          }
+        } else {
+          delete sanitized.addonSources;
+        }
+      }
+
+      Object.assign(bitchordSettings, DEFAULT_BITCHORD_SETTINGS, bitchordSettings, sanitized);
+
+      if (Array.isArray(bitchordSettings.equalizerBands) && bitchordSettings.equalizerBands.length === 5) {
+        const bands = bitchordSettings.equalizerBands.map(Number);
+        let matchedPreset = 'Custom';
+        for (const [presetName, pObj] of Object.entries(EQ_PRESETS)) {
+          if (!pObj || typeof pObj !== 'object') continue;
+          const pVals = [pObj.b60 || 0, pObj.b250 || 0, pObj.b1k || 0, pObj.b4k || 0, pObj.b12k || 0];
+          if (pVals.every((v, idx) => Math.abs(v - bands[idx]) < 0.05)) {
+            matchedPreset = presetName;
+            break;
+          }
+        }
+        currentEqPreset = matchedPreset;
+      }
+
+      saveBitChordSettings();
+      syncEqualizerModalUI();
+    }
+
+    if (hasPlaylists) {
+      customPlaylists = data.customPlaylists
+        .filter(pl => pl && typeof pl === 'object' && (typeof pl.title === 'string' || typeof pl.name === 'string'))
+        .map((pl, idx) => ({
+          id: pl.id || `custom-restored-${idx}`,
+          title: pl.title || pl.name,
+          name: pl.name || pl.title,
+          description: pl.description || '',
+          tracks: Array.isArray(pl.tracks) ? pl.tracks : [],
+          trackIds: Array.isArray(pl.trackIds) ? pl.trackIds : []
+        }));
       saveCustomPlaylists();
       updateSidebarPlaylistsUI(liveUserPlaylists);
     }
-    if (Array.isArray(data.lovedTrackIds)) {
-      data.lovedTrackIds.forEach(id => lovedTrackIds.add(id));
+
+    if (hasLoved) {
+      data.lovedTrackIds.forEach(id => {
+        if (id !== null && id !== undefined) lovedTrackIds.add(id);
+      });
     }
-    if (currentView === 'settings') renderCurrentView();
+
+    lastImportBackupStatus = 'Backup imported and restored successfully!';
+    if (currentView === 'settings') {
+      renderCurrentView();
+    } else if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+      const settingsCont = document.getElementById('settings-content');
+      if (settingsCont && settingsCont.innerHTML) {
+        renderSettingsView(settingsCont);
+      }
+    }
     return true;
   } catch {
+    lastImportBackupStatus = 'Invalid backup JSON file.';
     return false;
   }
 }
@@ -8594,7 +8845,9 @@ function renderSettingsView(container) {
   // Group 2: Audio Quality
   const g2Rows = [];
   if (matches('Sources', 'addon', 'lossless', 'flac', 'module', 'piped')) {
-    const srcCount = Array.isArray(bitchordSettings.addonSources) ? bitchordSettings.addonSources.length : 2;
+    const srcCount = Array.isArray(bitchordSettings.addonSources)
+      ? bitchordSettings.addonSources.filter(s => s && s.enabled !== false).length
+      : 2;
     g2Rows.push(`
       <div class="bitchord-settings-row" data-setting-action="open-sources">
         <div class="bitchord-settings-icon">
@@ -8738,7 +8991,10 @@ function renderSettingsView(container) {
       </div>
       <div class="bitchord-settings-subrow" data-setting-toggle="wifiOnlyDownloads">
         <div class="bitchord-settings-text">
-          <div class="bitchord-settings-row-title" style="font-size:13.5px;">Download over Wi-Fi only</div>
+          <div class="bitchord-settings-row-title" style="font-size:13.5px;">
+            <span>Download over Wi-Fi only</span>
+            ${bitchordSettings.wifiOnlyDownloads && bitchordSettings.meteredConnection ? '<span class="bitchord-settings-badge">BLOCKING</span>' : ''}
+          </div>
         </div>
         <div class="bitchord-switch ${bitchordSettings.wifiOnlyDownloads ? 'checked' : ''}"></div>
       </div>
@@ -9103,6 +9359,7 @@ function renderSettingsView(container) {
   // Group 7: Local Music & Storage
   const g7Rows = [];
   if (matches('Local Music Folder', 'folder', 'offline', 'files', 'Filter Non-Music Audio')) {
+    const hasCustomFolder = bitchordSettings.localMusicFolder && bitchordSettings.localMusicFolder !== 'All Audio Folders';
     g7Rows.push(`
       <div class="bitchord-settings-row" data-setting-action="pick-local-folder">
         <div class="bitchord-settings-icon">
@@ -9117,6 +9374,15 @@ function renderSettingsView(container) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
       </div>
+      ${hasCustomFolder ? `
+      <div class="bitchord-settings-subrow" data-setting-action="reset-local-folder" style="cursor:pointer;">
+        <div class="bitchord-settings-text">
+          <div class="bitchord-settings-row-title" style="font-size:13.5px;">Use All Audio Folders</div>
+          <div class="bitchord-settings-row-sub">Reset folder filter to scan Music/Deja and default system Music library</div>
+        </div>
+        <div class="bitchord-settings-trailing"><span>Reset</span></div>
+      </div>
+      ` : ''}
       <div class="bitchord-settings-subrow" data-setting-action="browse-local-music" style="cursor:pointer;">
         <div class="bitchord-settings-text">
           <div class="bitchord-settings-row-title" style="font-size:13.5px;">Scan &amp; Browse Local Audio Files</div>
@@ -9193,6 +9459,8 @@ function renderSettingsView(container) {
     `);
   }
   if (matches('Export Data', 'Import Data', 'backup', 'restore')) {
+    const expSubText = lastExportBackupStatus || 'Save your playlists, liked songs, listening history, and settings to JSON';
+    const impSubText = lastImportBackupStatus || 'Restore playlists, loved tracks, and BitChord settings from a backup JSON file';
     g8Rows.push(`
       <div class="bitchord-settings-row" data-setting-action="export-backup">
         <div class="bitchord-settings-icon">
@@ -9200,7 +9468,7 @@ function renderSettingsView(container) {
         </div>
         <div class="bitchord-settings-text">
           <div class="bitchord-settings-row-title">Export Backup Data</div>
-          <div class="bitchord-settings-row-sub" id="export-backup-sub">Save your playlists, liked songs, listening history, and settings to JSON</div>
+          <div class="bitchord-settings-row-sub" id="export-backup-sub">${escapeHTML(expSubText)}</div>
         </div>
         <div class="bitchord-settings-trailing"><span>Export JSON</span></div>
       </div>
@@ -9210,7 +9478,7 @@ function renderSettingsView(container) {
         </div>
         <div class="bitchord-settings-text">
           <div class="bitchord-settings-row-title">Import Backup Data</div>
-          <div class="bitchord-settings-row-sub" id="import-backup-sub">Restore playlists, loved tracks, and BitChord settings from a backup JSON file</div>
+          <div class="bitchord-settings-row-sub" id="import-backup-sub">${escapeHTML(impSubText)}</div>
         </div>
         <div class="bitchord-settings-trailing"><span>Import JSON</span></div>
       </div>
@@ -9499,6 +9767,7 @@ function renderSettingsView(container) {
     row.onclick = async () => {
       const act = row.getAttribute('data-setting-action');
       const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+      const getEl = (id) => (typeof document !== 'undefined' && typeof document.getElementById === 'function') ? document.getElementById(id) : null;
       if (act === 'open-account' || act === 'open-account-scrobbling') {
         openAccountScrobblingSubModal();
       } else if (act === 'open-sources') {
@@ -9516,15 +9785,22 @@ function renderSettingsView(container) {
             renderSettingsView(container);
           }
         }
+      } else if (act === 'reset-local-folder') {
+        if (api?.selectLocalMusicFolder) {
+          try { await api.selectLocalMusicFolder({ reset: true }); } catch {}
+        }
+        bitchordSettings.localMusicFolder = 'All Audio Folders';
+        saveBitChordSettings();
+        renderSettingsView(container);
       } else if (act === 'browse-local-music') {
         openLocalMusicBrowserSubModal();
       } else if (act === 'open-eq') {
         initEqualizerModalControls();
         syncEqualizerModalUI();
-        const eqM = document.getElementById('eq-modal');
+        const eqM = getEl('eq-modal');
         if (eqM) eqM.style.display = 'flex';
       } else if (act === 'open-pipeline') {
-        const pM = document.getElementById('pipeline-modal');
+        const pM = getEl('pipeline-modal');
         if (pM) pM.style.display = 'flex';
       } else if (act === 'open-replay') {
         currentView = 'replay';
@@ -9532,10 +9808,16 @@ function renderSettingsView(container) {
         renderCurrentView();
       } else if (act === 'clear-cache') {
         streamUrlCache.clear();
+        if (typeof trackCanvasCache !== 'undefined' && trackCanvasCache && typeof trackCanvasCache.clear === 'function') {
+          trackCanvasCache.clear();
+        }
+        if (typeof extractedPaletteCache !== 'undefined' && extractedPaletteCache && typeof extractedPaletteCache.clear === 'function') {
+          extractedPaletteCache.clear();
+        }
         if (api?.clearAudioCache) {
           try { await api.clearAudioCache(); } catch {}
         }
-        const sub = document.getElementById('clear-cache-status-sub');
+        const sub = getEl('clear-cache-status-sub');
         if (sub) sub.textContent = 'Cache cleared! All temporary audio, stream URLs & HTTP buffers freed.';
       } else if (act === 'export-backup') {
         try {
@@ -9550,16 +9832,17 @@ function renderSettingsView(container) {
           };
           const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
+          const a = typeof document !== 'undefined' ? document.createElement('a') : { click: () => {} };
           a.href = url;
           a.download = `deja-backup-${new Date().toISOString().slice(0, 10)}.json`;
           a.click();
           URL.revokeObjectURL(url);
-          const sub = document.getElementById('export-backup-sub');
-          if (sub) sub.textContent = 'Backup exported successfully!';
+          lastExportBackupStatus = 'Backup exported successfully!';
+          const sub = getEl('export-backup-sub');
+          if (sub) sub.textContent = lastExportBackupStatus;
         } catch {}
       } else if (act === 'import-backup') {
-        const fileIn = document.getElementById('bitchord-backup-file-input');
+        const fileIn = getEl('bitchord-backup-file-input');
         if (fileIn) {
           fileIn.value = '';
           fileIn.onchange = (ev) => {
@@ -9568,7 +9851,7 @@ function renderSettingsView(container) {
             const reader = new FileReader();
             reader.onload = () => {
               const ok = importBitChordBackupData(String(reader.result || ''));
-              const sub = document.getElementById('import-backup-sub');
+              const sub = getEl('import-backup-sub');
               if (sub) sub.textContent = ok ? 'Backup imported and restored successfully!' : 'Invalid backup JSON file.';
             };
             reader.readAsText(f);
@@ -9585,8 +9868,8 @@ function renderSettingsView(container) {
       } else if (act === 'open-downloads-folder') {
         if (api?.openDownloadsFolder) api.openDownloadsFolder();
       } else if (act === 'check-updates') {
-        const sub = document.getElementById('settings-update-status-sub');
-        const badge = document.getElementById('settings-update-badge');
+        const sub = getEl('settings-update-status-sub');
+        const badge = getEl('settings-update-badge');
         if (sub) sub.textContent = 'Checking GitHub Releases for newer version...';
         if (api?.checkForUpdates) {
           api.checkForUpdates().then(info => {
@@ -10077,7 +10360,8 @@ function attachChromelessVideoSource(videoEl, streamData, syncWithAudio) {
 
 async function resolveTrackCanvasOrVideo(track) {
   if (!track) return null;
-  const cacheKey = `${track.videoId || ''}::${track.title || ''}::${track.artist || ''}`;
+  const spotifyCanvas = Boolean(typeof bitchordSettings !== 'undefined' && bitchordSettings.spotifyCanvasConnected);
+  const cacheKey = `${track.videoId || ''}::${track.title || ''}::${track.artist || ''}::${spotifyCanvas ? 'sp' : 'std'}`;
   if (trackCanvasCache.has(cacheKey)) {
     return trackCanvasCache.get(cacheKey);
   }
@@ -10089,7 +10373,8 @@ async function resolveTrackCanvasOrVideo(track) {
       videoId: track.videoId || '',
       title: track.title || '',
       artist: track.artist || '',
-      album: track.album || ''
+      album: track.album || '',
+      spotifyCanvasConnected: spotifyCanvas
     });
     if (streamData && streamData.url) {
       trackCanvasCache.set(cacheKey, streamData);
@@ -10616,7 +10901,12 @@ if (typeof module !== 'undefined' && module.exports) {
     LyricClockReconciler,
     lyricClockReconciler,
     renderSettingsView,
-    renderReplayView
+    renderReplayView,
+    streamUrlCache,
+    applyVolume,
+    getLoudnessCeiling,
+    notifyTrackState,
+    resolveTrackCanvasOrVideo
   };
 }
 

@@ -1658,19 +1658,56 @@ function runBitChordArchitectureTests() {
   const dictTranslated = previewModule.getInlineLyricTranslation('love in the night', 'Spanish');
   assert.ok(dictTranslated.includes('amor') && dictTranslated.includes('noche'), 'Dictionary translation must translate known words into target language');
 
-  // Test Backup Import & Settings update edge cases
+  // Test Backup Import & Settings update edge cases (malformed, empty array, empty object, partial/corrupted arrays, and live EQ slider sync)
   assert.strictEqual(previewModule.importBitChordBackupData('not-valid-json{{{'), false, 'Invalid JSON backup must return false safely');
   assert.strictEqual(previewModule.importBitChordBackupData(null), false, 'Null backup input must return false safely');
-  const backupOk = previewModule.importBitChordBackupData(JSON.stringify({
-    settings: { crossfadeSeconds: 7, translationLanguage: 'Spanish', stereoBalance: -25 }
-  }));
-  assert.strictEqual(backupOk, true, 'Valid backup JSON must import and return true');
-  assert.strictEqual(previewModule.getBitChordSettings().crossfadeSeconds, 7);
-  assert.strictEqual(previewModule.getBitChordSettings().translationLanguage, 'Spanish');
-  assert.strictEqual(previewModule.getBitChordSettings().stereoBalance, -25);
-  previewModule.updateBitChordSetting('translationLanguage', 'Off');
-  previewModule.updateBitChordSetting('crossfadeSeconds', 0);
-  previewModule.updateBitChordSetting('stereoBalance', 0);
+  assert.strictEqual(previewModule.importBitChordBackupData('[]'), false, 'Empty array JSON must be rejected as an invalid backup');
+  assert.strictEqual(previewModule.importBitChordBackupData('{}'), false, 'Empty object JSON without recognizable backup keys must be rejected');
+  assert.strictEqual(previewModule.importBitChordBackupData(JSON.stringify({ unrelatedKey: 123 })), false, 'Unrelated JSON object must be rejected');
+
+  const prevDocEq = global.document;
+  try {
+    const eqSliders = [0, 1, 2, 3, 4].map(() => ({ value: '0' }));
+    const eqLabels = [0, 1, 2, 3, 4].map(() => ({ textContent: '0.0 dB' }));
+    global.document = {
+      getElementById: (id) => {
+        if (id && id.startsWith('eq-band-')) return eqSliders[Number(id.replace('eq-band-', ''))] || null;
+        if (id && id.startsWith('eq-db-')) return eqLabels[Number(id.replace('eq-db-', ''))] || null;
+        return null;
+      },
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      documentElement: { lang: 'en' },
+      body: { classList: { toggle: () => {} }, dataset: {} }
+    };
+
+    const backupOk = previewModule.importBitChordBackupData(JSON.stringify({
+      settings: {
+        crossfadeSeconds: 7,
+        translationLanguage: 'Spanish',
+        stereoBalance: -25,
+        equalizerBands: [5, 'invalid', 99, -20, 2.5],
+        lyricsSourcesConfig: 'not-an-array',
+        addonSources: [{ id: 'bad' }]
+      },
+      customPlaylists: [{ id: 'pl-restored', title: 'Restored Mix', trackIds: ['t1'] }]
+    }));
+    assert.strictEqual(backupOk, true, 'Valid backup JSON must import and return true');
+    assert.strictEqual(previewModule.getBitChordSettings().crossfadeSeconds, 7);
+    assert.strictEqual(previewModule.getBitChordSettings().translationLanguage, 'Spanish');
+    assert.strictEqual(previewModule.getBitChordSettings().stereoBalance, -25);
+    assert.deepStrictEqual(previewModule.getBitChordSettings().equalizerBands, [5, 0, 12, -12, 2.5], 'Corrupted equalizerBands entries must be sanitized and clamped to [-12, +12] dB');
+    assert.strictEqual(eqSliders[0].value, '5', 'Importing backup must immediately sync #eq-band-0 slider position');
+    assert.strictEqual(eqSliders[2].value, '12', 'Importing backup must immediately sync #eq-band-2 slider position');
+    assert.ok(Array.isArray(previewModule.getBitChordSettings().lyricsSourcesConfig) && previewModule.getBitChordSettings().lyricsSourcesConfig.length >= 4, 'Invalid lyricsSourcesConfig in backup must fall back to valid defaults');
+    assert.ok(Array.isArray(previewModule.getBitChordSettings().addonSources) && previewModule.getBitChordSettings().addonSources.length >= 2, 'Invalid addonSources in backup must fall back to valid defaults');
+  } finally {
+    global.document = prevDocEq;
+    previewModule.updateBitChordSetting('translationLanguage', 'Off');
+    previewModule.updateBitChordSetting('crossfadeSeconds', 0);
+    previewModule.updateBitChordSetting('stereoBalance', 0);
+    previewModule.updateBitChordSetting('equalizerBands', [0, 0, 0, 0, 0]);
+  }
 
   // Test renderSettingsView and renderReplayView DOM output & interactive handlers
   assert.ok(html.includes('id="bitchord-backup-file-input"'), 'preview.html must include hidden #bitchord-backup-file-input for JSON backup restore');
@@ -1690,11 +1727,16 @@ function runBitChordArchitectureTests() {
       getAttribute: (name) => name === 'data-setting-cycle' ? 'translationLanguage' : 'Off|Spanish|French'
     }
   ];
+  const clearCacheActionBtn = {
+    onclick: null,
+    getAttribute: (name) => name === 'data-setting-action' ? 'clear-cache' : null
+  };
   const mockSettingsContainer = {
     innerHTML: '',
     querySelectorAll: (sel) => {
       if (sel === '[data-setting-toggle]') return toggleRows;
       if (sel === '[data-setting-cycle]') return cycleRows;
+      if (sel === '[data-setting-action]') return [clearCacheActionBtn];
       return [];
     }
   };
@@ -1703,6 +1745,13 @@ function runBitChordArchitectureTests() {
   assert.ok(mockSettingsContainer.innerHTML.includes('Sources &amp; Lossless Modules'), 'Settings view must render Sources & Lossless Modules row');
   assert.ok(mockSettingsContainer.innerHTML.includes('Equalizer &amp; Tone Pad'), 'Settings view must render Equalizer & Tone Pad row');
   assert.ok(mockSettingsContainer.innerHTML.includes('Import Backup Data'), 'Settings view must render Import Backup Data row');
+
+  // Verify clicking clear-cache action clears streamUrlCache without ReferenceError
+  assert.ok(previewModule.streamUrlCache instanceof Map, 'streamUrlCache must be an exported Map');
+  previewModule.streamUrlCache.set('test-video::High', { url: 'https://example.com/audio.webm' });
+  assert.strictEqual(typeof clearCacheActionBtn.onclick, 'function', 'clear-cache action row must bind onclick');
+  clearCacheActionBtn.onclick();
+  assert.strictEqual(previewModule.streamUrlCache.size, 0, 'Clicking clear-cache action must clear streamUrlCache without ReferenceError');
 
   // Verify clicking syncedLyrics / lyricsBlur toggles and translationLanguage cycle does not throw ReferenceError
   assert.strictEqual(typeof toggleRows[0].onclick, 'function');
@@ -1715,6 +1764,51 @@ function runBitChordArchitectureTests() {
   cycleRows[0].onclick();
   assert.strictEqual(previewModule.getBitChordSettings().translationLanguage, 'Spanish', 'Clicking translationLanguage cycle row must advance to Spanish');
   previewModule.updateBitChordSetting('translationLanguage', 'Off');
+
+  // Verify applyVolume respects loudnessNormalization and getLoudnessCeiling
+  previewModule.updateBitChordSetting('loudnessNormalization', true);
+  assert.ok(previewModule.getLoudnessCeiling() < 1.0 && previewModule.getLoudnessCeiling() > 0.5, 'getLoudnessCeiling must attenuate when loudnessNormalization is enabled');
+  previewModule.applyVolume(1.0);
+  if (previewModule.dejaAudio) {
+    assert.ok(previewModule.dejaAudio.volume < 1.0, 'applyVolume(1.0) must preserve loudnessNormalization ceiling on dejaAudio.volume');
+  }
+  previewModule.updateBitChordSetting('loudnessNormalization', false);
+  assert.strictEqual(previewModule.getLoudnessCeiling(), 1.0, 'getLoudnessCeiling must be 1.0 when loudnessNormalization is disabled');
+
+  // Verify smartVersionAlignment shifts adjustedLyricsPosition
+  previewModule.updateBitChordSetting('smartVersionAlignment', true);
+  const alignedPos = previewModule.adjustedLyricsPosition(10);
+  previewModule.updateBitChordSetting('smartVersionAlignment', false);
+  const rawPos = previewModule.adjustedLyricsPosition(10);
+  assert.ok(Math.abs(rawPos - alignedPos - 0.20) < 0.001, 'smartVersionAlignment must apply 0.20s acoustic/version lead-in alignment');
+  previewModule.updateBitChordSetting('smartVersionAlignment', true);
+
+  // Verify innertube.extractBestAudioFormat respects quality ceilings and dolbyAtmos
+  const mockFormatPayload = {
+    playabilityStatus: { status: 'OK' },
+    videoDetails: { lengthSeconds: '200' },
+    playerConfig: { audioConfig: { loudnessDb: 3.5 } },
+    streamingData: {
+      adaptiveFormats: [
+        { itag: 249, mimeType: 'audio/webm; codecs="opus"', bitrate: 58000, url: 'https://example.com/64k' },
+        { itag: 140, mimeType: 'audio/mp4; codecs="mp4a.40.2"', bitrate: 128000, url: 'https://example.com/128k' },
+        { itag: 251, mimeType: 'audio/webm; codecs="opus"', bitrate: 165000, url: 'https://example.com/256k' },
+        { itag: 380, mimeType: 'audio/mp4; codecs="ec-3"', bitrate: 384000, audioChannels: 6, url: 'https://example.com/atmos' }
+      ]
+    }
+  };
+  const dataSaverFmt = innertube.extractBestAudioFormat(mockFormatPayload, { quality: 'Data Saver (64 kbps)', dolbyAtmos: false });
+  assert.strictEqual(dataSaverFmt.itag, 249, 'Data Saver (64 kbps) must select low-bitrate format (itag 249)');
+  assert.strictEqual(dataSaverFmt.loudnessDb, 3.5, 'extractBestAudioFormat must include loudnessDb from playerConfig');
+  const normalFmt = innertube.extractBestAudioFormat(mockFormatPayload, { quality: 'Normal (128 kbps)', dolbyAtmos: false });
+  assert.strictEqual(normalFmt.itag, 140, 'Normal (128 kbps) must select ~128 kbps format (itag 140)');
+  const highFmt = innertube.extractBestAudioFormat(mockFormatPayload, { quality: 'High (256 kbps)', dolbyAtmos: false });
+  assert.strictEqual(highFmt.itag, 251, 'High (256 kbps) with dolbyAtmos=false must select highest stereo format (itag 251)');
+  const atmosFmt = innertube.extractBestAudioFormat(mockFormatPayload, { quality: 'High (256 kbps)', dolbyAtmos: true });
+  assert.strictEqual(atmosFmt.itag, 380, 'dolbyAtmos=true must prioritize E-AC-3 multi-channel spatial format (itag 380)');
+  innertube.getLyrics({ title: 'Starboy', artist: 'The Weeknd', duration: 230, sources: [] }).then(disabledSourcesLyrics => {
+    assert.strictEqual(disabledSourcesLyrics, null, 'innertube.getLyrics must return null immediately when all lyrics sources are disabled (sources: [])');
+  });
 
   // Test handleBitChordPlaybackTick (skipSilence intro fast-forward & crossfade envelope)
   previewModule.updateBitChordSetting('skipSilence', true);
