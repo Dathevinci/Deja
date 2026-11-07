@@ -1861,6 +1861,40 @@ function runBitChordArchitectureTests() {
   previewModule.renderReplayView(mockReplayContainer);
   assert.ok(mockReplayContainer.innerHTML.includes('MINUTES LISTENED') && mockReplayContainer.innerHTML.includes('Top Genres'), 'Replay view must render stats cards and Top Genres section');
 
+  // 19. 2-Bit Dither NSIS Setup UI & Bitmap Assets Verification
+  const pkgJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
+  assert.ok(pkgJson.build && pkgJson.build.nsis, 'package.json must define build.nsis configuration');
+  assert.strictEqual(pkgJson.build.nsis.installerHeader, 'assets/installerHeader.bmp', 'NSIS must use 2-Bit installerHeader.bmp');
+  assert.strictEqual(pkgJson.build.nsis.installerSidebar, 'assets/installerSidebar.bmp', 'NSIS must use 2-Bit installerSidebar.bmp');
+  assert.strictEqual(pkgJson.build.nsis.uninstallerSidebar, 'assets/uninstallerSidebar.bmp', 'NSIS must use 2-Bit uninstallerSidebar.bmp');
+  assert.strictEqual(pkgJson.build.nsis.include, 'assets/installer.nsh', 'NSIS must include custom 2-Bit theme script assets/installer.nsh');
+
+  for (const bmpSpec of [
+    { file: 'installerSidebar.bmp', width: 164, height: 314 },
+    { file: 'uninstallerSidebar.bmp', width: 164, height: 314 },
+    { file: 'installerHeader.bmp', width: 150, height: 57 }
+  ]) {
+    const bmpPath = path.join(__dirname, '../assets', bmpSpec.file);
+    assert.ok(fs.existsSync(bmpPath), `${bmpSpec.file} must exist in assets/`);
+    const bmpBuf = fs.readFileSync(bmpPath);
+    assert.strictEqual(bmpBuf.toString('ascii', 0, 2), 'BM', `${bmpSpec.file} must have valid Windows BM header`);
+    assert.strictEqual(bmpBuf.readInt32LE(18), bmpSpec.width, `${bmpSpec.file} width must be ${bmpSpec.width}px`);
+    assert.strictEqual(bmpBuf.readInt32LE(22), bmpSpec.height, `${bmpSpec.file} height must be ${bmpSpec.height}px`);
+    assert.strictEqual(bmpBuf.readUInt16LE(28), 24, `${bmpSpec.file} must be 24-bit RGB`);
+    assert.strictEqual(bmpBuf.readUInt32LE(30), 0, `${bmpSpec.file} must use BI_RGB uncompressed encoding`);
+  }
+
+  const nshPath = path.join(__dirname, '../assets/installer.nsh');
+  assert.ok(fs.existsSync(nshPath), 'assets/installer.nsh must exist');
+  const nshCode = fs.readFileSync(nshPath, 'utf8');
+  assert.ok(nshCode.includes('!define MUI_BGCOLOR "0B090A"'), 'installer.nsh must set Bit 00 Obsidian #0B090A background');
+  assert.ok(nshCode.includes('!define MUI_TEXTCOLOR "F4EFEA"'), 'installer.nsh must set Bit 11 Bone Ivory #F4EFEA text color');
+  assert.ok(nshCode.includes('!define MUI_DIRECTORYPAGE_BGCOLOR "1B1518"'), 'installer.nsh must set 2-Bit panel #1B1518 directory input background');
+  assert.ok(nshCode.includes('DwmSetWindowAttribute'), 'installer.nsh must enable Windows 10/11 dark titlebar & Crimson border via DwmSetWindowAttribute');
+  assert.ok(nshCode.includes('!macro DejaTwoBitApplyPageTheme'), 'installer.nsh must define DejaTwoBitApplyPageTheme macro');
+  assert.ok(nshCode.includes('!macro customWelcomePage'), 'installer.nsh must define customWelcomePage macro');
+  assert.ok(nshCode.includes('BrandingText "DEJA v${VERSION} // 2-BIT UI"'), 'installer.nsh must set 2-Bit versioned BrandingText');
+
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
 
