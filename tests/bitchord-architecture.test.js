@@ -1890,6 +1890,11 @@ function runBitChordArchitectureTests() {
   assert.ok(nshCode.includes('!define MUI_BGCOLOR "0B090A"'), 'installer.nsh must set Bit 00 Obsidian #0B090A background');
   assert.ok(nshCode.includes('!define MUI_TEXTCOLOR "F4EFEA"'), 'installer.nsh must set Bit 11 Bone Ivory #F4EFEA text color');
   assert.ok(nshCode.includes('!define MUI_DIRECTORYPAGE_BGCOLOR "1B1518"'), 'installer.nsh must set 2-Bit panel #1B1518 directory input background');
+  assert.ok(nshCode.includes('!define MUI_FORCECLASSICCONTROLS'), 'installer.nsh must define MUI_FORCECLASSICCONTROLS so Finish page checkboxes respect SetCtlColors');
+  assert.ok(nshCode.includes('!define MUI_FINISHPAGE_TEXT_LARGE'), 'installer.nsh must define MUI_FINISHPAGE_TEXT_LARGE so Finish page body text is never clipped');
+  assert.ok(nshCode.includes('${If} $DejaFontMono == ""'), 'installer.nsh DejaTwoBitInitFonts must check for empty string "" so CreateFont executes on uninitialized NSIS Var');
+  assert.ok(nshCode.includes('DarkMode_Explorer'), 'installer.nsh must apply DarkMode_Explorer visual style to Win32 push buttons');
+  assert.ok(nshCode.includes('FindWindowExW(p $HWNDPARENT, p r0, w "#32770", p 0)'), 'installer.nsh must iterate all #32770 child dialogs of $HWNDPARENT so Finish page dialog is styled');
   assert.ok(nshCode.includes('DwmSetWindowAttribute'), 'installer.nsh must enable Windows 10/11 dark titlebar & Crimson border via DwmSetWindowAttribute');
   assert.ok(nshCode.includes('!macro DejaTwoBitApplyPageTheme'), 'installer.nsh must define DejaTwoBitApplyPageTheme macro');
   assert.ok(nshCode.includes('!macro customWelcomePage'), 'installer.nsh must define customWelcomePage macro');
