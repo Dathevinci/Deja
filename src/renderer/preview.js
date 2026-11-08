@@ -1319,15 +1319,15 @@ function setupNavigation() {
     });
   });
 
-  // BitChord 4-Tab Floating Glass Navigation Bar (NavBar.kt)
-  const bcNavItems = document.querySelectorAll('.bc-nav-item[data-bc-tab]');
+  // BitChord 4-Tab Floating Glass Navigation Bar (GlassNavBar.kt / FloatingBottomBar.kt)
+  const bcNavItems = document.querySelectorAll('.bc-nav-tab[data-bc-tab], .bc-nav-item[data-bc-tab]');
   bcNavItems.forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.onclick = () => {
       const tab = btn.getAttribute('data-bc-tab');
       if (tab) {
         navigateTo(tab);
       }
-    });
+    };
   });
 
   // BitChord FrostedTopBar controls (FrostedTopBar.kt)
@@ -1362,9 +1362,13 @@ function setupNavigation() {
   const mainScroll = document.getElementById('main-content-scroll');
   if (mainScroll && typeof mainScroll.addEventListener === 'function') {
     mainScroll.addEventListener('scroll', () => {
+      const scrolled = mainScroll.scrollTop > 56;
       const collapsedTitle = document.getElementById('bc-top-collapsed-title');
-      if (collapsedTitle) {
-        collapsedTitle.classList.toggle('visible', mainScroll.scrollTop > 56);
+      if (collapsedTitle && collapsedTitle.classList) {
+        collapsedTitle.classList.toggle('visible', scrolled);
+      }
+      if (document.body && document.body.classList) {
+        document.body.classList.toggle('bc-topbar-scrolled', scrolled);
       }
     });
   }
@@ -1399,7 +1403,7 @@ function syncBitChordShellChrome() {
   const isLibrary = !isHome && !isExplore && !isSearch;
 
   if (typeof document.querySelectorAll === 'function') {
-    const bcNavItems = document.querySelectorAll('.bc-nav-item[data-bc-tab]');
+    const bcNavItems = document.querySelectorAll('.bc-nav-tab[data-bc-tab], .bc-nav-item[data-bc-tab]');
     bcNavItems.forEach(btn => {
       const tab = btn.getAttribute('data-bc-tab');
       const active =
@@ -5211,20 +5215,21 @@ function nudgeLyricsOffset(delta, reset = false) {
 function updateOffsetBadges(offset) {
   if (typeof document === 'undefined') return;
   const formatted = formatLyricsOffset(offset);
-  const badges = document.querySelectorAll('.offset-badge, #drawer-offset-val, #exp-offset-val');
+  const badges = document.querySelectorAll('.offset-badge, #drawer-offset-val, #exp-offset-val, #bc-np-offset-val');
   badges.forEach(badge => {
     if (badge) {
       badge.innerText = formatted;
-      badge.style.color = offset !== 0 ? '#FA2D48' : '';
+      badge.textContent = formatted;
+      if (badge.style) badge.style.color = offset !== 0 ? '#FA2D48' : '';
     }
   });
 }
 
 function attachOffsetBarListeners(scope = (typeof document !== 'undefined' ? document : null)) {
   if (!scope || !scope.querySelectorAll) return;
-  const minusBtns = scope.querySelectorAll('.btn-offset-minus, #drawer-offset-minus, #exp-offset-minus');
-  const plusBtns = scope.querySelectorAll('.btn-offset-plus, #drawer-offset-plus, #exp-offset-plus');
-  const badgeBtns = scope.querySelectorAll('.offset-badge, #drawer-offset-val, #exp-offset-val');
+  const minusBtns = scope.querySelectorAll('.btn-offset-minus, #drawer-offset-minus, #exp-offset-minus, #bc-np-offset-minus');
+  const plusBtns = scope.querySelectorAll('.btn-offset-plus, #drawer-offset-plus, #exp-offset-plus, #bc-np-offset-plus');
+  const badgeBtns = scope.querySelectorAll('.offset-badge, #drawer-offset-val, #exp-offset-val, #bc-np-offset-val');
   const quickMinus = scope.querySelectorAll('.btn-nudge-minus, #drawer-nudge-minus5, #exp-nudge-minus5');
   const quickPlus = scope.querySelectorAll('.btn-nudge-plus, #drawer-nudge-plus5, #exp-nudge-plus5');
 
@@ -5288,6 +5293,12 @@ function renderLyrics(lyrics) {
       const bgHtml = l.backgroundText
         ? `<div class="lyric-bg-vocal" style="font-size: 0.72em; opacity: 0.72; margin-top: 4px; font-weight: 500;">(${escapeHTML(l.backgroundText)})</div>`
         : '';
+      const romText = (bcRomanizeLyrics && typeof getInlineLyricRomanization === 'function')
+        ? getInlineLyricRomanization(l.text, l.romanization)
+        : '';
+      const romHtml = romText
+        ? `<span class="lyric-romanization-sub">${escapeHTML(romText)}</span>`
+        : '';
       const transText = (typeof getInlineLyricTranslation === 'function' && typeof bitchordSettings !== 'undefined')
         ? getInlineLyricTranslation(l.text, bitchordSettings.translationLanguage, l.translation)
         : '';
@@ -5298,7 +5309,7 @@ function renderLyrics(lyrics) {
       const alignStyle = l.isRightAligned ? ' style="text-align: right;"' : '';
       return `
       <div class="apple-lyric-line ${isSynced && i === 0 ? 'active' : ''}${hasWords ? ' has-word-sync' : ''}${alignClass}" data-time="${l.time}" data-line-index="${i}"${alignStyle}>
-        ${innerContent}${bgHtml}${transHtml}
+        ${innerContent}${bgHtml}${romHtml}${transHtml}
       </div>
     `;
     }).join('');
@@ -6540,6 +6551,8 @@ function switchLandscapePlayerPane(pane) {
   const lyricsPane = document.getElementById('expanded-lyrics-container');
   const lyricsToolbar = document.getElementById('bc-lyrics-bottom-toolbar');
   const queuePane = document.getElementById('bc-np-inline-queue-container');
+  const artContainer = document.getElementById('now-playing-art-wrap') || document.getElementById('expanded-artwork-container');
+  const expBtnLyrics = document.getElementById('exp-btn-lyrics') || (typeof document.querySelector === 'function' ? document.querySelector('.exp-lyrics-btn') : null);
 
   const tabMain = document.getElementById('bc-np-tab-main');
   const tabLyrics = document.getElementById('bc-np-tab-lyrics');
@@ -6558,7 +6571,25 @@ function switchLandscapePlayerPane(pane) {
   if (lyricsToolbar && lyricsToolbar.style) lyricsToolbar.style.display = activeLandscapePane === 'lyrics' ? 'flex' : 'none';
   if (queuePane && queuePane.style) queuePane.style.display = activeLandscapePane === 'queue' ? 'flex' : 'none';
 
-  if (activeLandscapePane === 'lyrics') {
+  if (activeLandscapePane !== 'lyrics') {
+    if (artContainer && artContainer.style) artContainer.style.display = 'block';
+    if (expBtnLyrics) {
+      if (expBtnLyrics.classList) expBtnLyrics.classList.remove('active');
+      if (expBtnLyrics.style) {
+        expBtnLyrics.style.color = '';
+        expBtnLyrics.style.backgroundColor = '';
+      }
+      expBtnLyrics.title = 'Synced Lyrics';
+    }
+  } else {
+    if (expBtnLyrics) {
+      if (expBtnLyrics.classList) expBtnLyrics.classList.add('active');
+      if (expBtnLyrics.style) {
+        expBtnLyrics.style.color = '#FA2D48';
+        expBtnLyrics.style.backgroundColor = 'rgba(250, 45, 72, 0.18)';
+      }
+      expBtnLyrics.title = 'Show Artwork';
+    }
     const track = CATALOGUE_TRACKS[currentIndex];
     if (track) {
       renderLyrics(track.lyrics);
@@ -6567,7 +6598,8 @@ function switchLandscapePlayerPane(pane) {
       }
     }
     updateSyncedLyrics(true);
-  } else if (activeLandscapePane === 'queue') {
+  }
+  if (activeLandscapePane === 'queue') {
     renderPreviewQueue();
   }
 }
@@ -6736,8 +6768,9 @@ function toggleQueue(e) {
     const npLyrics = document.getElementById('expanded-lyrics-container');
     const npArt = document.getElementById('now-playing-art-wrap') || document.getElementById('expanded-artwork-container');
     const expBtnLyrics = document.getElementById('exp-btn-lyrics') || (typeof document.querySelector === 'function' ? document.querySelector('.exp-lyrics-btn') : null);
-    if (npLyrics && npLyrics.style.display !== 'none') {
-      npLyrics.style.display = 'none';
+    if ((npLyrics && npLyrics.style.display !== 'none') || activeLandscapePane === 'lyrics') {
+      switchLandscapePlayerPane('main');
+      if (npLyrics) npLyrics.style.display = 'none';
       if (npArt) npArt.style.display = 'block';
       if (expBtnLyrics) {
         expBtnLyrics.classList.remove('active');
@@ -7337,6 +7370,7 @@ function setupEvents() {
     expandedView.style.transition = '';
     expandedView.classList.remove('visible');
     if (expOptionsDropdown) expOptionsDropdown.style.display = 'none';
+    switchLandscapePlayerPane('main');
     const lyricsContainer = document.getElementById('expanded-lyrics-container');
     const artContainer = document.getElementById('now-playing-art-wrap') || document.getElementById('expanded-artwork-container');
     if (lyricsContainer) lyricsContainer.style.display = 'none';
@@ -7369,6 +7403,13 @@ function setupEvents() {
     btnCollapsePlayer.onclick = (e) => {
       e.stopPropagation();
       e.preventDefault();
+      closeExpandedView();
+    };
+  }
+  const topGrabber = document.getElementById('bc-np-top-grabber');
+  if (topGrabber) {
+    topGrabber.onclick = (e) => {
+      e.stopPropagation();
       closeExpandedView();
     };
   }
@@ -8528,7 +8569,7 @@ function updateNerdStatsHud() {
   if (dacEl) dacEl.textContent = bitchordSettings.preferUsbDac ? 'Exclusive USB Audio DAC' : 'WASAPI Shared System Sink';
 
   if (sleeveStatsWrap) {
-    sleeveStatsWrap.style.display = bitchordSettings.showNerdStats === false ? 'flex' : 'flex';
+    sleeveStatsWrap.style.display = bitchordSettings.showNerdStats ? 'flex' : 'none';
   }
   if (sleeveLine1) {
     sleeveLine1.textContent = `${codecStr} • ${bitrateStr} • ${srateStr} • ${pcmStr}`;
@@ -8809,6 +8850,39 @@ function getInlineLyricTranslation(text, targetLang, existingTranslation) {
     if (translated !== clean) return `[${targetLang}] ${translated}`;
   }
   return `[${targetLang}] ${clean}`;
+}
+
+const LYRIC_ROMANIZATION_MAP = {
+  '愛': 'ai', '夜': 'yoru', '心': 'kokoro', '時': 'toki', '星': 'hoshi', '光': 'hikari', '夢': 'yume', '君': 'kimi', '私': 'watashi', '空': 'sora', '風': 'kaze', '花': 'hana',
+  'あ': 'a', 'い': 'i', 'う': 'u', 'え': 'e', 'お': 'o', 'か': 'ka', 'き': 'ki', 'く': 'ku', 'け': 'ke', 'こ': 'ko',
+  'さ': 'sa', 'し': 'shi', 'す': 'su', 'せ': 'se', 'そ': 'so', 'た': 'ta', 'ち': 'chi', 'つ': 'tsu', 'て': 'te', 'と': 'to',
+  'な': 'na', 'に': 'ni', 'ぬ': 'nu', 'ね': 'ne', 'の': 'no', 'は': 'ha', 'ひ': 'hi', 'ふ': 'fu', 'へ': 'he', 'ほ': 'ho',
+  'ま': 'ma', 'み': 'mi', 'む': 'mu', 'め': 'me', 'も': 'mo', 'や': 'ya', 'ゆ': 'yu', 'よ': 'yo',
+  'ら': 'ra', 'り': 'ri', 'る': 'ru', 'れ': 're', 'ろ': 'ro', 'わ': 'wa', 'を': 'wo', 'ん': 'n',
+  '사랑': 'sarang', '밤': 'bam', '마음': 'maeum', '시간': 'sigan', '별': 'byeol', '빛': 'bit', '꿈': 'kkum', '너': 'neo', '나': 'na',
+  'प्यार': 'pyaar', 'रात': 'raat', 'दिल': 'dil', 'वक़्त': 'waqt', 'सितारे': 'sitaare', 'रोशनी': 'roshni', 'सपना': 'sapna'
+};
+
+function getInlineLyricRomanization(text, existingRomanization) {
+  if (existingRomanization && typeof existingRomanization === 'string' && existingRomanization.trim()) {
+    return existingRomanization.trim();
+  }
+  const clean = String(text || '').trim();
+  if (!clean || clean.startsWith('No synchronized lyrics') || clean === '♪') return '';
+
+  // Check if non-Latin characters exist and transliterate via map or Unicode normalization
+  const hasNonAscii = /[^\u0000-\u007F]/.test(clean);
+  if (hasNonAscii) {
+    let rom = clean;
+    Object.keys(LYRIC_ROMANIZATION_MAP).forEach(token => {
+      rom = rom.split(token).join(LYRIC_ROMANIZATION_MAP[token] + ' ');
+    });
+    rom = rom.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+    return rom;
+  }
+
+  // Phonetic/cleaned Latin romanization line for active Romanize toggle
+  return clean.toLowerCase().replace(/[^\w\s'-]/g, '').replace(/\s+/g, ' ').trim();
 }
 
 function openBitChordSubModal(title, bodyHtml, onMount) {
@@ -11404,42 +11478,52 @@ if (typeof document !== 'undefined') {
     const npBtnLyricsLeft = document.getElementById('bc-np-btn-lyrics-left');
     if (npBtnLyricsLeft) {
       npBtnLyricsLeft.onclick = (e) => {
-        e.stopPropagation();
-        switchLandscapePlayerPane(isExpandedLyricsVisible ? 'main' : 'lyrics');
+        if (e) e.stopPropagation();
+        const isLyricsOpen = activeLandscapePane === 'lyrics' || (npTabLyrics && npTabLyrics.classList && npTabLyrics.classList.contains('active'));
+        switchLandscapePlayerPane(isLyricsOpen ? 'main' : 'lyrics');
       };
     }
     const npBtnQueueLeft = document.getElementById('bc-np-btn-queue-left');
     if (npBtnQueueLeft) {
       npBtnQueueLeft.onclick = (e) => {
-        e.stopPropagation();
-        const isQueueOpen = npTabQueue && npTabQueue.classList.contains('active');
+        if (e) e.stopPropagation();
+        const isQueueOpen = activeLandscapePane === 'queue' || (npTabQueue && npTabQueue.classList && npTabQueue.classList.contains('active'));
         switchLandscapePlayerPane(isQueueOpen ? 'main' : 'queue');
+      };
+    }
+    const npOpenFullQueueBtn = document.getElementById('bc-np-open-full-queue-btn');
+    if (npOpenFullQueueBtn) {
+      npOpenFullQueueBtn.onclick = (e) => {
+        if (e) e.stopPropagation();
+        toggleQueue(e);
       };
     }
     const npBtnParty = document.getElementById('bc-np-btn-party');
     if (npBtnParty) {
       npBtnParty.onclick = (e) => {
-        e.stopPropagation();
+        if (e) e.stopPropagation();
         openListenTogetherSubModal();
       };
     }
     const npBtnAutoplay = document.getElementById('bc-np-btn-autoplay');
     if (npBtnAutoplay) {
-      npBtnAutoplay.classList.toggle('active', Boolean(bitchordSettings.autoRadioSimilar));
+      if (npBtnAutoplay.classList) npBtnAutoplay.classList.toggle('active', Boolean(bitchordSettings.autoRadioSimilar));
       npBtnAutoplay.onclick = (e) => {
-        e.stopPropagation();
+        if (e) e.stopPropagation();
         bitchordSettings.autoRadioSimilar = !bitchordSettings.autoRadioSimilar;
         saveBitChordSettings();
-        npBtnAutoplay.classList.toggle('active', Boolean(bitchordSettings.autoRadioSimilar));
+        if (npBtnAutoplay.classList) npBtnAutoplay.classList.toggle('active', Boolean(bitchordSettings.autoRadioSimilar));
       };
     }
 
     // BitChord Lyrics Toolbar Pills (Romanize, Translate, Source, Word/Line, Timing Offset)
     const btnRomanize = document.getElementById('bc-lyric-romanize-btn');
     if (btnRomanize) {
+      if (btnRomanize.classList) btnRomanize.classList.toggle('active', Boolean(bcRomanizeLyrics));
       btnRomanize.onclick = (e) => {
-        e.stopPropagation();
-        btnRomanize.classList.toggle('active');
+        if (e) e.stopPropagation();
+        bcRomanizeLyrics = !bcRomanizeLyrics;
+        if (btnRomanize.classList) btnRomanize.classList.toggle('active', bcRomanizeLyrics);
         const activeLyrics = CATALOGUE_TRACKS[currentIndex]?.lyrics;
         if (Array.isArray(activeLyrics) && activeLyrics.length > 0) {
           renderLyrics(activeLyrics);
@@ -11449,12 +11533,14 @@ if (typeof document !== 'undefined') {
     }
     const btnTranslate = document.getElementById('bc-lyric-translate-btn');
     if (btnTranslate) {
-      btnTranslate.classList.toggle('active', bitchordSettings.translationLanguage !== 'Off');
+      if (btnTranslate.classList) btnTranslate.classList.toggle('active', bitchordSettings.translationLanguage !== 'Off');
+      btnTranslate.textContent = `Translate: ${bitchordSettings.translationLanguage || 'Off'}`;
       btnTranslate.onclick = (e) => {
-        e.stopPropagation();
+        if (e) e.stopPropagation();
         bitchordSettings.translationLanguage = bitchordSettings.translationLanguage === 'Off' ? 'English' : 'Off';
         saveBitChordSettings();
-        btnTranslate.classList.toggle('active', bitchordSettings.translationLanguage !== 'Off');
+        if (btnTranslate.classList) btnTranslate.classList.toggle('active', bitchordSettings.translationLanguage !== 'Off');
+        btnTranslate.textContent = `Translate: ${bitchordSettings.translationLanguage || 'Off'}`;
         const activeLyrics = CATALOGUE_TRACKS[currentIndex]?.lyrics;
         if (Array.isArray(activeLyrics) && activeLyrics.length > 0) {
           renderLyrics(activeLyrics);
@@ -11465,14 +11551,14 @@ if (typeof document !== 'undefined') {
     const btnSource = document.getElementById('bc-lyric-source-btn');
     if (btnSource) {
       btnSource.onclick = (e) => {
-        e.stopPropagation();
+        if (e) e.stopPropagation();
         openLyricsSourcesSubModal();
       };
     }
     const btnKaraoke = document.getElementById('bc-lyric-karaoke-btn');
     if (btnKaraoke) {
       btnKaraoke.onclick = (e) => {
-        e.stopPropagation();
+        if (e) e.stopPropagation();
         bitchordSettings.lyricsBlur = !bitchordSettings.lyricsBlur;
         saveBitChordSettings();
         btnKaraoke.textContent = bitchordSettings.lyricsBlur ? 'Word' : 'Line';
@@ -11484,16 +11570,23 @@ if (typeof document !== 'undefined') {
     const offsetValEl = document.getElementById('bc-np-offset-val');
     if (btnOffsetMinus) {
       btnOffsetMinus.onclick = (e) => {
-        e.stopPropagation();
+        if (e) e.stopPropagation();
         const nextVal = nudgeLyricsOffset(-0.1);
         if (offsetValEl) offsetValEl.textContent = formatLyricsOffset(nextVal);
       };
     }
     if (btnOffsetPlus) {
       btnOffsetPlus.onclick = (e) => {
-        e.stopPropagation();
+        if (e) e.stopPropagation();
         const nextVal = nudgeLyricsOffset(0.1);
         if (offsetValEl) offsetValEl.textContent = formatLyricsOffset(nextVal);
+      };
+    }
+    if (offsetValEl) {
+      offsetValEl.onclick = (e) => {
+        if (e) e.stopPropagation();
+        const nextVal = nudgeLyricsOffset(0, true);
+        offsetValEl.textContent = formatLyricsOffset(nextVal);
       };
     }
 
@@ -11573,9 +11666,11 @@ if (typeof module !== 'undefined' && module.exports) {
     applyBitChordAudioDspSettings,
     computeDynamicTonePadGains,
     handleBitChordPlaybackTick,
+    updateNerdStatsHud,
     syncEqualizerModalUI,
     initEqualizerModalControls,
     getInlineLyricTranslation,
+    getInlineLyricRomanization,
     openBitChordSubModal,
     closeBitChordSubModal,
     openAccountScrobblingSubModal,
@@ -11589,6 +11684,9 @@ if (typeof module !== 'undefined' && module.exports) {
     applyAppTheme,
     shufflePlayPlaylist,
     selectYouTubeTrack,
+    setupNavigation,
+    navigateTo,
+    syncBitChordShellChrome,
     pushNavigation,
     navigateBack,
     navigateForward,
@@ -11654,6 +11752,8 @@ if (typeof module !== 'undefined' && module.exports) {
     setTrackLyricsOffset,
     formatLyricsOffset,
     nudgeLyricsOffset,
+    updateOffsetBadges,
+    attachOffsetBarListeners,
     BASELINE_ACOUSTIC_OFFSET,
     LyricClockReconciler,
     lyricClockReconciler,

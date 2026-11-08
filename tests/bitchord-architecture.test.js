@@ -1917,16 +1917,173 @@ function runBitChordArchitectureTests() {
 
   // Verify BitChord CSS classes in preview.css
   assert.ok(css.includes('.bc-floating-nav-bar') && css.includes('#apple-player-bar.bc-floating-miniplayer') && css.includes('.bc-mood-genre-card') && css.includes('rotate(16deg)'), 'preview.css must define BitChord floating nav bar, floating pill MiniPlayer, and 16deg rotated corner sleeve Moods & Genres cards');
+  assert.ok(css.includes('.bc-top-collapsed-title.visible'), 'preview.css must style .bc-top-collapsed-title.visible so collapsed title fades in on scroll');
+  assert.ok(css.includes('.lyric-romanization-sub'), 'preview.css must style .lyric-romanization-sub for romanized lyrics sub-lines');
 
   // Verify renderSearchTabView and switchLandscapePlayerPane functional behavior
   assert.strictEqual(typeof previewModule.renderSearchTabView, 'function', 'previewModule must export renderSearchTabView');
   assert.strictEqual(typeof previewModule.switchLandscapePlayerPane, 'function', 'previewModule must export switchLandscapePlayerPane');
+  assert.strictEqual(typeof previewModule.syncBitChordShellChrome, 'function', 'previewModule must export syncBitChordShellChrome');
+  assert.strictEqual(typeof previewModule.updateNerdStatsHud, 'function', 'previewModule must export updateNerdStatsHud');
+  assert.strictEqual(typeof previewModule.getInlineLyricRomanization, 'function', 'previewModule must export getInlineLyricRomanization');
+
   const mockSearchTabContainer = {
     innerHTML: '',
     querySelectorAll: () => []
   };
   previewModule.renderSearchTabView(mockSearchTabContainer);
   assert.ok(mockSearchTabContainer.innerHTML.includes('bc-search-page-input') && mockSearchTabContainer.innerHTML.includes('Browse Categories'), 'renderSearchTabView must render BitChord SearchScreen with top search pill and Browse Categories Moods & Genres grid');
+
+  // Verify getInlineLyricRomanization transliterates non-Latin and Latin lyrics
+  const romJp = previewModule.getInlineLyricRomanization('愛 (Ai) 夜 光');
+  assert.ok(romJp.includes('ai') && romJp.includes('yoru') && romJp.includes('hikari'), 'getInlineLyricRomanization must transliterate Japanese kanji/kana tokens');
+  const romKr = previewModule.getInlineLyricRomanization('사랑 밤 별');
+  assert.ok(romKr.includes('sarang') && romKr.includes('bam') && romKr.includes('byeol'), 'getInlineLyricRomanization must transliterate Korean hangul tokens');
+
+  // Behavioral DOM verification of 4-tab bottom nav, LandscapePlayer panes, Nerd Stats HUD, and offset badge
+  const bcPrevDoc = global.document;
+  try {
+    const createTestEl = (id, attrs = {}) => {
+      const classes = new Set();
+      const listeners = {};
+      return {
+        id,
+        style: { display: '' },
+        innerHTML: '',
+        innerText: '',
+        textContent: '',
+        scrollTop: 0,
+        onclick: null,
+        getAttribute: (k) => attrs[k] || null,
+        addEventListener: (ev, fn) => { listeners[ev] = fn; },
+        trigger: (ev, arg = {}) => { if (listeners[ev]) listeners[ev](arg); },
+        querySelectorAll: () => [],
+        classList: {
+          add: (...c) => c.forEach(x => classes.add(x)),
+          remove: (...c) => c.forEach(x => classes.delete(x)),
+          toggle: (c, force) => {
+            const on = force !== undefined ? Boolean(force) : !classes.has(c);
+            if (on) classes.add(c); else classes.delete(c);
+            return on;
+          },
+          contains: (c) => classes.has(c)
+        }
+      };
+    };
+
+    const tabHome = createTestEl('bc-tab-home', { 'data-bc-tab': 'home' });
+    const tabExplore = createTestEl('bc-tab-explore', { 'data-bc-tab': 'explore' });
+    const tabLibrary = createTestEl('bc-tab-library', { 'data-bc-tab': 'library' });
+    const tabSearch = createTestEl('bc-tab-search', { 'data-bc-tab': 'search' });
+    const navTabs = [tabHome, tabExplore, tabLibrary, tabSearch];
+
+    const mainScroll = createTestEl('main-content-scroll');
+    const collapsedTitle = createTestEl('bc-top-collapsed-title');
+    const mainPane = createTestEl('bc-np-main-controls-pane');
+    const lyricsPane = createTestEl('expanded-lyrics-container');
+    const lyricsToolbar = createTestEl('bc-lyrics-bottom-toolbar');
+    const queuePane = createTestEl('bc-np-inline-queue-container');
+    const artWrap = createTestEl('now-playing-art-wrap');
+    const expBtnLyrics = createTestEl('exp-btn-lyrics');
+    const npTabMain = createTestEl('bc-np-tab-main');
+    const npTabLyrics = createTestEl('bc-np-tab-lyrics');
+    const npTabQueue = createTestEl('bc-np-tab-queue');
+    const leftLyricsBtn = createTestEl('bc-np-btn-lyrics-left');
+    const leftQueueBtn = createTestEl('bc-np-btn-queue-left');
+    const sleeveStatsWrap = createTestEl('bc-sleeve-nerd-stats');
+    const sleeveLine1 = createTestEl('bc-sleeve-stats-line1');
+    const sleeveLine2 = createTestEl('bc-sleeve-stats-line2');
+    const npOffsetVal = createTestEl('bc-np-offset-val');
+    const mainViewContainer = createTestEl('main-view-container');
+
+    const elMap = {
+      'bc-tab-home': tabHome,
+      'bc-tab-explore': tabExplore,
+      'bc-tab-library': tabLibrary,
+      'bc-tab-search': tabSearch,
+      'main-content-scroll': mainScroll,
+      'bc-top-collapsed-title': collapsedTitle,
+      'bc-np-main-controls-pane': mainPane,
+      'expanded-lyrics-container': lyricsPane,
+      'bc-lyrics-bottom-toolbar': lyricsToolbar,
+      'bc-np-inline-queue-container': queuePane,
+      'now-playing-art-wrap': artWrap,
+      'exp-btn-lyrics': expBtnLyrics,
+      'bc-np-tab-main': npTabMain,
+      'bc-np-tab-lyrics': npTabLyrics,
+      'bc-np-tab-queue': npTabQueue,
+      'bc-np-btn-lyrics-left': leftLyricsBtn,
+      'bc-np-btn-queue-left': leftQueueBtn,
+      'bc-sleeve-nerd-stats': sleeveStatsWrap,
+      'bc-sleeve-stats-line1': sleeveLine1,
+      'bc-sleeve-stats-line2': sleeveLine2,
+      'bc-np-offset-val': npOffsetVal,
+      'main-view-container': mainViewContainer
+    };
+
+    global.document = {
+      body: createTestEl('body'),
+      getElementById: (id) => elMap[id] || null,
+      querySelector: (sel) => (sel === '.exp-lyrics-btn' ? expBtnLyrics : null),
+      querySelectorAll: (sel) => {
+        if (sel.includes('.bc-nav-tab[data-bc-tab]')) return navTabs;
+        if (sel.includes('#bc-np-offset-val')) return [npOffsetVal];
+        return [];
+      }
+    };
+
+    // 1. Test 4-Tab Floating Glass Navigation Bar click binding & active state synchronization
+    previewModule.setupNavigation();
+    assert.strictEqual(typeof tabExplore.onclick, 'function', 'setupNavigation must bind onclick on .bc-nav-tab[data-bc-tab] elements');
+    tabExplore.onclick();
+    assert.ok(tabExplore.classList.contains('active') && !tabHome.classList.contains('active'), 'Clicking #bc-tab-explore must activate Explore tab and deactivate Home tab');
+    tabSearch.onclick();
+    assert.ok(tabSearch.classList.contains('active') && !tabExplore.classList.contains('active'), 'Clicking #bc-tab-search must activate Search tab');
+    tabLibrary.onclick();
+    assert.ok(tabLibrary.classList.contains('active') && !tabSearch.classList.contains('active'), 'Clicking #bc-tab-library must activate Library tab');
+    tabHome.onclick();
+    assert.ok(tabHome.classList.contains('active') && !tabLibrary.classList.contains('active'), 'Clicking #bc-tab-home must activate Home tab');
+
+    // 2. Test FrostedTopBar scroll listener toggling .visible on #bc-top-collapsed-title
+    mainScroll.scrollTop = 80;
+    mainScroll.trigger('scroll');
+    assert.ok(collapsedTitle.classList.contains('visible'), 'Scrolling past 56px must add .visible to #bc-top-collapsed-title');
+    assert.ok(global.document.body.classList.contains('bc-topbar-scrolled'), 'Scrolling past 56px must add .bc-topbar-scrolled to document.body');
+    mainScroll.scrollTop = 10;
+    mainScroll.trigger('scroll');
+    assert.ok(!collapsedTitle.classList.contains('visible'), 'Scrolling back to top must remove .visible from #bc-top-collapsed-title');
+
+    // 3. Test LandscapePlayer 2-column pane switching & artwork restoration
+    artWrap.style.display = 'none';
+    previewModule.switchLandscapePlayerPane('lyrics');
+    assert.strictEqual(mainPane.style.display, 'none', 'Main controls pane must hide when Lyrics pane is active');
+    assert.strictEqual(lyricsPane.style.display, 'flex', 'Lyrics pane must display when Lyrics pane is active');
+    assert.strictEqual(lyricsToolbar.style.display, 'flex', 'Bottom lyrics toolbar must display when Lyrics pane is active');
+    assert.ok(npTabLyrics.classList.contains('active') && leftLyricsBtn.classList.contains('active'), 'Lyrics tab and left lyrics button must be active');
+
+    previewModule.switchLandscapePlayerPane('main');
+    assert.strictEqual(mainPane.style.display, 'flex', 'Main controls pane must restore when switching back to Main pane');
+    assert.strictEqual(lyricsPane.style.display, 'none', 'Lyrics pane must hide when switching back to Main pane');
+    assert.strictEqual(lyricsToolbar.style.display, 'none', 'Bottom lyrics toolbar must hide when switching back to Main pane');
+    assert.strictEqual(artWrap.style.display, 'block', 'Album sleeve #now-playing-art-wrap must restore to block when leaving Lyrics pane');
+
+    // 4. Test Nerd Stats HUD visibility respects bitchordSettings.showNerdStats
+    previewModule.bitchordSettings.showNerdStats = false;
+    previewModule.updateNerdStatsHud();
+    assert.strictEqual(sleeveStatsWrap.style.display, 'none', '#bc-sleeve-nerd-stats must be hidden (display: none) when showNerdStats is false');
+    previewModule.bitchordSettings.showNerdStats = true;
+    previewModule.updateNerdStatsHud();
+    assert.strictEqual(sleeveStatsWrap.style.display, 'flex', '#bc-sleeve-nerd-stats must be visible (display: flex) when showNerdStats is true');
+    previewModule.bitchordSettings.showNerdStats = false;
+
+    // 5. Test #bc-np-offset-val updates via updateOffsetBadges
+    previewModule.updateOffsetBadges(0.3);
+    assert.strictEqual(npOffsetVal.textContent, '+0.3s', 'updateOffsetBadges must update #bc-np-offset-val textContent');
+    previewModule.updateOffsetBadges(0);
+    assert.strictEqual(npOffsetVal.textContent, '0.0s', 'updateOffsetBadges(0) must reset #bc-np-offset-val to 0.0s');
+  } finally {
+    global.document = bcPrevDoc;
+  }
 
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }

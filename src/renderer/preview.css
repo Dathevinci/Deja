@@ -5877,7 +5877,8 @@ body.apple-light .bc-top-wave-svg {
   white-space: nowrap;
 }
 
-body.bc-topbar-scrolled .bc-top-collapsed-title {
+body.bc-topbar-scrolled .bc-top-collapsed-title,
+.bc-top-collapsed-title.visible {
   opacity: 1;
   transform: translateY(0);
 }
@@ -6696,9 +6697,18 @@ body.apple-light .bc-search-page-field-wrap {
   justify-content: center !important;
 }
 
+@media (min-width: 821px) {
+  #expanded-player-view.bc-landscape-player .bc-np-left-column .expanded-artwork-container {
+    display: block !important;
+  }
+}
+
 @media (max-width: 820px) {
   #expanded-player-view.bc-landscape-player .expanded-player-content.bc-landscape-grid {
     grid-template-columns: 1fr !important;
+    height: calc(100vh - 80px) !important;
+    padding: 8px 20px 24px 20px !important;
+    gap: 16px !important;
     overflow-y: auto !important;
   }
 }
@@ -6961,4 +6971,13 @@ body.deja-playing #expanded-player-view.bc-landscape-player .expanded-artwork-co
   gap: 4px;
 }
 
-
+.lyric-romanization-sub {
+  display: block;
+  font-size: 0.56em;
+  font-weight: 500;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.68);
+  margin-top: 3px;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+}
