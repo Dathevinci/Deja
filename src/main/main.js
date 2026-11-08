@@ -688,7 +688,7 @@ ipcMain.handle('probe-addon-source', async (event, url) => {
     const timer = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(target, {
       method: 'GET',
-      headers: { 'Accept': 'application/json, text/plain, */*', 'User-Agent': 'Deja-BitChord-Sources/1.2.3' },
+      headers: { 'Accept': 'application/json, text/plain, */*', 'User-Agent': 'Deja-BitChord-Sources/1.3.0' },
       signal: controller.signal
     });
     clearTimeout(timer);
@@ -2055,11 +2055,11 @@ let updateDownloadAbortController = null;
 
 async function checkGitHubReleaseUpdate() {
   try {
-    const currentVersion = app.getVersion() || '1.2.3';
+    const currentVersion = app.getVersion() || '1.3.0';
     const res = await fetch(DEJA_LATEST_RELEASE_API, {
       headers: {
         'Accept': 'application/vnd.github+json',
-        'User-Agent': 'Deja-Desktop-Updater/1.2.3',
+        'User-Agent': 'Deja-Desktop-Updater/1.3.0',
         'Cache-Control': 'no-cache'
       }
     });
@@ -2088,7 +2088,7 @@ async function checkGitHubReleaseUpdate() {
       notes: release.body || ''
     };
   } catch (err) {
-    return { updateAvailable: false, currentVersion: app.getVersion() || '1.2.3', error: err.message };
+    return { updateAvailable: false, currentVersion: app.getVersion() || '1.3.0', error: err.message };
   }
 }
 
@@ -2124,8 +2124,8 @@ ipcMain.handle('install-update', async (event, downloadUrl) => {
     const candidateUrls = [
       downloadUrl,
       'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.exe',
-      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.3.exe',
-      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.1.exe'
+      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.3.0.exe',
+      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.3.exe'
     ].filter(Boolean);
 
     const tempDir = app.getPath('temp');
@@ -2136,7 +2136,7 @@ ipcMain.handle('install-update', async (event, downloadUrl) => {
     for (const u of candidateUrls) {
       try {
         const attempt = await fetch(u, {
-          headers: { 'User-Agent': 'Deja-Desktop-Updater/1.2.3' },
+          headers: { 'User-Agent': 'Deja-Desktop-Updater/1.3.0' },
           signal: updateDownloadAbortController.signal
         });
         if (attempt && attempt.ok) {

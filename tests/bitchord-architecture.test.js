@@ -1900,6 +1900,34 @@ function runBitChordArchitectureTests() {
   assert.ok(nshCode.includes('!macro customWelcomePage'), 'installer.nsh must define customWelcomePage macro');
   assert.ok(nshCode.includes('BrandingText "DEJA v${VERSION} // 2-BIT UI"'), 'installer.nsh must set 2-Bit versioned BrandingText');
 
+  // 20. Authentic BitChord Desktop UI & Feature Parity Verification (v1.3.0)
+  assert.strictEqual(pkgJson.version, '1.3.0', 'package.json version must be 1.3.0');
+  assert.ok(fs.existsSync(path.join(__dirname, '../assets/Logo.svg')), 'Official BitChord Logo.svg must exist in assets/');
+  assert.ok(fs.existsSync(path.join(__dirname, '../assets/LogoTransparent.svg')), 'Official BitChord LogoTransparent.svg must exist in assets/');
+
+  // Verify FrostedTopBar, 4-Tab Floating Glass Navigation Bar, Floating Pill MiniPlayer, and 2-Column LandscapePlayer in preview.html
+  assert.ok(html.includes('id="bc-top-logo-mark"') && html.includes('LogoTransparent.svg'), 'preview.html must render BitChord FloatingAppMark with LogoTransparent.svg');
+  assert.ok(html.includes('id="bc-top-back-btn"'), 'preview.html must render BitChord circular Back button in FrostedTopBar');
+  assert.ok(html.includes('id="bc-top-history-btn"') && html.includes('id="bc-top-downloads-btn"') && html.includes('id="bc-top-settings-btn"'), 'preview.html must render BitChord circular History, Downloads, and Settings buttons in FrostedTopBar');
+  assert.ok(html.includes('id="bc-floating-nav-bar"') && html.includes('id="bc-tab-home"') && html.includes('id="bc-tab-explore"') && html.includes('id="bc-tab-library"') && html.includes('id="bc-tab-search"'), 'preview.html must render BitChord 4-Tab Floating Glass Navigation Bar (Home, Explore, Library, Search)');
+  assert.ok(html.includes('id="bc-bottom-fade-scrim"'), 'preview.html must render BitChord BottomFadeScrim');
+  assert.ok(html.includes('bc-floating-miniplayer'), 'preview.html must style player bar as BitChord floating pill MiniPlayer');
+  assert.ok(html.includes('bc-landscape-player') && html.includes('id="bc-sleeve-nerd-stats"') && html.includes('id="bc-np-tab-main"') && html.includes('id="bc-np-tab-lyrics"') && html.includes('id="bc-np-tab-queue"'), 'preview.html must render BitChord 2-Column LandscapePlayer with sleeve nerd stats and Main/Lyrics/Queue pane switcher');
+  assert.ok(html.includes('id="bc-lyrics-bottom-toolbar"') && html.includes('id="bc-lyric-romanize-btn"') && html.includes('id="bc-lyric-translate-btn"') && html.includes('id="bc-lyric-source-btn"') && html.includes('id="bc-lyric-karaoke-btn"'), 'preview.html must render BitChord bottom lyrics toolbar (Romanize, Translate, Source, Word/Line, Timing Offset)');
+
+  // Verify BitChord CSS classes in preview.css
+  assert.ok(css.includes('.bc-floating-nav-bar') && css.includes('#apple-player-bar.bc-floating-miniplayer') && css.includes('.bc-mood-genre-card') && css.includes('rotate(16deg)'), 'preview.css must define BitChord floating nav bar, floating pill MiniPlayer, and 16deg rotated corner sleeve Moods & Genres cards');
+
+  // Verify renderSearchTabView and switchLandscapePlayerPane functional behavior
+  assert.strictEqual(typeof previewModule.renderSearchTabView, 'function', 'previewModule must export renderSearchTabView');
+  assert.strictEqual(typeof previewModule.switchLandscapePlayerPane, 'function', 'previewModule must export switchLandscapePlayerPane');
+  const mockSearchTabContainer = {
+    innerHTML: '',
+    querySelectorAll: () => []
+  };
+  previewModule.renderSearchTabView(mockSearchTabContainer);
+  assert.ok(mockSearchTabContainer.innerHTML.includes('bc-search-page-input') && mockSearchTabContainer.innerHTML.includes('Browse Categories'), 'renderSearchTabView must render BitChord SearchScreen with top search pill and Browse Categories Moods & Genres grid');
+
   console.log('✓ Native BitChord & Apple Client Architecture tests passed successfully.');
 }
 

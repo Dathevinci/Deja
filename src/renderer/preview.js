@@ -1300,6 +1300,10 @@ function initUI() {
 // View Routing & Dynamic Content Rendering
 // ==========================================
 
+let bcLibrarySortMode = 'Recently Added';
+let bcRecentsGridMode = false;
+let bcRecentSearches = ['The Weeknd', 'Daft Punk', 'Billie Eilish', 'Synthwave', 'Tame Impala'];
+
 function setupNavigation() {
   const sidebarLinks = document.querySelectorAll('.sidebar-link');
   sidebarLinks.forEach(link => {
@@ -1314,6 +1318,56 @@ function setupNavigation() {
       }
     });
   });
+
+  // BitChord 4-Tab Floating Glass Navigation Bar (NavBar.kt)
+  const bcNavItems = document.querySelectorAll('.bc-nav-item[data-bc-tab]');
+  bcNavItems.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-bc-tab');
+      if (tab) {
+        navigateTo(tab);
+      }
+    });
+  });
+
+  // BitChord FrostedTopBar controls (FrostedTopBar.kt)
+  const logoMark = document.getElementById('bc-top-logo-mark');
+  if (logoMark) logoMark.onclick = () => navigateTo('home');
+
+  const topBackBtn = document.getElementById('bc-top-back-btn');
+  if (topBackBtn) topBackBtn.onclick = () => navigateBack();
+
+  const topHistoryBtn = document.getElementById('bc-top-history-btn');
+  if (topHistoryBtn) topHistoryBtn.onclick = () => navigateTo('history');
+
+  const topDownloadsBtn = document.getElementById('bc-top-downloads-btn');
+  if (topDownloadsBtn) topDownloadsBtn.onclick = () => navigateTo('downloads');
+
+  const topSettingsBtn = document.getElementById('bc-top-settings-btn');
+  if (topSettingsBtn) topSettingsBtn.onclick = () => navigateTo('settings');
+
+  const topSortBtn = document.getElementById('bc-top-sort-btn');
+  if (topSortBtn) {
+    topSortBtn.onclick = () => {
+      const modes = ['Recently Added', 'Title A–Z', 'Artist A–Z'];
+      const nextIdx = (modes.indexOf(bcLibrarySortMode) + 1) % modes.length;
+      bcLibrarySortMode = modes[nextIdx];
+      topSortBtn.title = `Sort Library: ${bcLibrarySortMode}`;
+      if (typeof showToast === 'function') showToast(`Sorted by ${bcLibrarySortMode}`);
+      renderCurrentView();
+    };
+  }
+
+  // Scroll listener for collapsing FrostedTopBar title
+  const mainScroll = document.getElementById('main-content-scroll');
+  if (mainScroll && typeof mainScroll.addEventListener === 'function') {
+    mainScroll.addEventListener('scroll', () => {
+      const collapsedTitle = document.getElementById('bc-top-collapsed-title');
+      if (collapsedTitle) {
+        collapsedTitle.classList.toggle('visible', mainScroll.scrollTop > 56);
+      }
+    });
+  }
 }
 
 function navigateTo(pageId) {
@@ -1337,11 +1391,80 @@ function navigateToPlaylist(playlistId) {
   renderCurrentView();
 }
 
+function syncBitChordShellChrome() {
+  if (typeof document === 'undefined') return;
+  const isHome = currentView === 'home' || currentView === 'listen-now';
+  const isExplore = currentView === 'explore' || currentView === 'browse' || currentView === 'radio';
+  const isSearch = currentView === 'search' || Boolean(searchQuery && searchQuery.trim().length > 0);
+  const isLibrary = !isHome && !isExplore && !isSearch;
+
+  if (typeof document.querySelectorAll === 'function') {
+    const bcNavItems = document.querySelectorAll('.bc-nav-item[data-bc-tab]');
+    bcNavItems.forEach(btn => {
+      const tab = btn.getAttribute('data-bc-tab');
+      const active =
+        (tab === 'home' && isHome) ||
+        (tab === 'explore' && isExplore) ||
+        (tab === 'library' && isLibrary) ||
+        (tab === 'search' && isSearch);
+      if (btn.classList) btn.classList.toggle('active', active);
+    });
+  }
+
+  const isPushedScreen =
+    currentView === 'browse-detail' ||
+    currentView === 'artist-detail' ||
+    currentView === 'settings' ||
+    currentView === 'replay' ||
+    currentView === 'downloads' ||
+    currentView === 'history' ||
+    currentView === 'albums' ||
+    currentView === 'artists' ||
+    currentView === 'songs' ||
+    currentView === 'playlists' ||
+    (typeof currentView === 'string' && currentView.startsWith('playlist-'));
+
+  if (typeof document.getElementById === 'function') {
+    const topLogo = document.getElementById('bc-top-logo-mark');
+    const topBack = document.getElementById('bc-top-back-btn');
+    const topSort = document.getElementById('bc-top-sort-btn');
+    const topTitle = document.getElementById('bc-top-collapsed-title');
+
+    if (topLogo) topLogo.style.display = isPushedScreen ? 'none' : 'inline-flex';
+    if (topBack) topBack.style.display = isPushedScreen ? 'inline-flex' : 'none';
+    if (topSort) {
+      const showSort = currentView === 'library' || currentView === 'playlists' || currentView === 'albums' || currentView === 'songs';
+      topSort.style.display = showSort ? 'inline-flex' : 'none';
+    }
+    if (topTitle) {
+      const titleMap = {
+        'home': 'Listen Now',
+        'listen-now': 'Listen Now',
+        'explore': 'Explore',
+        'browse': 'Explore',
+        'library': 'Library',
+        'search': 'Search',
+        'settings': 'Settings',
+        'replay': 'Your Replay',
+        'downloads': 'Downloads',
+        'history': 'History',
+        'albums': 'Albums',
+        'artists': 'Artists',
+        'songs': 'Songs',
+        'playlists': 'Playlists',
+        'browse-detail': activeBrowseDetail?.title || 'Album',
+        'artist-detail': activeArtistDetail?.name || 'Artist'
+      };
+      topTitle.textContent = titleMap[currentView] || (currentView.startsWith('playlist-') ? 'Playlist' : 'Listen Now');
+    }
+  }
+}
+
 function renderCurrentView() {
   const mainContent = document.getElementById('main-content-scroll');
   if (!mainContent) return;
 
-  // Update active sidebar link (BitChord Parity)
+  // Update active sidebar link & BitChord 4-tab bar
   const sidebarLinks = document.querySelectorAll('.sidebar-link');
   sidebarLinks.forEach(link => {
     const page = link.getAttribute('data-page');
@@ -1357,6 +1480,13 @@ function renderCurrentView() {
       link.classList.remove('active');
     }
   });
+
+  syncBitChordShellChrome();
+
+  if (currentView === 'search') {
+    renderSearchTabView(mainContent);
+    return;
+  }
 
   if (searchQuery.trim().length > 0) {
     renderSearchResultsView(mainContent);
@@ -2355,6 +2485,9 @@ async function openBrowseDetail(browseId, title = 'Album', cover = '', subtitle 
   }
 }
 
+let browseDetailFilterQuery = '';
+let browseDetailFilterOpen = false;
+
 function renderBrowseDetailView(container) {
   if (!activeBrowseDetail) {
     navigateTo('listen-now');
@@ -2368,49 +2501,76 @@ function renderBrowseDetailView(container) {
   const computedDur = durationStr || (totalSec > 0 ? formatTime(totalSec) : '');
   const metaDetail = secondSubtitle || (count > 0 ? `${count} song${count === 1 ? '' : 's'}${computedDur ? ` • ${computedDur}` : ''}` : '');
   const safeSubtitle = escapeHTML(subtitle + (metaDetail ? ` • ${metaDetail}` : ''));
-  const safeCover = escapeHTML(cover || '../../assets/icon.png');
+  const safeCover = escapeHTML(upscaleArtworkUrl(cover));
+
+  const filterQ = browseDetailFilterOpen ? browseDetailFilterQuery.toLowerCase().trim() : '';
+  const visibleSongs = (songs || []).map((s, origIdx) => ({ s, origIdx })).filter(({ s }) => {
+    if (!filterQ) return true;
+    return (s.title || '').toLowerCase().includes(filterQ) || (s.artist || '').toLowerCase().includes(filterQ);
+  });
 
   container.innerHTML = `
-    <div style="padding: 10px 0 20px 0;">
-      <div class="category-hero">
-        <img src="${safeCover}" class="category-hero-cover" alt="${safeTitle}" onerror="this.src='../../assets/icon.png'">
-        <div class="category-hero-details">
-          <span class="category-hero-tag">YOUTUBE MUSIC ALBUM / PLAYLIST</span>
-          <h1 class="category-hero-title">${safeTitle}</h1>
-          <p class="category-hero-desc">${safeSubtitle}</p>
-          <div class="category-hero-actions">
+    <div style="padding: 6px 0 24px 0;">
+      <div class="bc-detail-header category-hero">
+        <div class="bc-detail-sleeve">
+          <img src="${safeCover}" class="category-hero-cover" alt="${safeTitle}" onerror="this.src='../../assets/icon.png'">
+        </div>
+        <div class="category-hero-details" style="display:flex; flex-direction:column; align-items:center;">
+          <span class="category-hero-tag" style="margin-bottom:4px;">YOUTUBE MUSIC ALBUM / PLAYLIST</span>
+          <h1 class="bc-detail-title category-hero-title">${safeTitle}</h1>
+          <div class="bc-detail-credit">${escapeHTML(subtitle || 'YouTube Music')}</div>
+          <p class="bc-detail-meta category-hero-desc" style="margin:2px 0 0 0;">${safeSubtitle}</p>
+          <div class="bc-detail-action-row category-hero-actions">
             ${songs && songs.length > 0 ? `
-              <button class="btn-apple-primary" id="btn-play-browse-all">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                <span>Play All</span>
-              </button>
-              <button class="btn-apple-secondary" id="btn-shuffle-browse-all">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <button class="bc-detail-circle-btn btn-apple-secondary" id="btn-shuffle-browse-all" title="Shuffle">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="16 3 21 3 21 8"></polyline>
                   <line x1="4" y1="20" x2="21" y2="3"></line>
                   <polyline points="21 16 21 21 16 21"></polyline>
                   <line x1="15" y1="15" x2="21" y2="21"></line>
                   <line x1="4" y1="4" x2="9" y2="9"></line>
                 </svg>
-                <span>Shuffle</span>
+                <span style="display:none;">Shuffle</span>
+              </button>
+              <button class="bc-detail-play-pill btn-apple-primary" id="btn-play-browse-all">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Play</span>
+              </button>
+              <button class="bc-detail-circle-btn" id="btn-dl-browse-all" title="Download First Track">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </button>
+              <button class="bc-detail-circle-btn ${browseDetailFilterOpen ? 'active' : ''}" id="btn-filter-browse-songs" title="Filter Songs">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
               </button>
             ` : ''}
-            <button class="genre-chip" onclick="navigateBack()" style="display:inline-flex;align-items:center;gap:4px;">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              <span>Back</span>
-            </button>
           </div>
         </div>
       </div>
+
+      ${browseDetailFilterOpen ? `
+        <div class="bc-search-page-field-wrap" style="max-width:480px; margin: 0 auto 18px auto;">
+          <div class="bc-search-page-pill" style="height:40px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="browse-detail-filter-input" class="bc-search-page-input" placeholder="Search in ${safeTitle}..." value="${escapeHTML(browseDetailFilterQuery)}" />
+          </div>
+        </div>
+      ` : ''}
 
       ${isLoading ? `
         <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
           <div style="font-size: 14px; margin-bottom: 8px;">Loading YouTube Music tracklist...</div>
           <div style="font-size: 12px; color: var(--text-muted);">Fetching from InnerTube API</div>
         </div>
-      ` : (songs && songs.length > 0 ? `
+      ` : (visibleSongs.length > 0 ? `
         <div class="songs-table-container">
           <div class="songs-table-header">
             <span>#</span>
@@ -2420,9 +2580,9 @@ function renderBrowseDetailView(container) {
             <span>Duration</span>
             <span>Play</span>
           </div>
-          ${songs.map((s, idx) => `
-            <div class="song-row" id="browse-song-${idx}">
-              <span class="song-number">${idx + 1}</span>
+          ${visibleSongs.map(({ s, origIdx }) => `
+            <div class="song-row" id="browse-song-${origIdx}">
+              <span class="song-number">${origIdx + 1}</span>
               <div class="song-title-cell">
                 <img src="${escapeHTML(s.cover || safeCover)}" class="song-cell-thumb" alt="${escapeHTML(s.title)}" onerror="this.src='../../assets/icon.png'">
                 <span class="song-title">${escapeHTML(s.title)}</span>
@@ -2447,6 +2607,38 @@ function renderBrowseDetailView(container) {
       `)}
     </div>
   `;
+
+  const filterBtn = document.getElementById('btn-filter-browse-songs');
+  if (filterBtn) {
+    filterBtn.onclick = () => {
+      browseDetailFilterOpen = !browseDetailFilterOpen;
+      if (!browseDetailFilterOpen) browseDetailFilterQuery = '';
+      renderBrowseDetailView(container);
+      const inp = document.getElementById('browse-detail-filter-input');
+      if (inp) inp.focus();
+    };
+  }
+
+  const filterInput = document.getElementById('browse-detail-filter-input');
+  if (filterInput) {
+    filterInput.oninput = (e) => {
+      browseDetailFilterQuery = e.target.value;
+      const pos = e.target.selectionStart;
+      renderBrowseDetailView(container);
+      const nextInp = document.getElementById('browse-detail-filter-input');
+      if (nextInp) {
+        nextInp.focus();
+        try { nextInp.setSelectionRange(pos, pos); } catch {}
+      }
+    };
+  }
+
+  const dlAllBtn = document.getElementById('btn-dl-browse-all');
+  if (dlAllBtn && songs && songs.length > 0) {
+    dlAllBtn.onclick = () => {
+      triggerTrackDownload(createCatalogueItemFromLive(songs[0]));
+    };
+  }
 
   if (songs && songs.length > 0) {
     songs.forEach((s, idx) => {
@@ -2772,6 +2964,11 @@ function renderHomeView(container) {
 }
 const renderListenNowView = renderHomeView;
 
+const BITCHORD_MOOD_COLORS = [
+  '#AF2896', '#1E3264', '#E8115B', '#148A08',
+  '#BC5900', '#503750', '#0D73EC', '#8D67AB'
+];
+
 function _renderHomeViewImpl(container) {
   const allShelves = [];
 
@@ -2808,16 +3005,101 @@ function _renderHomeViewImpl(container) {
   }
 
   const hasLiveShelves = allShelves.length > 0;
-  let shelvesHTML = '';
 
+  // BitChord Recents section (HomeScreen.kt RecentsSection: 4-row columns or 2-row grid toggle)
+  const recentsPool = (hasLiveShelves && allShelves[0]?.items?.length > 0)
+    ? allShelves[0].items.slice(0, 12)
+    : CATALOGUE_TRACKS.slice(0, 12);
+
+  const recentColumns = [];
+  for (let i = 0; i < recentsPool.length; i += 4) {
+    recentColumns.push(recentsPool.slice(i, i + 4));
+  }
+
+  const recentsHTML = `
+    <section class="shelf-section" style="margin-bottom: 26px;">
+      <div class="bc-section-header-row">
+        <h2 class="bc-section-heading">Recents</h2>
+        <button class="bc-recents-toggle-btn" id="bc-recents-layout-toggle" title="${bcRecentsGridMode ? 'Switch to List Columns' : 'Switch to Grid Cards'}">
+          ${bcRecentsGridMode ? `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          ` : `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          `}
+        </button>
+      </div>
+      ${bcRecentsGridMode ? `
+        <div class="bc-recents-grid-cards">
+          ${recentsPool.map((item, rIdx) => `
+            <div class="apple-music-card bc-recent-item-trigger" data-recent-idx="${rIdx}" style="width:140px; flex-shrink:0;">
+              <div class="card-thumb-wrapper">
+                <img src="${escapeHTML(upscaleArtworkUrl(item.cover, item.videoId))}" class="card-thumb track-card-img" alt="${escapeHTML(item.title || '')}" onerror="this.src='../../assets/icon.png'">
+                <div class="card-play-btn">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                </div>
+              </div>
+              <div class="card-title">${escapeHTML(item.title || '')}</div>
+              <div class="card-subtitle">${escapeHTML(item.artist || item.subtitle || 'YouTube Music')}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : `
+        <div class="bc-recents-columns-scroll">
+          ${recentColumns.map((col, cIdx) => `
+            <div class="bc-recents-column">
+              ${col.map((item, rIdx) => {
+                const flatIdx = cIdx * 4 + rIdx;
+                return `
+                  <div class="bc-recent-track-row bc-recent-item-trigger" data-recent-idx="${flatIdx}">
+                    <img src="${escapeHTML(upscaleArtworkUrl(item.cover, item.videoId))}" class="bc-recent-track-art" alt="${escapeHTML(item.title || '')}" onerror="this.src='../../assets/icon.png'">
+                    <div class="bc-recent-track-meta">
+                      <div class="bc-recent-track-title">${escapeHTML(item.title || '')}</div>
+                      <div class="bc-recent-track-sub">${escapeHTML(item.artist || item.subtitle || 'YouTube Music')}</div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `).join('')}
+        </div>
+      `}
+    </section>
+  `;
+
+  // BitChord HeroShelf (HomeScreen.kt HeroShelf: 320x192px rounded-18px cards)
+  const heroPool = (hasLiveShelves && allShelves.length > 1 && allShelves[1]?.items?.length > 0)
+    ? allShelves[1].items.slice(0, 6)
+    : CATALOGUE_TRACKS.slice(0, 5);
+
+  const heroCarouselHTML = `
+    <section class="shelf-section" style="margin-bottom: 28px;">
+      <div class="bc-hero-carousel">
+        ${heroPool.map((item, hIdx) => {
+          const isBrowse = item.type === 'browse' || (!item.videoId && item.browseId);
+          return `
+            <div class="bc-hero-card" data-hero-idx="${hIdx}" ${hIdx === 0 ? 'id="btn-hero-play"' : ''}>
+              <img src="${escapeHTML(upscaleArtworkUrl(item.cover, item.videoId))}" class="bc-hero-card-img" alt="${escapeHTML(item.title || '')}" onerror="this.src='../../assets/icon.png'">
+              <div class="bc-hero-card-scrim">
+                <span class="bc-hero-card-kicker">${isBrowse ? 'FEATURED ALBUM' : 'FEATURED MIX'}</span>
+                <h3 class="bc-hero-card-title">${escapeHTML(item.title || '')}</h3>
+                <p class="bc-hero-card-sub">${escapeHTML(item.artist || item.subtitle || 'YouTube Music')}</p>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </section>
+  `;
+
+  let shelvesHTML = '';
   if (hasLiveShelves) {
     shelvesHTML = allShelves.map((shelf, shelfIdx) => {
       return `
         <section class="shelf-section">
           <div class="shelf-header">
             <div>
+              ${shelf.strapline ? `<div class="bc-section-strapline">${escapeHTML(shelf.strapline)}</div>` : ''}
               <h2 class="shelf-title">${escapeHTML(shelf.title)}</h2>
-              ${shelf.strapline ? `<p style="font-size: 13px; color: var(--text-secondary); margin-top: 3px;">${escapeHTML(shelf.strapline)}</p>` : ''}
             </div>
             <span class="shelf-action" style="color: var(--apple-accent); font-weight: 600;">YouTube Music</span>
           </div>
@@ -2873,9 +3155,9 @@ function _renderHomeViewImpl(container) {
   ` : '';
 
   container.innerHTML = `
-    <div class="bitchord-home-header" style="padding: 10px 0 16px 0;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-        <h1 style="font-size: 32px; font-weight: 800; margin: 0; letter-spacing: -0.5px;">Home</h1>
+    <div class="bitchord-home-header" style="padding: 6px 0 12px 0;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+        <h1 class="bc-screen-large-title" style="margin:0;">Listen Now</h1>
         ${isUserSignedIn ? `
           <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); cursor: pointer;" onclick="openAccountModal()">
             <span style="width: 8px; height: 8px; border-radius: 50%; background: #34C759; display: inline-block;"></span>
@@ -2883,7 +3165,6 @@ function _renderHomeViewImpl(container) {
           </div>
         ` : ''}
       </div>
-      <p style="color: var(--text-secondary); font-size: 14px; margin: 0 0 18px 0;">Your music feed, quick picks, and recommendations from YouTube Music.</p>
       ${signInBannerHTML}
     </div>
 
@@ -2894,8 +3175,44 @@ function _renderHomeViewImpl(container) {
       </div>
     ` : ''}
 
+    ${recentsHTML}
+    ${heroCarouselHTML}
     ${shelvesHTML}
   `;
+
+  const recentsToggle = document.getElementById('bc-recents-layout-toggle');
+  if (recentsToggle) {
+    recentsToggle.onclick = () => {
+      bcRecentsGridMode = !bcRecentsGridMode;
+      _renderHomeViewImpl(container);
+    };
+  }
+
+  container.querySelectorAll('.bc-recent-item-trigger').forEach(el => {
+    el.onclick = () => {
+      const idx = parseInt(el.getAttribute('data-recent-idx'), 10);
+      const item = recentsPool[idx];
+      if (!item) return;
+      if (item.type === 'browse' || (!item.videoId && item.browseId)) {
+        openBrowseDetail(item.browseId, item.title, item.cover, item.subtitle);
+      } else {
+        playLiveTrack(item);
+      }
+    };
+  });
+
+  container.querySelectorAll('[data-hero-idx]').forEach(el => {
+    el.onclick = () => {
+      const idx = parseInt(el.getAttribute('data-hero-idx'), 10);
+      const item = heroPool[idx];
+      if (!item) return;
+      if (item.type === 'browse' || (!item.videoId && item.browseId)) {
+        openBrowseDetail(item.browseId, item.title, item.cover, item.subtitle);
+      } else {
+        playLiveTrack(item);
+      }
+    };
+  });
 
   const bannerSignIn = document.getElementById('btn-banner-signin');
   if (bannerSignIn) {
@@ -2929,14 +3246,6 @@ function _renderHomeViewImpl(container) {
         }
       });
     });
-  }
-
-  const heroBtn = document.getElementById('btn-hero-play');
-  if (heroBtn) {
-    heroBtn.onclick = () => {
-      loadTrack(0);
-      play();
-    };
   }
 
   const switchLiveBtn = document.getElementById('btn-switch-live');
@@ -3024,45 +3333,53 @@ function _renderExploreViewImpl(container) {
     `;
   }
 
-  let moodsShelfHTML = '';
-  if (liveMoodsAndGenres && liveMoodsAndGenres.length > 0) {
-    moodsShelfHTML = `
-      <section class="shelf-section" style="margin-top: 36px;">
-        <div class="shelf-header">
-          <div>
-            <h2 class="shelf-title">Moods & Genres</h2>
-          </div>
-          <span class="shelf-action" style="color: var(--apple-accent); font-weight: 600; cursor: pointer;" onclick="filterByGenre('Moods & Genres')">Explore All</span>
-        </div>
-        <div class="moods-genres-grid">
-          ${liveMoodsAndGenres.slice(0, 12).map((cat, idx) => {
-            const bg = cat.color ? `background-color: ${escapeHTML(cat.color)};` : `background: hsl(${(idx * 43) % 360}, 65%, 26%);`;
-            const style = cat.cover ? `background-image: url('${escapeHTML(cat.cover)}');` : bg;
-            return `
-              <div class="mood-genre-card" id="browse-mood-${idx}" style="${style}">
-                <div class="mood-genre-overlay"></div>
-                <span class="mood-genre-title">${escapeHTML(cat.title)}</span>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </section>
-    `;
-  }
+  // BitChord Moods & Genres section (ExploreScreen.kt MoodGenreCard with 8 palette colors & rotated 16deg corner sleeve)
+  const moodCategories = (liveMoodsAndGenres && liveMoodsAndGenres.length > 0)
+    ? liveMoodsAndGenres.slice(0, 12)
+    : [
+        { title: 'Chill', cover: CATALOGUE_TRACKS[0]?.cover },
+        { title: 'Energy Boost', cover: CATALOGUE_TRACKS[1]?.cover },
+        { title: 'Workout', cover: CATALOGUE_TRACKS[2]?.cover },
+        { title: 'Focus & Study', cover: CATALOGUE_TRACKS[3]?.cover },
+        { title: 'Party', cover: CATALOGUE_TRACKS[4]?.cover },
+        { title: 'Feel Good', cover: CATALOGUE_TRACKS[5]?.cover },
+        { title: 'Commute', cover: CATALOGUE_TRACKS[6]?.cover },
+        { title: 'Sleep & Relax', cover: CATALOGUE_TRACKS[7]?.cover }
+      ];
+
+  const moodsShelfHTML = `
+    <section class="shelf-section" style="margin-bottom: 28px;">
+      <div class="bc-section-header-row">
+        <h2 class="bc-section-heading">Moods &amp; Genres</h2>
+        <span class="shelf-action" style="color: var(--apple-accent); font-weight: 600; cursor: pointer;" onclick="filterByGenre('Moods & Genres')">Explore All</span>
+      </div>
+      <div class="bc-moods-grid moods-genres-grid">
+        ${moodCategories.map((cat, idx) => {
+          const bgColor = cat.color || BITCHORD_MOOD_COLORS[idx % BITCHORD_MOOD_COLORS.length];
+          const sleeveArt = cat.cover || CATALOGUE_TRACKS[idx % CATALOGUE_TRACKS.length]?.cover || '../../assets/icon.png';
+          return `
+            <div class="bc-mood-genre-card mood-genre-card" id="browse-mood-${idx}" style="background-color: ${escapeHTML(bgColor)};">
+              <span class="bc-mood-genre-title mood-genre-title">${escapeHTML(cat.title)}</span>
+              <img src="${escapeHTML(sleeveArt)}" class="bc-mood-genre-sleeve" alt="${escapeHTML(cat.title)}" onerror="this.style.display='none'">
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </section>
+  `;
 
   container.innerHTML = `
-    <div style="padding: 10px 0 20px 0;">
-      <h1 style="font-size: 32px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px;">Explore</h1>
-      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">New releases, charts, and moods & genres from YouTube Music.</p>
+    <div style="padding: 6px 0 20px 0;">
+      <h1 class="bc-screen-large-title">Explore</h1>
       
-      <div class="genre-chips-wrap">
+      <div class="genre-chips-wrap" style="margin-bottom: 22px;">
         ${genres.map((g, i) => `
           <button class="genre-chip ${i === 0 ? 'active' : ''}" onclick="filterByGenre('${g}')">${g}</button>
         `).join('')}
       </div>
 
-      ${shelvesHTML}
       ${moodsShelfHTML}
+      ${shelvesHTML}
     </div>
   `;
 
@@ -3088,18 +3405,18 @@ function _renderExploreViewImpl(container) {
     });
   }
 
-  if (liveMoodsAndGenres && liveMoodsAndGenres.length > 0) {
-    liveMoodsAndGenres.slice(0, 12).forEach((cat, idx) => {
-      const el = document.getElementById(`browse-mood-${idx}`);
-      if (el) {
-        el.onclick = () => {
-          if (cat.browseId) {
-            openBrowseDetail(cat.browseId, cat.title, cat.cover || '', 'Mood & Genre');
-          }
-        };
-      }
-    });
-  }
+  moodCategories.forEach((cat, idx) => {
+    const el = document.getElementById(`browse-mood-${idx}`);
+    if (el) {
+      el.onclick = () => {
+        if (cat.browseId) {
+          openBrowseDetail(cat.browseId, cat.title, cat.cover || '', 'Mood & Genre');
+        } else {
+          filterByGenre(cat.title);
+        }
+      };
+    }
+  });
 }
 
 function filterByGenre(genre) {
@@ -3687,30 +4004,99 @@ function renderPlaylistsGridView(container) {
 
 function renderLibraryView(container) {
   const hasUserPlaylists = liveUserPlaylists && liveUserPlaylists.length > 0;
-  const hasLiked = (liveLikedSongs && liveLikedSongs.length > 0) || lovedTrackIds.size > 0;
+  const hasCustomPlaylists = customPlaylists && customPlaylists.length > 0;
   const hasAlbums = liveLibraryAlbums && liveLibraryAlbums.length > 0;
-  const hasArtists = liveLibraryArtists && liveLibraryArtists.length > 0;
+  const hasArtists = (liveLibraryArtists && liveLibraryArtists.length > 0) || (liveArtists && liveArtists.length > 0);
+  const dlCount = (typeof downloadedTracksList !== 'undefined' && Array.isArray(downloadedTracksList)) ? downloadedTracksList.length : 0;
+  const localCount = (typeof scannedLocalMusicTracks !== 'undefined' && Array.isArray(scannedLocalMusicTracks)) ? scannedLocalMusicTracks.length : 0;
+
+  // Apply BitChord sort order (Recently Added, Title A–Z, Artist A–Z)
+  const sortItems = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    const copy = [...arr];
+    if (bcLibrarySortMode === 'Title A–Z') {
+      copy.sort((a, b) => String(a.title || a.name || '').localeCompare(String(b.title || b.name || '')));
+    } else if (bcLibrarySortMode === 'Artist A–Z') {
+      copy.sort((a, b) => String(a.artist || a.subtitle || '').localeCompare(String(b.artist || b.subtitle || '')));
+    }
+    return copy;
+  };
+
+  const sortedUserPlaylists = sortItems(liveUserPlaylists);
+  const sortedCustomPlaylists = sortItems(customPlaylists);
+  const sortedAlbums = sortItems(liveLibraryAlbums);
+  const sortedArtists = sortItems((liveLibraryArtists && liveLibraryArtists.length > 0) ? liveLibraryArtists : liveArtists);
 
   container.innerHTML = `
-    <div style="padding: 10px 0 20px 0;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+    <div style="padding: 6px 0 24px 0;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;">
+        <h1 class="bc-screen-large-title" style="margin:0;">Library</h1>
+        <span style="font-size: 12.5px; color: var(--text-secondary); font-weight: 600;">Sorted by ${escapeHTML(bcLibrarySortMode)}</span>
+      </div>
+
+      <!-- BitChord Your Replay Mesh Feature Card (LibraryScreen.kt) -->
+      <div class="bc-replay-banner-card" id="bc-lib-replay-banner">
         <div>
-          <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 6px;">Library</h1>
-          <p style="color: var(--text-secondary); font-size: 14px;">Your personal YouTube Music collection, playlists, and saved tracks.</p>
+          <span class="bc-mesh-card-kicker">YOUR LISTENING STATS</span>
+          <div class="bc-mesh-card-title" style="font-size: 24px;">Your Replay</div>
+          <div class="bc-mesh-card-sub">Minutes streamed, top artists, tracks &amp; albums</div>
         </div>
-        <div style="display: flex; gap: 10px;">
-          <button class="btn-apple-primary" id="btn-library-new-playlist" style="display: flex; align-items: center; gap: 8px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>New Playlist</span>
-          </button>
+        <div class="bc-mesh-card-badge">Open Replay →</div>
+      </div>
+
+      <!-- BitChord On Device Mesh Shelf (Downloads, Local Music, WebDAV, SMB, History) -->
+      <div class="bc-section-header-row">
+        <h2 class="bc-section-heading">On Device &amp; Sources</h2>
+      </div>
+      <div class="bc-library-mesh-shelf">
+        <div class="bc-mesh-feature-card mesh-downloads" id="bc-lib-card-downloads">
+          <div>
+            <span class="bc-mesh-card-kicker">OFFLINE</span>
+            <div class="bc-mesh-card-title">Downloads</div>
+            <div class="bc-mesh-card-sub">${dlCount} saved tracks</div>
+          </div>
+          <span class="bc-mesh-card-badge">Music/Deja</span>
+        </div>
+
+        <div class="bc-mesh-feature-card mesh-local" id="bc-lib-card-local">
+          <div>
+            <span class="bc-mesh-card-kicker">DEVICE</span>
+            <div class="bc-mesh-card-title">Local Music</div>
+            <div class="bc-mesh-card-sub">${localCount > 0 ? `${localCount} audio files` : 'FLAC · MP3 · WAV'}</div>
+          </div>
+          <span class="bc-mesh-card-badge">Folder Scan</span>
+        </div>
+
+        <div class="bc-mesh-feature-card mesh-webdav" id="bc-lib-card-webdav">
+          <div>
+            <span class="bc-mesh-card-kicker">CLOUD SERVER</span>
+            <div class="bc-mesh-card-title">WebDAV / SMB</div>
+            <div class="bc-mesh-card-sub">Network NAS &amp; Add-on Sources</div>
+          </div>
+          <span class="bc-mesh-card-badge">Sources</span>
+        </div>
+
+        <div class="bc-mesh-feature-card mesh-smb" onclick="navigateTo('history')">
+          <div>
+            <span class="bc-mesh-card-kicker">RECENT</span>
+            <div class="bc-mesh-card-title">History</div>
+            <div class="bc-mesh-card-sub">${(liveHistorySongs && liveHistorySongs.length) || CATALOGUE_TRACKS.length} played tracks</div>
+          </div>
+          <span class="bc-mesh-card-badge">Timeline</span>
         </div>
       </div>
 
-      <!-- Quick Library Navigation Cards -->
+      <!-- BitChord Playlists Section (+ New playlist tile first, Liked Music, Custom, YouTube Music) -->
+      <div class="bc-section-header-row" style="margin-top: 8px;">
+        <h2 class="bc-section-heading">Playlists</h2>
+        <span class="shelf-action" onclick="navigateTo('playlists')" style="cursor:pointer; color:var(--apple-accent); font-weight:600;">See All</span>
+      </div>
       <div class="card-grid" style="margin-bottom: 32px;">
+        <div class="bc-new-playlist-tile" id="btn-library-new-playlist" title="Create New Playlist">
+          <div class="bc-new-playlist-plus">+</div>
+          <div class="bc-new-playlist-label">New playlist</div>
+        </div>
+
         <div class="apple-music-card" onclick="navigateToPlaylist('favorites')" style="cursor: pointer;">
           <div class="card-thumb-wrapper">
             <img src="${CATALOGUE_TRACKS[0]?.cover || '../../assets/icon.png'}" class="card-thumb track-card-img" alt="Liked Songs">
@@ -3720,104 +4106,134 @@ function renderLibraryView(container) {
               </svg>
             </div>
           </div>
-          <div class="card-title">Liked Songs</div>
-          <div class="card-subtitle">${lovedTrackIds.size || (liveLikedSongs && liveLikedSongs.length) || 0} tracks • Favorites</div>
+          <div class="card-title">Liked Music</div>
+          <div class="card-subtitle">${lovedTrackIds.size || (liveLikedSongs && liveLikedSongs.length) || 0} songs • Auto-sync</div>
         </div>
 
-        <div class="apple-music-card" onclick="navigateTo('playlists')" style="cursor: pointer;">
-          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color: var(--text-secondary);">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        ${hasCustomPlaylists ? sortedCustomPlaylists.map(pl => `
+          <div class="apple-music-card library-custom-pl-card" data-playlist-id="${escapeHTML(pl.id)}" style="cursor: pointer;">
+            <div class="card-thumb-wrapper">
+              <img src="${escapeHTML(pl.cover || CATALOGUE_TRACKS[1]?.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(pl.title)}" onerror="this.src='../../assets/icon.png'">
+              <div class="card-play-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </div>
+            </div>
+            <div class="card-title">${escapeHTML(pl.title)}</div>
+            <div class="card-subtitle">${(pl.tracks && pl.tracks.length) || 0} songs • Custom</div>
           </div>
-          <div class="card-title">Playlists</div>
-          <div class="card-subtitle">${liveUserPlaylists.length + (customPlaylists ? customPlaylists.length : 0)} playlists</div>
-        </div>
+        `).join('') : ''}
 
-        <div class="apple-music-card" onclick="navigateTo('albums')" style="cursor: pointer;">
-          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color: var(--text-secondary);">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+        ${hasUserPlaylists ? sortedUserPlaylists.map(lp => `
+          <div class="apple-music-card library-browse-card" data-browse-id="${escapeHTML(lp.browseId || '')}" data-title="${escapeHTML(lp.title || '')}" data-cover="${escapeHTML(lp.cover || '')}" data-subtitle="${escapeHTML(lp.subtitle || 'YouTube Music Playlist')}" style="cursor: pointer;">
+            <div class="card-thumb-wrapper">
+              <img src="${escapeHTML(lp.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(lp.title || '')}" onerror="this.src='../../assets/icon.png'">
+              <div class="card-play-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </div>
+            </div>
+            <div class="card-title">${escapeHTML(lp.title || 'Playlist')}</div>
+            <div class="card-subtitle">${escapeHTML(lp.subtitle || 'YouTube Music')}</div>
           </div>
-          <div class="card-title">Albums</div>
-          <div class="card-subtitle">${liveLibraryAlbums.length || 'Collection'} albums</div>
-        </div>
-
-        <div class="apple-music-card" onclick="navigateTo('artists')" style="cursor: pointer;">
-          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color: var(--text-secondary);">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          </div>
-          <div class="card-title">Artists</div>
-          <div class="card-subtitle">${liveLibraryArtists.length || liveArtists.length || 'Collection'} artists</div>
-        </div>
-
-        <div class="apple-music-card" onclick="navigateTo('history')" style="cursor: pointer;">
-          <div class="card-thumb-wrapper" style="background: rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color: var(--text-secondary);">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <div class="card-title">History</div>
-          <div class="card-subtitle">${(liveHistorySongs && liveHistorySongs.length) || 'Listening'} history</div>
-        </div>
+        `).join('') : ''}
       </div>
 
-      <!-- User's YouTube Music Playlists Section -->
-      ${hasUserPlaylists ? `
-        <div style="margin-bottom: 32px;">
-          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 14px;">YouTube Music Playlists</h2>
-          <div class="card-grid">
-            ${liveUserPlaylists.map(lp => `
-              <div class="apple-music-card library-browse-card" data-browse-id="${escapeHTML(lp.browseId || '')}" data-title="${escapeHTML(lp.title || '')}" data-cover="${escapeHTML(lp.cover || '')}" data-subtitle="${escapeHTML(lp.subtitle || 'YouTube Music Playlist')}" style="cursor: pointer;">
-                <div class="card-thumb-wrapper">
-                  <img src="${escapeHTML(lp.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(lp.title || '')}" onerror="this.src='../../assets/icon.png'">
-                  <div class="card-play-btn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
-                  </div>
-                </div>
-                <div class="card-title">${escapeHTML(lp.title || 'Playlist')}</div>
-                <div class="card-subtitle">${escapeHTML(lp.subtitle || 'YouTube Music')}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      ` : `
-        <div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12); border-radius: 16px; padding: 32px; text-align: center; margin-bottom: 32px;">
-          <p style="font-size: 15px; font-weight: 600; margin-bottom: 8px;">No YouTube Music Playlists Loaded</p>
-          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Make sure you are signed in to YouTube Music to sync your playlists and library.</p>
+      ${!hasUserPlaylists ? `
+        <div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12); border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 32px;">
+          <p style="font-size: 15px; font-weight: 600; margin-bottom: 6px;">Sync Your YouTube Music Library</p>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">Sign in or refresh to load your personal YouTube Music playlists, albums, and liked tracks.</p>
           <button class="btn-apple-primary" id="btn-library-sync-now">
             <span>Sync Library Now</span>
           </button>
         </div>
-      `}
+      ` : ''}
 
-      <!-- Saved Albums Section if any -->
-      ${hasAlbums ? `
-        <div style="margin-bottom: 32px;">
-          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 14px;">Saved Albums</h2>
-          <div class="card-grid">
-            ${liveLibraryAlbums.map(alb => `
-              <div class="apple-music-card library-browse-card" data-browse-id="${escapeHTML(alb.browseId || '')}" data-title="${escapeHTML(alb.title || '')}" data-cover="${escapeHTML(alb.cover || '')}" data-subtitle="${escapeHTML(alb.subtitle || 'Album')}" style="cursor: pointer;">
-                <div class="card-thumb-wrapper">
-                  <img src="${escapeHTML(alb.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(alb.title || '')}" onerror="this.src='../../assets/icon.png'">
-                  <div class="card-play-btn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
-                  </div>
-                </div>
-                <div class="card-title">${escapeHTML(alb.title || 'Album')}</div>
-                <div class="card-subtitle">${escapeHTML(alb.subtitle || 'Album')}</div>
+      <!-- Saved Albums Section -->
+      <div class="bc-section-header-row">
+        <h2 class="bc-section-heading">Albums</h2>
+        <span class="shelf-action" onclick="navigateTo('albums')" style="cursor:pointer; color:var(--apple-accent); font-weight:600;">See All</span>
+      </div>
+      <div class="card-grid" style="margin-bottom: 32px;">
+        ${hasAlbums ? sortedAlbums.map(alb => `
+          <div class="apple-music-card library-browse-card" data-browse-id="${escapeHTML(alb.browseId || '')}" data-title="${escapeHTML(alb.title || '')}" data-cover="${escapeHTML(alb.cover || '')}" data-subtitle="${escapeHTML(alb.subtitle || 'Album')}" style="cursor: pointer;">
+            <div class="card-thumb-wrapper">
+              <img src="${escapeHTML(alb.cover || '../../assets/icon.png')}" class="card-thumb track-card-img" alt="${escapeHTML(alb.title || '')}" onerror="this.src='../../assets/icon.png'">
+              <div class="card-play-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
               </div>
-            `).join('')}
+            </div>
+            <div class="card-title">${escapeHTML(alb.title || 'Album')}</div>
+            <div class="card-subtitle">${escapeHTML(alb.subtitle || 'Album')}</div>
           </div>
+        `).join('') : renderCardGridHTML(CATALOGUE_TRACKS.slice(0, 6))}
+      </div>
+
+      <!-- Artists Section -->
+      ${hasArtists ? `
+        <div class="bc-section-header-row">
+          <h2 class="bc-section-heading">Artists</h2>
+          <span class="shelf-action" onclick="navigateTo('artists')" style="cursor:pointer; color:var(--apple-accent); font-weight:600;">See All</span>
+        </div>
+        <div class="artists-grid" style="margin-bottom: 24px;">
+          ${sortedArtists.slice(0, 8).map((art, idx) => `
+            <div class="artist-card bc-lib-artist-card" data-artist-idx="${idx}" style="cursor:pointer;">
+              <img src="${escapeHTML(art.cover || '../../assets/icon.png')}" class="artist-avatar" alt="${escapeHTML(art.title || art.name || '')}" onerror="this.src='../../assets/icon.png'">
+              <div class="artist-card-name">${escapeHTML(art.title || art.name || 'Artist')}</div>
+              <div class="artist-card-sub">${escapeHTML(art.subtitle || 'Artist')}</div>
+            </div>
+          `).join('')}
         </div>
       ` : ''}
     </div>
   `;
+
+  const replayBanner = document.getElementById('bc-lib-replay-banner');
+  if (replayBanner) {
+    replayBanner.onclick = () => navigateTo('replay');
+  }
+
+  const dlCard = document.getElementById('bc-lib-card-downloads');
+  if (dlCard) dlCard.onclick = () => navigateTo('downloads');
+
+  const localCard = document.getElementById('bc-lib-card-local');
+  if (localCard) {
+    localCard.onclick = () => {
+      if (typeof openLocalMusicBrowserSubModal === 'function') {
+        openLocalMusicBrowserSubModal();
+      } else {
+        navigateTo('songs');
+      }
+    };
+  }
+
+  const webdavCard = document.getElementById('bc-lib-card-webdav');
+  if (webdavCard) {
+    webdavCard.onclick = () => {
+      if (typeof openSourcesSubModal === 'function') {
+        openSourcesSubModal();
+      } else {
+        navigateTo('settings');
+      }
+    };
+  }
 
   const btnLibNew = document.getElementById('btn-library-new-playlist');
   if (btnLibNew) btnLibNew.onclick = () => openCreatePlaylistModal();
 
   const btnSyncNow = document.getElementById('btn-library-sync-now');
   if (btnSyncNow) btnSyncNow.onclick = () => fetchLiveYouTubeMusic(true);
+
+  container.querySelectorAll('.library-custom-pl-card').forEach(card => {
+    card.onclick = () => {
+      const plId = card.getAttribute('data-playlist-id');
+      if (plId) navigateToPlaylist(plId);
+    };
+  });
 
   container.querySelectorAll('.library-browse-card').forEach(card => {
     card.onclick = () => {
@@ -3826,6 +4242,149 @@ function renderLibraryView(container) {
       const cover = card.getAttribute('data-cover');
       const subtitle = card.getAttribute('data-subtitle');
       if (bId) openBrowseDetail(bId, title, cover, subtitle);
+    };
+  });
+
+  container.querySelectorAll('.bc-lib-artist-card').forEach(card => {
+    card.onclick = () => {
+      const idx = parseInt(card.getAttribute('data-artist-idx'), 10);
+      const art = sortedArtists[idx];
+      if (art && art.browseId) {
+        openArtistDetail(art.browseId, art.title || art.name, art.cover, art.subtitle);
+      } else {
+        navigateTo('artists');
+      }
+    };
+  });
+}
+
+function renderSearchTabView(container) {
+  if (!container) return;
+  const hasQuery = Boolean(searchQuery && searchQuery.trim().length > 0);
+  if (hasQuery) {
+    renderSearchResultsView(container);
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="padding: 6px 0 24px 0;">
+      <h1 class="bc-screen-large-title">Search</h1>
+
+      <div class="bc-search-page-field-wrap">
+        <div class="bc-search-page-pill">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="bc-search-page-input" class="bc-search-page-input" placeholder="Artists, Songs, Lyrics, and More" value="${escapeHTML(searchQuery)}" autocomplete="off" />
+        </div>
+      </div>
+
+      ${bcRecentSearches.length > 0 ? `
+        <div class="bc-recent-searches-header">
+          <span class="bc-recent-searches-title">Recent Searches</span>
+          <button class="bc-recent-searches-clear" id="bc-clear-recent-searches">Clear</button>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:2px; margin-bottom:28px;">
+          ${bcRecentSearches.map((term, idx) => `
+            <div class="bc-recent-search-row" data-recent-term="${escapeHTML(term)}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-secondary); flex-shrink:0;">
+                <circle cx="12" cy="12" r="9"></circle>
+                <polyline points="12 7 12 12 15 15"></polyline>
+              </svg>
+              <span class="bc-recent-search-text">${escapeHTML(term)}</span>
+              <button class="bc-recent-search-remove" data-remove-recent="${idx}" title="Remove">✕</button>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      <div class="bc-section-header-row">
+        <h2 class="bc-section-heading">Browse Categories</h2>
+      </div>
+      <div class="bc-moods-grid">
+        ${['Pop', 'Hip-Hop', 'Synthwave', 'R&B & Soul', 'Rock', 'Electronic', 'Indie', 'Lo-Fi Chill'].map((cat, idx) => {
+          const bgColor = BITCHORD_MOOD_COLORS[idx % BITCHORD_MOOD_COLORS.length];
+          const sleeveArt = CATALOGUE_TRACKS[idx % CATALOGUE_TRACKS.length]?.cover || '../../assets/icon.png';
+          return `
+            <div class="bc-mood-genre-card" data-search-cat="${escapeHTML(cat)}" style="background-color: ${bgColor};">
+              <span class="bc-mood-genre-title">${escapeHTML(cat)}</span>
+              <img src="${escapeHTML(sleeveArt)}" class="bc-mood-genre-sleeve" alt="${escapeHTML(cat)}" onerror="this.style.display='none'">
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
+  const getById = (id) => (typeof document !== 'undefined' && typeof document.getElementById === 'function')
+    ? document.getElementById(id)
+    : null;
+  const pageInput = getById('bc-search-page-input');
+  if (pageInput) {
+    pageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && pageInput.value.trim()) {
+        const val = pageInput.value.trim();
+        if (!bcRecentSearches.includes(val)) {
+          bcRecentSearches.unshift(val);
+          if (bcRecentSearches.length > 8) bcRecentSearches.pop();
+        }
+        searchQuery = val;
+        const hiddenInput = getById('apple-search-input');
+        if (hiddenInput) hiddenInput.value = val;
+        renderSearchResultsView(container);
+      }
+    });
+    pageInput.addEventListener('input', (e) => {
+      const val = e.target.value;
+      searchQuery = val;
+      const hiddenInput = getById('apple-search-input');
+      if (hiddenInput) hiddenInput.value = val;
+      if (val.trim().length >= 2) {
+        renderSearchResultsView(container);
+      }
+    });
+  }
+
+  const clearBtn = getById('bc-clear-recent-searches');
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      bcRecentSearches = [];
+      renderSearchTabView(container);
+    };
+  }
+
+  container.querySelectorAll('[data-recent-term]').forEach(row => {
+    row.onclick = (e) => {
+      if (e.target.closest('[data-remove-recent]')) return;
+      const term = row.getAttribute('data-recent-term');
+      if (term) {
+        searchQuery = term;
+        const hiddenInput = getById('apple-search-input');
+        if (hiddenInput) hiddenInput.value = term;
+        renderSearchResultsView(container);
+      }
+    };
+  });
+
+  container.querySelectorAll('[data-remove-recent]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.getAttribute('data-remove-recent'), 10);
+      bcRecentSearches.splice(idx, 1);
+      renderSearchTabView(container);
+    };
+  });
+
+  container.querySelectorAll('[data-search-cat]').forEach(card => {
+    card.onclick = () => {
+      const cat = card.getAttribute('data-search-cat');
+      if (cat) {
+        searchQuery = cat;
+        const hiddenInput = getById('apple-search-input');
+        if (hiddenInput) hiddenInput.value = cat;
+        renderSearchResultsView(container);
+      }
     };
   });
 }
@@ -4045,10 +4604,21 @@ function renderSearchResultsView(container) {
   ) : [];
 
   container.innerHTML = `
-    <div style="padding: 10px 0 28px 0;">
+    <div style="padding: 6px 0 28px 0;">
+      <div class="bc-search-page-field-wrap" style="margin-bottom: 14px;">
+        <div class="bc-search-page-pill">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="bc-search-page-input" class="bc-search-page-input" placeholder="Artists, Songs, Lyrics, and More" value="${safeQ}" autocomplete="off" />
+          <button class="bc-recent-search-remove" onclick="clearSearch()" title="Clear Search">✕</button>
+        </div>
+      </div>
+
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
         <div>
-          <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.4px;">Search Results for "${safeQ}"</h1>
+          <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.4px;">Search Results for "${safeQ}"</h1>
           <p style="color: var(--text-secondary); font-size: 13.5px; margin: 0;">YouTube Music Catalogue • ${escapeHTML(activeFilterLabel)}</p>
         </div>
         <button class="genre-chip" onclick="clearSearch()">Clear Search</button>
@@ -4081,6 +4651,18 @@ function renderSearchResultsView(container) {
       ` : ''}
     </div>
   `;
+
+  const topSearchField = document.getElementById('bc-search-page-input');
+  if (topSearchField) {
+    topSearchField.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        searchQuery = topSearchField.value;
+        const hiddenInput = document.getElementById('apple-search-input');
+        if (hiddenInput) hiddenInput.value = searchQuery;
+        renderCurrentView();
+      }
+    });
+  }
 
   // Bind filter pills click
   container.querySelectorAll('.search-filter-pill').forEach(pill => {
@@ -5170,18 +5752,19 @@ function parseLrcLines(lrcText) {
 
 function renderPreviewQueue() {
   const queueBody = document.getElementById('preview-queue-body');
+  const inlineQueueBody = document.getElementById('bc-np-inline-queue-list');
   const countLabel = document.getElementById('queue-count-label');
-  if (!queueBody) return;
+  if (!queueBody && !inlineQueueBody) return;
 
   const currentQueue = (userQueue && userQueue.length > 0) ? userQueue : CATALOGUE_TRACKS;
   if (countLabel) countLabel.innerText = `${currentQueue.length} tracks`;
 
   const currentVideoId = CATALOGUE_TRACKS[currentIndex]?.videoId;
 
-  queueBody.innerHTML = currentQueue.map((t, idx) => {
+  const queueHtml = currentQueue.map((t, idx) => {
     const isCurrent = (t.videoId && t.videoId === currentVideoId) || (idx === currentIndex && !t.videoId);
     return `
-      <div class="deja-queue-item ${isCurrent ? 'active-playing' : ''}" id="queue-item-${idx}">
+      <div class="deja-queue-item ${isCurrent ? 'active-playing' : ''}" id="queue-item-${idx}" data-queue-idx="${idx}">
         <div class="deja-queue-item-index">${isCurrent ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>' : idx + 1}</div>
         <img src="${escapeHTML(t.cover || '')}" class="deja-queue-thumb" alt="${escapeHTML(t.title)}" onerror="this.src='../../assets/icon.png'">
         <div class="deja-queue-item-meta">
@@ -5193,12 +5776,25 @@ function renderPreviewQueue() {
     `;
   }).join('');
 
-  currentQueue.forEach((t, idx) => {
-    const itemEl = document.getElementById(`queue-item-${idx}`);
-    if (itemEl) {
-      itemEl.onclick = () => selectQueueTrack(idx);
-    }
-  });
+  if (queueBody) {
+    queueBody.innerHTML = queueHtml;
+    currentQueue.forEach((t, idx) => {
+      const itemEl = document.getElementById(`queue-item-${idx}`);
+      if (itemEl) {
+        itemEl.onclick = () => selectQueueTrack(idx);
+      }
+    });
+  }
+
+  if (inlineQueueBody) {
+    inlineQueueBody.innerHTML = queueHtml.replace(/id="queue-item-/g, 'id="inline-queue-item-');
+    inlineQueueBody.querySelectorAll('[data-queue-idx]').forEach(el => {
+      el.onclick = () => {
+        const idx = parseInt(el.getAttribute('data-queue-idx'), 10);
+        selectQueueTrack(idx);
+      };
+    });
+  }
 }
 
 function selectQueueTrack(idx) {
@@ -5933,6 +6529,49 @@ function updateSyncedLyrics(forceScroll = false) {
 
 const updateLiveLyrics = updateSyncedLyrics;
 
+let activeLandscapePane = 'main';
+let bcRomanizeLyrics = false;
+let bcKaraokeMode = false;
+
+function switchLandscapePlayerPane(pane) {
+  if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+  activeLandscapePane = pane || 'main';
+  const mainPane = document.getElementById('bc-np-main-controls-pane');
+  const lyricsPane = document.getElementById('expanded-lyrics-container');
+  const lyricsToolbar = document.getElementById('bc-lyrics-bottom-toolbar');
+  const queuePane = document.getElementById('bc-np-inline-queue-container');
+
+  const tabMain = document.getElementById('bc-np-tab-main');
+  const tabLyrics = document.getElementById('bc-np-tab-lyrics');
+  const tabQueue = document.getElementById('bc-np-tab-queue');
+  const leftLyricsBtn = document.getElementById('bc-np-btn-lyrics-left');
+  const leftQueueBtn = document.getElementById('bc-np-btn-queue-left');
+
+  if (tabMain && tabMain.classList) tabMain.classList.toggle('active', activeLandscapePane === 'main');
+  if (tabLyrics && tabLyrics.classList) tabLyrics.classList.toggle('active', activeLandscapePane === 'lyrics');
+  if (tabQueue && tabQueue.classList) tabQueue.classList.toggle('active', activeLandscapePane === 'queue');
+  if (leftLyricsBtn && leftLyricsBtn.classList) leftLyricsBtn.classList.toggle('active', activeLandscapePane === 'lyrics');
+  if (leftQueueBtn && leftQueueBtn.classList) leftQueueBtn.classList.toggle('active', activeLandscapePane === 'queue');
+
+  if (mainPane && mainPane.style) mainPane.style.display = activeLandscapePane === 'main' ? 'flex' : 'none';
+  if (lyricsPane && lyricsPane.style) lyricsPane.style.display = activeLandscapePane === 'lyrics' ? 'flex' : 'none';
+  if (lyricsToolbar && lyricsToolbar.style) lyricsToolbar.style.display = activeLandscapePane === 'lyrics' ? 'flex' : 'none';
+  if (queuePane && queuePane.style) queuePane.style.display = activeLandscapePane === 'queue' ? 'flex' : 'none';
+
+  if (activeLandscapePane === 'lyrics') {
+    const track = CATALOGUE_TRACKS[currentIndex];
+    if (track) {
+      renderLyrics(track.lyrics);
+      if ((!track.lyrics || track.lyrics.length === 0) && !track._lyricsFetching) {
+        resolveSyncedLyrics(track);
+      }
+    }
+    updateSyncedLyrics(true);
+  } else if (activeLandscapePane === 'queue') {
+    renderPreviewQueue();
+  }
+}
+
 /**
  * Toggles Now Playing Lyrics View inside slide-up Now Playing screen (NowPlayingScreen.kt)
  */
@@ -5945,6 +6584,7 @@ function toggleNowPlayingLyrics() {
 
   const isShowingLyrics = lyricsContainer.style.display !== 'none';
   if (isShowingLyrics) {
+    switchLandscapePlayerPane('main');
     lyricsContainer.style.display = 'none';
     if (artContainer) artContainer.style.display = 'block';
     if (expBtnLyrics) {
@@ -5954,6 +6594,7 @@ function toggleNowPlayingLyrics() {
       expBtnLyrics.title = 'Synced Lyrics';
     }
   } else {
+    switchLandscapePlayerPane('lyrics');
     lyricsContainer.style.display = 'flex';
     if (artContainer) artContainer.style.display = 'none';
     if (expBtnLyrics) {
@@ -7853,37 +8494,47 @@ function updateNerdStatsHud() {
   const pcmEl = document.getElementById('nerd-stat-pcm');
   const dspEl = document.getElementById('nerd-stat-dsp');
   const dacEl = document.getElementById('nerd-stat-dac');
+  const sleeveStatsWrap = document.getElementById('bc-sleeve-nerd-stats');
+  const sleeveLine1 = document.getElementById('bc-sleeve-stats-line1');
+  const sleeveLine2 = document.getElementById('bc-sleeve-stats-line2');
 
   const qLabel = getActiveAudioQualityBadgeLabel();
-  if (codecEl) {
-    codecEl.textContent = bitchordSettings.dolbyAtmos
-      ? 'E-AC-3 JOC (Spatial)'
-      : (qLabel.includes('Hi-Res') ? 'FLAC / Opus 251' : (currentStreamMeta?.mimeType || 'Opus 251 (WebM)'));
+  const codecStr = bitchordSettings.dolbyAtmos
+    ? 'E-AC-3 JOC (Spatial)'
+    : (qLabel.includes('Hi-Res') ? 'FLAC 24-bit' : (currentStreamMeta?.mimeType || 'Opus 251'));
+  const bitrateStr = qLabel.includes('Hi-Res')
+    ? '1411 kbps'
+    : (currentStreamMeta?.bitrate ? `${Math.round(currentStreamMeta.bitrate / 1000)} kbps` : qLabel);
+  const srateStr = bitchordSettings.preferUsbDac ? '96.0 kHz' : `${((audioContext?.sampleRate || 48000) / 1000).toFixed(1)} kHz`;
+  const pcmStr = bitchordSettings.outputPcmMode || 'Auto';
+
+  if (codecEl) codecEl.textContent = codecStr;
+  if (bitrateEl) bitrateEl.textContent = bitrateStr;
+  if (srateEl) srateEl.textContent = srateStr;
+  if (pcmEl) pcmEl.textContent = pcmStr;
+
+  const dspParts = [];
+  if (bitchordSettings.loudnessNormalization) dspParts.push('-14 LUFS');
+  if (bitchordSettings.equalizerEnabled !== false) dspParts.push(`EQ ${currentEqPreset || 'Flat'}`);
+  if (bitchordSettings.spatialAudio) dspParts.push('Spatial 3D');
+  if (Number(bitchordSettings.stereoBalance)) {
+    const b = Number(bitchordSettings.stereoBalance);
+    dspParts.push(`Bal ${b < 0 ? 'L' + Math.abs(b) : 'R' + b}%`);
   }
-  if (bitrateEl) {
-    bitrateEl.textContent = qLabel.includes('Hi-Res')
-      ? '921–1411 kbps'
-      : (currentStreamMeta?.bitrate ? `${Math.round(currentStreamMeta.bitrate / 1000)} kbps` : qLabel);
+  const dspStr = dspParts.length > 0 ? dspParts.join(' • ') : 'Bit-Perfect Bypass';
+  const dacStr = bitchordSettings.preferUsbDac ? 'USB DAC Exclusive' : 'WASAPI Shared';
+
+  if (dspEl) dspEl.textContent = dspStr;
+  if (dacEl) dacEl.textContent = bitchordSettings.preferUsbDac ? 'Exclusive USB Audio DAC' : 'WASAPI Shared System Sink';
+
+  if (sleeveStatsWrap) {
+    sleeveStatsWrap.style.display = bitchordSettings.showNerdStats === false ? 'flex' : 'flex';
   }
-  if (srateEl) {
-    srateEl.textContent = bitchordSettings.preferUsbDac ? '96.0 kHz' : `${((audioContext?.sampleRate || 48000) / 1000).toFixed(1)} kHz`;
+  if (sleeveLine1) {
+    sleeveLine1.textContent = `${codecStr} • ${bitrateStr} • ${srateStr} • ${pcmStr}`;
   }
-  if (pcmEl) {
-    pcmEl.textContent = bitchordSettings.outputPcmMode || 'Auto';
-  }
-  if (dspEl) {
-    const dspParts = [];
-    if (bitchordSettings.loudnessNormalization) dspParts.push('-14 LUFS');
-    if (bitchordSettings.equalizerEnabled !== false) dspParts.push(`EQ ${currentEqPreset || 'Flat'}`);
-    if (bitchordSettings.spatialAudio) dspParts.push('Spatial 3D');
-    if (Number(bitchordSettings.stereoBalance)) {
-      const b = Number(bitchordSettings.stereoBalance);
-      dspParts.push(`Bal ${b < 0 ? 'L' + Math.abs(b) : 'R' + b}%`);
-    }
-    dspEl.textContent = dspParts.length > 0 ? dspParts.join(' • ') : 'Bit-Perfect Bypass';
-  }
-  if (dacEl) {
-    dacEl.textContent = bitchordSettings.preferUsbDac ? 'Exclusive USB Audio DAC' : 'WASAPI Shared System Sink';
+  if (sleeveLine2) {
+    sleeveLine2.textContent = `Out ${srateStr} • ${dacStr} • ${dspStr}`;
   }
 }
 
@@ -9606,7 +10257,7 @@ function renderSettingsView(container) {
       </div>
     `);
   }
-  if (matches('Check for Updates', 'update', 'version', '1.2', 'release', 'upgrade')) {
+  if (matches('Check for Updates', 'update', 'version', '1.3', '1.2', 'release', 'upgrade')) {
     g9Rows.push(`
       <div class="bitchord-settings-row" data-setting-action="check-updates">
         <div class="bitchord-settings-icon">
@@ -9614,9 +10265,9 @@ function renderSettingsView(container) {
         </div>
         <div class="bitchord-settings-text">
           <div class="bitchord-settings-row-title">App Updates &amp; Version</div>
-          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.2.3 (BitChord Edition) — Click to check &amp; install updates in-app</div>
+          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.3.0 (BitChord Edition) — Click to check &amp; install updates in-app</div>
         </div>
-        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.2.3</span>
+        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.3.0</span>
       </div>
     `);
   }
@@ -9645,7 +10296,7 @@ function renderSettingsView(container) {
 
       <div class="bitchord-settings-colophon">
         <div>
-          <strong>deja 1.2.3</strong>
+          <strong>deja 1.3.0</strong>
           <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="https://github.com/Dathevinci" target="_blank" rel="noopener noreferrer">Developer</a>
           <a href="https://dathevinci.github.io/Deja/" target="_blank" rel="noopener noreferrer">Website</a>
@@ -9823,7 +10474,7 @@ function renderSettingsView(container) {
         try {
           const payload = {
             app: 'Deja',
-            version: '1.2.3',
+            version: '1.3.0',
             exportedAt: new Date().toISOString(),
             settings: bitchordSettings,
             customPlaylists,
@@ -9878,11 +10529,11 @@ function renderSettingsView(container) {
               if (badge) badge.textContent = `Update v${info.latestVersion}`;
               openBitChordUpdateDialog(info);
             } else {
-              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.2.3'}).`;
+              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.3.0'}).`;
               if (badge) badge.textContent = 'Up to Date';
             }
           }).catch(() => {
-            if (sub) sub.textContent = 'Deja v1.2.3 is up to date.';
+            if (sub) sub.textContent = 'Deja v1.3.0 is up to date.';
           });
         }
       }
@@ -10615,7 +11266,7 @@ function handleBitChordUpdateProgress(prog) {
   const primaryBtn = document.getElementById('bitchord-update-btn-primary');
   const secondaryBtn = document.getElementById('bitchord-update-btn-secondary');
   const errEl = document.getElementById('bitchord-update-error');
-  const ver = latestPendingUpdateInfo?.latestVersion || '1.2.3';
+  const ver = latestPendingUpdateInfo?.latestVersion || '1.3.0';
 
   if (prog.state === 'downloading') {
     isUpdateDownloading = true;
@@ -10742,6 +11393,110 @@ if (typeof document !== 'undefined') {
       };
     }
 
+    // BitChord LandscapePlayer.kt Right-Column Pane Switcher & Left-Column Action Pills
+    const npTabMain = document.getElementById('bc-np-tab-main');
+    if (npTabMain) npTabMain.onclick = (e) => { e.stopPropagation(); switchLandscapePlayerPane('main'); };
+    const npTabLyrics = document.getElementById('bc-np-tab-lyrics');
+    if (npTabLyrics) npTabLyrics.onclick = (e) => { e.stopPropagation(); switchLandscapePlayerPane('lyrics'); };
+    const npTabQueue = document.getElementById('bc-np-tab-queue');
+    if (npTabQueue) npTabQueue.onclick = (e) => { e.stopPropagation(); switchLandscapePlayerPane('queue'); };
+
+    const npBtnLyricsLeft = document.getElementById('bc-np-btn-lyrics-left');
+    if (npBtnLyricsLeft) {
+      npBtnLyricsLeft.onclick = (e) => {
+        e.stopPropagation();
+        switchLandscapePlayerPane(isExpandedLyricsVisible ? 'main' : 'lyrics');
+      };
+    }
+    const npBtnQueueLeft = document.getElementById('bc-np-btn-queue-left');
+    if (npBtnQueueLeft) {
+      npBtnQueueLeft.onclick = (e) => {
+        e.stopPropagation();
+        const isQueueOpen = npTabQueue && npTabQueue.classList.contains('active');
+        switchLandscapePlayerPane(isQueueOpen ? 'main' : 'queue');
+      };
+    }
+    const npBtnParty = document.getElementById('bc-np-btn-party');
+    if (npBtnParty) {
+      npBtnParty.onclick = (e) => {
+        e.stopPropagation();
+        openListenTogetherSubModal();
+      };
+    }
+    const npBtnAutoplay = document.getElementById('bc-np-btn-autoplay');
+    if (npBtnAutoplay) {
+      npBtnAutoplay.classList.toggle('active', Boolean(bitchordSettings.autoRadioSimilar));
+      npBtnAutoplay.onclick = (e) => {
+        e.stopPropagation();
+        bitchordSettings.autoRadioSimilar = !bitchordSettings.autoRadioSimilar;
+        saveBitChordSettings();
+        npBtnAutoplay.classList.toggle('active', Boolean(bitchordSettings.autoRadioSimilar));
+      };
+    }
+
+    // BitChord Lyrics Toolbar Pills (Romanize, Translate, Source, Word/Line, Timing Offset)
+    const btnRomanize = document.getElementById('bc-lyric-romanize-btn');
+    if (btnRomanize) {
+      btnRomanize.onclick = (e) => {
+        e.stopPropagation();
+        btnRomanize.classList.toggle('active');
+        const activeLyrics = CATALOGUE_TRACKS[currentIndex]?.lyrics;
+        if (Array.isArray(activeLyrics) && activeLyrics.length > 0) {
+          renderLyrics(activeLyrics);
+          updateSyncedLyrics(true);
+        }
+      };
+    }
+    const btnTranslate = document.getElementById('bc-lyric-translate-btn');
+    if (btnTranslate) {
+      btnTranslate.classList.toggle('active', bitchordSettings.translationLanguage !== 'Off');
+      btnTranslate.onclick = (e) => {
+        e.stopPropagation();
+        bitchordSettings.translationLanguage = bitchordSettings.translationLanguage === 'Off' ? 'English' : 'Off';
+        saveBitChordSettings();
+        btnTranslate.classList.toggle('active', bitchordSettings.translationLanguage !== 'Off');
+        const activeLyrics = CATALOGUE_TRACKS[currentIndex]?.lyrics;
+        if (Array.isArray(activeLyrics) && activeLyrics.length > 0) {
+          renderLyrics(activeLyrics);
+          updateSyncedLyrics(true);
+        }
+      };
+    }
+    const btnSource = document.getElementById('bc-lyric-source-btn');
+    if (btnSource) {
+      btnSource.onclick = (e) => {
+        e.stopPropagation();
+        openLyricsSourcesSubModal();
+      };
+    }
+    const btnKaraoke = document.getElementById('bc-lyric-karaoke-btn');
+    if (btnKaraoke) {
+      btnKaraoke.onclick = (e) => {
+        e.stopPropagation();
+        bitchordSettings.lyricsBlur = !bitchordSettings.lyricsBlur;
+        saveBitChordSettings();
+        btnKaraoke.textContent = bitchordSettings.lyricsBlur ? 'Word' : 'Line';
+        applyBitChordVisualSettings();
+      };
+    }
+    const btnOffsetMinus = document.getElementById('bc-np-offset-minus');
+    const btnOffsetPlus = document.getElementById('bc-np-offset-plus');
+    const offsetValEl = document.getElementById('bc-np-offset-val');
+    if (btnOffsetMinus) {
+      btnOffsetMinus.onclick = (e) => {
+        e.stopPropagation();
+        const nextVal = nudgeLyricsOffset(-0.1);
+        if (offsetValEl) offsetValEl.textContent = formatLyricsOffset(nextVal);
+      };
+    }
+    if (btnOffsetPlus) {
+      btnOffsetPlus.onclick = (e) => {
+        e.stopPropagation();
+        const nextVal = nudgeLyricsOffset(0.1);
+        if (offsetValEl) offsetValEl.textContent = formatLyricsOffset(nextVal);
+      };
+    }
+
     const btnDockClose = document.getElementById('btn-dock-close');
     if (btnDockClose) {
       btnDockClose.onclick = (e) => {
@@ -10850,6 +11605,8 @@ if (typeof module !== 'undefined' && module.exports) {
     updateSyncedLyrics,
     renderLyrics,
     toggleNowPlayingLyrics,
+    switchLandscapePlayerPane,
+    renderSearchTabView,
     toggleShuffle,
     toggleRepeat,
     openLyricsDrawer,

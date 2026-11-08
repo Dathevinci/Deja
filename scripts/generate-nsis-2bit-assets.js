@@ -19,7 +19,7 @@ const zlib = require('zlib');
 const ROOT = path.resolve(__dirname, '..');
 const ASSETS_DIR = path.join(ROOT, 'assets');
 const PKG = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-const VERSION = PKG.version || '1.2.3';
+const VERSION = PKG.version || '1.3.0';
 
 // 2-Bit Palette
 const PALETTE = {

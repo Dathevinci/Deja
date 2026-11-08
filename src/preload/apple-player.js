@@ -2855,7 +2855,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     renderAppleModal({
       title: 'About Deja',
       rows: [
-        { label: 'Version', desc: 'Deja Desktop Client v1.2.3 (BitChord Engine)', badge: 'v1.2.3' },
+        { label: 'Version', desc: 'Deja Desktop Client v1.3.0 (BitChord Engine)', badge: 'v1.3.0' },
         { label: 'Design System', desc: 'BitChord luminous mesh aura & Apple Music fluid glassmorphism', badge: 'BitChord' },
         { label: 'Google TOS Disclosure', desc: 'Not affiliated with Google LLC. Respects all YouTube content licensing and advertisement rules.', badge: 'Verified' },
         { label: 'License', desc: 'GPLv3 Open Source License', badge: 'GPLv3' }

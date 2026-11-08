@@ -3,17 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Deja - YouTube Music (Apple Edition)</title>
+  <title>BitChord — Deja Desktop</title>
   <link rel="stylesheet" href="preview.css">
 </head>
-<body class="apple-dark">
+<body class="apple-dark bitchord-desktop-shell">
   <div class="app-ambient-backdrop" id="app-ambient-backdrop"></div>
-  <!-- macOS Frosted Window Titlebar -->
-  <header id="deja-titlebar" class="deja-titlebar sonora-titlebar">
-    <div class="deja-traffic-lights sonora-traffic-lights">
-      <button class="deja-btn-traffic sonora-btn-traffic deja-btn-close sonora-btn-close" id="btn-close" title="Close Deja"></button>
+  <!-- BitChord FrostedTopBar (Matches FrostedTopBar.kt & MainActivity.kt) -->
+  <header id="deja-titlebar" class="deja-titlebar sonora-titlebar bc-frosted-topbar">
+    <div class="deja-traffic-lights sonora-traffic-lights bc-topbar-left">
+      <button class="deja-btn-traffic sonora-btn-traffic deja-btn-close sonora-btn-close" id="btn-close" title="Close"></button>
       <button class="deja-btn-traffic sonora-btn-traffic deja-btn-min sonora-btn-min" id="btn-minimize" title="Minimize"></button>
       <button class="deja-btn-traffic sonora-btn-traffic deja-btn-max sonora-btn-max" id="btn-maximize" title="Maximize"></button>
+
+      <!-- BitChord FloatingAppMark (40px circular glass mark with 3-wave BitChord logo) -->
+      <button class="bc-floating-app-mark" id="bc-top-logo-mark" title="BitChord Home">
+        <img src="../../assets/LogoTransparent.svg" alt="BitChord" class="bc-top-wave-svg" onerror="this.src='../../assets/icon.png'" />
+      </button>
+
+      <!-- BitChord Pushed-Screen Circular Back Button -->
+      <button class="bc-circle-glass-btn" id="bc-top-back-btn" title="Back" style="display: none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+
       <div class="nav-arrows">
         <button class="nav-arrow" id="nav-back" title="Back" aria-label="Back">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -28,35 +41,63 @@
       </div>
     </div>
 
-    <div class="top-center-section">
-      <div class="apple-search-box">
+    <div class="top-center-section bc-topbar-center">
+      <div class="bc-top-collapsed-title" id="bc-top-collapsed-title">Listen Now</div>
+      <div class="apple-search-box" id="topbar-apple-search-box">
         <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <input type="text" id="apple-search-input" placeholder="Search songs, artists, albums (Ctrl+K)..." autocomplete="off">
+        <input type="text" id="apple-search-input" placeholder="Artists, Songs, Lyrics and More (Ctrl+K)..." autocomplete="off">
         <span class="search-shortcut">⌘K</span>
         <div class="search-suggestions-dropdown" id="search-suggestions-dropdown" style="display: none;"></div>
       </div>
     </div>
 
-    <div class="top-right-section">
+    <div class="top-right-section bc-topbar-right">
       <button class="top-action-btn bitchord-topbar-update-btn" id="btn-topbar-update" title="Software Update Available" style="display:none;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="16 12 12 8 8 12"></polyline>
-          <line x1="12" y1="16" x2="12" y2="8"></line>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
+        <span class="bc-upgrade-pill-label">Upgrade</span>
         <span class="topbar-update-dot"></span>
       </button>
-      <button class="top-action-btn" id="btn-toggle-lyrics" title="Live Synced Lyrics">
+      <button class="bc-circle-glass-btn" id="bc-top-history-btn" title="Listening History">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"></circle>
+          <polyline points="12 7 12 12 15.5 14"></polyline>
+        </svg>
+      </button>
+      <button class="bc-circle-glass-btn" id="bc-top-sort-btn" title="Sort Library (Default)" style="display:none;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18"></path>
+          <path d="M7 12h10"></path>
+          <path d="M10 18h4"></path>
+        </svg>
+      </button>
+      <button class="bc-circle-glass-btn" id="bc-top-downloads-btn" title="Downloads &amp; On Device">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+      </button>
+      <button class="bc-circle-glass-btn" id="bc-top-settings-btn" title="BitChord Settings">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+      <button class="top-action-btn" id="btn-toggle-lyrics" title="Live Synced Lyrics" style="display:none;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           <path d="M8 9h8"></path>
           <path d="M8 13h6"></path>
         </svg>
       </button>
-      <button class="top-action-btn" id="btn-toggle-miniplayer" title="Mini Player">
+      <button class="top-action-btn" id="btn-toggle-miniplayer" title="Mini Player" style="display:none;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
           <rect x="12" y="9" width="8" height="6" rx="1" ry="1"></rect>
@@ -65,19 +106,17 @@
       <button class="top-action-btn" id="btn-settings" title="Settings" style="display:none;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
         </svg>
       </button>
       <button class="top-action-btn" id="btn-toggle-web" title="Toggle Web / Native Client Mode" style="display:none;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
-          <line x1="2" y1="12" x2="22" y2="12"></line>
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
         </svg>
       </button>
-      <div class="user-profile-badge" id="btn-login-status" title="Google Account / YouTube Music">
+      <!-- BitChord TopBarAccountButton (Circular avatar / sign-in button) -->
+      <div class="user-profile-badge bc-topbar-account-btn" id="btn-login-status" title="YouTube Music Account &amp; Settings">
         <span class="profile-avatar" id="user-avatar-text">G</span>
-        <img class="profile-avatar-img" id="user-avatar-img" style="display:none; width: 22px; height: 22px; border-radius: 50%; object-fit: cover;" alt="Avatar" />
+        <img class="profile-avatar-img" id="user-avatar-img" style="display:none; width: 28px; height: 28px; border-radius: 50%; object-fit: cover;" alt="Avatar" />
         <span class="premium-pill" id="user-pill-text">Sign In</span>
       </div>
     </div>
@@ -225,10 +264,9 @@
 
     <!-- Main Content Area -->
     <main class="main-content" id="main-content-scroll">
-      <!-- BitChord Home Header & Sign-In Prompt -->
+      <!-- BitChord Listen Now Header & Sign-In Prompt (HomeScreen.kt) -->
       <div class="bitchord-home-header" style="padding: 10px 0 16px 0;">
-        <h1 style="font-size: 32px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px;">Home</h1>
-        <p style="color: var(--text-secondary); font-size: 14px; margin: 0 0 18px 0;">Your music feed, quick picks, and recommendations from YouTube Music.</p>
+        <h1 class="bc-display-heading">Listen Now</h1>
         
         <div class="bitchord-signin-banner" id="home-signin-banner" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
           <div style="display: flex; align-items: center; gap: 14px;">
@@ -267,8 +305,11 @@
     </main>
   </div>
 
-  <!-- Bottom Apple Frosted Glass Player Bar -->
-  <footer class="apple-player-bar" id="apple-player-bar">
+  <!-- BitChord BottomFadeScrim (FloatingBottomBar.kt) -->
+  <div class="bc-bottom-fade-scrim" id="bc-bottom-fade-scrim"></div>
+
+  <!-- BitChord Floating Pill MiniPlayer (MiniPlayer.kt) -->
+  <footer class="apple-player-bar bc-floating-miniplayer" id="apple-player-bar">
     <!-- Left Track Information -->
     <div class="player-left">
       <div class="artwork-wrapper" id="player-artwork-wrapper" title="Click to expand Now Playing">
@@ -286,6 +327,7 @@
       <div class="player-meta" id="player-meta-info" title="Click to expand Now Playing">
         <div class="title-row">
           <span class="track-title" id="player-track-title">Cruel Summer</span>
+          <span class="bc-explicit-badge" id="player-explicit-badge" style="display:none;">E</span>
           <span class="track-ad-badge" id="player-ad-pill" style="display: none;">ADVERTISEMENT</span>
         </div>
         <span class="track-artist" id="player-track-artist">Taylor Swift • Lover</span>
@@ -303,7 +345,7 @@
           <line x1="3" y1="21" x2="10" y2="14"></line>
         </svg>
       </button>
-      <button class="deja-video-switch-pill" id="btn-switch-video" title="Watch Official Music Video (Spotify Style)">
+      <button class="deja-video-switch-pill" id="btn-switch-video" title="Watch Official Music Video">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="23 7 16 12 23 17 23 7"></polygon>
           <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
@@ -371,7 +413,7 @@
 
     <!-- Right Controls: Pipeline, Sleep Timer, EQ, Lyrics, Queue, Volume -->
     <div class="player-right">
-      <div class="deja-audio-pipeline-badge" id="btn-audio-pipeline" title="BitChord Audio Pipeline & Stats for Nerds">
+      <div class="deja-audio-pipeline-badge" id="btn-audio-pipeline" title="BitChord Audio Pipeline &amp; Stats for Nerds">
         <span class="badge-dot"></span>
         <span>160k Opus</span>
       </div>
@@ -431,9 +473,45 @@
     </div>
   </footer>
 
-  <!-- Apple Music / BitChord Immersive Full-Height Now Playing Screen Overlay -->
-  <div class="deja-expanded-player-view" id="expanded-player-view">
-    <!-- Animated 4-Color Mesh Gradient Backdrop (BitChord MeshGradientBackground) -->
+  <!-- BitChord 4-Tab Floating Glass Navigation Bar (FloatingBottomBar.kt / GlassNavBar.kt) -->
+  <nav class="bc-floating-nav-bar" id="bc-floating-nav-bar" aria-label="BitChord Navigation">
+    <button type="button" class="bc-nav-tab active" data-bc-tab="home" id="bc-tab-home">
+      <svg class="bc-nav-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m3 9.5 9-7 9 7V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+        <polyline points="9 22 9 13 15 13 15 22"></polyline>
+      </svg>
+      <span class="bc-nav-label">Home</span>
+    </button>
+    <button type="button" class="bc-nav-tab" data-bc-tab="explore" id="bc-tab-explore">
+      <svg class="bc-nav-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7.5" height="7.5" rx="2"></rect>
+        <rect x="13.5" y="3" width="7.5" height="7.5" rx="2"></rect>
+        <rect x="3" y="13.5" width="7.5" height="7.5" rx="2"></rect>
+        <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"></rect>
+      </svg>
+      <span class="bc-nav-label">Explore</span>
+    </button>
+    <button type="button" class="bc-nav-tab" data-bc-tab="library" id="bc-tab-library">
+      <svg class="bc-nav-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m16 6 4 14"></path>
+        <path d="M12 6v14"></path>
+        <path d="M8 8v12"></path>
+        <path d="M4 4v16"></path>
+      </svg>
+      <span class="bc-nav-label">Library</span>
+    </button>
+    <button type="button" class="bc-nav-tab" data-bc-tab="search" id="bc-tab-search">
+      <svg class="bc-nav-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7.5"></circle>
+        <line x1="20" y1="20" x2="16.35" y2="16.35"></line>
+      </svg>
+      <span class="bc-nav-label">Search</span>
+    </button>
+  </nav>
+
+  <!-- BitChord 2-Column Landscape Now Playing Screen (LandscapePlayer.kt + NowPlayingScreen.kt) -->
+  <div class="deja-expanded-player-view bc-landscape-player" id="expanded-player-view">
+    <!-- Animated 4-Color Mesh Gradient Backdrop (BitChord ArtworkMeshBackground) -->
     <div class="deja-player-ambient-aura" id="preview-ambient-aura">
       <div class="deja-ambient-art-blur" id="preview-ambient-art-blur"></div>
       <div class="deja-ambient-mesh-overlay" id="preview-ambient-mesh-overlay"></div>
@@ -446,7 +524,8 @@
       <div class="deja-mesh-dark-scrim"></div>
     </div>
 
-    <!-- Top Header: Sleek collapse chevron, "Playing from...", and three-dots options button -->
+    <!-- Top Grabber Pill + Header (Collapse Chevron, Song/Video Switcher, Options Menu) -->
+    <div class="bc-np-top-grabber" id="bc-np-top-grabber" title="Click to minimize player"></div>
     <header class="expanded-player-header">
       <button class="btn-collapse-player" id="btn-collapse-player" title="Collapse (Esc)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -461,7 +540,7 @@
             <span>Video</span>
           </button>
         </div>
-        <span class="expanded-origin-text" id="exp-playing-from" style="margin-top:4px; font-size:12px; opacity:0.75;">Album • Lover</span>
+        <span class="expanded-origin-text" id="exp-playing-from" style="margin-top:4px; font-size:12px; opacity:0.75;">Playing from Listen Now</span>
       </div>
       <div class="expanded-header-actions">
         <button class="expanded-options-btn" id="exp-btn-options" title="More Options">
@@ -478,7 +557,7 @@
           </button>
           <button class="exp-dropdown-item" id="opt-open-eq">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line></svg>
-            <span>Equalizer Presets</span>
+            <span>Equalizer &amp; Tone Pad</span>
           </button>
           <button class="exp-dropdown-item" id="opt-open-sleep">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
@@ -500,167 +579,252 @@
       </div>
     </header>
 
-    <!-- Center & Controls Column -->
-    <div class="expanded-player-content">
-      <!-- Center: Large prominent squircle album cover (370x370px with 20px squircle radius + Spotify/Apple Motion Video Preview) -->
-      <div class="expanded-artwork-container now-playing-art-wrap" id="now-playing-art-wrap" data-legacy-id="expanded-artwork-container">
-        <img src="" alt="Album Artwork" id="expanded-artwork-img" class="expanded-artwork-img now-playing-art">
-        <video id="expanded-canvas-video" class="artwork-canvas-video" muted loop playsinline></video>
-        <span class="artwork-canvas-badge" id="expanded-canvas-badge" style="display: none;">Apple Motion</span>
-        <span class="artwork-automix-badge" id="player-automix-badge" style="display: none;">Automix Smart Fade</span>
-        <div class="player-nerd-stats-overlay" id="player-nerd-stats-overlay" style="display: none;">
-          <div class="nerd-stats-header">
-            <span class="nerd-stats-dot"></span>
-            <span>BITCHORD NERD STATS</span>
-          </div>
-          <div class="nerd-stats-grid" id="player-nerd-stats-body">
-            <div><span>Codec:</span> <strong id="nerd-stat-codec">Opus 251 (WebM)</strong></div>
-            <div><span>Bitrate:</span> <strong id="nerd-stat-bitrate">160 kbps</strong></div>
-            <div><span>Sample Rate:</span> <strong id="nerd-stat-srate">48.0 kHz</strong></div>
-            <div><span>PCM Mode:</span> <strong id="nerd-stat-pcm">Auto (Float32)</strong></div>
-            <div><span>DSP Chain:</span> <strong id="nerd-stat-dsp">Loudness Norm • EQ Flat</strong></div>
-            <div><span>Output Sink:</span> <strong id="nerd-stat-dac">System Default</strong></div>
-          </div>
-        </div>
-      </div>
+    <!-- 2-Column LandscapePlayer Body (LandscapePlayer.kt) -->
+    <div class="expanded-player-content bc-landscape-grid">
+      <!-- Left Column: Square Album Sleeve + SleeveNerdStats + Bottom Action Capsule Row -->
+      <div class="bc-np-left-column">
+        <div class="expanded-artwork-container now-playing-art-wrap" id="now-playing-art-wrap" data-legacy-id="expanded-artwork-container">
+          <img src="" alt="Album Artwork" id="expanded-artwork-img" class="expanded-artwork-img now-playing-art">
+          <video id="expanded-canvas-video" class="artwork-canvas-video" muted loop playsinline></video>
+          <span class="artwork-canvas-badge" id="expanded-canvas-badge" style="display: none;">Apple Motion</span>
+          <span class="artwork-automix-badge" id="player-automix-badge" style="display: none;">Automix Smart Fade</span>
 
-      <!-- Chromeless Video Preview Stage (No YouTube IFrame) -->
-      <div class="expanded-video-container" id="expanded-video-container" style="display: none;">
-        <video id="expanded-video-el" class="expanded-video-el" muted loop playsinline></video>
-      </div>
-
-      <!-- Now Playing Synced Lyrics Screen (BitChord NowPlayingScreen.kt) -->
-      <div class="expanded-lyrics-container" id="expanded-lyrics-container" style="display: none;">
-        <!-- Injected synced lyric lines -->
-      </div>
-
-      <!-- Below Cover: Track Meta, Like, Audio Pipeline Badge, Lyric Snippet, Scrubber, Transport, Bottom Row -->
-      <div class="expanded-track-meta-section">
-        <!-- Title and Artist + Like Heart & Audio Pipeline Badge -->
-        <div class="expanded-meta-row">
-          <div class="expanded-track-details">
-            <h2 class="expanded-track-title" id="expanded-track-title">Cruel Summer</h2>
-            <h4 class="expanded-track-artist" id="expanded-track-artist">Taylor Swift • Lover</h4>
+          <!-- BitChord SleeveNerdStats (Overlaid at foot of sleeve — LandscapePlayer.kt lines 253-261) -->
+          <div class="bc-sleeve-nerd-stats" id="bc-sleeve-nerd-stats">
+            <div class="bc-sleeve-stats-line1" id="bc-sleeve-stats-line1">Opus · 160 kbps · 48.0 kHz · Stereo</div>
+            <div class="bc-sleeve-stats-line2" id="bc-sleeve-stats-line2">Automix · Crossfade Ready · Direct Stream</div>
           </div>
-          <div class="expanded-meta-actions">
-            <button class="exp-circular-heart-btn" id="exp-btn-favorite" title="Like Song">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
-              </svg>
-            </button>
-            <button class="exp-circular-heart-btn" id="exp-btn-download" title="Download Song to Music/Deja">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-            </button>
-            <button class="exp-circular-heart-btn" id="exp-btn-video" title="Switch to Music Video">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="23 7 16 12 23 17 23 7"></polygon>
-                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-              </svg>
-            </button>
-            <div class="exp-audio-pipeline-badge" id="exp-audio-pipeline-badge" title="BitChord Audio Pipeline &amp; Stats">
-              <span class="pipeline-status-dot"></span>
-              <span id="exp-pipeline-text">Opus • 160 kbps • 48.0 kHz • Stereo</span>
+
+          <div class="player-nerd-stats-overlay" id="player-nerd-stats-overlay" style="display: none;">
+            <div class="nerd-stats-header">
+              <span class="nerd-stats-dot"></span>
+              <span>BITCHORD NERD STATS</span>
+            </div>
+            <div class="nerd-stats-grid" id="player-nerd-stats-body">
+              <div><span>Codec:</span> <strong id="nerd-stat-codec">Opus 251 (WebM)</strong></div>
+              <div><span>Bitrate:</span> <strong id="nerd-stat-bitrate">160 kbps</strong></div>
+              <div><span>Sample Rate:</span> <strong id="nerd-stat-srate">48.0 kHz</strong></div>
+              <div><span>PCM Mode:</span> <strong id="nerd-stat-pcm">Auto (Float32)</strong></div>
+              <div><span>DSP Chain:</span> <strong id="nerd-stat-dsp">Loudness Norm • EQ Flat</strong></div>
+              <div><span>Output Sink:</span> <strong id="nerd-stat-dac">System Default</strong></div>
             </div>
           </div>
         </div>
 
-        <!-- Active Lyric Snippet Preview Line ("Tap for synced lyrics >") -->
-        <div class="expanded-lyric-snippet-wrap exp-lyric-preview" id="exp-lyric-snippet-wrap" title="Tap for live synced lyrics">
-          <span class="exp-lyric-snippet-text" id="exp-lyric-snippet-text" data-legacy-id="exp-lyric-snippet">Tap for synced lyrics</span>
-          <svg class="exp-lyric-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
+        <!-- Chromeless Video Preview Stage (No YouTube IFrame) -->
+        <div class="expanded-video-container" id="expanded-video-container" style="display: none;">
+          <video id="expanded-video-el" class="expanded-video-el" muted loop playsinline></video>
         </div>
 
-        <!-- Thin Apple Slider Scrubber (ThinSlider.kt) with current time (0:42) and remaining time (-3:10) -->
-        <div class="expanded-scrubber-section">
-          <div class="scrubber-track thin-apple-slider" id="exp-scrubber-track">
-            <div class="scrubber-buffered" id="exp-scrubber-buffered"></div>
-            <div class="scrubber-fill" id="exp-scrubber-fill"></div>
-            <div class="scrubber-knob" id="exp-scrubber-knob"></div>
+        <!-- BitChord Left-Column Bottom Action Row (Lyrics | Output/Listen Together/AutoPlay ∞ | Queue) -->
+        <div class="bc-np-sleeve-action-row">
+          <button type="button" class="bc-np-circle-pill-btn" id="bc-np-btn-lyrics-left" title="Toggle Synced Lyrics">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              <path d="M8 9h8"></path>
+              <path d="M8 13h6"></path>
+            </svg>
+          </button>
+
+          <div class="bc-np-center-capsule">
+            <button type="button" class="bc-np-capsule-segment" id="bc-np-btn-party" title="Audio Output &amp; Listen Together">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              <span id="bc-np-party-label">Listen Together</span>
+            </button>
+            <div class="bc-np-capsule-divider"></div>
+            <button type="button" class="bc-np-capsule-segment active" id="bc-np-btn-autoplay" title="AutoPlay Similar Songs (∞)">
+              <span style="font-size: 16px; font-weight: 800; line-height: 1;">∞</span>
+            </button>
           </div>
-          <div class="expanded-time-row">
-            <span class="expanded-time exp-time-current" id="exp-time-current">0:00</span>
-            <span class="expanded-time exp-time-remaining" id="exp-time-total">-0:00</span>
+
+          <button type="button" class="bc-np-circle-pill-btn" id="bc-np-btn-queue-left" title="Toggle Up Next Queue">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Column: Crossfading Controls / Synced Lyrics / Up Next Queue (LandscapePlayer.kt) -->
+      <div class="bc-np-right-column">
+        <!-- Segmented Pane Switcher -->
+        <div class="bc-np-pane-switcher" id="bc-np-pane-switcher">
+          <button type="button" class="bc-np-pane-tab active" data-np-pane="main" id="bc-np-tab-main">Controls</button>
+          <button type="button" class="bc-np-pane-tab" data-np-pane="lyrics" id="bc-np-tab-lyrics">Lyrics</button>
+          <button type="button" class="bc-np-pane-tab" data-np-pane="queue" id="bc-np-tab-queue">Up Next</button>
+        </div>
+
+        <!-- Now Playing Synced Lyrics Screen (BitChord NowPlayingScreen.kt & PlayerLyrics.kt) -->
+        <div class="expanded-lyrics-container" id="expanded-lyrics-container" style="display: none;">
+          <!-- Injected synced lyric lines -->
+        </div>
+
+        <!-- BitChord Bottom Lyrics Control Strip (Romanize A/あ, Translation, Source, Karaoke [Beta], Offset) -->
+        <div class="bc-lyrics-bottom-toolbar" id="bc-lyrics-bottom-toolbar" style="display: none;">
+          <button type="button" class="bc-lyric-tool-pill" id="bc-lyric-romanize-btn" title="Romanize Non-Latin Lyrics (A/あ)">A/あ</button>
+          <button type="button" class="bc-lyric-tool-pill" id="bc-lyric-translate-btn" title="Inline Lyric Translation">Translate: Off</button>
+          <button type="button" class="bc-lyric-tool-pill" id="bc-lyric-source-btn" title="Lyrics Providers &amp; Priority">Sources</button>
+          <button type="button" class="bc-lyric-tool-pill" id="bc-lyric-karaoke-btn" title="Karaoke Vocal Suppression [Beta]">🎤 Karaoke</button>
+          <div class="bc-lyric-offset-group">
+            <button type="button" class="bc-lyric-offset-btn" id="bc-np-offset-minus" title="Advance Lyrics −0.1s">−</button>
+            <span class="bc-lyric-offset-val" id="bc-np-offset-val" title="Click to reset offset">0.0s</span>
+            <button type="button" class="bc-lyric-offset-btn" id="bc-np-offset-plus" title="Delay Lyrics +0.1s">+</button>
           </div>
         </div>
 
-        <!-- Center Transport Controls: Rewind, large circular Play/Pause button (64px with glow), Fast-Forward -->
-        <div class="expanded-transport-row">
-          <button class="exp-transport-btn" id="exp-btn-prev" title="Rewind / Previous (Ctrl+Left)">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="19 20 9 12 19 4 19 20"></polygon>
-              <line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"></line>
-            </svg>
-          </button>
-          <button class="exp-play-circle-btn" id="exp-btn-play-pause" title="Play / Pause (Space)">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" id="exp-play-pause-icon">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-          </button>
-          <button class="exp-transport-btn" id="exp-btn-next" title="Fast-Forward / Next (Ctrl+Right)">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 4 15 12 5 20 5 4"></polygon>
-              <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"></line>
-            </svg>
-          </button>
-        </div>
-
-        <!-- Bottom Row: Volume Slider, Repeat, Shuffle, Synced Lyrics, Up Next Queue -->
-        <div class="expanded-bottom-row">
-          <div class="exp-volume-section">
-            <svg class="exp-vol-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-            </svg>
-            <div class="exp-volume-track" id="exp-volume-track">
-              <div class="exp-volume-fill" id="exp-volume-fill"></div>
+        <!-- Inline Up Next Queue Pane inside Right Column (LandscapePlayer.kt Queue View) -->
+        <div class="bc-np-inline-queue-container" id="bc-np-inline-queue-container" style="display: none;">
+          <div class="bc-np-inline-queue-header">
+            <div>
+              <div style="font-size: 16px; font-weight: 700; color: #fff;">Up Next</div>
+              <div style="font-size: 12px; color: rgba(255,255,255,0.6);" id="bc-np-inline-queue-sub">AutoPlay ∞ active</div>
             </div>
-            <svg class="exp-vol-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+            <button type="button" class="bc-lyric-tool-pill" id="bc-np-open-full-queue-btn">Open Drawer</button>
+          </div>
+          <div class="bc-np-inline-queue-list" id="bc-np-inline-queue-list"></div>
+        </div>
+
+        <!-- Main Controls Pane (LandscapePlayer.kt Main View) -->
+        <div class="expanded-track-meta-section" id="bc-np-main-controls-pane">
+          <!-- Title and Artist + Like Heart & Audio Pipeline Badge -->
+          <div class="expanded-meta-row">
+            <div class="expanded-track-details">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <h2 class="expanded-track-title" id="expanded-track-title">Cruel Summer</h2>
+                <span class="bc-explicit-badge" id="exp-explicit-badge" style="display:none;">E</span>
+              </div>
+              <h4 class="expanded-track-artist" id="expanded-track-artist">Taylor Swift • Lover</h4>
+            </div>
+            <div class="expanded-meta-actions">
+              <button class="exp-circular-heart-btn" id="exp-btn-favorite" title="Like Song">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>
+                </svg>
+              </button>
+              <button class="exp-circular-heart-btn" id="exp-btn-download" title="Download Song to Music/Deja">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </button>
+              <button class="exp-circular-heart-btn" id="exp-btn-video" title="Switch to Music Video">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Active Lyric Snippet Preview Line ("Tap for synced lyrics >") -->
+          <div class="expanded-lyric-snippet-wrap exp-lyric-preview" id="exp-lyric-snippet-wrap" title="Tap for live synced lyrics">
+            <span class="exp-lyric-snippet-text" id="exp-lyric-snippet-text" data-legacy-id="exp-lyric-snippet">Tap for synced lyrics</span>
+            <svg class="exp-lyric-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
           </div>
 
-          <div class="exp-extra-controls">
-            <button class="exp-sub-btn exp-repeat-btn" id="exp-btn-repeat" title="Repeat">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="17 1 21 5 17 9"></polyline>
-                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                <polyline points="7 23 3 19 7 15"></polyline>
-                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+          <!-- Thin Apple Slider Scrubber (ThinSlider.kt) with current time, centered Quality Badge, and remaining time -->
+          <div class="expanded-scrubber-section">
+            <div class="scrubber-track thin-apple-slider" id="exp-scrubber-track">
+              <div class="scrubber-buffered" id="exp-scrubber-buffered"></div>
+              <div class="scrubber-fill" id="exp-scrubber-fill"></div>
+              <div class="scrubber-knob" id="exp-scrubber-knob"></div>
+            </div>
+            <div class="expanded-time-row">
+              <span class="expanded-time exp-time-current" id="exp-time-current">0:00</span>
+              <div class="exp-audio-pipeline-badge" id="exp-audio-pipeline-badge" title="BitChord Audio Quality &amp; Pipeline">
+                <span class="pipeline-status-dot"></span>
+                <span id="exp-pipeline-text">Opus • 160 kbps • 48.0 kHz • Stereo</span>
+              </div>
+              <span class="expanded-time exp-time-remaining" id="exp-time-total">-0:00</span>
+            </div>
+          </div>
+
+          <!-- Center Transport Controls: Rewind, large circular Play/Pause button (68px with glow), Fast-Forward -->
+          <div class="expanded-transport-row">
+            <button class="exp-transport-btn" id="exp-btn-prev" title="Rewind / Previous (Ctrl+Left)">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                <line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"></line>
               </svg>
             </button>
-            <button class="exp-sub-btn exp-shuffle-btn" id="exp-btn-shuffle" title="Shuffle">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="16 3 21 3 21 8"></polyline>
-                <line x1="4" y1="20" x2="21" y2="3"></line>
-                <polyline points="21 16 21 21 16 21"></polyline>
-                <line x1="15" y1="15" x2="21" y2="21"></line>
-                <line x1="4" y1="4" x2="9" y2="9"></line>
+            <button class="exp-play-circle-btn" id="exp-btn-play-pause" title="Play / Pause (Space)">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" id="exp-play-pause-icon">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
               </svg>
             </button>
-            <button class="exp-sub-btn exp-lyrics-btn" id="exp-btn-lyrics" title="Synced Lyrics">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                <path d="M8 9h8"></path>
-                <path d="M8 13h6"></path>
+            <button class="exp-transport-btn" id="exp-btn-next" title="Fast-Forward / Next (Ctrl+Right)">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"></line>
               </svg>
             </button>
-            <button class="exp-sub-btn exp-queue-btn" id="exp-btn-queue" title="Up Next Queue">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="8" y1="6" x2="21" y2="6"></line>
-                <line x1="8" y1="12" x2="21" y2="12"></line>
-                <line x1="8" y1="18" x2="21" y2="18"></line>
-                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </div>
+
+          <!-- Bottom Row: Volume Slider, Repeat, Shuffle, Synced Lyrics, Up Next Queue -->
+          <div class="expanded-bottom-row">
+            <div class="exp-volume-section">
+              <svg class="exp-vol-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
               </svg>
-            </button>
+              <div class="exp-volume-track" id="exp-volume-track">
+                <div class="exp-volume-fill" id="exp-volume-fill"></div>
+              </div>
+              <svg class="exp-vol-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+              </svg>
+            </div>
+
+            <div class="exp-extra-controls">
+              <button class="exp-sub-btn exp-repeat-btn" id="exp-btn-repeat" title="Repeat">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="17 1 21 5 17 9"></polyline>
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                  <polyline points="7 23 3 19 7 15"></polyline>
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                </svg>
+              </button>
+              <button class="exp-sub-btn exp-shuffle-btn" id="exp-btn-shuffle" title="Shuffle">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="16 3 21 3 21 8"></polyline>
+                  <line x1="4" y1="20" x2="21" y2="3"></line>
+                  <polyline points="21 16 21 21 16 21"></polyline>
+                  <line x1="15" y1="15" x2="21" y2="21"></line>
+                  <line x1="4" y1="4" x2="9" y2="9"></line>
+                </svg>
+              </button>
+              <button class="exp-sub-btn exp-lyrics-btn" id="exp-btn-lyrics" title="Synced Lyrics">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  <path d="M8 9h8"></path>
+                  <path d="M8 13h6"></path>
+                </svg>
+              </button>
+              <button class="exp-sub-btn exp-queue-btn" id="exp-btn-queue" title="Up Next Queue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1238,7 +1402,7 @@
           <img src="../../assets/icon.png" alt="Deja" width="28" height="28" style="border-radius:7px;" />
         </div>
         <div class="bitchord-update-title" id="bitchord-update-title">Software Update</div>
-        <div class="bitchord-update-sub" id="bitchord-update-sub">Deja v1.2.3 is available and ready to install.</div>
+        <div class="bitchord-update-sub" id="bitchord-update-sub">Deja v1.3.0 is available and ready to install.</div>
 
         <div class="bitchord-update-progress-track" id="bitchord-update-progress-track" style="display: none;">
           <div class="bitchord-update-progress-fill" id="bitchord-update-progress-fill" style="width: 0%;"></div>
