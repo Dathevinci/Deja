@@ -1900,8 +1900,8 @@ function runBitChordArchitectureTests() {
   assert.ok(nshCode.includes('!macro customWelcomePage'), 'installer.nsh must define customWelcomePage macro');
   assert.ok(nshCode.includes('BrandingText "DEJA v${VERSION} // 2-BIT UI"'), 'installer.nsh must set 2-Bit versioned BrandingText');
 
-  // 20. Authentic BitChord Desktop UI & Feature Parity Verification (v1.3.0)
-  assert.strictEqual(pkgJson.version, '1.3.0', 'package.json version must be 1.3.0');
+  // 20. Authentic BitChord Desktop UI & Feature Parity Verification (v1.4.0)
+  assert.strictEqual(pkgJson.version, '1.4.0', 'package.json version must be 1.4.0');
   assert.ok(fs.existsSync(path.join(__dirname, '../assets/Logo.svg')), 'Official BitChord Logo.svg must exist in assets/');
   assert.ok(fs.existsSync(path.join(__dirname, '../assets/LogoTransparent.svg')), 'Official BitChord LogoTransparent.svg must exist in assets/');
 
@@ -2081,6 +2081,25 @@ function runBitChordArchitectureTests() {
     assert.strictEqual(npOffsetVal.textContent, '+0.3s', 'updateOffsetBadges must update #bc-np-offset-val textContent');
     previewModule.updateOffsetBadges(0);
     assert.strictEqual(npOffsetVal.textContent, '0.0s', 'updateOffsetBadges(0) must reset #bc-np-offset-val to 0.0s');
+
+    // 6. Test all 8 BitChord lyrics providers and _durationUnverified preservation
+    assert.strictEqual(typeof innertube.fetchBiniLyrics, 'function', 'innertube must export fetchBiniLyrics');
+    assert.strictEqual(typeof innertube.fetchPaxSenixLyrics, 'function', 'innertube must export fetchPaxSenixLyrics');
+    assert.strictEqual(typeof innertube.fetchKuGouLyrics, 'function', 'innertube must export fetchKuGouLyrics');
+    const configuredIds = (previewModule.DEFAULT_BITCHORD_SETTINGS.lyricsSourcesConfig || []).map(s => s.id);
+    ['BiniLyrics', 'BetterLyrics', 'PaxSenix', 'SimpMusic', 'LyricsPlus', 'LRCLIB', 'KuGou', 'YouTube'].forEach(pid => {
+      assert.ok(configuredIds.includes(pid), `DEFAULT_BITCHORD_SETTINGS.lyricsSourcesConfig must include ${pid}`);
+    });
+    const unverifiedItem = previewModule.createCatalogueItemFromLive({
+      videoId: 'kIft-LUHHVA',
+      title: 'Espresso',
+      artist: 'Sabrina Carpenter • Short n\' Sweet • 2:56',
+      duration: 210,
+      _durationUnverified: true
+    });
+    assert.strictEqual(unverifiedItem._durationUnverified, true, 'createCatalogueItemFromLive must preserve _durationUnverified: true even when fallback duration is 210');
+    assert.strictEqual(unverifiedItem.artist, 'Sabrina Carpenter', 'createCatalogueItemFromLive must strip subtitle suffixes from artist');
+    assert.ok(css.includes('@media (min-width: 821px)') && css.includes('bc-np-mode-lyrics'), 'preview.css must include Windows desktop @media (min-width: 821px) layout and simultaneous lyrics/controls rules');
   } finally {
     global.document = bcPrevDoc;
   }

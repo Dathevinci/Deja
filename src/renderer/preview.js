@@ -107,123 +107,131 @@ const CATALOGUE_TRACKS = [
     ]
   },
   {
-    id: 'yt-4NRXx6U8ABQ',
-    videoId: '4NRXx6U8ABQ',
+    id: 'yt-J7p4bzqLvCw',
+    videoId: 'J7p4bzqLvCw',
+    musicVideoId: '4NRXx6U8ABQ',
     title: 'Blinding Lights',
     artist: 'The Weeknd',
     album: 'After Hours',
-    duration: 200,
+    duration: 202,
     genre: 'Synthwave / Pop',
     year: '2020',
     playlists: ['favorites'],
     palette: { c1: 'rgba(255, 0, 80, 0.48)', c2: 'rgba(30, 20, 50, 0.44)', c3: 'rgba(255, 60, 0, 0.40)', c4: 'rgba(120, 0, 50, 0.35)', primaryR: 255, primaryG: 0, primaryB: 80 },
     cover: 'https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'Yeah' },
-      { time: 12, text: 'I\'ve been tryna call' },
-      { time: 15, text: 'I\'ve been on my own for long enough' },
-      { time: 20, text: 'Maybe you can show me how to love, maybe' },
-      { time: 28, text: 'I\'m going through withdrawals' },
-      { time: 33, text: 'You don\'t even have to do too much' },
-      { time: 37, text: 'You can turn me on with just a touch, baby' },
-      { time: 48, text: 'I look around and Sin City\'s cold and empty' },
-      { time: 54, text: 'No one\'s around to judge me' },
-      { time: 60, text: 'I can\'t see clearly when you\'re gone' },
-      { time: 65, text: 'I said, ooh, I\'m blinded by the lights' },
-      { time: 75, text: 'No, I can\'t sleep until I feel your touch' },
-      { time: 85, text: 'I said, ooh, I\'m drowning in the night' },
-      { time: 95, text: 'Oh, when I\'m like this, you\'re the one I trust' }
+      { time: 0, text: '♪' },
+      { time: 27.4, text: 'I\'ve been tryna call' },
+      { time: 30.2, text: 'I\'ve been on my own for long enough' },
+      { time: 33.0, text: 'Maybe you can show me how to love, maybe' },
+      { time: 38.5, text: 'I\'m going through withdrawals' },
+      { time: 41.3, text: 'You don\'t even have to do too much' },
+      { time: 44.1, text: 'You can turn me on with just a touch, baby' },
+      { time: 49.6, text: 'I look around and Sin City\'s cold and empty' },
+      { time: 55.2, text: 'No one\'s around to judge me' },
+      { time: 58.0, text: 'I can\'t see clearly when you\'re gone' },
+      { time: 60.8, text: 'I said, ooh, I\'m blinded by the lights' },
+      { time: 66.4, text: 'No, I can\'t sleep until I feel your touch' },
+      { time: 72.0, text: 'I said, ooh, I\'m drowning in the night' },
+      { time: 77.6, text: 'Oh, when I\'m like this, you\'re the one I trust' }
     ]
   },
   {
-    id: 'yt-eVli-tstM5E',
-    videoId: 'eVli-tstM5E',
+    id: 'yt-kIft-LUHHVA',
+    videoId: 'kIft-LUHHVA',
+    musicVideoId: 'eVli-tstM5E',
     title: 'Espresso',
     artist: 'Sabrina Carpenter',
     album: 'Short n\' Sweet',
-    duration: 175,
+    duration: 176,
     genre: 'Nu-Disco / Pop',
     year: '2024',
     playlists: ['favorites', 'featured'],
     palette: { c1: 'rgba(240, 160, 40, 0.48)', c2: 'rgba(60, 150, 240, 0.44)', c3: 'rgba(255, 220, 100, 0.40)', c4: 'rgba(200, 100, 30, 0.35)', primaryR: 240, primaryG: 160, primaryB: 40 },
     cover: 'https://i.ytimg.com/vi/eVli-tstM5E/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'Now he\'s thinkin\' \'bout me every night, oh' },
-      { time: 6, text: 'Is it that sweet? I guess so' },
-      { time: 11, text: 'Say you can\'t sleep, baby, I know' },
-      { time: 16, text: 'That\'s that me espresso' },
-      { time: 22, text: 'Move it up, down, left, right, oh' },
-      { time: 27, text: 'Switch it up like Nintendo' },
-      { time: 33, text: 'Say you can\'t sleep, baby, I know' },
-      { time: 38, text: 'That\'s that me espresso' },
-      { time: 45, text: 'I can\'t relate to desperation' },
-      { time: 50, text: 'My give-a-fucks are on vacation' },
-      { time: 55, text: 'And I got this one boy and he won\'t stop calling' },
-      { time: 65, text: 'Now he\'s thinkin\' \'bout me every night, oh' },
-      { time: 75, text: 'That\'s that me espresso' }
+      { time: 0, text: '♪' },
+      { time: 8.6, text: 'Now he\'s thinkin\' \'bout me every night, oh' },
+      { time: 13.2, text: 'Is it that sweet? I guess so' },
+      { time: 17.8, text: 'Say you can\'t sleep, baby, I know' },
+      { time: 20.1, text: 'That\'s that me espresso' },
+      { time: 24.7, text: 'Move it up, down, left, right, oh' },
+      { time: 29.3, text: 'Switch it up like Nintendo' },
+      { time: 33.9, text: 'Say you can\'t sleep, baby, I know' },
+      { time: 36.2, text: 'That\'s that me espresso' },
+      { time: 40.9, text: 'I can\'t relate to desperation' },
+      { time: 45.5, text: 'My give-a-fucks are on vacation' },
+      { time: 50.1, text: 'And I got this one boy and he won\'t stop calling' },
+      { time: 65.0, text: 'Now he\'s thinkin\' \'bout me every night, oh' },
+      { time: 74.2, text: 'That\'s that me espresso' }
     ]
   },
   {
-    id: 'yt-G7KNmW9a75Y',
-    videoId: 'G7KNmW9a75Y',
+    id: 'yt-BkSSOGNeWTM',
+    videoId: 'BkSSOGNeWTM',
+    musicVideoId: 'G7KNmW9a75Y',
     title: 'Flowers',
     artist: 'Miley Cyrus',
     album: 'Endless Summer Vacation',
-    duration: 200,
+    duration: 201,
     genre: 'Pop',
     year: '2023',
     playlists: ['favorites'],
     palette: { c1: 'rgba(255, 200, 0, 0.48)', c2: 'rgba(200, 100, 0, 0.44)', c3: 'rgba(255, 80, 50, 0.40)', c4: 'rgba(180, 120, 20, 0.35)', primaryR: 255, primaryG: 200, primaryB: 0 },
     cover: 'https://i.ytimg.com/vi/G7KNmW9a75Y/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'We were good, we were gold' },
-      { time: 6, text: 'Kinda dream that can\'t be sold' },
-      { time: 12, text: 'We were right \'til we weren\'t' },
-      { time: 18, text: 'Built a home and watched it burn' },
-      { time: 24, text: 'Mm, I didn\'t wanna leave you' },
-      { time: 30, text: 'I didn\'t wanna lie' },
-      { time: 36, text: 'Started to cry, but then remembered I' },
-      { time: 42, text: 'I can buy myself flowers' },
-      { time: 48, text: 'Write my name in the sand' },
-      { time: 54, text: 'Talk to myself for hours' },
-      { time: 60, text: 'Say things you don\'t understand' },
-      { time: 66, text: 'I can take myself dancing' },
-      { time: 72, text: 'And I can hold my own hand' },
-      { time: 78, text: 'Yeah, I can love me better than you can' }
+      { time: 0, text: '♪' },
+      { time: 7.4, text: 'We were good, we were gold' },
+      { time: 11.4, text: 'Kinda dream that can\'t be sold' },
+      { time: 15.4, text: 'We were right \'til we weren\'t' },
+      { time: 19.4, text: 'Built a home and watched it burn' },
+      { time: 23.4, text: 'Mm, I didn\'t wanna leave you' },
+      { time: 27.4, text: 'I didn\'t wanna lie' },
+      { time: 31.4, text: 'Started to cry, but then remembered I' },
+      { time: 38.8, text: 'I can buy myself flowers' },
+      { time: 42.8, text: 'Write my name in the sand' },
+      { time: 46.8, text: 'Talk to myself for hours' },
+      { time: 50.8, text: 'Say things you don\'t understand' },
+      { time: 54.8, text: 'I can take myself dancing' },
+      { time: 58.8, text: 'And I can hold my own hand' },
+      { time: 62.8, text: 'Yeah, I can love me better than you can' }
     ]
   },
   {
-    id: 'yt-34Na4j8AVgA',
-    videoId: '34Na4j8AVgA',
+    id: 'yt-3_g2un5M350',
+    videoId: '3_g2un5M350',
+    musicVideoId: '34Na4j8AVgA',
     title: 'Starboy',
     artist: 'The Weeknd ft. Daft Punk',
     album: 'Starboy',
-    duration: 230,
+    duration: 231,
     genre: 'R&B / Electronic',
     year: '2016',
     playlists: ['favorites'],
     palette: { c1: 'rgba(0, 100, 255, 0.48)', c2: 'rgba(255, 0, 80, 0.44)', c3: 'rgba(20, 20, 60, 0.40)', c4: 'rgba(0, 200, 255, 0.35)', primaryR: 0, primaryG: 100, primaryB: 255 },
     cover: 'https://i.ytimg.com/vi/34Na4j8AVgA/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'I\'m tryna put you in the worst mood, ah' },
-      { time: 5, text: 'P1 cleaner than your church shoes, ah' },
-      { time: 10, text: 'Milli point two just to hurt you, ah' },
-      { time: 15, text: 'All red Lamb\' just to tease you, ah' },
-      { time: 21, text: 'None of these toys on lease too, ah' },
-      { time: 26, text: 'Made your whole year in a week too, yah' },
-      { time: 36, text: 'Look what you\'ve done' },
-      { time: 42, text: 'I\'m a motherfuckin\' starboy' },
-      { time: 50, text: 'Look what you\'ve done' },
-      { time: 58, text: 'I\'m a motherfuckin\' starboy' }
+      { time: 0, text: '♪' },
+      { time: 16.3, text: 'I\'m tryna put you in the worst mood, ah' },
+      { time: 18.8, text: 'P1 cleaner than your church shoes, ah' },
+      { time: 21.4, text: 'Milli point two just to hurt you, ah' },
+      { time: 24.0, text: 'All red Lamb\' just to tease you, ah' },
+      { time: 26.6, text: 'None of these toys on lease too, ah' },
+      { time: 29.1, text: 'Made your whole year in a week too, yah' },
+      { time: 41.2, text: 'Look what you\'ve done' },
+      { time: 45.5, text: 'I\'m a motherfuckin\' starboy' },
+      { time: 51.5, text: 'Look what you\'ve done' },
+      { time: 55.8, text: 'I\'m a motherfuckin\' starboy' }
     ]
   },
   {
-    id: 'yt-H5v3kku4y6Q',
-    videoId: 'H5v3kku4y6Q',
+    id: 'yt-nujn6wbr-e8',
+    videoId: 'nujn6wbr-e8',
+    musicVideoId: 'H5v3kku4y6Q',
     title: 'As It Was',
     artist: 'Harry Styles',
     album: 'Harry\'s House',
-    duration: 167,
+    duration: 168,
     genre: 'Indie Pop',
     year: '2022',
     playlists: ['favorites'],
@@ -231,157 +239,168 @@ const CATALOGUE_TRACKS = [
     cover: 'https://i.ytimg.com/vi/H5v3kku4y6Q/hqdefault.jpg',
     lyrics: [
       { time: 0, text: 'Come on, Harry, we wanna say goodnight to you' },
-      { time: 7, text: 'Holdin\' me back' },
-      { time: 10, text: 'Gravity\'s holdin\' me back' },
-      { time: 14, text: 'I want you to hold out the palm of your hand' },
-      { time: 18, text: 'Why don\'t we leave it at that?' },
-      { time: 25, text: 'Nothin\' to say' },
-      { time: 29, text: 'When everything gets in the way' },
-      { time: 36, text: 'You know it\'s not the same as it was' },
-      { time: 43, text: 'In this world, it\'s just us' },
-      { time: 50, text: 'You know it\'s not the same as it was' }
+      { time: 13.7, text: 'Holdin\' me back' },
+      { time: 16.5, text: 'Gravity\'s holdin\' me back' },
+      { time: 19.2, text: 'I want you to hold out the palm of your hand' },
+      { time: 22.0, text: 'Why don\'t we leave it at that?' },
+      { time: 24.7, text: 'Nothin\' to say' },
+      { time: 27.5, text: 'When everything gets in the way' },
+      { time: 35.7, text: 'You know it\'s not the same as it was' },
+      { time: 41.2, text: 'In this world, it\'s just us' },
+      { time: 46.7, text: 'You know it\'s not the same as it was' }
     ]
   },
   {
-    id: 'yt-TUVcZfQe-Kw',
-    videoId: 'TUVcZfQe-Kw',
+    id: 'yt-OsfAnsMY21M',
+    videoId: 'OsfAnsMY21M',
+    musicVideoId: 'TUVcZfQe-Kw',
     title: 'Levitating',
     artist: 'Dua Lipa',
     album: 'Future Nostalgia',
-    duration: 203,
+    duration: 204,
     genre: 'Nu-Disco',
     year: '2020',
     playlists: ['favorites'],
     palette: { c1: 'rgba(160, 40, 220, 0.48)', c2: 'rgba(0, 220, 255, 0.44)', c3: 'rgba(255, 50, 150, 0.40)', c4: 'rgba(100, 20, 180, 0.35)', primaryR: 160, primaryG: 40, primaryB: 220 },
     cover: 'https://i.ytimg.com/vi/TUVcZfQe-Kw/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'If you wanna run away with me, I know a galaxy' },
-      { time: 5, text: 'And I can take you for a ride' },
-      { time: 9, text: 'I had a premonition that we fell into a rhythm' },
-      { time: 13, text: 'Where the music don\'t stop for life' },
-      { time: 18, text: 'Glitter in the sky, glitter in my eyes' },
-      { time: 22, text: 'Shining just the way I like' },
-      { time: 27, text: 'If you\'re feeling like you need a little bit of company' },
-      { time: 31, text: 'You met me at the perfect time' },
-      { time: 35, text: 'You want me, I want you, baby' },
-      { time: 40, text: 'My sugarboo, I\'m levitating' }
+      { time: 0, text: '♪' },
+      { time: 9.3, text: 'If you wanna run away with me, I know a galaxy' },
+      { time: 11.7, text: 'And I can take you for a ride' },
+      { time: 14.0, text: 'I had a premonition that we fell into a rhythm' },
+      { time: 16.3, text: 'Where the music don\'t stop for life' },
+      { time: 18.7, text: 'Glitter in the sky, glitter in my eyes' },
+      { time: 21.0, text: 'Shining just the way I like' },
+      { time: 23.3, text: 'If you\'re feeling like you need a little bit of company' },
+      { time: 25.7, text: 'You met me at the perfect time' },
+      { time: 28.0, text: 'You want me, I want you, baby' },
+      { time: 30.3, text: 'My sugarboo, I\'m levitating' }
     ]
   },
   {
-    id: 'yt-LIIDh-qI9oI',
-    videoId: 'LIIDh-qI9oI',
+    id: 'yt-RmYCOm4ehKs',
+    videoId: 'RmYCOm4ehKs',
+    musicVideoId: 'LIIDh-qI9oI',
     title: 'Save Your Tears',
-    artist: 'The Weeknd & Ariana Grande',
+    artist: 'The Weeknd',
     album: 'After Hours',
-    duration: 191,
+    duration: 216,
     genre: 'Synth-Pop',
     year: '2021',
     playlists: ['favorites'],
     palette: { c1: 'rgba(240, 50, 80, 0.48)', c2: 'rgba(120, 30, 180, 0.44)', c3: 'rgba(255, 120, 40, 0.40)', c4: 'rgba(60, 10, 80, 0.35)', primaryR: 240, primaryG: 50, primaryB: 80 },
     cover: 'https://i.ytimg.com/vi/LIIDh-qI9oI/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'I saw you dancing in a crowded room' },
-      { time: 8, text: 'You look so happy when I\'m not with you' },
-      { time: 16, text: 'But then you saw me, caught you by surprise' },
-      { time: 24, text: 'A single teardrop falling from your eye' },
-      { time: 32, text: 'I don\'t know why I run away' },
-      { time: 40, text: 'I make you cry when I run away' },
-      { time: 48, text: 'Save your tears for another day' },
-      { time: 56, text: 'Save your tears for another day' }
+      { time: 0, text: '♪' },
+      { time: 9.1, text: 'I saw you dancing in a crowded room' },
+      { time: 13.1, text: 'You look so happy when I\'m not with you' },
+      { time: 17.2, text: 'But then you saw me, caught you by surprise' },
+      { time: 21.2, text: 'A single teardrop falling from your eye' },
+      { time: 25.3, text: 'I don\'t know why I run away' },
+      { time: 33.4, text: 'I make you cry when I run away' },
+      { time: 49.6, text: 'Save your tears for another day' },
+      { time: 57.7, text: 'Save your tears for another day' }
     ]
   },
   {
-    id: 'yt-RlPNh_PBZb4',
-    videoId: 'RlPNh_PBZb4',
+    id: 'yt-aHmg0jsmNhg',
+    videoId: 'aHmg0jsmNhg',
+    musicVideoId: 'RlPNh_PBZb4',
     title: 'vampire',
     artist: 'Olivia Rodrigo',
     album: 'GUTS',
-    duration: 219,
+    duration: 220,
     genre: 'Pop Rock',
     year: '2023',
     playlists: ['favorites'],
     palette: { c1: 'rgba(140, 30, 60, 0.48)', c2: 'rgba(30, 20, 40, 0.44)', c3: 'rgba(200, 40, 80, 0.40)', c4: 'rgba(80, 10, 30, 0.35)', primaryR: 140, primaryG: 30, primaryB: 60 },
     cover: 'https://i.ytimg.com/vi/RlPNh_PBZb4/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'Hate to give the satisfaction, asking how you\'re doing now' },
-      { time: 8, text: 'How\'s the castle built off people you pretend to care about?' },
-      { time: 16, text: 'Just what you wanted, look at you, cool guy, you got it' },
-      { time: 24, text: 'I should\'ve known it was strange' },
-      { time: 30, text: 'You only come out at night' },
-      { time: 36, text: 'Bloodsucker, fame fucker' },
-      { time: 42, text: 'Bleedin\' me dry like a goddamn vampire' }
+      { time: 0, text: '♪' },
+      { time: 14.3, text: 'Hate to give the satisfaction, asking how you\'re doing now' },
+      { time: 21.4, text: 'How\'s the castle built off people you pretend to care about?' },
+      { time: 28.5, text: 'Just what you wanted, look at you, cool guy, you got it' },
+      { time: 42.7, text: 'I should\'ve known it was strange' },
+      { time: 46.3, text: 'You only come out at night' },
+      { time: 54.8, text: 'Bloodsucker, fame fucker' },
+      { time: 58.4, text: 'Bleedin\' me dry like a goddamn vampire' }
     ]
   },
   {
-    id: 'yt-b1kbLwvqugk',
-    videoId: 'b1kbLwvqugk',
+    id: 'yt-3YgtjHZyCIQ',
+    videoId: '3YgtjHZyCIQ',
+    musicVideoId: 'b1kbLwvqugk',
     title: 'Anti-Hero',
     artist: 'Taylor Swift',
     album: 'Midnights',
-    duration: 200,
+    duration: 201,
     genre: 'Synth-Pop',
     year: '2022',
     playlists: ['favorites'],
     palette: { c1: 'rgba(80, 80, 180, 0.48)', c2: 'rgba(180, 100, 60, 0.44)', c3: 'rgba(30, 30, 70, 0.40)', c4: 'rgba(120, 120, 220, 0.35)', primaryR: 80, primaryG: 80, primaryB: 180 },
     cover: 'https://i.ytimg.com/vi/b1kbLwvqugk/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'I have this thing where I get older, but just never wiser' },
-      { time: 6, text: 'Midnights become my afternoons' },
-      { time: 12, text: 'When my depression works the graveyard shift' },
-      { time: 18, text: 'All of the people I\'ve ghosted stand there in the room' },
-      { time: 28, text: 'It\'s me, hi, I\'m the problem, it\'s me' },
-      { time: 36, text: 'At tea time, everybody agrees' },
-      { time: 42, text: 'I\'ll stare directly at the sun, but never in the mirror' },
-      { time: 50, text: 'It must be exhausting always rooting for the anti-hero' }
+      { time: 0, text: '♪' },
+      { time: 9.8, text: 'I have this thing where I get older, but just never wiser' },
+      { time: 14.8, text: 'Midnights become my afternoons' },
+      { time: 19.7, text: 'When my depression works the graveyard shift' },
+      { time: 23.4, text: 'All of the people I\'ve ghosted stand there in the room' },
+      { time: 43.1, text: 'It\'s me, hi, I\'m the problem, it\'s me' },
+      { time: 48.0, text: 'At tea time, everybody agrees' },
+      { time: 52.9, text: 'I\'ll stare directly at the sun, but never in the mirror' },
+      { time: 57.8, text: 'It must be exhausting always rooting for the anti-hero' }
     ]
   },
   {
-    id: 'yt-kPa7bsKwL-c',
-    videoId: 'kPa7bsKwL-c',
+    id: 'yt-DlFXDl_ROAM',
+    videoId: 'DlFXDl_ROAM',
+    musicVideoId: 'kPa7bsKwL-c',
     title: 'Die With A Smile',
     artist: 'Lady Gaga & Bruno Mars',
-    album: 'Die With A Smile',
-    duration: 251,
+    album: 'MAYHEM',
+    duration: 252,
     genre: 'Soul / Pop',
     year: '2024',
     playlists: ['favorites', 'featured'],
     palette: { c1: 'rgba(0, 140, 200, 0.48)', c2: 'rgba(200, 60, 60, 0.44)', c3: 'rgba(50, 80, 150, 0.40)', c4: 'rgba(180, 40, 80, 0.35)', primaryR: 0, primaryG: 140, primaryB: 200 },
     cover: 'https://i.ytimg.com/vi/kPa7bsKwL-c/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'I, I just woke up from a dream' },
-      { time: 8, text: 'Where you and I had to say goodbye' },
-      { time: 16, text: 'And I don\'t know what it all means' },
-      { time: 24, text: 'But since I survived, I realized' },
-      { time: 32, text: 'Wherever you go, that\'s where I\'ll follow' },
-      { time: 40, text: 'Nobody\'s promised tomorrow' },
-      { time: 48, text: 'So I\'ma love you every night like it\'s the last night' },
-      { time: 58, text: 'If the world was ending, I\'d wanna be next to you' },
-      { time: 70, text: 'If the party was over and our time on Earth was through' },
-      { time: 82, text: 'I\'d wanna hold you just for a while and die with a smile' }
+      { time: 3.4, text: 'Ooh, ooh' },
+      { time: 9.1, text: 'I, I just woke up from a dream' },
+      { time: 14.0, text: 'Where you and I had to say goodbye' },
+      { time: 18.8, text: 'And I don\'t know what it all means' },
+      { time: 23.6, text: 'But since I survived, I realized' },
+      { time: 28.4, text: 'Wherever you go, that\'s where I\'ll follow' },
+      { time: 33.2, text: 'Nobody\'s promised tomorrow' },
+      { time: 38.0, text: 'So I\'ma love you every night like it\'s the last night' },
+      { time: 45.2, text: 'If the world was ending, I\'d wanna be next to you' },
+      { time: 54.8, text: 'If the party was over and our time on Earth was through' },
+      { time: 64.4, text: 'I\'d wanna hold you just for a while and die with a smile' }
     ]
   },
   {
-    id: 'yt-d5gf9dXHevw',
-    videoId: 'd5gf9dXHevw',
+    id: 'yt-WKZO-CWeOVA',
+    videoId: 'WKZO-CWeOVA',
+    musicVideoId: 'd5gf9dXHevw',
     title: 'Birds of a Feather',
     artist: 'Billie Eilish',
     album: 'HIT ME HARD AND SOFT',
-    duration: 196,
+    duration: 211,
     genre: 'Alt-Pop',
     year: '2024',
     playlists: ['favorites'],
     palette: { c1: 'rgba(50, 160, 220, 0.48)', c2: 'rgba(20, 40, 90, 0.44)', c3: 'rgba(100, 200, 255, 0.40)', c4: 'rgba(10, 20, 50, 0.35)', primaryR: 50, primaryG: 160, primaryB: 220 },
     cover: 'https://i.ytimg.com/vi/d5gf9dXHevw/hqdefault.jpg',
     lyrics: [
-      { time: 0, text: 'I want you to stay' },
-      { time: 6, text: '\'Til I\'m in the grave' },
-      { time: 12, text: '\'Til I rot away, dead and buried' },
-      { time: 18, text: '\'Til I\'m in the casket you carry' },
-      { time: 24, text: 'If you go, I\'m goin\' too, uh' },
-      { time: 30, text: '\'Cause it was always you, alright' },
-      { time: 38, text: 'And if I\'m turnin\' blue, please don\'t save me' },
-      { time: 46, text: 'Nothin\' in this world could ever break me' },
-      { time: 54, text: 'Birds of a feather, we should stick together, I know' }
+      { time: 3.5, text: 'I want you to stay' },
+      { time: 8.1, text: '\'Til I\'m in the grave' },
+      { time: 12.7, text: '\'Til I rot away, dead and buried' },
+      { time: 17.3, text: '\'Til I\'m in the casket you carry' },
+      { time: 22.0, text: 'If you go, I\'m goin\' too, uh' },
+      { time: 26.6, text: '\'Cause it was always you, alright' },
+      { time: 31.2, text: 'And if I\'m turnin\' blue, please don\'t save me' },
+      { time: 35.8, text: 'Nothin\' in this world could ever break me' },
+      { time: 42.8, text: 'Birds of a feather, we should stick together, I know' }
     ]
   }
 ];
@@ -1030,9 +1049,11 @@ async function resolveAndPlayTrack(track) {
       const streamOpts = {
         quality: activeQuality,
         dolbyAtmos: Boolean(typeof bitchordSettings !== 'undefined' && bitchordSettings.dolbyAtmos),
-        preferMusicOnly: typeof bitchordSettings !== 'undefined' ? bitchordSettings.preferMusicOnly !== false : true
+        preferMusicOnly: typeof bitchordSettings !== 'undefined' ? bitchordSettings.preferMusicOnly !== false : true,
+        title: track.title || '',
+        artist: track.artist || ''
       };
-      const cacheKey = `${track.videoId}::${streamOpts.quality || ''}::${streamOpts.dolbyAtmos ? 'atmos' : 'std'}`;
+      const cacheKey = `${track.videoId}::${streamOpts.quality || ''}::${streamOpts.dolbyAtmos ? 'atmos' : 'std'}::${streamOpts.preferMusicOnly ? 'atv' : 'raw'}`;
       let stream = null;
       const cachedEntry = streamUrlCache.get(cacheKey);
       if (cachedEntry && cachedEntry.stream && cachedEntry.fn === api.resolveAudioStream && (Date.now() - cachedEntry.ts < 15 * 60 * 1000)) {
@@ -1050,6 +1071,9 @@ async function resolveAndPlayTrack(track) {
       }
       if (stream && stream.url && dejaAudio) {
         currentStreamMeta = stream;
+        if (stream.resolvedAudioVideoId) {
+          track._resolvedAudioVideoId = stream.resolvedAudioVideoId;
+        }
         isDirectStreamPlaying = true;
         dejaAudio.src = stream.url;
         try { applyBitChordAudioDspSettings(); } catch {}
@@ -1070,7 +1094,7 @@ async function resolveAndPlayTrack(track) {
           const expTotal = document.getElementById('exp-time-total');
           if (totalEl) totalEl.innerText = formatTime(track.duration);
           if (expTotal) expTotal.innerText = '-' + formatTime(track.duration);
-          if (wasUnverified || Math.abs(stream.duration - prevDur) > 2 || !track._lyricsResolved) {
+          if (wasUnverified || Math.abs(stream.duration - prevDur) > 2 || !track._lyricsResolved || stream.resolvedAudioVideoId) {
             resolveSyncedLyrics(track, true);
           }
         }
@@ -1413,6 +1437,19 @@ function syncBitChordShellChrome() {
         (tab === 'search' && isSearch);
       if (btn.classList) btn.classList.toggle('active', active);
     });
+
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+    sidebarLinks.forEach(link => {
+      const page = link.getAttribute('data-page');
+      const playlist = link.getAttribute('data-playlist');
+      let isActive = false;
+      if (page) {
+        isActive = (page === currentView) || (page === 'home' && currentView === 'listen-now');
+      } else if (playlist) {
+        isActive = currentView === `playlist-${playlist}`;
+      }
+      if (link.classList) link.classList.toggle('active', isActive);
+    });
   }
 
   const isPushedScreen =
@@ -1725,10 +1762,11 @@ function extractPaletteFromImage(imageUrl, callback) {
 function createCatalogueItemFromLive(t) {
   const videoId = t.videoId || '';
   const title = t.title || 'YouTube Track';
-  const artist = t.artist || 'YouTube Music';
+  const rawArtist = t.artist || 'YouTube Music';
+  const artist = rawArtist.includes(' • ') ? rawArtist.split(' • ')[0].trim() : rawArtist;
   const album = t.album || 'YouTube Music';
-  const hasExplicitDuration = typeof t.duration === 'number' && t.duration > 0;
-  const duration = hasExplicitDuration ? t.duration : 210;
+  const hasExplicitDuration = !t._durationUnverified && typeof t.duration === 'number' && t.duration > 0;
+  const duration = (typeof t.duration === 'number' && t.duration > 0) ? t.duration : 210;
   const cover = upscaleArtworkUrl(t.cover, videoId);
 
   const itemObj = {
@@ -5422,8 +5460,11 @@ function getPrimaryArtist(str) {
  * (BitChord LyricsRepository.kt, SimpMusic, BetterLyrics, LyricsPlus, LrcLib, YouTube)
  */
 async function resolveSyncedLyrics(track, forceRefresh = false) {
-  if (!track || track._lyricsFetching) return;
+  if (!track) return;
+  if (track._lyricsFetching && !forceRefresh) return;
   if (track._lyricsResolved && !forceRefresh) return;
+  const reqId = (track._lyricsReqId || 0) + 1;
+  track._lyricsReqId = reqId;
   track._lyricsFetching = true;
 
   const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
@@ -5464,12 +5505,13 @@ async function resolveSyncedLyrics(track, forceRefresh = false) {
   try {
     const configuredSources = (typeof bitchordSettings !== 'undefined' && Array.isArray(bitchordSettings.lyricsSourcesConfig))
       ? bitchordSettings.lyricsSourcesConfig.filter(s => s && s.enabled !== false).map(s => s.id)
-      : ['BiniLyrics', 'BetterLyrics', 'SimpMusic', 'LyricsPlus', 'LRCLIB'];
+      : ['BiniLyrics', 'BetterLyrics', 'PaxSenix', 'SimpMusic', 'LyricsPlus', 'LRCLIB', 'KuGou', 'YouTube'];
     const lrcLibEnabled = configuredSources.includes('LRCLIB');
 
     let resolved = null;
     if (configuredSources.length > 0 && api?.getLyrics) {
-      const vid = track.videoId || (typeof track.id === 'string' && track.id.startsWith('yt-') ? track.id.slice(3) : (typeof track.id === 'string' && /^[A-Za-z0-9_-]{11}$/.test(track.id) ? track.id : null));
+      const rawVid = track.videoId || (typeof track.id === 'string' && track.id.startsWith('yt-') ? track.id.slice(3) : (typeof track.id === 'string' && /^[A-Za-z0-9_-]{11}$/.test(track.id) ? track.id : null));
+      const vid = track._resolvedAudioVideoId || rawVid;
       const rawAlbum = (track.album || '').trim();
       const sanitizedAlbum = (rawAlbum && !/^(youtube music|single|song|video|album|ep|deja)$/i.test(rawAlbum) && rawAlbum.toLowerCase() !== cleanTitle.toLowerCase())
         ? rawAlbum
@@ -5574,6 +5616,8 @@ async function resolveSyncedLyrics(track, forceRefresh = false) {
       }
     }
 
+    if (track._lyricsReqId !== reqId) return;
+
     if (resolved && resolved.length > 0) {
       track.lyrics = resolved;
       track._lyricsResolved = true;
@@ -5602,7 +5646,9 @@ async function resolveSyncedLyrics(track, forceRefresh = false) {
   } catch (err) {
     console.warn('[Lyrics] resolveSyncedLyrics notice:', err.message);
   } finally {
-    track._lyricsFetching = false;
+    if (track._lyricsReqId === reqId) {
+      track._lyricsFetching = false;
+    }
   }
 }
 
@@ -6570,6 +6616,12 @@ function switchLandscapePlayerPane(pane) {
   if (lyricsPane && lyricsPane.style) lyricsPane.style.display = activeLandscapePane === 'lyrics' ? 'flex' : 'none';
   if (lyricsToolbar && lyricsToolbar.style) lyricsToolbar.style.display = activeLandscapePane === 'lyrics' ? 'flex' : 'none';
   if (queuePane && queuePane.style) queuePane.style.display = activeLandscapePane === 'queue' ? 'flex' : 'none';
+  const expandedView = document.getElementById('expanded-player-view');
+  if (expandedView && expandedView.classList) {
+    expandedView.classList.toggle('bc-np-mode-main', activeLandscapePane === 'main');
+    expandedView.classList.toggle('bc-np-mode-lyrics', activeLandscapePane === 'lyrics');
+    expandedView.classList.toggle('bc-np-mode-queue', activeLandscapePane === 'queue');
+  }
 
   if (activeLandscapePane !== 'lyrics') {
     if (artContainer && artContainer.style) artContainer.style.display = 'block';
@@ -8256,13 +8308,16 @@ const DEFAULT_BITCHORD_SETTINGS = {
   spotifyCanvasToken: '',
   syncedLyrics: true,
   lyricsBlur: true,
-  lyricsSources: 'BetterLyrics, SimpMusic, LRCLIB, YouTube, KuGou',
+  lyricsSources: 'BiniLyrics, BetterLyrics, PaxSenix, SimpMusic, LyricsPlus, LRCLIB, KuGou, YouTube',
   lyricsSourcesConfig: [
+    { id: 'BiniLyrics', label: 'BiniLyrics (Apple Music TTML)', enabled: true },
     { id: 'BetterLyrics', label: 'BetterLyrics (Word-Synced TTML)', enabled: true },
+    { id: 'PaxSenix', label: 'PaxSenix (Apple Music Syllable Sync)', enabled: true },
     { id: 'SimpMusic', label: 'SimpMusic Lyrics API', enabled: true },
+    { id: 'LyricsPlus', label: 'LyricsPlus Multi-Mirror Syllable Sync', enabled: true },
     { id: 'LRCLIB', label: 'LRCLIB Community Synced LRC', enabled: true },
-    { id: 'YouTube', label: 'YouTube Music Timed Captions', enabled: true },
-    { id: 'KuGou', label: 'KuGou KRC Word-Synced', enabled: true }
+    { id: 'KuGou', label: 'KuGou KRC Word-Synced', enabled: true },
+    { id: 'YouTube', label: 'YouTube Music Timed Captions', enabled: true }
   ],
   translationLanguage: 'Off',
   highPerformanceMode: true,
@@ -8339,9 +8394,16 @@ function loadBitChordSettings() {
           equalizerBands: Array.isArray(parsed.equalizerBands) && parsed.equalizerBands.length === 5
             ? parsed.equalizerBands.map(Number)
             : [...DEFAULT_BITCHORD_SETTINGS.equalizerBands],
-          lyricsSourcesConfig: Array.isArray(parsed.lyricsSourcesConfig) && parsed.lyricsSourcesConfig.length > 0
-            ? parsed.lyricsSourcesConfig
-            : DEFAULT_BITCHORD_SETTINGS.lyricsSourcesConfig.map(s => ({ ...s })),
+          lyricsSourcesConfig: (() => {
+            if (!Array.isArray(parsed.lyricsSourcesConfig) || parsed.lyricsSourcesConfig.length === 0) {
+              return DEFAULT_BITCHORD_SETTINGS.lyricsSourcesConfig.map(s => ({ ...s }));
+            }
+            const existingIds = new Set(parsed.lyricsSourcesConfig.map(s => s && s.id).filter(Boolean));
+            const missingDefaults = DEFAULT_BITCHORD_SETTINGS.lyricsSourcesConfig
+              .filter(d => !existingIds.has(d.id))
+              .map(d => ({ ...d }));
+            return [...missingDefaults, ...parsed.lyricsSourcesConfig];
+          })(),
           addonSources: Array.isArray(parsed.addonSources) && parsed.addonSources.length > 0
             ? parsed.addonSources
             : DEFAULT_BITCHORD_SETTINGS.addonSources.map(s => ({ ...s }))
@@ -10339,9 +10401,9 @@ function renderSettingsView(container) {
         </div>
         <div class="bitchord-settings-text">
           <div class="bitchord-settings-row-title">App Updates &amp; Version</div>
-          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.3.0 (BitChord Edition) — Click to check &amp; install updates in-app</div>
+          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.4.0 (BitChord Edition) — Click to check &amp; install updates in-app</div>
         </div>
-        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.3.0</span>
+        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.4.0</span>
       </div>
     `);
   }
@@ -10370,7 +10432,7 @@ function renderSettingsView(container) {
 
       <div class="bitchord-settings-colophon">
         <div>
-          <strong>deja 1.3.0</strong>
+          <strong>deja 1.4.0</strong>
           <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="https://github.com/Dathevinci" target="_blank" rel="noopener noreferrer">Developer</a>
           <a href="https://dathevinci.github.io/Deja/" target="_blank" rel="noopener noreferrer">Website</a>
@@ -10548,7 +10610,7 @@ function renderSettingsView(container) {
         try {
           const payload = {
             app: 'Deja',
-            version: '1.3.0',
+            version: '1.4.0',
             exportedAt: new Date().toISOString(),
             settings: bitchordSettings,
             customPlaylists,
@@ -10603,11 +10665,11 @@ function renderSettingsView(container) {
               if (badge) badge.textContent = `Update v${info.latestVersion}`;
               openBitChordUpdateDialog(info);
             } else {
-              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.3.0'}).`;
+              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.4.0'}).`;
               if (badge) badge.textContent = 'Up to Date';
             }
           }).catch(() => {
-            if (sub) sub.textContent = 'Deja v1.3.0 is up to date.';
+            if (sub) sub.textContent = 'Deja v1.4.0 is up to date.';
           });
         }
       }
@@ -11340,7 +11402,7 @@ function handleBitChordUpdateProgress(prog) {
   const primaryBtn = document.getElementById('bitchord-update-btn-primary');
   const secondaryBtn = document.getElementById('bitchord-update-btn-secondary');
   const errEl = document.getElementById('bitchord-update-error');
-  const ver = latestPendingUpdateInfo?.latestVersion || '1.3.0';
+  const ver = latestPendingUpdateInfo?.latestVersion || '1.4.0';
 
   if (prog.state === 'downloading') {
     isUpdateDownloading = true;
