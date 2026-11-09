@@ -9,7 +9,7 @@ Thank you for contributing to Deja. Follow these guidelines to ensure an efficie
 ## Branch and Pull Request Workflow
 Always check the repository for the current active version or development branch before starting work.
 
-New work should normally be based on the latest active version or development branch rather than `main`, unless maintainers explicitly instruct otherwise. For example, during the `v1.6.x` release cycle, contributions branch from `v1.6.2`. As new release cycles begin, the target branch will advance accordingly.
+New work should normally be based on the latest active version or development branch rather than `main`, unless maintainers explicitly instruct otherwise. For example, during the `v1.6.x` release cycle, contributions branch from `v1.6.3`. As new release cycles begin, the target branch will advance accordingly.
 
 When contributing:
 - Fork the repository and create a descriptive branch (e.g., `fix/streaming-buffer`, `docs/translation-guide`).

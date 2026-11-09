@@ -1900,8 +1900,8 @@ function runBitChordArchitectureTests() {
   assert.ok(nshCode.includes('!macro customWelcomePage'), 'installer.nsh must define customWelcomePage macro');
   assert.ok(nshCode.includes('BrandingText "DEJA v${VERSION} // 2-BIT UI"'), 'installer.nsh must set 2-Bit versioned BrandingText');
 
-  // 20. Authentic Deja Desktop UI, Branding & Feature Parity Verification (v1.6.2)
-  assert.strictEqual(pkgJson.version, '1.6.2', 'package.json version must be 1.6.2');
+  // 20. Authentic Deja Desktop UI, Branding & Feature Parity Verification (v1.6.3)
+  assert.strictEqual(pkgJson.version, '1.6.3', 'package.json version must be 1.6.3');
   assert.ok(fs.existsSync(path.join(__dirname, '../assets/Logo.svg')), 'Official Deja Logo.svg must exist in assets/');
   assert.ok(fs.existsSync(path.join(__dirname, '../assets/LogoTransparent.svg')), 'Official Deja LogoTransparent.svg must exist in assets/');
   const logoSvgContent = fs.readFileSync(path.join(__dirname, '../assets/Logo.svg'), 'utf8');
@@ -2125,15 +2125,18 @@ function runBitChordArchitectureTests() {
       'docs/script.js must resolve uploaded release assets across non-prerelease releases with fallback'
     );
     assert.ok(mainCode.includes("a.state === 'uploaded'") && mainCode.includes('^Deja\\.Setup\\.\\d+.*\\.exe$'), 'main.js checkGitHubReleaseUpdate must filter uploaded assets and prioritize versioned Deja.Setup installer');
-    assert.ok(readmeCode.includes(`v${pkgJson.version}/Deja.Setup.${pkgJson.version}.exe`) && readmeCode.includes(`v${pkgJson.version}/Deja.apk`) && readmeCode.includes(`v${pkgJson.version}/Deja-arm64-v8a.apk`), 'README.md must link to v1.6.2 Windows and Android release assets');
+    assert.ok(readmeCode.includes(`v${pkgJson.version}/Deja.Setup.${pkgJson.version}.exe`) && readmeCode.includes(`v${pkgJson.version}/Deja.apk`) && readmeCode.includes(`v${pkgJson.version}/Deja-arm64-v8a.apk`), 'README.md must link to v1.6.3 Windows and Android release assets');
     assert.ok(releaseYmlCode.includes('dist/*.apk') && releaseYmlCode.includes('Deja.Portable.exe') && releaseYmlCode.includes('--publish never') && releaseYmlCode.includes('$global:LASTEXITCODE = 0'), 'release.yml must include Android APKs, portable aliases, --publish never, and LASTEXITCODE reset');
-    assert.ok(androidYmlCode.includes('LATEST_TAG') && androidYmlCode.includes('v1.6.2') && androidYmlCode.includes('v1.6.1') && androidYmlCode.includes('v1.6.0'), 'android.yml must upload APKs to latest release tag, v1.6.2, v1.6.1, and v1.6.0');
+    assert.ok(androidYmlCode.includes('LATEST_TAG') && androidYmlCode.includes('v1.6.3') && androidYmlCode.includes('v1.6.2') && androidYmlCode.includes('v1.6.1') && androidYmlCode.includes('v1.6.0'), 'android.yml must upload APKs to latest release tag, v1.6.3, v1.6.2, v1.6.1, and v1.6.0');
 
-    // 8. Verify v1.6.0 / v1.6.1 / v1.6.2 Android Self-Updater, Discord RPC Frame Protocol, and Windows UI Performance
+    // 8. Verify v1.6.0 / v1.6.1 / v1.6.2 / v1.6.3 Android Self-Updater, Discord RPC Frame Protocol, and Windows UI Performance
     const appUpdateCheckerCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/data/AppUpdateChecker.kt'), 'utf8');
     const mainActivityKtCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/MainActivity.kt'), 'utf8');
     const gradleKtsCode = fs.readFileSync(path.join(__dirname, '../app/build.gradle.kts'), 'utf8');
-    assert.ok(gradleKtsCode.includes('versionCode = 31') && gradleKtsCode.includes('versionName = "1.6.2"'), 'app/build.gradle.kts must be bumped to versionCode = 31 and versionName = "1.6.2"');
+    assert.strictEqual(pkgJson.version, '1.6.3', 'package.json version must be bumped to 1.6.3');
+    assert.ok(gradleKtsCode.includes('versionCode = 32') && gradleKtsCode.includes('versionName = "1.6.3"'), 'app/build.gradle.kts must be bumped to versionCode = 32 and versionName = "1.6.3"');
+    assert.ok(gradleKtsCode.includes('applicationId = "com.deja.music"'), 'app/build.gradle.kts must use clean applicationId = "com.deja.music" so updates install cleanly without signature conflict against legacy com.music.deja');
+    assert.ok(mainActivityKtCode.includes('Intent.ACTION_DELETE') && mainActivityKtCode.includes('com.music.deja'), 'MainActivity.kt must prompt to uninstall legacy com.music.deja package after installing com.deja.music');
     assert.ok(!appUpdateCheckerCode.includes('putExtra(Intent.EXTRA_RETURN_RESULT'), 'AppUpdateChecker.kt must NOT set EXTRA_RETURN_RESULT on startActivity package installer intent');
     assert.ok(appUpdateCheckerCode.includes('withContext(Dispatchers.Main)') && appUpdateCheckerCode.includes('installApk(context, target)'), 'AppUpdateChecker.kt must auto-launch installApk on Main dispatcher as soon as APK download completes');
     assert.ok(appUpdateCheckerCode.includes('context.grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)'), 'AppUpdateChecker.kt must explicitly grant URI read permissions to resolved and OEM package installer packages');
@@ -2145,7 +2148,7 @@ function runBitChordArchitectureTests() {
     assert.ok(mainCode.includes('function isAndroidOnlyRelease(') && mainCode.includes('function extractWindowsReleaseVersion('), 'main.js must distinguish Android-only releases from Windows updates');
     assert.ok(appUpdateCheckerCode.includes('fun isWindowsOnlyRelease(') && appUpdateCheckerCode.includes('fun extractAndroidReleaseVersion('), 'AppUpdateChecker.kt must distinguish Windows-only releases from Android updates');
 
-    // 9. Verify v1.6.1 / v1.6.2 Startup Paused Track Restoration, Dynamic Up Next Queue, Chunked Downloads, Themes, and Mobile BitChord Playing Mode UI
+    // 9. Verify v1.6.1 / v1.6.2 / v1.6.3 Startup Paused Track Restoration, Dynamic Up Next Queue, Chunked Downloads, Themes, and Mobile BitChord Playing Mode UI
     assert.ok(
       previewCode.includes('function saveLastPlaybackState(') &&
       previewCode.includes('function restoreLastPlaybackState(') &&
@@ -2195,12 +2198,27 @@ function runBitChordArchitectureTests() {
       'AppUpdateChecker.kt must use .apk extension for temporary download file and guard archiveInfo != null'
     );
 
-    // 10. Behavioral Tests: parseWatchQueue counterpart deduplication, Up Next Queue Rotation/Deduplication, 50s Carryover Bug Fix, and Restored Track Play Resume
+    // 10. Behavioral Tests: parseWatchQueue counterpart deduplication, Up Next Queue Rotation/Deduplication, 50s Carryover Bug Fix, Playlist Sequential Queue, and Restored Track Play Resume
     assert.strictEqual(
       previewModule.normalizeTrackDedupeKey({ title: 'Hotel Lobby (Official Music Video)', artist: 'Tobii - Topic' }),
       previewModule.normalizeTrackDedupeKey({ title: 'Hotel Lobby [Official Audio]', artist: 'Tobii • Hotel Lobby • 2:34' }),
       'normalizeTrackDedupeKey must match identical songs across Official Video / Official Audio / Topic variants'
     );
+
+    // Test cleanSearchTerm preserves words like "With" and "Live" outside brackets while stripping parenthetical feat/with/video tags
+    assert.strictEqual(innertube.cleanSearchTerm('Die With A Smile (Official Music Video)'), 'Die With A Smile', 'cleanSearchTerm must preserve "With" in "Die With A Smile"');
+    assert.strictEqual(innertube.cleanSearchTerm('Stay Alive (feat. Jungkook)'), 'Stay Alive', 'cleanSearchTerm must preserve "Alive" and strip (feat. ...)');
+    assert.strictEqual(innertube.cleanSearchTerm('Live Forever (with Oasis)'), 'Live Forever', 'cleanSearchTerm must preserve "Live" in "Live Forever" and strip (with ...)');
+    assert.strictEqual(previewModule.cleanSearchTerm('Die With A Smile (Official Audio)'), 'Die With A Smile', 'preview.js cleanSearchTerm must preserve "With" in "Die With A Smile"');
+    assert.strictEqual(previewModule.cleanSearchTerm('Dance With Me'), 'Dance With Me', 'preview.js cleanSearchTerm must preserve "Dance With Me"');
+
+    // Test normalizeTrackDedupeKey preserves non-Latin scripts and distinguishes generic YouTube Music artist tracks by videoId
+    const keyJp1 = previewModule.normalizeTrackDedupeKey({ title: '夜に駆ける', artist: 'YOASOBI', videoId: 'by4SYYWlhEs' });
+    const keyJp2 = previewModule.normalizeTrackDedupeKey({ title: 'アイドル', artist: 'YOASOBI', videoId: 'ZRtdQ81jPUQ' });
+    assert.notStrictEqual(keyJp1, keyJp2, 'normalizeTrackDedupeKey must preserve non-Latin Unicode characters so distinct Japanese/Korean/Arabic tracks do not collide');
+    const keyGeneric1 = previewModule.normalizeTrackDedupeKey({ title: 'Intro', artist: 'YouTube Music', videoId: 'vid_intro_1' });
+    const keyGeneric2 = previewModule.normalizeTrackDedupeKey({ title: 'Intro', artist: 'YouTube Music', videoId: 'vid_intro_2' });
+    assert.notStrictEqual(keyGeneric1, keyGeneric2, 'normalizeTrackDedupeKey must include videoId when artist is generic YouTube Music');
 
     // Verify innertube.parseWatchQueue extracts only primaryRenderer from playlistPanelVideoWrapperRenderer (attaching counterpart as musicVideoId) instead of duplicating songs
     assert.strictEqual(typeof innertube.parseWatchQueue, 'function', 'innertube must export parseWatchQueue');
@@ -2281,6 +2299,66 @@ function runBitChordArchitectureTests() {
     assert.strictEqual(parsedWatchQueue[1].duration, 174, 'parseWatchQueue[1] must have 2:54 (174s) ATV duration');
     assert.strictEqual(parsedWatchQueue[1].musicVideoId, 'c6A2hR2v9q8', 'parseWatchQueue[1] must attach OMV counterpart as musicVideoId');
 
+    // Test parsePlaylistResponse supports nested sectionListRenderer.contents[].musicPlaylistShelfRenderer
+    const mockNestedPlaylistPayload = {
+      contents: {
+        twoColumnBrowseResultsRenderer: {
+          tabs: [{
+            tabRenderer: {
+              content: {
+                sectionListRenderer: {
+                  contents: [{
+                    musicResponsiveHeaderRenderer: {
+                      title: { runs: [{ text: 'My Pop Playlist' }] },
+                      subtitle: { runs: [{ text: 'Playlist' }] }
+                    }
+                  }]
+                }
+              }
+            }
+          }],
+          secondaryContents: {
+            sectionListRenderer: {
+              contents: [{
+                musicPlaylistShelfRenderer: {
+                  contents: [
+                    {
+                      musicResponsiveListItemRenderer: {
+                        playlistItemData: { videoId: 'pl_song_1' },
+                        flexColumns: [
+                          { musicResponsiveListItemFlexColumnRenderer: { text: { runs: [{ text: 'Track One' }] } } },
+                          { musicResponsiveListItemFlexColumnRenderer: { text: { runs: [{ text: 'Artist One' }] } } }
+                        ],
+                        fixedColumns: [
+                          { musicResponsiveListItemFixedColumnRenderer: { text: { runs: [{ text: '3:10' }] } } }
+                        ]
+                      }
+                    },
+                    {
+                      musicResponsiveListItemRenderer: {
+                        playlistItemData: { videoId: 'pl_song_2' },
+                        flexColumns: [
+                          { musicResponsiveListItemFlexColumnRenderer: { text: { runs: [{ text: 'Track Two' }] } } },
+                          { musicResponsiveListItemFlexColumnRenderer: { text: { runs: [{ text: 'Artist Two' }] } } }
+                        ],
+                        fixedColumns: [
+                          { musicResponsiveListItemFixedColumnRenderer: { text: { runs: [{ text: '2:45' }] } } }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }]
+            }
+          }
+        }
+      }
+    };
+    const parsedNestedPlaylist = innertube.parsePlaylistResponse(mockNestedPlaylistPayload, 'VLPL123');
+    assert.strictEqual(parsedNestedPlaylist.tracks.length, 2, 'parsePlaylistResponse must extract tracks from nested secondaryContents.sectionListRenderer.contents[].musicPlaylistShelfRenderer');
+    assert.strictEqual(parsedNestedPlaylist.tracks[0].videoId, 'pl_song_1');
+    assert.strictEqual(parsedNestedPlaylist.tracks[1].videoId, 'pl_song_2');
+
     // Test Up Next deduplication and queue rotation on nextTrack / prevTrack
     const prevWin = global.window;
     const prevLs = global.localStorage;
@@ -2323,7 +2401,7 @@ function runBitChordArchitectureTests() {
       duration: 154,
       cover: 'https://i.ytimg.com/vi/vid_hotel_1/hqdefault.jpg'
     });
-    previewModule.CATALOGUE_TRACKS.unshift(seedTrack);
+    previewModule.CATALOGUE_TRACKS.push(seedTrack);
     previewModule.setUserQueue([seedTrack]);
     previewModule.refreshUpNextQueueForTrack(seedTrack, true);
     const qAfterRefresh = previewModule.getUserQueue();
@@ -2342,6 +2420,85 @@ function runBitChordArchitectureTests() {
     assert.strictEqual(qAfterNext[0].videoId, 'next_song_1', 'After nextTrack(), userQueue[0] must advance to next_song_1');
     assert.ok(!qAfterNext.some(t => t.videoId === 'vid_hotel_1'), 'Already-played seed track must be rotated out of userQueue');
     assert.ok(previewModule.getPlayedHistoryStack().some(t => t.videoId === 'vid_hotel_1'), 'Played seed track must be pushed onto playedHistoryStack');
+
+    // Test random song A -> random song B -> Next must NEVER play song A again!
+    previewModule.getPlayedHistoryStack().length = 0;
+    previewModule.playLiveTrack({
+      videoId: 'song_a_vid',
+      title: 'Song Alpha',
+      artist: 'Artist Alpha',
+      duration: 180
+    });
+    assert.strictEqual(previewModule.getCurrentTrack().videoId, 'song_a_vid', 'Playing Song Alpha must immediately set currentTrack to Song Alpha');
+
+    // Mock getNextQueue for Song Beta so it tries to include Song Alpha in radio results (to verify exclusion!)
+    global.window.dejaAPI.getNextQueue = (vid) => ({
+      then(cb) {
+        cb([
+          { videoId: vid, title: 'Song Beta', artist: 'Artist Beta', duration: 200 },
+          { videoId: 'song_a_vid', title: 'Song Alpha', artist: 'Artist Alpha', duration: 180 },
+          { videoId: 'song_gamma_vid', title: 'Song Gamma', artist: 'Artist Gamma', duration: 195 }
+        ]);
+        return { catch() {} };
+      }
+    });
+
+    previewModule.playLiveTrack({
+      videoId: 'song_b_vid',
+      title: 'Song Beta',
+      artist: 'Artist Beta',
+      duration: 200
+    });
+    assert.strictEqual(previewModule.getCurrentTrack().videoId, 'song_b_vid', 'Playing Song Beta must immediately set currentTrack to Song Beta');
+    assert.strictEqual(previewModule.getQueueSourceContext(), 'radio', 'Playing a single random track must set queueSourceContext to radio');
+    assert.strictEqual(previewModule.getPlayedHistoryStack().slice(-1)[0].videoId, 'song_a_vid', 'Previous track Song Alpha must be pushed onto playedHistoryStack');
+    assert.ok(!previewModule.getUserQueue().slice(1).some(t => t.videoId === 'song_a_vid'), 'Previous track Song Alpha must NEVER appear in Up Next after switching to Song Beta');
+    previewModule.nextTrack();
+    assert.strictEqual(previewModule.getCurrentTrack().videoId, 'song_gamma_vid', 'Pressing Next after playing Song Beta must advance to Song Gamma (never replay Song Alpha)');
+    previewModule.prevTrack();
+    assert.strictEqual(previewModule.getCurrentTrack().videoId, 'song_b_vid', 'Pressing Prev must return to Song Beta');
+
+    // Test Playlist / Liked Songs sequential playback via playTrackList
+    let playlistRadioCalled = false;
+    global.window.dejaAPI.getNextQueue = () => {
+      playlistRadioCalled = true;
+      return { then() { return { catch() {} }; } };
+    };
+    const myPlaylistTracks = [
+      { videoId: 'pl_1', title: 'Playlist Song 1', artist: 'Artist 1', duration: 180 },
+      { videoId: 'pl_2', title: 'Playlist Song 2', artist: 'Artist 2', duration: 190 },
+      { videoId: 'pl_3', title: 'Playlist Song 3', artist: 'Artist 3', duration: 200 },
+      { videoId: 'pl_4', title: 'Playlist Song 4', artist: 'Artist 4', duration: 210 }
+    ];
+    previewModule.playTrackList(myPlaylistTracks, 1, { context: 'playlist' });
+    assert.strictEqual(previewModule.getQueueSourceContext(), 'playlist', 'playTrackList must set queueSourceContext to playlist');
+    assert.strictEqual(previewModule.getCurrentTrack().videoId, 'pl_2', 'playTrackList(tracks, 1) must start playing track at index 1 (pl_2)');
+    assert.deepStrictEqual(
+      previewModule.getUserQueue().map(t => t.videoId),
+      ['pl_2', 'pl_3', 'pl_4'],
+      'userQueue must contain the clicked playlist track followed by the remaining playlist tracks in order'
+    );
+    assert.strictEqual(previewModule.getPlayedHistoryStack().slice(-1)[0].videoId, 'pl_1', 'Preceding playlist track (pl_1) must be in playedHistoryStack so Prev works within the playlist');
+    assert.strictEqual(playlistRadioCalled, false, 'playTrackList must NOT overwrite the playlist queue with getNextQueue radio recommendations');
+
+    // Advance to next track in playlist
+    previewModule.nextTrack();
+    assert.strictEqual(previewModule.getCurrentTrack().videoId, 'pl_3', 'nextTrack() in playlist mode must play the next song in the playlist (pl_3)');
+    assert.deepStrictEqual(
+      previewModule.getUserQueue().map(t => t.videoId),
+      ['pl_3', 'pl_4'],
+      'After nextTrack() in playlist mode, userQueue must contain [pl_3, pl_4]'
+    );
+    assert.strictEqual(playlistRadioCalled, false, 'nextTrack() in playlist mode must NOT call getNextQueue while playlist songs remain');
+
+    // Step back in playlist via prevTrack()
+    previewModule.prevTrack();
+    assert.strictEqual(previewModule.getCurrentTrack().videoId, 'pl_2', 'prevTrack() in playlist mode must return to pl_2');
+    assert.deepStrictEqual(
+      previewModule.getUserQueue().map(t => t.videoId),
+      ['pl_2', 'pl_3', 'pl_4'],
+      'After prevTrack() in playlist mode, pl_2 must be restored at the front of userQueue ahead of [pl_3, pl_4]'
+    );
 
     // Test startup restoration + play() resuming restored track via resolveAudioStream instead of ytPlayer
     resolvedStreamVideoIds = [];

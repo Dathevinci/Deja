@@ -282,6 +282,24 @@ class MainActivity : AppCompatActivity() {
         JamInviteLink.consume(intent)
         // Likewise for a link tapped or shared from another app — see [MusicLink].
         MusicLink.consume(intent)
+        if (savedInstanceState == null) {
+            for (legacyPkg in listOf("com.music.deja", "com.music.bitchord")) {
+                if (packageName != legacyPkg) {
+                    val isLegacyInstalled = runCatching {
+                        packageManager.getPackageInfo(legacyPkg, 0) != null
+                    }.getOrDefault(false)
+                    if (isLegacyInstalled) {
+                        runCatching {
+                            startActivity(
+                                Intent(Intent.ACTION_DELETE, Uri.parse("package:$legacyPkg"))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                        break
+                    }
+                }
+            }
+        }
         setContent {
             val theme by AppSettings.themeMode.collectAsStateWithLifecycle()
             val highPerformance by AppSettings.highPerformanceMode.collectAsStateWithLifecycle()
