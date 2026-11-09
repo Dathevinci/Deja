@@ -2172,9 +2172,128 @@ function runBitChordArchitectureTests() {
       css.includes('body.apple-light .bitchord-desktop-shell') &&
       css.includes('body.pure-black .bitchord-desktop-shell') &&
       css.includes('#apple-player-bar.bc-floating-miniplayer #btn-audio-pipeline') &&
+      css.includes('#apple-player-bar.bc-floating-miniplayer #btn-favorite') &&
+      css.includes('#apple-player-bar.bc-floating-miniplayer .player-right') &&
       css.includes('#expanded-player-view .bc-np-sleeve-action-row'),
       'preview.css must style Light and Pure-Black themes across the desktop shell and hide cluttered/duplicate buttons in MiniPlayer and Expanded Now Playing'
     );
+    assert.ok(
+      html.includes('id="opt-download-track"') &&
+      previewCode.includes("getElementById('opt-download-track')"),
+      'Expanded Now Playing options dropdown must include #opt-download-track and wire it to triggerTrackDownload'
+    );
+    assert.ok(
+      mainCode.includes('pathToFileURL(localHit.filePath).href'),
+      'main.js yt-resolve-stream must resolve local downloaded tracks directly from disk via file:// URL for offline playback'
+    );
+    assert.ok(
+      appUpdateCheckerCode.includes('deja-${info.version}-download.apk') &&
+      appUpdateCheckerCode.includes('if (archiveInfo != null)'),
+      'AppUpdateChecker.kt must use .apk extension for temporary download file and guard archiveInfo != null'
+    );
+
+    // 10. Behavioral Tests: normalizeTrackDedupeKey, Up Next Queue Rotation/Deduplication, and Restored Track Play Resume
+    assert.strictEqual(
+      previewModule.normalizeTrackDedupeKey({ title: 'Hotel Lobby (Official Music Video)', artist: 'Tobii - Topic' }),
+      previewModule.normalizeTrackDedupeKey({ title: 'Hotel Lobby [Official Audio]', artist: 'Tobii • Hotel Lobby • 2:34' }),
+      'normalizeTrackDedupeKey must match identical songs across Official Video / Official Audio / Topic variants'
+    );
+
+    // Test Up Next deduplication and queue rotation on nextTrack / prevTrack
+    const prevWin = global.window;
+    const prevLs = global.localStorage;
+    const lsStore = new Map();
+    global.localStorage = prevLs || {
+      getItem: (k) => lsStore.has(k) ? lsStore.get(k) : null,
+      setItem: (k, v) => lsStore.set(k, String(v)),
+      removeItem: (k) => lsStore.delete(k)
+    };
+    let resolvedStreamVideoIds = [];
+    global.window = {
+      ...(prevWin || {}),
+      dejaAPI: {
+        ...((prevWin && prevWin.dejaAPI) || {}),
+        resolveAudioStream: (vid) => {
+          resolvedStreamVideoIds.push(vid);
+          return Promise.resolve({ url: `https://stream.example.com/${vid}.m4a`, mimeType: 'audio/mp4', bitrate: 256000 });
+        },
+        getNextQueue: (vid) => ({
+          then(cb) {
+            cb([
+              { videoId: vid, title: 'Hotel Lobby', artist: 'Tobii', duration: 154 },
+              { videoId: 'dup_hotel_2', title: 'Hotel Lobby (Official Video)', artist: 'Tobii - Topic', duration: 155 },
+              { videoId: 'next_song_1', title: 'Starboy', artist: 'The Weeknd', duration: 230 },
+              { videoId: 'next_song_2', title: 'Midnight City', artist: 'M83', duration: 243 }
+            ]);
+            return { catch() {} };
+          }
+        })
+      }
+    };
+
+    const origCatalogueSlice = previewModule.CATALOGUE_TRACKS.slice();
+    const seedTrack = previewModule.createCatalogueItemFromLive({
+      id: 'seed_hotel',
+      videoId: 'vid_hotel_1',
+      title: 'Hotel Lobby',
+      artist: 'Tobii',
+      album: 'Hotel Lobby',
+      duration: 154,
+      cover: 'https://i.ytimg.com/vi/vid_hotel_1/hqdefault.jpg'
+    });
+    previewModule.CATALOGUE_TRACKS.unshift(seedTrack);
+    previewModule.setUserQueue([seedTrack]);
+    previewModule.refreshUpNextQueueForTrack(seedTrack, true);
+    const qAfterRefresh = previewModule.getUserQueue();
+    assert.strictEqual(qAfterRefresh[0].videoId, 'vid_hotel_1', 'Current track must remain at userQueue[0]');
+    assert.ok(!qAfterRefresh.some(t => t.videoId === 'dup_hotel_2'), 'Duplicate title+artist upload (dup_hotel_2) must be filtered out of Up Next queue');
+    assert.strictEqual(qAfterRefresh[1].videoId, 'next_song_1', 'First genuinely distinct recommendation must be at userQueue[1]');
+    assert.strictEqual(qAfterRefresh[2].videoId, 'next_song_2', 'Second recommendation must be at userQueue[2]');
+
+    // Advance via nextTrack() -> userQueue should rotate so next_song_1 becomes userQueue[0] and vid_hotel_1 moves to playedHistoryStack
+    previewModule.nextTrack();
+    const qAfterNext = previewModule.getUserQueue();
+    assert.strictEqual(qAfterNext[0].videoId, 'next_song_1', 'After nextTrack(), userQueue[0] must advance to next_song_1');
+    assert.ok(!qAfterNext.some(t => t.videoId === 'vid_hotel_1'), 'Already-played seed track must be rotated out of userQueue');
+    assert.ok(previewModule.getPlayedHistoryStack().some(t => t.videoId === 'vid_hotel_1'), 'Played seed track must be pushed onto playedHistoryStack');
+
+    // Test startup restoration + play() resuming restored track via resolveAudioStream instead of ytPlayer
+    resolvedStreamVideoIds = [];
+    global.localStorage.setItem('deja_last_playback_state', JSON.stringify({
+      track: {
+        id: 'restored_1',
+        videoId: 'restored_vid_99',
+        title: 'Feather',
+        artist: 'Sabrina Carpenter',
+        album: 'emails i cant send',
+        duration: 185,
+        cover: 'https://i.ytimg.com/vi/restored_vid_99/hqdefault.jpg'
+      },
+      currentTime: 64,
+      userQueue: [
+        {
+          id: 'restored_1',
+          videoId: 'restored_vid_99',
+          title: 'Feather',
+          artist: 'Sabrina Carpenter',
+          album: 'emails i cant send',
+          duration: 185,
+          cover: 'https://i.ytimg.com/vi/restored_vid_99/hqdefault.jpg'
+        }
+      ],
+      savedAt: Date.now()
+    }));
+    const restoredOk = previewModule.restoreLastPlaybackState();
+    assert.strictEqual(restoredOk, true, 'restoreLastPlaybackState() must return true for valid saved state');
+    previewModule.play();
+    assert.ok(resolvedStreamVideoIds.includes('restored_vid_99'), 'Calling play() after startup restoration must resolve stream for restored_vid_99 instead of playing default Cruel Summer');
+    previewModule.pause();
+
+    previewModule.CATALOGUE_TRACKS.length = 0;
+    origCatalogueSlice.forEach(t => previewModule.CATALOGUE_TRACKS.push(t));
+    previewModule.setUserQueue(origCatalogueSlice.slice());
+    global.window = prevWin;
+    global.localStorage = prevLs;
   } finally {
     global.document = bcPrevDoc;
   }

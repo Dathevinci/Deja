@@ -1806,6 +1806,19 @@ ipcMain.handle('yt-resolve-stream', async (event, videoIdOrPayload, optsArg) => 
     typeof optsArg === 'object' && optsArg ? optsArg : {}
   );
   try {
+    const localDownloads = loadDownloadsMeta();
+    const localHit = localDownloads.find(d => d && d.videoId === videoId && d.filePath && fs.existsSync(d.filePath));
+    if (localHit) {
+      const { pathToFileURL } = require('url');
+      return {
+        url: pathToFileURL(localHit.filePath).href,
+        mimeType: localHit.mimeType || (localHit.filePath.endsWith('.m4a') ? 'audio/mp4' : 'audio/webm'),
+        bitrate: localHit.bitrate || 160000,
+        duration: localHit.duration || 0,
+        contentLength: localHit.fileSize || 0,
+        isLocalDownload: true
+      };
+    }
     const ses = session.fromPartition('persist:ytmusic');
     return await innertube.getAudioStream(videoId, ses, mergedOpts);
   } catch (err) {

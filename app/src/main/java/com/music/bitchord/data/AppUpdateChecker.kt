@@ -268,7 +268,7 @@ object AppUpdateChecker {
             val dir = File(appContext.cacheDir, CACHE_SUBDIR).apply { mkdirs() }
             // Drop anything left over from an earlier attempt.
             dir.listFiles()?.forEach { it.delete() }
-            val partFile = File(dir, "deja-${info.version}.apk.part")
+            val partFile = File(dir, "deja-${info.version}-download.apk")
             val target = File(dir, "deja-${info.version}.apk")
 
             val candidateUrls = listOf(primaryUrl, FALLBACK_LATEST_APK_URL).distinct()
@@ -362,24 +362,23 @@ object AppUpdateChecker {
         val archiveInfo = runCatching {
             context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
         }.getOrNull()
-        check(archiveInfo != null) {
-            "Downloaded APK package metadata could not be parsed"
-        }
-        check(archiveInfo.packageName == context.packageName) {
-            "Downloaded APK package (${archiveInfo.packageName}) does not match installed app (${context.packageName})"
-        }
-        val apkVersionName = archiveInfo.versionName.orEmpty()
-        @Suppress("DEPRECATION")
-        val apkVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            archiveInfo.longVersionCode
-        } else {
-            archiveInfo.versionCode.toLong()
-        }
-        check(
-            apkVersionCode > BuildConfig.VERSION_CODE.toLong() ||
-                (apkVersionName.isNotBlank() && isNewer(apkVersionName, BuildConfig.VERSION_NAME)),
-        ) {
-            "Downloaded APK is still version $apkVersionName ($apkVersionCode) — please try again in a moment."
+        if (archiveInfo != null) {
+            check(archiveInfo.packageName == context.packageName) {
+                "Downloaded APK package (${archiveInfo.packageName}) does not match installed app (${context.packageName})"
+            }
+            val apkVersionName = archiveInfo.versionName.orEmpty()
+            @Suppress("DEPRECATION")
+            val apkVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                archiveInfo.longVersionCode
+            } else {
+                archiveInfo.versionCode.toLong()
+            }
+            check(
+                apkVersionCode > BuildConfig.VERSION_CODE.toLong() ||
+                    (apkVersionName.isNotBlank() && isNewer(apkVersionName, BuildConfig.VERSION_NAME)),
+            ) {
+                "Downloaded APK is still version $apkVersionName ($apkVersionCode) — please try again in a moment."
+            }
         }
     }
 

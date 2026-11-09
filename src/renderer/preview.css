@@ -6043,37 +6043,37 @@ body.apple-light.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), inset 0 0.5px 0 rgba(255, 255, 255, 0.8) !important;
 }
 
-/* Windows Desktop Widescreen Full-Featured Player Dock (min-width: 821px) */
+/* Windows Desktop Clean Mobile-Style Floating Pill MiniPlayer (min-width: 821px) */
 @media (min-width: 821px) {
   body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer {
-    left: 256px !important;
-    right: 16px !important;
-    bottom: 12px !important;
-    transform: none !important;
-    width: calc(100vw - 272px) !important;
-    max-width: 1680px !important;
-    margin: 0 auto !important;
-    height: 74px !important;
-    border-radius: 18px !important;
-    padding: 0 20px 0 14px !important;
-    gap: 18px !important;
-    overflow: visible !important;
+    left: calc(240px + (100vw - 240px) / 2) !important;
+    right: auto !important;
+    bottom: 16px !important;
+    transform: translateX(-50%) !important;
+    width: min(620px, calc(100vw - 288px)) !important;
+    max-width: 620px !important;
+    margin: 0 !important;
+    height: 60px !important;
+    border-radius: 999px !important;
+    padding: 0 16px 0 10px !important;
+    gap: 12px !important;
+    overflow: hidden !important;
   }
 
   body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer .player-left {
-    flex: 0 1 31% !important;
-    width: 31% !important;
-    min-width: 220px !important;
-    max-width: 390px !important;
-    gap: 11px !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    gap: 12px !important;
     display: flex !important;
     align-items: center !important;
   }
 
   body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer .artwork-wrapper {
-    width: 50px !important;
-    height: 50px !important;
-    border-radius: 11px !important;
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 10px !important;
     flex-shrink: 0;
     border: 0.5px solid rgba(255, 255, 255, 0.16);
   }
@@ -6086,61 +6086,60 @@ body.apple-light.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer
 
   body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer .track-title {
     font-size: 14px !important;
-    font-weight: 700 !important;
+    font-weight: 600 !important;
     letter-spacing: -0.15px;
   }
 
   body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer .track-artist {
     font-size: 12px !important;
-    opacity: 0.74;
+    opacity: 0.72;
   }
 
   body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer .player-center {
-    flex: 1 1 38% !important;
-    max-width: 560px !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    max-width: none !important;
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 5px !important;
+    gap: 6px !important;
   }
 
   body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer .transport-controls {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 14px !important;
+    gap: 6px !important;
     margin: 0 !important;
   }
 
   body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer .progress-bar-container {
-    position: static !important;
-    width: 100% !important;
-    height: 16px !important;
+    position: absolute !important;
+    left: 22px !important;
+    right: 22px !important;
+    bottom: 0 !important;
+    width: auto !important;
+    height: 2.5px !important;
     margin: 0 !important;
     padding: 0 !important;
     display: flex !important;
     align-items: center !important;
-    gap: 10px !important;
+    gap: 0 !important;
   }
 
   body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer .scrubber-track {
     flex: 1 !important;
-    height: 4px !important;
+    height: 2.5px !important;
     border-radius: 999px !important;
-    background: rgba(255, 255, 255, 0.16) !important;
+    background: rgba(255, 255, 255, 0.14) !important;
     cursor: pointer;
   }
 
+  body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer .scrubber-knob,
+  body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer .time-stamp,
   body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer .player-right {
-    flex: 0 1 31% !important;
-    width: 31% !important;
-    min-width: 240px !important;
-    max-width: 390px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    gap: 6px !important;
+    display: none !important;
   }
 }
 
@@ -7464,6 +7463,7 @@ body.deja-playing #expanded-player-view.bc-landscape-player .expanded-artwork-co
   cursor: pointer;
 }
 
+#apple-player-bar.bc-floating-miniplayer #btn-favorite,
 #apple-player-bar.bc-floating-miniplayer #btn-audio-pipeline,
 #apple-player-bar.bc-floating-miniplayer #btn-sleep-timer,
 #apple-player-bar.bc-floating-miniplayer #btn-equalizer,
@@ -7471,12 +7471,14 @@ body.deja-playing #expanded-player-view.bc-landscape-player .expanded-artwork-co
 #apple-player-bar.bc-floating-miniplayer #btn-switch-video,
 #apple-player-bar.bc-floating-miniplayer #btn-download-track,
 #apple-player-bar.bc-floating-miniplayer #btn-shuffle,
-#apple-player-bar.bc-floating-miniplayer #btn-repeat {
-  display: none !important;
-}
-
+#apple-player-bar.bc-floating-miniplayer #btn-repeat,
+#apple-player-bar.bc-floating-miniplayer #btn-lyrics-panel,
+#apple-player-bar.bc-floating-miniplayer #btn-queue-panel,
+#apple-player-bar.bc-floating-miniplayer .volume-container,
+#apple-player-bar.bc-floating-miniplayer .time-stamp,
+#apple-player-bar.bc-floating-miniplayer .scrubber-knob,
 #apple-player-bar.bc-floating-miniplayer .player-right {
-  gap: 8px !important;
+  display: none !important;
 }
 
 /* Remove duplicate Lyrics / Queue / Listen Together buttons in Expanded Now Playing */
