@@ -2558,38 +2558,44 @@ function runBitChordArchitectureTests() {
     assert.strictEqual(dedupedScreenshotQueue[0].title, 'Espresso', 'First deduplicated song must be Espresso');
     assert.strictEqual(dedupedScreenshotQueue[1].title, 'the boy is mine', 'Second deduplicated song must be the boy is mine');
 
-    // Edge case 3: v1.6.4 Android-only LegacyAppMigration wakeup & DocumentsProvider verification
+    // Edge case 3: v1.6.4 Android-only LegacyAppMigration, deja://finish deep-link & DocumentsProvider verification
     const legacyMigrationCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/LegacyAppMigration.kt'), 'utf8');
     const manifestXmlCode = fs.readFileSync(path.join(__dirname, '../app/src/main/AndroidManifest.xml'), 'utf8');
     const updateDialogCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/ui/components/UpdateAvailableDialog.kt'), 'utf8');
     assert.ok(
+      legacyMigrationCode.includes('fun isMigrationIntent(intent: Intent?): Boolean') &&
       legacyMigrationCode.includes('class MigrationDocumentsProvider : DocumentsProvider()') &&
       legacyMigrationCode.includes('class LegacyMigrationReceiver : BroadcastReceiver()') &&
-      legacyMigrationCode.includes('setFullScreenIntent(openPending, true)'),
-      'LegacyAppMigration.kt must define MigrationDocumentsProvider, LegacyMigrationReceiver, and high-priority fullScreenIntent notification'
+      legacyMigrationCode.includes('if (context !is Activity)'),
+      'LegacyAppMigration.kt must define isMigrationIntent, MigrationDocumentsProvider, LegacyMigrationReceiver, and same-task Activity ACTION_DELETE launch'
     );
     assert.ok(
+      manifestXmlCode.includes('android:host="finish"') &&
+      manifestXmlCode.includes('android:scheme="deja-update"') &&
       manifestXmlCode.includes('android:name=".MigrationDocumentsProvider"') &&
       manifestXmlCode.includes('android.content.action.DOCUMENTS_PROVIDER') &&
       manifestXmlCode.includes('android:name=".LegacyMigrationReceiver"'),
-      'AndroidManifest.xml must register MigrationDocumentsProvider (DOCUMENTS_PROVIDER) and LegacyMigrationReceiver'
+      'AndroidManifest.xml must register deja://finish deep-link, MigrationDocumentsProvider (DOCUMENTS_PROVIDER), and LegacyMigrationReceiver'
     );
     assert.ok(
-      gradleKtsCode.includes('targetSdk = 32') &&
+      gradleKtsCode.includes('targetSdk = 36') &&
       gradleKtsCode.includes('versionCode = 33') &&
       gradleKtsCode.includes('versionName = "1.6.4"') &&
       gradleKtsCode.includes('useLegacyPackaging = true'),
-      'app/build.gradle.kts must set targetSdk = 32, prod versionCode = 33, versionName = "1.6.4", and jniLibs.useLegacyPackaging = true'
+      'app/build.gradle.kts must keep targetSdk = 36 (for Android 13+ READ_MEDIA_AUDIO and zero targetSdk downgrade), prod versionCode = 33, versionName = "1.6.4", and jniLibs.useLegacyPackaging = true'
     );
     assert.ok(
       updateDialogCode.includes('fun LegacyCleanupDialog(') &&
-      mainActivityKtCode.includes('LegacyCleanupDialog('),
-      'UpdateAvailableDialog.kt and MainActivity.kt must display LegacyCleanupDialog while a legacy copy remains installed'
+      mainActivityKtCode.includes('LegacyCleanupDialog(') &&
+      mainActivityKtCode.includes('window.decorView.post') &&
+      mainActivityKtCode.includes('Update complete! Running Deja'),
+      'UpdateAvailableDialog.kt and MainActivity.kt must display LegacyCleanupDialog, post ACTION_DELETE after first frame, and confirm update completion in onResume'
     );
     assert.ok(
       androidYmlCode.includes('Deja v1.6.4 [android-only]') &&
-      androidYmlCode.includes('[android-only] windows_version: 1.6.3'),
-      'android.yml must publish v1.6.4 as Deja v1.6.4 [android-only] with windows_version: 1.6.3 so Windows 1.6.3 users are not prompted'
+      androidYmlCode.includes('[android-only] windows_version: 1.6.3') &&
+      androidYmlCode.includes('(deja://finish)'),
+      'android.yml must publish v1.6.4 as Deja v1.6.4 [android-only] with clickable (deja://finish) Step 2 link and windows_version: 1.6.3'
     );
 
     previewModule.CATALOGUE_TRACKS.length = 0;

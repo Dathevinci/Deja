@@ -78,8 +78,8 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         cat << 'EOF' > release-notes-v1.6.4.md
-        1. Tap **Install Now** → **Install** to install **Deja 1.6.4**.
-        2. Tap the **"Deja 1.6.4 Installed — Tap to Finish"** notification (or open the new **Deja** app icon) and press **OK** to remove this old copy!
+        1. **Step 1:** Tap **Install Now** below (and press **Install** / **Update**).
+        2. **Step 2 (After Installing):** 👉 [**Tap Here to Open Deja 1.6.4 & Remove Old Copy**](deja://finish) *(then press **OK** to delete this old `bitchord` copy!)*
 
         ---
         [android-only] windows_version: 1.6.3

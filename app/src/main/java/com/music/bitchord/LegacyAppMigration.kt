@@ -1,5 +1,6 @@
 package com.music.bitchord
 
+import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -37,6 +38,16 @@ object LegacyAppMigration {
 
     @Volatile
     private var wakeupHandledThisProcess = false
+
+    fun isMigrationIntent(intent: Intent?): Boolean {
+        if (intent == null) return false
+        if (intent.getBooleanExtra(EXTRA_FROM_MIGRATION, false)) return true
+        val data = intent.data ?: return false
+        val scheme = data.scheme?.lowercase() ?: return false
+        val host = data.host?.lowercase().orEmpty()
+        return scheme == "deja-update" ||
+            (scheme == "deja" && (host == "finish" || host == "open" || host == "update"))
+    }
 
     fun findInstalledLegacyPackages(context: Context): List<String> {
         val pm = context.packageManager
@@ -92,11 +103,24 @@ object LegacyAppMigration {
                 Toast.LENGTH_LONG,
             ).show()
         }
-        runCatching {
-            val uninstallIntent = Intent(Intent.ACTION_DELETE, Uri.parse("package:$legacyPkg")).apply {
+        val deleteUri = Uri.parse("package:$legacyPkg")
+        val uninstallIntent = Intent(Intent.ACTION_DELETE, deleteUri).apply {
+            if (context !is Activity) {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+        }
+        runCatching {
             context.startActivity(uninstallIntent)
+        }.onFailure {
+            runCatching {
+                @Suppress("DEPRECATION")
+                val fallback = Intent(Intent.ACTION_UNINSTALL_PACKAGE, deleteUri).apply {
+                    if (context !is Activity) {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                }
+                context.startActivity(fallback)
+            }
         }
     }
 

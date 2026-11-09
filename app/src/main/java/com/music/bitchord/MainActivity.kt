@@ -276,6 +276,8 @@ internal fun shouldSkipAfterDislike(
 
 class MainActivity : AppCompatActivity() {
     private val legacyPackageFlow = MutableStateFlow<String?>(null)
+    private val migrationPromptCountFlow = MutableStateFlow(0)
+    private var uninstallPromptPending = false
 
     /**
      * Checks for legacy packages (`com.music.deja` / `com.music.bitchord`) and
@@ -284,11 +286,31 @@ class MainActivity : AppCompatActivity() {
      */
     private fun refreshLegacyPackageState(triggerUninstallPrompt: Boolean) {
         val legacyPkg = LegacyAppMigration.findInstalledLegacyPackages(this).firstOrNull()
+        val previouslyHadLegacy = legacyPackageFlow.value != null
         legacyPackageFlow.value = legacyPkg
         if (legacyPkg == null) {
+            uninstallPromptPending = false
             LegacyAppMigration.cancelMigrationNotification(this)
+            if (previouslyHadLegacy) {
+                runCatching {
+                    Toast.makeText(
+                        this,
+                        "Update complete! Running Deja ${BuildConfig.VERSION_NAME}",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
         } else if (triggerUninstallPrompt) {
-            LegacyAppMigration.requestUninstall(this, legacyPkg)
+            migrationPromptCountFlow.value += 1
+            if (!uninstallPromptPending) {
+                uninstallPromptPending = true
+                window.decorView.post {
+                    uninstallPromptPending = false
+                    if (!isFinishing && !isDestroyed) {
+                        LegacyAppMigration.requestUninstall(this, legacyPkg)
+                    }
+                }
+            }
         }
     }
 
@@ -303,7 +325,7 @@ class MainActivity : AppCompatActivity() {
         MusicLink.consume(intent)
         refreshLegacyPackageState(
             triggerUninstallPrompt = savedInstanceState == null ||
-                intent?.getBooleanExtra(LegacyAppMigration.EXTRA_FROM_MIGRATION, false) == true,
+                LegacyAppMigration.isMigrationIntent(intent),
         )
         setContent {
             val theme by AppSettings.themeMode.collectAsStateWithLifecycle()
@@ -355,6 +377,7 @@ class MainActivity : AppCompatActivity() {
                 // A measured constraint cannot be stale — it is the very width
                 // the split is about to be laid out in.
                 val legacyPackage by legacyPackageFlow.collectAsStateWithLifecycle()
+                val migrationPromptCount by migrationPromptCountFlow.collectAsStateWithLifecycle()
                 BoxWithConstraints(Modifier.fillMaxSize()) {
                     BitChordApp(
                         darkTheme = darkTheme,
@@ -362,6 +385,7 @@ class MainActivity : AppCompatActivity() {
                         windowHeight = maxHeight,
                         appBackdrop = appBackdrop,
                         legacyPackage = legacyPackage,
+                        migrationPromptCount = migrationPromptCount,
                     )
                 }
                 }
@@ -408,9 +432,7 @@ class MainActivity : AppCompatActivity() {
         PlayerDeepLink.consume(intent)
         JamInviteLink.consume(intent)
         MusicLink.consume(intent)
-        refreshLegacyPackageState(
-            triggerUninstallPrompt = intent.getBooleanExtra(LegacyAppMigration.EXTRA_FROM_MIGRATION, false),
-        )
+        refreshLegacyPackageState(triggerUninstallPrompt = true)
     }
 }
 
@@ -431,6 +453,7 @@ private fun BitChordApp(
     windowHeight: Dp,
     appBackdrop: LayerBackdrop,
     legacyPackage: String? = null,
+    migrationPromptCount: Int = 0,
     viewModel: MainViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -4055,7 +4078,7 @@ private fun BitChordApp(
             }
         }
 
-        var legacyDialogDismissed by remember(legacyPackage) { mutableStateOf(false) }
+        var legacyDialogDismissed by remember(legacyPackage, migrationPromptCount) { mutableStateOf(false) }
         if (legacyPackage != null && !legacyDialogDismissed && !showUpdateDialog) {
             LegacyCleanupDialog(
                 hazeState = hazeState,

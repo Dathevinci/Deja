@@ -79,11 +79,7 @@ android {
         // 26 keeps reach wide; real-time blur (RenderEffect) kicks in on API 31+,
         // Haze falls back to a translucent scrim below that.
         minSdk = 26
-        // targetSdk 32 ensures Android 13+ automatically grants POST_NOTIFICATIONS
-        // at APK install time (before MainActivity is ever launched), allowing
-        // LegacyAppMigration to post a high-priority heads-up notification the
-        // instant PackageInstaller finishes installing over/beside legacy copies.
-        targetSdk = 32
+        targetSdk = 36
         versionCode = 32
         versionName = "1.6.3"
 
