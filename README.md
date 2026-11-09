@@ -85,14 +85,14 @@
 
 <h1><a id="download"></a>Download</h1>
 
-Grab the latest **Windows Installer (`Deja.Setup.1.6.1.exe`)**, **Portable (`Deja.1.6.1.exe`)**, or **Android APK (`Deja.apk`)** from the [Releases](https://github.com/Dathevinci/Deja/releases) page or the [Official Website](https://dathevinci.github.io/Deja/).
+Grab the latest **Windows Installer (`Deja.Setup.1.6.2.exe`)**, **Portable (`Deja.1.6.2.exe`)**, or **Android APK (`Deja.apk`)** from the [Releases](https://github.com/Dathevinci/Deja/releases) page or the [Official Website](https://dathevinci.github.io/Deja/).
 
 | Platform | Package | Direct Link |
 | :--- | :--- | :--- |
-| **Windows (x64)** | NSIS Installer (`.exe`) | [**Download Deja.Setup.1.6.1.exe**](https://github.com/Dathevinci/Deja/releases/download/v1.6.1/Deja.Setup.1.6.1.exe) |
-| **Windows (x64)** | Portable Executable (`.exe`) | [**Download Deja.1.6.1.exe**](https://github.com/Dathevinci/Deja/releases/download/v1.6.1/Deja.1.6.1.exe) |
-| **Android (8.0+)** | Universal Signed APK (`.apk`) | [**Download Deja.apk**](https://github.com/Dathevinci/Deja/releases/download/v1.6.1/Deja.apk) |
-| **Android (ARM64)** | ARM64 Signed APK (`.apk`) | [**Download Deja-arm64-v8a.apk**](https://github.com/Dathevinci/Deja/releases/download/v1.6.1/Deja-arm64-v8a.apk) |
+| **Windows (x64)** | NSIS Installer (`.exe`) | [**Download Deja.Setup.1.6.2.exe**](https://github.com/Dathevinci/Deja/releases/download/v1.6.2/Deja.Setup.1.6.2.exe) |
+| **Windows (x64)** | Portable Executable (`.exe`) | [**Download Deja.1.6.2.exe**](https://github.com/Dathevinci/Deja/releases/download/v1.6.2/Deja.1.6.2.exe) |
+| **Android (8.0+)** | Universal Signed APK (`.apk`) | [**Download Deja.apk**](https://github.com/Dathevinci/Deja/releases/download/v1.6.2/Deja.apk) |
+| **Android (ARM64)** | ARM64 Signed APK (`.apk`) | [**Download Deja-arm64-v8a.apk**](https://github.com/Dathevinci/Deja/releases/download/v1.6.2/Deja-arm64-v8a.apk) |
 
 </div>
 

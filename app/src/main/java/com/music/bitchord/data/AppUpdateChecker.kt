@@ -457,7 +457,9 @@ object AppUpdateChecker {
         pendingInstallFile = null
         runCatching {
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-            val baseFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            val baseFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP
 
             val viewIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, APK_MIME_TYPE)
@@ -467,17 +469,41 @@ object AppUpdateChecker {
                 addFlags(baseFlags)
             }
 
+            @Suppress("DEPRECATION")
+            val fallbackIntent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                setDataAndType(uri, APK_MIME_TYPE)
+                clipData = ClipData.newRawUri("", uri)
+                putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+                putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, context.packageName)
+                addFlags(baseFlags)
+            }
+
+            // Explicitly grant URI read permissions to all candidate installer packages
+            // (including OEM installers like ColorOS/OxygenOS/MIUI that forward the URI
+            // across internal staging activities).
+            runCatching {
+                val pm = context.packageManager
+                val resolved = (
+                    pm.queryIntentActivities(viewIntent, 0) +
+                        pm.queryIntentActivities(fallbackIntent, 0)
+                    ).mapNotNull { it.activityInfo?.packageName }.toSet() + setOf(
+                    "com.google.android.packageinstaller",
+                    "com.android.packageinstaller",
+                    "com.oplus.appdetail",
+                    "com.coloros.appmanager",
+                    "com.miui.packageinstaller",
+                    "com.samsung.android.packageinstaller",
+                )
+                for (pkg in resolved) {
+                    runCatching {
+                        context.grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                }
+            }
+
             try {
                 context.startActivity(viewIntent)
             } catch (_: Throwable) {
-                @Suppress("DEPRECATION")
-                val fallbackIntent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
-                    setDataAndType(uri, APK_MIME_TYPE)
-                    clipData = ClipData.newRawUri("", uri)
-                    putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
-                    putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, context.packageName)
-                    addFlags(baseFlags)
-                }
                 context.startActivity(fallbackIntent)
             }
         }.onFailure { error ->

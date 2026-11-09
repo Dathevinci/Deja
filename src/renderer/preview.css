@@ -7369,55 +7369,22 @@ body.deja-playing #expanded-player-view.bc-landscape-player .expanded-artwork-co
   letter-spacing: 0.01em;
 }
 
-/* Windows Desktop Widescreen Now Playing Simultaneous Lyrics/Queue + Compact Docked Controls */
+/* Windows Desktop Widescreen Now Playing (BitChord LandscapePlayer.kt / PlayerControls.kt Mobile Parity) */
 @media (min-width: 821px) {
-  #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics #bc-np-main-controls-pane,
-  #expanded-player-view.bc-landscape-player.bc-np-mode-queue #bc-np-main-controls-pane {
-    display: flex !important;
-    flex-direction: column;
-    gap: 6px;
-    margin-top: 10px;
-    padding: 10px 16px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 0.5px solid rgba(255, 255, 255, 0.10);
-  }
-
-  #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics #bc-np-main-controls-pane .expanded-lyric-snippet-wrap,
-  #expanded-player-view.bc-landscape-player.bc-np-mode-queue #bc-np-main-controls-pane .expanded-lyric-snippet-wrap,
-  #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics #bc-np-main-controls-pane .expanded-meta-row,
-  #expanded-player-view.bc-landscape-player.bc-np-mode-queue #bc-np-main-controls-pane .expanded-meta-row,
-  #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics #bc-np-main-controls-pane .expanded-bottom-row,
-  #expanded-player-view.bc-landscape-player.bc-np-mode-queue #bc-np-main-controls-pane .expanded-bottom-row {
-    display: none !important;
-  }
-
   #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics #expanded-lyrics-container {
-    height: 48vh !important;
-    max-height: 52vh !important;
-    min-height: 280px !important;
+    height: min(520px, 64vh) !important;
+    max-height: 66vh !important;
+    min-height: 320px !important;
     max-width: 100% !important;
-    gap: 16px !important;
-    padding: 18px 12px !important;
+    gap: 18px !important;
+    padding: 20px 14px !important;
   }
 
   #expanded-player-view.bc-landscape-player.bc-np-mode-queue #bc-np-inline-queue-container {
-    height: 48vh !important;
-    max-height: 52vh !important;
-    min-height: 280px !important;
+    height: min(520px, 64vh) !important;
+    max-height: 66vh !important;
+    min-height: 320px !important;
     max-width: 100% !important;
-  }
-
-  #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics .expanded-transport-row,
-  #expanded-player-view.bc-landscape-player.bc-np-mode-queue .expanded-transport-row {
-    margin: 2px 0 !important;
-    gap: 24px !important;
-  }
-
-  #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics .exp-play-circle-btn,
-  #expanded-player-view.bc-landscape-player.bc-np-mode-queue .exp-play-circle-btn {
-    width: 48px !important;
-    height: 48px !important;
   }
 }
 
@@ -7458,6 +7425,7 @@ body.deja-playing #expanded-player-view.bc-landscape-player .expanded-artwork-co
 
 /* ==========================================================================
    Clean Mobile-Style Playing Mode UI (MiniPlayer Pill & Expanded Now Playing)
+   Matches BitChord LandscapePlayer.kt / NowPlayingScreen.kt / PlayerControls.kt
    ========================================================================== */
 #apple-player-bar.bc-floating-miniplayer {
   cursor: pointer;
@@ -7481,15 +7449,231 @@ body.deja-playing #expanded-player-view.bc-landscape-player .expanded-artwork-co
   display: none !important;
 }
 
-/* Remove duplicate Lyrics / Queue / Listen Together buttons in Expanded Now Playing */
-#expanded-player-view .bc-np-sleeve-action-row,
+/* Hide desktop-only tab switcher & mode pill so Expanded Now Playing matches BitChord Mobile */
+#expanded-player-view #bc-np-pane-switcher,
+#expanded-player-view #exp-media-mode-pill,
 #expanded-player-view #exp-btn-lyrics,
-#expanded-player-view #exp-btn-queue {
+#expanded-player-view #exp-btn-queue,
+#expanded-player-view .exp-extra-controls {
   display: none !important;
 }
 
-#expanded-player-view .exp-extra-controls {
+/* Left-Column Bottom Action Row (PlayerActionRow in PlayerControls.kt lines 485-599) */
+#expanded-player-view .bc-np-sleeve-action-row {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(380px, 44vh);
+  margin-top: 4px;
+}
+
+#expanded-player-view .bc-np-circle-pill-btn {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 11px !important;
+  border: none !important;
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: none !important;
+}
+
+#expanded-player-view .bc-np-circle-pill-btn:hover {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+}
+
+#expanded-player-view .bc-np-circle-pill-btn.active {
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+}
+
+#expanded-player-view .bc-np-center-capsule {
+  height: 38px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: none !important;
+  padding: 0 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+}
+
+#expanded-player-view .bc-np-capsule-segment {
+  height: 30px !important;
+  padding: 0 9px !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+
+#expanded-player-view .bc-np-capsule-segment.active {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+/* Credits Row & 34px Translucent CircleGlyph Discs (LandscapeCredits in LandscapePlayer.kt lines 377-444) */
+#expanded-player-view .expanded-meta-row {
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+#expanded-player-view .expanded-track-title {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.2 !important;
+}
+
+#expanded-player-view .expanded-track-artist {
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.60) !important;
+  margin-top: 2px !important;
+}
+
+#expanded-player-view .expanded-meta-actions {
+  display: inline-flex !important;
+  align-items: center !important;
   gap: 10px !important;
+}
+
+#expanded-player-view .exp-circular-heart-btn {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+#expanded-player-view .exp-circular-heart-btn:hover {
+  background: rgba(255, 255, 255, 0.26) !important;
+}
+
+#expanded-player-view .exp-circular-heart-btn.loved {
+  color: #FF2D55 !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Frameless One-Line Lyric Strip (CurrentLyricLine in PlayerLyrics.kt lines 2281-2327) */
+#expanded-player-view .expanded-lyric-snippet-wrap {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 0 !important;
+  margin: 2px 0 !important;
+  min-height: 24px !important;
+  justify-content: space-between !important;
+}
+
+#expanded-player-view .exp-lyric-snippet-text {
+  font-size: 15.5px !important;
+  font-weight: 600 !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Scrubber & Inline LosslessLabel (PlayerScrubber in PlayerControls.kt lines 186-237 & 1347-1384) */
+#expanded-player-view .expanded-time-row {
+  margin-top: 6px !important;
+  align-items: center !important;
+}
+
+#expanded-player-view .expanded-time {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+#expanded-player-view .exp-audio-pipeline-badge {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 6px !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  gap: 5px !important;
+}
+
+#expanded-player-view .exp-audio-pipeline-badge:hover {
+  color: rgba(255, 255, 255, 0.78) !important;
+  background: transparent !important;
+}
+
+#expanded-player-view .exp-audio-pipeline-badge .pipeline-status-dot {
+  display: none !important;
+}
+
+/* Frameless White Transport Glyphs (TransportRow in PlayerControls.kt lines 364-431) */
+#expanded-player-view .expanded-transport-row {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-around !important;
+  margin: 8px 0 !important;
+  gap: 0 !important;
+}
+
+#expanded-player-view .exp-transport-btn,
+#expanded-player-view .exp-play-circle-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 8px !important;
+  border-radius: 50% !important;
+  transition: transform 0.14s ease, opacity 0.14s ease !important;
+}
+
+#expanded-player-view .exp-transport-btn:hover,
+#expanded-player-view .exp-play-circle-btn:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: scale(1.08) !important;
+}
+
+#expanded-player-view .exp-transport-btn:active,
+#expanded-player-view .exp-play-circle-btn:active {
+  transform: scale(0.88) !important;
+}
+
+/* Full-Width VolumeRow at Foot of Right Column (VolumeRow in PlayerControls.kt lines 438-474) */
+#expanded-player-view .expanded-bottom-row {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: stretch !important;
+  margin-top: 4px !important;
+}
+
+#expanded-player-view .exp-volume-section {
+  width: 100% !important;
+  max-width: 100% !important;
+  flex: 1 1 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+}
+
+#expanded-player-view .exp-vol-icon {
+  color: rgba(255, 255, 255, 0.45) !important;
+  flex-shrink: 0 !important;
+}
+
+#expanded-player-view .exp-volume-track {
+  flex: 1 !important;
+  height: 5px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.20) !important;
+}
+
+#expanded-player-view .exp-volume-fill {
+  height: 100% !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
 }
 
 /* ==========================================================================

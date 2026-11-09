@@ -1646,6 +1646,13 @@ function parsePlaylistResponse(data, browseId) {
   function walk(node) {
     if (!node || typeof node !== 'object') return;
     if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (node.playlistPanelVideoWrapperRenderer) {
+      const primary = node.playlistPanelVideoWrapperRenderer.primaryRenderer?.playlistPanelVideoRenderer;
+      if (primary) {
+        walk({ playlistPanelVideoRenderer: primary });
+      }
+      return;
+    }
     if (node.musicResponsiveListItemRenderer) {
       const song = parseResponsiveItem(node.musicResponsiveListItemRenderer);
       if (song && song.videoId && !songs.some(s => s.videoId === song.videoId)) {
@@ -1704,31 +1711,73 @@ function parsePlaylistResponse(data, browseId) {
 
 function parseWatchQueue(data) {
   const queue = [];
+  const seenVideoIds = new Set();
+  const seenTitleKeys = new Set();
+
+  const normalizeKey = (title, artist) => {
+    const cleanTitle = String(title || '')
+      .replace(/\s*\((?:official|lyric|audio|video|music video|visualizer|hd|hq|4k|remaster(?:ed)?|live)[^)]*\)/gi, '')
+      .replace(/\s*\[(?:official|lyric|audio|video|music video|visualizer|hd|hq|4k|remaster(?:ed)?|live)[^\]]*\]/gi, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '');
+    const cleanArtist = String(artist || '')
+      .split(/\s*[•·|]\s*/)[0]
+      .replace(/\s*-\s*topic$/i, '')
+      .split(/\s*(?:,|&|\bfeat\.?\b|\bft\.?\b|\bwith\b|\bx\b)\s*/i)[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '');
+    return cleanTitle ? `${cleanTitle}::${cleanArtist}` : '';
+  };
+
+  function addRenderer(r, counterpartVideoId = '') {
+    if (!r || typeof r !== 'object') return;
+    const videoId = r.videoId;
+    const title = r.title?.runs?.[0]?.text;
+    const artist = r.longBylineText?.runs?.[0]?.text || r.shortBylineText?.runs?.[0]?.text || 'YouTube Music';
+    const rawDurText = r.lengthText?.runs?.[0]?.text;
+    const parsedDur = parseDurationString(rawDurText);
+    const durationStr = rawDurText || '3:30';
+    const thumbs = r.thumbnail?.thumbnails || [];
+    const cover = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '');
+    if (title && videoId) {
+      const tKey = normalizeKey(title, artist);
+      if (seenVideoIds.has(videoId) || (tKey && seenTitleKeys.has(tKey))) return;
+      seenVideoIds.add(videoId);
+      if (tKey) seenTitleKeys.add(tKey);
+      const item = {
+        id: `yt-${videoId}`,
+        videoId,
+        title,
+        artist,
+        duration: parsedDur || 210,
+        _durationUnverified: !parsedDur,
+        durationStr,
+        cover
+      };
+      if (counterpartVideoId && counterpartVideoId !== videoId) {
+        item.musicVideoId = counterpartVideoId;
+      }
+      queue.push(item);
+    }
+  }
+
   function walk(node) {
     if (!node || typeof node !== 'object') return;
     if (Array.isArray(node)) { node.forEach(walk); return; }
-    if (node.playlistPanelVideoRenderer) {
-      const r = node.playlistPanelVideoRenderer;
-      const videoId = r.videoId;
-      const title = r.title?.runs?.[0]?.text;
-      const artist = r.longBylineText?.runs?.[0]?.text || 'YouTube Music';
-      const rawDurText = r.lengthText?.runs?.[0]?.text;
-      const parsedDur = parseDurationString(rawDurText);
-      const durationStr = rawDurText || '3:30';
-      const thumbs = r.thumbnail?.thumbnails || [];
-      const cover = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '');
-      if (title && videoId) {
-        queue.push({
-          id: `yt-${videoId}`,
-          videoId,
-          title,
-          artist,
-          duration: parsedDur || 210,
-          _durationUnverified: !parsedDur,
-          durationStr,
-          cover
-        });
+    if (node.playlistPanelVideoWrapperRenderer) {
+      const wrapper = node.playlistPanelVideoWrapperRenderer;
+      const primary = wrapper.primaryRenderer?.playlistPanelVideoRenderer;
+      const counterpart = wrapper.counterpart?.[0]?.counterpartRenderer?.playlistPanelVideoRenderer;
+      if (primary) {
+        addRenderer(primary, counterpart?.videoId || '');
+      } else if (counterpart) {
+        addRenderer(counterpart);
       }
+      return;
+    }
+    if (node.playlistPanelVideoRenderer) {
+      addRenderer(node.playlistPanelVideoRenderer);
+      return;
     }
     Object.values(node).forEach(walk);
   }
@@ -4807,6 +4856,7 @@ module.exports = {
   trackPlayback,
   parseAccountChannels,
   parsePlaylistResponse,
+  parseWatchQueue,
   sanitizeFetchHeaders,
   parseSearchResults,
   getAccountSwitcher

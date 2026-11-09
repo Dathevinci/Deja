@@ -4013,6 +4013,7 @@ private fun BitChordApp(
                     },
                     onInstall = {
                         val ready = AppUpdateChecker.download.value as? AppUpdateChecker.DownloadState.Ready
+                        showUpdateDialog = false
                         ready?.let { AppUpdateChecker.installApk(context, it.file) }
                     },
                     onOpenReleasePage = {

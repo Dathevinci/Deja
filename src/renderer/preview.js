@@ -1055,24 +1055,56 @@ function sendFinalWatchtimePing() {
 }
 
 const streamUrlCache = new Map();
+let pendingStartupResumeSec = 0;
+let pendingStartupResumeVideoId = '';
+let manualPausedSeekSec = 0;
+let manualPausedSeekTrackKey = '';
+let activeStreamResolveReqId = 0;
 
 async function resolveAndPlayTrack(track) {
   if (!track) return;
+  const resolveReqId = ++activeStreamResolveReqId;
   const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  const trackKey = String(track.videoId || track.id || '');
+
+  let targetResumeSec = 0;
+  if (pendingStartupResumeSec > 0 && (!pendingStartupResumeVideoId || pendingStartupResumeVideoId === trackKey)) {
+    targetResumeSec = pendingStartupResumeSec;
+  } else if (manualPausedSeekSec > 0 && (!manualPausedSeekTrackKey || manualPausedSeekTrackKey === trackKey)) {
+    targetResumeSec = manualPausedSeekSec;
+  }
+  pendingStartupResumeSec = 0;
+  pendingStartupResumeVideoId = '';
+  manualPausedSeekSec = 0;
+  manualPausedSeekTrackKey = '';
 
   // Flush final watchtime for prior track before switching
   sendFinalWatchtimePing();
   currentCpn = generateCpn();
   lastReportedWatchSeconds = 0;
 
-  // Stop any active audio before switching
-  if (dejaAudio && !dejaAudio.paused) {
-    try { dejaAudio.pause(); } catch {}
+  // Stop any active audio and timers before switching
+  if (playbackTimer) {
+    clearInterval(playbackTimer);
+    playbackTimer = null;
+  }
+  stopLyricClock();
+  isDirectStreamPlaying = false;
+  if (dejaAudio) {
+    try {
+      if (!dejaAudio.paused) dejaAudio.pause();
+      dejaAudio.currentTime = targetResumeSec > 0 ? targetResumeSec : 0;
+    } catch {}
   }
   if (isYtReady && ytPlayer && isYtPlaying) {
     try { ytPlayer.pauseVideo(); } catch {}
     isYtPlaying = false;
   }
+  currentTime = targetResumeSec > 0 ? targetResumeSec : 0;
+  if (typeof lyricClockReconciler !== 'undefined' && lyricClockReconciler) {
+    lyricClockReconciler.snap(currentTime);
+  }
+  updateProgress();
 
   // Ensure AudioContext & 5-band Equalizer graph are initialized and resumed
   try {
@@ -1102,6 +1134,7 @@ async function resolveAndPlayTrack(track) {
         stream = cachedEntry.stream;
       } else {
         stream = await api.resolveAudioStream(track.videoId, streamOpts);
+        if (resolveReqId !== activeStreamResolveReqId) return;
         if (stream && stream.url) {
           const maxEntries = Math.max(8, Math.floor((Number(bitchordSettings?.songCacheLimitMb) || 2048) / 8));
           if (streamUrlCache.size >= maxEntries) {
@@ -1111,12 +1144,13 @@ async function resolveAndPlayTrack(track) {
           streamUrlCache.set(cacheKey, { stream, ts: Date.now(), fn: api.resolveAudioStream });
         }
       }
+      if (resolveReqId !== activeStreamResolveReqId) return;
       if (stream && stream.url && dejaAudio) {
         currentStreamMeta = stream;
         if (stream.resolvedAudioVideoId) {
           track._resolvedAudioVideoId = stream.resolvedAudioVideoId;
         }
-        const resumeTime = currentTime > 0 ? currentTime : 0;
+        const resumeTime = targetResumeSec > 0 ? targetResumeSec : 0;
         isDirectStreamPlaying = true;
         loadedStreamVideoId = track.videoId || track.id || '';
         dejaAudio.src = stream.url;
@@ -1128,18 +1162,27 @@ async function resolveAndPlayTrack(track) {
         }
         if (resumeTime > 0) {
           currentTime = resumeTime;
+          if (typeof lyricClockReconciler !== 'undefined' && lyricClockReconciler) {
+            lyricClockReconciler.snap(resumeTime);
+          }
           try { dejaAudio.currentTime = resumeTime; } catch {}
           if (typeof dejaAudio.addEventListener === 'function') {
             const onLoadedMeta = () => {
               if (typeof dejaAudio.removeEventListener === 'function') {
                 dejaAudio.removeEventListener('loadedmetadata', onLoadedMeta);
               }
-              if (dejaAudio.currentTime < 1 && resumeTime > 0) {
+              if (resolveReqId === activeStreamResolveReqId && dejaAudio.currentTime < 1 && resumeTime > 0) {
                 try { dejaAudio.currentTime = resumeTime; } catch {}
               }
             };
             dejaAudio.addEventListener('loadedmetadata', onLoadedMeta);
           }
+        } else {
+          currentTime = 0;
+          if (typeof lyricClockReconciler !== 'undefined' && lyricClockReconciler) {
+            lyricClockReconciler.snap(0);
+          }
+          try { dejaAudio.currentTime = 0; } catch {}
         }
         if (stream.duration && stream.duration > 0) {
           const prevDur = track.duration || 0;
@@ -1154,6 +1197,7 @@ async function resolveAndPlayTrack(track) {
             resolveSyncedLyrics(track, true);
           }
         }
+        updateProgress();
         const p = dejaAudio.play();
         if (p) {
           p.catch(err => {
@@ -1170,7 +1214,7 @@ async function resolveAndPlayTrack(track) {
           startLyricClock();
         }
         if (api?.trackPlayback && track.videoId) {
-          api.trackPlayback({ videoId: track.videoId, cpn: currentCpn, state: 'start', seconds: 0 }).catch(() => {});
+          api.trackPlayback({ videoId: track.videoId, cpn: currentCpn, state: 'start', seconds: Math.floor(resumeTime) }).catch(() => {});
         }
         notifyTrackState();
         return;
@@ -1301,10 +1345,46 @@ let lastPlaybackSaveMs = 0;
 
 function normalizeTrackDedupeKey(t) {
   if (!t) return '';
-  const rawTitle = cleanSearchTerm(t.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-  const rawArtist = getPrimaryArtist(t.artist || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const rawTitle = cleanSearchTerm(t.title || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+  const rawArtist = getPrimaryArtist(t.artist || '')
+    .replace(/\s*-\s*topic$/i, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
   if (!rawTitle) return '';
   return `${rawTitle}::${rawArtist}`;
+}
+
+function dedupeTrackList(tracks, preferTrack = null) {
+  if (!Array.isArray(tracks) || tracks.length === 0) {
+    return preferTrack && typeof preferTrack === 'object' ? [preferTrack] : [];
+  }
+  const seenIds = new Set();
+  const seenTitleKeys = new Set();
+  const result = [];
+  const registerAndPush = (item) => {
+    if (!item || typeof item !== 'object') return;
+    const vid = item.videoId ? String(item.videoId) : '';
+    const mvid = item.musicVideoId ? String(item.musicVideoId) : '';
+    const idKey = item.id !== undefined && item.id !== null ? `id:${item.id}` : '';
+    const tKey = normalizeTrackDedupeKey(item);
+    if ((vid && seenIds.has(vid)) || (mvid && seenIds.has(mvid)) || (idKey && seenIds.has(idKey)) || (tKey && seenTitleKeys.has(tKey))) {
+      return;
+    }
+    if (vid) seenIds.add(vid);
+    if (mvid) seenIds.add(mvid);
+    if (idKey) seenIds.add(idKey);
+    if (tKey) seenTitleKeys.add(tKey);
+    result.push(item);
+  };
+  if (preferTrack && typeof preferTrack === 'object') {
+    registerAndPush(preferTrack);
+  }
+  for (const item of tracks) {
+    registerAndPush(item);
+  }
+  return result;
 }
 
 function saveLastPlaybackState(force = false) {
@@ -1315,20 +1395,21 @@ function saveLastPlaybackState(force = false) {
   try {
     const track = CATALOGUE_TRACKS[currentIndex];
     if (!track) return;
-    const savedQueue = Array.isArray(userQueue) && userQueue.length > 0
-      ? userQueue.slice(0, 40).map(t => ({
-          id: t.id,
-          videoId: t.videoId || '',
-          title: t.title || '',
-          artist: t.artist || '',
-          album: t.album || '',
-          cover: t.cover || '',
-          duration: Number(t.duration) || 180,
-          genre: t.genre || 'YouTube Music',
-          quality: t.quality || 'Lossless',
-          palette: t.palette || null
-        }))
+    const dedupedQueue = Array.isArray(userQueue) && userQueue.length > 0
+      ? dedupeTrackList(userQueue, track)
       : [];
+    const savedQueue = dedupedQueue.slice(0, 40).map(t => ({
+      id: t.id,
+      videoId: t.videoId || '',
+      title: t.title || '',
+      artist: t.artist || '',
+      album: t.album || '',
+      cover: t.cover || '',
+      duration: Number(t.duration) || 180,
+      genre: t.genre || 'YouTube Music',
+      quality: t.quality || 'Lossless',
+      palette: t.palette || null
+    }));
     const payload = {
       track: {
         id: track.id,
@@ -1362,10 +1443,12 @@ function restoreLastPlaybackState() {
     const savedTrack = createCatalogueItemFromLive(parsed.track);
     if (parsed.track.id) savedTrack.id = parsed.track.id;
     if (parsed.track.palette) savedTrack.palette = parsed.track.palette;
+    const savedKey = normalizeTrackDedupeKey(savedTrack);
 
     let idx = CATALOGUE_TRACKS.findIndex(t =>
       (savedTrack.videoId && t.videoId === savedTrack.videoId) ||
-      (savedTrack.id && t.id === savedTrack.id)
+      (savedTrack.id && t.id === savedTrack.id) ||
+      (savedKey && normalizeTrackDedupeKey(t) === savedKey)
     );
     if (idx === -1) {
       CATALOGUE_TRACKS.unshift(savedTrack);
@@ -1375,11 +1458,18 @@ function restoreLastPlaybackState() {
     }
 
     if (Array.isArray(parsed.userQueue) && parsed.userQueue.length > 0) {
-      userQueue = parsed.userQueue.map(q => {
+      const mappedQueue = parsed.userQueue.map(q => {
         const item = createCatalogueItemFromLive(q);
         if (q.id) item.id = q.id;
         return item;
       });
+      const qIdx = mappedQueue.findIndex(t =>
+        (savedTrack.videoId && t.videoId === savedTrack.videoId) ||
+        (savedTrack.id && t.id === savedTrack.id) ||
+        (savedKey && normalizeTrackDedupeKey(t) === savedKey)
+      );
+      const rotatedQueue = qIdx > 0 ? mappedQueue.slice(qIdx) : mappedQueue;
+      userQueue = dedupeTrackList(rotatedQueue, CATALOGUE_TRACKS[idx]);
       isDefaultCatalogueQueue = Boolean(parsed.isDefaultCatalogueQueue);
     }
 
@@ -1391,6 +1481,8 @@ function restoreLastPlaybackState() {
     const resumeSec = Math.max(0, Math.min(Number(parsed.currentTime) || 0, Math.max(0, (savedTrack.duration || 180) - 1)));
     if (resumeSec > 0) {
       currentTime = resumeSec;
+      pendingStartupResumeSec = resumeSec;
+      pendingStartupResumeVideoId = String(savedTrack.videoId || savedTrack.id || '');
       if (typeof lyricClockReconciler !== 'undefined' && lyricClockReconciler) {
         lyricClockReconciler.snap(currentTime);
       }
@@ -3159,11 +3251,18 @@ function renderArtistDetailView(container) {
 
 function playLiveTrack(item, preserveQueue = false) {
   if (!item) return;
-  let idx = CATALOGUE_TRACKS.findIndex(t => (item.videoId && t.videoId === item.videoId) || t.id === item.id);
+  const itemKey = normalizeTrackDedupeKey(item);
+  let idx = CATALOGUE_TRACKS.findIndex(t =>
+    (item.videoId && (t.videoId === item.videoId || t.musicVideoId === item.videoId)) ||
+    (item.id && t.id === item.id) ||
+    (itemKey && normalizeTrackDedupeKey(t) === itemKey)
+  );
   if (idx === -1) {
     const fullTrack = createCatalogueItemFromLive(item);
     CATALOGUE_TRACKS.unshift(fullTrack);
     idx = 0;
+  } else if (item.videoId && CATALOGUE_TRACKS[idx].videoId !== item.videoId && !CATALOGUE_TRACKS[idx].musicVideoId) {
+    CATALOGUE_TRACKS[idx].musicVideoId = item.videoId;
   }
   selectTrack(idx, preserveQueue);
 }
@@ -5148,13 +5247,15 @@ function renderCardGridHTML(tracksList) {
 // ==========================================
 
 function refreshUpNextQueueForTrack(track, forceReplace = false) {
-  if (!track || !track.videoId) return;
-  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
-  if (!api?.getNextQueue) return;
+  if (!track) return;
+  const trackDedupeKey = normalizeTrackDedupeKey(track);
 
   if (!forceReplace && Array.isArray(userQueue) && userQueue.length > 0) {
+    userQueue = dedupeTrackList(userQueue, track);
     const curQIdx = userQueue.findIndex(t =>
-      (track.videoId && t.videoId === track.videoId) || (track.id && t.id === track.id)
+      (track.videoId && (t.videoId === track.videoId || t.musicVideoId === track.videoId)) ||
+      (track.id && t.id === track.id) ||
+      (trackDedupeKey && normalizeTrackDedupeKey(t) === trackDedupeKey)
     );
     if (curQIdx > 0) {
       const skipped = userQueue.slice(0, curQIdx);
@@ -5164,12 +5265,16 @@ function refreshUpNextQueueForTrack(track, forceReplace = false) {
         }
       });
       userQueue = userQueue.slice(curQIdx);
-      renderPreviewQueue();
     }
+    renderPreviewQueue();
     if (!isDefaultCatalogueQueue && userQueue.length >= 12) {
       return;
     }
   }
+
+  if (!track.videoId) return;
+  const api = typeof window !== 'undefined' ? (window.dejaAPI || window.sonoraAPI) : null;
+  if (!api?.getNextQueue) return;
 
   const targetVideoId = track.videoId;
   const shouldReplaceAll = Boolean(forceReplace || isDefaultCatalogueQueue || !Array.isArray(userQueue) || userQueue.length === 0);
@@ -5184,6 +5289,7 @@ function refreshUpNextQueueForTrack(track, forceReplace = false) {
     const registerSeen = (itemObj) => {
       if (!itemObj) return;
       if (itemObj.videoId) seenIds.add(itemObj.videoId);
+      if (itemObj.musicVideoId) seenIds.add(itemObj.musicVideoId);
       if (itemObj.id) seenIds.add(itemObj.id);
       const tKey = normalizeTrackDedupeKey(itemObj);
       if (tKey) seenTitleKeys.add(tKey);
@@ -5202,12 +5308,14 @@ function refreshUpNextQueueForTrack(track, forceReplace = false) {
       if (!qi) continue;
       const item = createCatalogueItemFromLive(qi);
       const vid = item.videoId || '';
+      const mvid = item.musicVideoId || '';
       const idKey = vid || item.id || '';
       const titleKey = normalizeTrackDedupeKey(item);
-      if ((idKey && seenIds.has(idKey)) || (titleKey && seenTitleKeys.has(titleKey))) {
+      if ((idKey && seenIds.has(idKey)) || (mvid && seenIds.has(mvid)) || (titleKey && seenTitleKeys.has(titleKey))) {
         continue;
       }
       if (idKey) seenIds.add(idKey);
+      if (mvid) seenIds.add(mvid);
       if (titleKey) seenTitleKeys.add(titleKey);
       fallbackMapped.push(item);
       if (avoidSessionRepeats && ((vid && sessionPlayedVideoIds.has(vid)) || (titleKey && sessionPlayedTitleKeys.has(titleKey)))) {
@@ -5219,12 +5327,14 @@ function refreshUpNextQueueForTrack(track, forceReplace = false) {
     const finalQueue = mapped.length >= 3 ? mapped : fallbackMapped;
     if (finalQueue.length > 0) {
       if (shouldReplaceAll) {
-        userQueue = [track, ...finalQueue];
+        userQueue = dedupeTrackList([track, ...finalQueue], track);
       } else {
         const hasTrackAtHead = userQueue.length > 0 &&
-          ((track.videoId && userQueue[0].videoId === track.videoId) || (track.id && userQueue[0].id === track.id));
+          ((track.videoId && userQueue[0].videoId === track.videoId) ||
+           (track.id && userQueue[0].id === track.id) ||
+           (trackDedupeKey && normalizeTrackDedupeKey(userQueue[0]) === trackDedupeKey));
         const baseQueue = hasTrackAtHead ? userQueue : [track, ...userQueue];
-        userQueue = [...baseQueue, ...finalQueue];
+        userQueue = dedupeTrackList([...baseQueue, ...finalQueue], track);
       }
       isDefaultCatalogueQueue = false;
       renderPreviewQueue();
@@ -5252,8 +5362,31 @@ function loadTrack(idx, skipNotify = false) {
   currentIndex = idx;
   const track = CATALOGUE_TRACKS[idx];
   if (!track) return;
+  activeStreamResolveReqId++;
+  pendingStartupResumeSec = 0;
+  pendingStartupResumeVideoId = '';
+  manualPausedSeekSec = 0;
+  manualPausedSeekTrackKey = '';
   loadedStreamVideoId = null;
   isDirectStreamPlaying = false;
+  isYtPlaying = false;
+  if (playbackTimer) {
+    clearInterval(playbackTimer);
+    playbackTimer = null;
+  }
+  stopLyricClock();
+  if (dejaAudio) {
+    try {
+      if (!dejaAudio.paused) dejaAudio.pause();
+      dejaAudio.currentTime = 0;
+    } catch {}
+  }
+  if (isYtReady && ytPlayer) {
+    try {
+      if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
+      if (typeof ytPlayer.seekTo === 'function') ytPlayer.seekTo(0, true);
+    } catch {}
+  }
   if (track.videoId) {
     sessionPlayedVideoIds.add(track.videoId);
   }
@@ -5262,6 +5395,8 @@ function loadTrack(idx, skipNotify = false) {
     sessionPlayedTitleKeys.add(trackDedupeKey);
   }
   currentTime = 0;
+  _lastRenderedTimeStr = '';
+  _lastRenderedRemStr = '';
   lastActiveLyricIndex = -1;
   lastScrollTargetIndex = -1;
   if (typeof lyricClockReconciler !== 'undefined' && lyricClockReconciler) {
@@ -6059,13 +6194,20 @@ function renderPreviewQueue() {
   const countLabel = document.getElementById('queue-count-label');
   if (!queueBody && !inlineQueueBody) return;
 
-  const currentQueue = (userQueue && userQueue.length > 0) ? userQueue : CATALOGUE_TRACKS;
+  const activeTrack = CATALOGUE_TRACKS[currentIndex];
+  if (Array.isArray(userQueue) && userQueue.length > 0) {
+    userQueue = dedupeTrackList(userQueue, activeTrack);
+  }
+  const currentQueue = (userQueue && userQueue.length > 0) ? userQueue : dedupeTrackList(CATALOGUE_TRACKS, activeTrack);
   if (countLabel) countLabel.innerText = `${currentQueue.length} tracks`;
 
-  const currentVideoId = CATALOGUE_TRACKS[currentIndex]?.videoId;
+  const currentVideoId = activeTrack?.videoId;
+  const currentTitleKey = normalizeTrackDedupeKey(activeTrack);
 
   const queueHtml = currentQueue.map((t, idx) => {
-    const isCurrent = (t.videoId && t.videoId === currentVideoId) || (idx === currentIndex && !t.videoId);
+    const isCurrent = (t.videoId && t.videoId === currentVideoId) ||
+                      (currentTitleKey && normalizeTrackDedupeKey(t) === currentTitleKey) ||
+                      (idx === currentIndex && !t.videoId);
     return `
       <div class="deja-queue-item ${isCurrent ? 'active-playing' : ''}" id="queue-item-${idx}" data-queue-idx="${idx}">
         <div class="deja-queue-item-index">${isCurrent ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>' : idx + 1}</div>
@@ -6101,6 +6243,9 @@ function renderPreviewQueue() {
 }
 
 function selectQueueTrack(idx) {
+  if (Array.isArray(userQueue) && userQueue.length > 0) {
+    userQueue = dedupeTrackList(userQueue, CATALOGUE_TRACKS[currentIndex]);
+  }
   const currentQueue = (userQueue && userQueue.length > 0) ? userQueue : CATALOGUE_TRACKS;
   if (idx < 0 || idx >= currentQueue.length) return;
   const item = currentQueue[idx];
@@ -6112,7 +6257,7 @@ function selectQueueTrack(idx) {
         playedHistoryStack.push(s);
       }
     });
-    userQueue = userQueue.slice(idx);
+    userQueue = dedupeTrackList(userQueue.slice(idx), item);
     renderPreviewQueue();
   }
   playLiveTrack(item, !wasDefaultQueue);
@@ -6221,11 +6366,18 @@ function nextTrack() {
   const curTrack = CATALOGUE_TRACKS[currentIndex];
   const currentVideoId = curTrack?.videoId;
   const currentId = curTrack?.id;
+  const currentTitleKey = normalizeTrackDedupeKey(curTrack);
+
+  if (Array.isArray(userQueue) && userQueue.length > 0) {
+    userQueue = dedupeTrackList(userQueue, curTrack);
+  }
 
   if (isShuffle) {
     const rawPool = (userQueue && userQueue.length > 0) ? userQueue : CATALOGUE_TRACKS;
     const candidates = rawPool.filter(t =>
-      !((currentVideoId && t.videoId === currentVideoId) || (currentId && t.id === currentId))
+      !((currentVideoId && t.videoId === currentVideoId) ||
+        (currentId && t.id === currentId) ||
+        (currentTitleKey && normalizeTrackDedupeKey(t) === currentTitleKey))
     );
     const pool = candidates.length > 0 ? candidates : rawPool;
     const randTrack = pool[Math.floor(Math.random() * pool.length)];
@@ -6235,7 +6387,11 @@ function nextTrack() {
   }
 
   if (userQueue && userQueue.length > 0) {
-    const qIdx = userQueue.findIndex(t => (currentVideoId && t.videoId === currentVideoId) || (currentId && t.id === currentId));
+    const qIdx = userQueue.findIndex(t =>
+      (currentVideoId && (t.videoId === currentVideoId || t.musicVideoId === currentVideoId)) ||
+      (currentId && t.id === currentId) ||
+      (currentTitleKey && normalizeTrackDedupeKey(t) === currentTitleKey)
+    );
     if (qIdx !== -1 && qIdx + 1 < userQueue.length) {
       const nextItem = userQueue[qIdx + 1];
       const playedSlice = userQueue.slice(0, qIdx + 1);
@@ -6244,7 +6400,7 @@ function nextTrack() {
           playedHistoryStack.push(s);
         }
       });
-      userQueue = userQueue.slice(qIdx + 1);
+      userQueue = dedupeTrackList(userQueue.slice(qIdx + 1), nextItem);
       renderPreviewQueue();
       playLiveTrack(nextItem, true);
       if (userQueue.length <= 5 && nextItem?.videoId) {
@@ -6252,13 +6408,17 @@ function nextTrack() {
       }
       return;
     } else if (qIdx === -1 && !isDefaultCatalogueQueue && userQueue.length > 0) {
-      const nextCandidate = userQueue.find(t => !((currentVideoId && t.videoId === currentVideoId) || (currentId && t.id === currentId))) || userQueue[0];
+      const nextCandidate = userQueue.find(t =>
+        !((currentVideoId && t.videoId === currentVideoId) ||
+          (currentId && t.id === currentId) ||
+          (currentTitleKey && normalizeTrackDedupeKey(t) === currentTitleKey))
+      ) || userQueue[0];
       if (curTrack) playedHistoryStack.push(curTrack);
       playLiveTrack(nextCandidate, true);
       return;
     } else if (repeatMode === 'all' && (userQueue.length > 0 || playedHistoryStack.length > 0)) {
       if (playedHistoryStack.length > 0) {
-        userQueue = [...playedHistoryStack, ...userQueue];
+        userQueue = dedupeTrackList([...playedHistoryStack, ...userQueue]);
         playedHistoryStack = [];
       }
       renderPreviewQueue();
@@ -6273,7 +6433,7 @@ function nextTrack() {
       if (Array.isArray(queueItems) && queueItems.length > 0) {
         const mapped = [];
         const seen = new Set([currentVideoId]);
-        const seenTitles = new Set([normalizeTrackDedupeKey(curTrack)].filter(Boolean));
+        const seenTitles = new Set([currentTitleKey].filter(Boolean));
         for (const qi of queueItems) {
           if (!qi) continue;
           const item = createCatalogueItemFromLive(qi);
@@ -6286,7 +6446,7 @@ function nextTrack() {
         }
         if (mapped.length > 0) {
           if (curTrack) playedHistoryStack.push(curTrack);
-          userQueue = [...mapped];
+          userQueue = dedupeTrackList([...mapped], mapped[0]);
           isDefaultCatalogueQueue = false;
           renderPreviewQueue();
           playLiveTrack(mapped[0], true);
@@ -6692,10 +6852,13 @@ function seekTo(seconds) {
     try {
       dejaAudio.currentTime = currentTime;
     } catch {}
-  } else if (isYtReady && ytPlayer && track.videoId) {
+  } else if (isYtReady && ytPlayer && track.videoId && isYtPlaying) {
     try {
       ytPlayer.seekTo(currentTime, true);
     } catch {}
+  } else {
+    manualPausedSeekSec = currentTime;
+    manualPausedSeekTrackKey = String(track.videoId || track.id || '');
   }
   updateProgress();
   updateSyncedLyrics(true);
@@ -9096,6 +9259,18 @@ function updateNerdStatsHud() {
   if (sleeveLine2) {
     sleeveLine2.textContent = `Out ${srateStr} • ${dacStr} • ${dspStr}`;
   }
+  const expPipelineText = document.getElementById('exp-pipeline-text');
+  if (expPipelineText) {
+    if (bitchordSettings.showNerdStats) {
+      expPipelineText.textContent = `${codecStr} · ${bitrateStr} · ${srateStr}`;
+    } else if (bitchordSettings.dolbyAtmos) {
+      expPipelineText.textContent = 'Dolby Atmos';
+    } else if (qLabel.includes('Hi-Res')) {
+      expPipelineText.textContent = 'Lossless';
+    } else {
+      expPipelineText.textContent = 'High Quality';
+    }
+  }
 }
 
 function handleBitChordPlaybackTick(audioEl) {
@@ -10861,9 +11036,9 @@ function renderSettingsView(container) {
         </div>
         <div class="bitchord-settings-text">
           <div class="bitchord-settings-row-title">App Updates &amp; Version</div>
-          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.6.1 — Click to check &amp; install updates in-app</div>
+          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.6.2 — Click to check &amp; install updates in-app</div>
         </div>
-        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.6.1</span>
+        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.6.2</span>
       </div>
     `);
   }
@@ -10892,7 +11067,7 @@ function renderSettingsView(container) {
 
       <div class="bitchord-settings-colophon">
         <div>
-          <strong>deja 1.6.1</strong>
+          <strong>deja 1.6.2</strong>
           <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="https://github.com/Dathevinci" target="_blank" rel="noopener noreferrer">Developer</a>
           <a href="https://dathevinci.github.io/Deja/" target="_blank" rel="noopener noreferrer">Website</a>
@@ -11073,7 +11248,7 @@ function renderSettingsView(container) {
         try {
           const payload = {
             app: 'Deja',
-            version: '1.6.1',
+            version: '1.6.2',
             exportedAt: new Date().toISOString(),
             settings: bitchordSettings,
             customPlaylists,
@@ -11128,11 +11303,11 @@ function renderSettingsView(container) {
               if (badge) badge.textContent = `Update v${info.latestVersion}`;
               openBitChordUpdateDialog(info);
             } else {
-              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.6.1'}).`;
+              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.6.2'}).`;
               if (badge) badge.textContent = 'Up to Date';
             }
           }).catch(() => {
-            if (sub) sub.textContent = 'Deja v1.6.1 is up to date.';
+            if (sub) sub.textContent = 'Deja v1.6.2 is up to date.';
           });
         }
       }
@@ -11869,7 +12044,7 @@ function handleBitChordUpdateProgress(prog) {
   const primaryBtn = document.getElementById('bitchord-update-btn-primary');
   const secondaryBtn = document.getElementById('bitchord-update-btn-secondary');
   const errEl = document.getElementById('bitchord-update-error');
-  const ver = latestPendingUpdateInfo?.latestVersion || '1.6.1';
+  const ver = latestPendingUpdateInfo?.latestVersion || '1.6.2';
 
   if (prog.state === 'downloading') {
     isUpdateDownloading = true;
@@ -12039,6 +12214,23 @@ if (typeof document !== 'undefined') {
       npOpenFullQueueBtn.onclick = (e) => {
         if (e) e.stopPropagation();
         toggleQueue(e);
+      };
+    }
+    const npBtnOutput = document.getElementById('bc-np-btn-output');
+    if (npBtnOutput) {
+      npBtnOutput.onclick = (e) => {
+        if (e) e.stopPropagation();
+        openPipelineModal();
+      };
+    }
+    const expBtnMoreInline = document.getElementById('exp-btn-more-inline');
+    if (expBtnMoreInline) {
+      expBtnMoreInline.onclick = (e) => {
+        if (e) e.stopPropagation();
+        const dd = document.getElementById('exp-options-dropdown');
+        if (dd) {
+          dd.style.display = (dd.style.display === 'none' || !dd.style.display) ? 'flex' : 'none';
+        }
       };
     }
     const npBtnParty = document.getElementById('bc-np-btn-party');
@@ -12311,6 +12503,7 @@ if (typeof module !== 'undefined' && module.exports) {
     restoreLastPlaybackState,
     refreshUpNextQueueForTrack,
     normalizeTrackDedupeKey,
+    dedupeTrackList,
     nextTrack,
     prevTrack,
     selectQueueTrack,
@@ -12319,8 +12512,10 @@ if (typeof module !== 'undefined' && module.exports) {
     pause,
     triggerTrackDownload,
     getUserQueue: () => userQueue,
-    setUserQueue: (q) => { userQueue = Array.isArray(q) ? q : []; },
+    setUserQueue: (q) => { userQueue = Array.isArray(q) ? dedupeTrackList(q, CATALOGUE_TRACKS[currentIndex]) : []; },
     getCurrentIndex: () => currentIndex,
+    getCurrentTime: () => currentTime,
+    setCurrentTime: (t) => { currentTime = Math.max(0, Number(t) || 0); },
     getPlayedHistoryStack: () => playedHistoryStack
   };
 }
