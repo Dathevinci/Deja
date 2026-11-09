@@ -18,16 +18,29 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initLiveReleaseSync() {
-  fetch('https://api.github.com/repos/Dathevinci/Deja/releases/latest')
+  fetch('https://api.github.com/repos/Dathevinci/Deja/releases')
     .then(r => r.ok ? r.json() : null)
-    .then(rel => {
-      if (!rel || !rel.tag_name) return;
-      const ver = rel.tag_name.replace(/^v/i, '');
-      document.querySelectorAll('.brand-badge, .footer-version-tag').forEach(el => { el.textContent = 'v' + ver; });
-      const assets = Array.isArray(rel.assets) ? rel.assets : [];
-      const setupAsset = assets.find(a => a && a.name && /Setup.*\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap'));
-      const portAsset = assets.find(a => a && a.name && /^Deja[.-]\d+.*\.exe$/i.test(a.name) && !/Setup/i.test(a.name));
-      const apkAsset = assets.find(a => a && a.name && /^Deja\.apk$/i.test(a.name));
+    .then(releases => {
+      const list = Array.isArray(releases) ? releases.filter(r => r && !r.draft) : [];
+      if (!list.length) return;
+      const latest = list[0];
+      if (latest.tag_name) {
+        const ver = latest.tag_name.replace(/^v/i, '');
+        document.querySelectorAll('.brand-badge, .footer-version-tag').forEach(el => { el.textContent = 'v' + ver; });
+      }
+      const findAssetAcrossReleases = (predicate) => {
+        for (const rel of list) {
+          const assets = Array.isArray(rel.assets) ? rel.assets : [];
+          const found = assets.find(a => a && a.name && a.browser_download_url && predicate(a.name));
+          if (found) return found;
+        }
+        return null;
+      };
+      const setupAsset = findAssetAcrossReleases(name => /^Deja[.\s-]Setup[.\s-]\d+.*\.exe$/i.test(name) && !name.endsWith('.blockmap'))
+        || findAssetAcrossReleases(name => /Setup.*\.exe$/i.test(name) && !name.endsWith('.blockmap'));
+      const portAsset = findAssetAcrossReleases(name => /^Deja[.-]\d+.*\.exe$/i.test(name) && !/Setup/i.test(name));
+      const apkAsset = findAssetAcrossReleases(name => /^Deja\.apk$/i.test(name));
+      const arm64ApkAsset = findAssetAcrossReleases(name => /^Deja-arm64-v8a\.apk$/i.test(name));
       if (setupAsset && setupAsset.browser_download_url) {
         document.querySelectorAll('a[href*="Deja.Setup"]').forEach(a => { a.href = setupAsset.browser_download_url; });
       }
@@ -36,6 +49,9 @@ function initLiveReleaseSync() {
       }
       if (apkAsset && apkAsset.browser_download_url) {
         document.querySelectorAll('a[href*="Deja.apk"]').forEach(a => { a.href = apkAsset.browser_download_url; });
+      }
+      if (arm64ApkAsset && arm64ApkAsset.browser_download_url) {
+        document.querySelectorAll('a[href*="Deja-arm64-v8a.apk"]').forEach(a => { a.href = arm64ApkAsset.browser_download_url; });
       }
     })
     .catch(() => {});

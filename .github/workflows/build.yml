@@ -58,6 +58,7 @@ jobs:
             $dashed = $_.Name.Replace(" ", "-")
             if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
             if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
+            Copy-Item $_.FullName (Join-Path "dist" "Deja.Setup.exe") -Force
           }
           Get-ChildItem dist -Filter "Deja Setup *.blockmap" | ForEach-Object {
             $dotted = $_.Name.Replace(" ", ".")
@@ -70,6 +71,8 @@ jobs:
             $dashed = $_.Name.Replace(" ", "-")
             if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
             if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
+            Copy-Item $_.FullName (Join-Path "dist" "Deja.exe") -Force
+            Copy-Item $_.FullName (Join-Path "dist" "Deja.Portable.exe") -Force
           }
 
       - name: Upload Artifacts

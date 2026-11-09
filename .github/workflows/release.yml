@@ -45,39 +45,55 @@ jobs:
 
       - name: Prepare Standard Release Asset Filenames
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          Write-Host "Creating dot-formatted and hyphen-formatted asset aliases for release downloads & auto-updater..."
+          Write-Host "Creating dot-formatted, hyphen-formatted, and generic asset aliases for release downloads & auto-updater..."
           Get-ChildItem dist -Filter "Deja Setup *.exe" | ForEach-Object {
             $dotted = $_.Name.Replace(" ", ".")
             $dashed = $_.Name.Replace(" ", "-")
             if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
             if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
-            Write-Host "Created installer aliases for $($_.Name): $dotted, $dashed"
+            Copy-Item $_.FullName (Join-Path "dist" "Deja.Setup.exe") -Force
+            if ($dotted -ne $_.Name) { Remove-Item $_.FullName -Force }
+            Write-Host "Created installer aliases: $dotted, $dashed, Deja.Setup.exe"
           }
           Get-ChildItem dist -Filter "Deja Setup *.blockmap" | ForEach-Object {
             $dotted = $_.Name.Replace(" ", ".")
             $dashed = $_.Name.Replace(" ", "-")
             if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
             if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
-            Write-Host "Created blockmap aliases for $($_.Name): $dotted, $dashed"
+            if ($dotted -ne $_.Name) { Remove-Item $_.FullName -Force }
+            Write-Host "Created blockmap aliases: $dotted, $dashed"
           }
           Get-ChildItem dist -Filter "Deja *.exe" | Where-Object { $_.Name -notmatch "Setup" } | ForEach-Object {
             $dotted = $_.Name.Replace(" ", ".")
             $dashed = $_.Name.Replace(" ", "-")
             if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
             if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
-            Write-Host "Created portable aliases for $($_.Name): $dotted, $dashed"
+            Copy-Item $_.FullName (Join-Path "dist" "Deja.exe") -Force
+            Copy-Item $_.FullName (Join-Path "dist" "Deja.Portable.exe") -Force
+            if ($dotted -ne $_.Name) { Remove-Item $_.FullName -Force }
+            Write-Host "Created portable aliases: $dotted, $dashed, Deja.exe, Deja.Portable.exe"
+          }
+          # Ensure Android APKs are present on every release immediately (carried from latest release if not already in dist/)
+          if (-not (Test-Path "dist/Deja.apk")) {
+            gh release download --pattern "*.apk" --dir dist --clobber 2>$null
+            if (-not (Test-Path "dist/Deja.apk")) {
+              gh release download v1.5.0 --pattern "*.apk" --dir dist --clobber 2>$null
+            }
           }
           Get-ChildItem dist | Select-Object Name, Length
 
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag_name || 'v1.0.0' }}
-          name: ${{ inputs.release_name || (github.ref_type == 'tag' && github.ref_name) || 'Deja v1.0.0 — Official Windows Release' }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag_name || 'v1.5.0' }}
+          name: ${{ inputs.release_name || (github.ref_type == 'tag' && github.ref_name) || 'Deja v1.5.0 — Official Release' }}
           files: |
             dist/*.exe
             dist/*.blockmap
+            dist/*.apk
             dist/latest.yml
           generate_release_notes: true
         env:

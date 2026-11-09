@@ -2105,6 +2105,22 @@ function runBitChordArchitectureTests() {
     assert.ok(css.includes('@media (min-width: 821px)') && css.includes('bc-np-mode-lyrics'), 'preview.css must include Windows desktop @media (min-width: 821px) layout and simultaneous lyrics/controls rules');
     assert.ok(css.includes('flex: 0 0 5px !important') && css.includes('.bc-recents-grid-cards') && css.includes('.bc-replay-banner-card') && css.includes('.bc-new-playlist-plus'), 'preview.css must style fullscreen #exp-scrubber-track height, .bc-recents-grid-cards, .bc-replay-banner-card, and .bc-new-playlist-plus');
     assert.ok(previewCode.includes("hasWordSync ? 'none' : '0 4px 24px rgba(255,255,255,0.38)'"), 'updateSyncedLyrics must disable inline text-shadow on word-synced active lines');
+
+    // 7. Verify Website (docs/index.html & docs/script.js), README.md, Android Gradle, and Release Workflow Asset Parity
+    const docsScriptCode = fs.readFileSync(path.join(__dirname, '../docs/script.js'), 'utf8');
+    const gradleCode = fs.readFileSync(path.join(__dirname, '../app/build.gradle.kts'), 'utf8');
+    const releaseYmlCode = fs.readFileSync(path.join(__dirname, '../.github/workflows/release.yml'), 'utf8');
+    const androidYmlCode = fs.readFileSync(path.join(__dirname, '../.github/workflows/android.yml'), 'utf8');
+
+    assert.ok(gradleCode.includes(`versionName = "${pkgJson.version}"`), 'app/build.gradle.kts versionName must match package.json version');
+    assert.ok(docsHtml.includes(`Deja.Setup.${pkgJson.version}.exe`), 'docs/index.html must link to latest Windows installer');
+    assert.ok(docsHtml.includes(`Deja.${pkgJson.version}.exe`), 'docs/index.html must link to latest Windows portable executable');
+    assert.ok(docsHtml.includes('releases/latest/download/Deja.apk'), 'docs/index.html must link to Universal Android APK');
+    assert.ok(docsHtml.includes('releases/latest/download/Deja-arm64-v8a.apk'), 'docs/index.html must link to ARM64 Android APK');
+    assert.ok(docsScriptCode.includes('findAssetAcrossReleases') && docsScriptCode.includes('Deja-arm64-v8a.apk'), 'docs/script.js must resolve release assets across releases with fallback');
+    assert.ok(readmeCode.includes(`v${pkgJson.version}/Deja.Setup.${pkgJson.version}.exe`) && readmeCode.includes(`v${pkgJson.version}/Deja.apk`) && readmeCode.includes(`v${pkgJson.version}/Deja-arm64-v8a.apk`), 'README.md must link to v1.5.0 Windows and Android release assets');
+    assert.ok(releaseYmlCode.includes('dist/*.apk') && releaseYmlCode.includes('Deja.Portable.exe'), 'release.yml must include Android APKs and portable aliases');
+    assert.ok(androidYmlCode.includes('LATEST_TAG') && androidYmlCode.includes('v1.5.0'), 'android.yml must upload APKs to latest release tag and v1.5.0');
   } finally {
     global.document = bcPrevDoc;
   }
