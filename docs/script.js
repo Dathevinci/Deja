@@ -21,7 +21,9 @@ function initLiveReleaseSync() {
   fetch('https://api.github.com/repos/Dathevinci/Deja/releases')
     .then(r => r.ok ? r.json() : null)
     .then(releases => {
-      const list = Array.isArray(releases) ? releases.filter(r => r && !r.draft) : [];
+      const allNonDraft = Array.isArray(releases) ? releases.filter(r => r && !r.draft) : [];
+      const stableList = allNonDraft.filter(r => !r.prerelease);
+      const list = stableList.length ? stableList : allNonDraft;
       if (!list.length) return;
       const latest = list[0];
       if (latest.tag_name) {
@@ -31,21 +33,30 @@ function initLiveReleaseSync() {
       const findAssetAcrossReleases = (predicate) => {
         for (const rel of list) {
           const assets = Array.isArray(rel.assets) ? rel.assets : [];
-          const found = assets.find(a => a && a.name && a.browser_download_url && predicate(a.name));
+          const found = assets.find(a =>
+            a &&
+            a.name &&
+            a.browser_download_url &&
+            (!a.state || a.state === 'uploaded') &&
+            predicate(a.name)
+          );
           if (found) return found;
         }
         return null;
       };
-      const setupAsset = findAssetAcrossReleases(name => /^Deja[.\s-]Setup[.\s-]\d+.*\.exe$/i.test(name) && !name.endsWith('.blockmap'))
+      const setupAsset = findAssetAcrossReleases(name => /^Deja\.Setup\.\d+.*\.exe$/i.test(name) && !name.endsWith('.blockmap'))
+        || findAssetAcrossReleases(name => /^Deja[.\s-]Setup[.\s-]\d+.*\.exe$/i.test(name) && !name.endsWith('.blockmap'))
         || findAssetAcrossReleases(name => /Setup.*\.exe$/i.test(name) && !name.endsWith('.blockmap'));
-      const portAsset = findAssetAcrossReleases(name => /^Deja[.-]\d+.*\.exe$/i.test(name) && !/Setup/i.test(name));
+      const portAsset = findAssetAcrossReleases(name => /^Deja\.\d+.*\.exe$/i.test(name) && !/Setup/i.test(name))
+        || findAssetAcrossReleases(name => /^Deja[.-]\d+.*\.exe$/i.test(name) && !/Setup/i.test(name))
+        || findAssetAcrossReleases(name => /^Deja(\.Portable)?\.exe$/i.test(name));
       const apkAsset = findAssetAcrossReleases(name => /^Deja\.apk$/i.test(name));
       const arm64ApkAsset = findAssetAcrossReleases(name => /^Deja-arm64-v8a\.apk$/i.test(name));
       if (setupAsset && setupAsset.browser_download_url) {
-        document.querySelectorAll('a[href*="Deja.Setup"]').forEach(a => { a.href = setupAsset.browser_download_url; });
+        document.querySelectorAll('a[href*="Deja.Setup"], a[href*="Deja-Setup"]').forEach(a => { a.href = setupAsset.browser_download_url; });
       }
       if (portAsset && portAsset.browser_download_url) {
-        document.querySelectorAll('a[href*="Deja.1."]').forEach(a => { a.href = portAsset.browser_download_url; });
+        document.querySelectorAll('a[href*="Deja.1."], a[href*="Deja-1."], a[href*="Deja.Portable"]').forEach(a => { a.href = portAsset.browser_download_url; });
       }
       if (apkAsset && apkAsset.browser_download_url) {
         document.querySelectorAll('a[href*="Deja.apk"]').forEach(a => { a.href = apkAsset.browser_download_url; });

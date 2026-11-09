@@ -46,9 +46,7 @@ jobs:
         run: npm ci
 
       - name: Package Windows Installer & Portable (.exe)
-        run: npm run dist
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish never
 
       - name: Prepare Standard Release Asset Filenames
         shell: pwsh
@@ -59,12 +57,14 @@ jobs:
             if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
             if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
             Copy-Item $_.FullName (Join-Path "dist" "Deja.Setup.exe") -Force
+            if ($dotted -ne $_.Name) { Remove-Item $_.FullName -Force }
           }
           Get-ChildItem dist -Filter "Deja Setup *.blockmap" | ForEach-Object {
             $dotted = $_.Name.Replace(" ", ".")
             $dashed = $_.Name.Replace(" ", "-")
             if ($dotted -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dotted) -Force }
             if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
+            if ($dotted -ne $_.Name) { Remove-Item $_.FullName -Force }
           }
           Get-ChildItem dist -Filter "Deja *.exe" | Where-Object { $_.Name -notmatch "Setup" } | ForEach-Object {
             $dotted = $_.Name.Replace(" ", ".")
@@ -73,6 +73,7 @@ jobs:
             if ($dashed -ne $_.Name) { Copy-Item $_.FullName (Join-Path "dist" $dashed) -Force }
             Copy-Item $_.FullName (Join-Path "dist" "Deja.exe") -Force
             Copy-Item $_.FullName (Join-Path "dist" "Deja.Portable.exe") -Force
+            if ($dotted -ne $_.Name) { Remove-Item $_.FullName -Force }
           }
 
       - name: Upload Artifacts
