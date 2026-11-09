@@ -1900,8 +1900,8 @@ function runBitChordArchitectureTests() {
   assert.ok(nshCode.includes('!macro customWelcomePage'), 'installer.nsh must define customWelcomePage macro');
   assert.ok(nshCode.includes('BrandingText "DEJA v${VERSION} // 2-BIT UI"'), 'installer.nsh must set 2-Bit versioned BrandingText');
 
-  // 20. Authentic Deja Desktop UI, Branding & Feature Parity Verification (v1.6.0)
-  assert.strictEqual(pkgJson.version, '1.6.0', 'package.json version must be 1.6.0');
+  // 20. Authentic Deja Desktop UI, Branding & Feature Parity Verification (v1.6.1)
+  assert.strictEqual(pkgJson.version, '1.6.1', 'package.json version must be 1.6.1');
   assert.ok(fs.existsSync(path.join(__dirname, '../assets/Logo.svg')), 'Official Deja Logo.svg must exist in assets/');
   assert.ok(fs.existsSync(path.join(__dirname, '../assets/LogoTransparent.svg')), 'Official Deja LogoTransparent.svg must exist in assets/');
   const logoSvgContent = fs.readFileSync(path.join(__dirname, '../assets/Logo.svg'), 'utf8');
@@ -2127,19 +2127,54 @@ function runBitChordArchitectureTests() {
     assert.ok(mainCode.includes("a.state === 'uploaded'") && mainCode.includes('^Deja\\.Setup\\.\\d+.*\\.exe$'), 'main.js checkGitHubReleaseUpdate must filter uploaded assets and prioritize versioned Deja.Setup installer');
     assert.ok(readmeCode.includes(`v${pkgJson.version}/Deja.Setup.${pkgJson.version}.exe`) && readmeCode.includes(`v${pkgJson.version}/Deja.apk`) && readmeCode.includes(`v${pkgJson.version}/Deja-arm64-v8a.apk`), 'README.md must link to v1.5.0 Windows and Android release assets');
     assert.ok(releaseYmlCode.includes('dist/*.apk') && releaseYmlCode.includes('Deja.Portable.exe') && releaseYmlCode.includes('--publish never') && releaseYmlCode.includes('$global:LASTEXITCODE = 0'), 'release.yml must include Android APKs, portable aliases, --publish never, and LASTEXITCODE reset');
-    assert.ok(androidYmlCode.includes('LATEST_TAG') && androidYmlCode.includes('v1.6.0') && androidYmlCode.includes('v1.5.0'), 'android.yml must upload APKs to latest release tag, v1.6.0, and v1.5.0');
+    assert.ok(androidYmlCode.includes('LATEST_TAG') && androidYmlCode.includes('v1.6.1') && androidYmlCode.includes('v1.6.0'), 'android.yml must upload APKs to latest release tag, v1.6.1, and v1.6.0');
 
-    // 8. Verify v1.6.0 Android Self-Updater, Discord RPC Frame Protocol, and Windows UI Performance
+    // 8. Verify v1.6.0 / v1.6.1 Android Self-Updater, Discord RPC Frame Protocol, and Windows UI Performance
     const appUpdateCheckerCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/data/AppUpdateChecker.kt'), 'utf8');
     const mainActivityKtCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/MainActivity.kt'), 'utf8');
+    const gradleKtsCode = fs.readFileSync(path.join(__dirname, '../app/build.gradle.kts'), 'utf8');
+    assert.ok(gradleKtsCode.includes('versionCode = 30') && gradleKtsCode.includes('versionName = "1.6.1"'), 'app/build.gradle.kts must be bumped to versionCode = 30 and versionName = "1.6.1"');
     assert.ok(!appUpdateCheckerCode.includes('putExtra(Intent.EXTRA_RETURN_RESULT'), 'AppUpdateChecker.kt must NOT set EXTRA_RETURN_RESULT on startActivity package installer intent');
     assert.ok(appUpdateCheckerCode.includes('withContext(Dispatchers.Main)') && appUpdateCheckerCode.includes('installApk(context, target)'), 'AppUpdateChecker.kt must auto-launch installApk on Main dispatcher as soon as APK download completes');
     assert.ok(appUpdateCheckerCode.includes('fun resumePendingInstall(context: Context)') && mainActivityKtCode.includes('AppUpdateChecker.resumePendingInstall(this)'), 'MainActivity.onResume must resume pending APK installation after returning from Unknown Sources settings');
+    assert.ok(appUpdateCheckerCode.includes('getPackageArchiveInfo(file.absolutePath, 0)') && appUpdateCheckerCode.includes('Cache-Control'), 'AppUpdateChecker.kt must bypass cache and verify downloaded APK package archive info and versionCode/versionName before installing');
     assert.ok(discordCode.includes('this._send(4, payloadStr') && discordCode.includes("msg.evt === 'READY'"), 'discord.js must parse IPC frames, respond to PING with PONG (op=4), and wait for DISPATCH READY');
     assert.ok(discordCode.includes('MIN_SEND_INTERVAL_MS') && discordCode.includes('Listen on YouTube Music'), 'discord.js must coalesce rapid updates and include Rich Presence buttons');
     assert.ok(previewCode.includes('function ensureYouTubeIframeApiLoaded()'), 'preview.js must lazy-load YouTube IFrame API only when needed');
     assert.ok(mainCode.includes('function isAndroidOnlyRelease(') && mainCode.includes('function extractWindowsReleaseVersion('), 'main.js must distinguish Android-only releases from Windows updates');
     assert.ok(appUpdateCheckerCode.includes('fun isWindowsOnlyRelease(') && appUpdateCheckerCode.includes('fun extractAndroidReleaseVersion('), 'AppUpdateChecker.kt must distinguish Windows-only releases from Android updates');
+
+    // 9. Verify v1.6.1 Startup Paused Track Restoration, Dynamic Up Next Queue, Chunked Downloads, Themes, and Clean Mobile-Style Playing Mode UI
+    assert.ok(
+      previewCode.includes('function saveLastPlaybackState(') &&
+      previewCode.includes('function restoreLastPlaybackState(') &&
+      previewCode.includes("localStorage.getItem('deja_last_playback_state')") &&
+      previewCode.includes('if (!restoreLastPlaybackState())'),
+      'preview.js must persist and restore the last played track and position in a paused state on startup instead of resetting to Cruel Summer'
+    );
+    assert.ok(
+      previewCode.includes('if (isPlaying && cur && cur.videoId && !isDirectStreamPlaying)'),
+      'preview.js YouTube IFrame onError must only fall back to resolveAndPlayTrack when isPlaying is true'
+    );
+    assert.ok(
+      previewCode.includes('function refreshUpNextQueueForTrack(') &&
+      previewCode.includes('isDefaultCatalogueQueue'),
+      'preview.js must dynamically refresh Up Next queue from YouTube Music getNextQueue instead of repeating default catalogue tracks'
+    );
+    const innertubeCode = fs.readFileSync(path.join(__dirname, '../src/main/innertube.js'), 'utf8');
+    assert.ok(
+      innertubeCode.includes("clientName: 'VISIONOS'") &&
+      innertubeCode.includes('opts.requireM4a') &&
+      mainCode.includes("'Range': `bytes="),
+      'innertube.js and main.js must resolve unthrottled VISIONOS/M4A streams and download googlevideo streams in 1 MB Range chunks'
+    );
+    assert.ok(
+      css.includes('body.apple-light .bitchord-desktop-shell') &&
+      css.includes('body.pure-black .bitchord-desktop-shell') &&
+      css.includes('#apple-player-bar.bc-floating-miniplayer #btn-audio-pipeline') &&
+      css.includes('#expanded-player-view .bc-np-sleeve-action-row'),
+      'preview.css must style Light and Pure-Black themes across the desktop shell and hide cluttered/duplicate buttons in MiniPlayer and Expanded Now Playing'
+    );
   } finally {
     global.document = bcPrevDoc;
   }

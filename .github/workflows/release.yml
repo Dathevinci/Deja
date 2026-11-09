@@ -75,21 +75,14 @@ jobs:
             if ($dotted -ne $_.Name) { Remove-Item $_.FullName -Force }
             Write-Host "Created portable aliases: $dotted, $dashed, Deja.exe, Deja.Portable.exe"
           }
-          # Ensure Android APKs are present on combined releases (skipped for Windows-only tags like vX.Y.Z-windows)
-          if (-not ($env:GITHUB_REF_NAME -match "-(win|windows|desktop)$") -and -not (Test-Path "dist/Deja.apk")) {
-            gh release download --pattern "*.apk" --dir dist --clobber 2>$null
-            if (-not (Test-Path "dist/Deja.apk")) {
-              gh release download v1.6.0 --pattern "*.apk" --dir dist --clobber 2>$null
-            }
-          }
           $global:LASTEXITCODE = 0
           Get-ChildItem dist | Select-Object Name, Length
 
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag_name || 'v1.5.0' }}
-          name: ${{ inputs.release_name || (github.ref_type == 'tag' && github.ref_name) || 'Deja v1.5.0 — Official Release' }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag_name || 'v1.6.1' }}
+          name: ${{ inputs.release_name || (github.ref_type == 'tag' && github.ref_name) || 'Deja v1.6.1 — Official Release' }}
           files: |
             dist/*.exe
             dist/*.blockmap

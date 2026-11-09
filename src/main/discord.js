@@ -45,14 +45,30 @@ class DiscordPresence {
   setEnabled(val) {
     this.enabled = !!val;
     if (!this.enabled) {
-      this.clear();
+      this._sendClearActivity();
       this.disconnect();
     } else {
       this.connect();
       if (this.pendingActivity) {
+        this._lastSentSignature = '';
         this.updateActivity(this.pendingActivity);
       }
     }
+  }
+
+  _destroySocket(socket) {
+    if (!socket) return;
+    try {
+      if (typeof socket.removeAllListeners === 'function') {
+        socket.removeAllListeners();
+      }
+      if (typeof socket.on === 'function') {
+        socket.on('error', () => {});
+      }
+      if (typeof socket.destroy === 'function') {
+        socket.destroy();
+      }
+    } catch {}
   }
 
   updateSettings(opts = {}) {
@@ -108,7 +124,7 @@ class DiscordPresence {
     if (this.connected || !this.enabled) return;
 
     if (this.client) {
-      try { this.client.destroy(); } catch {}
+      this._destroySocket(this.client);
       this.client = null;
     }
 
@@ -142,8 +158,8 @@ class DiscordPresence {
     let handled = false;
 
     const cleanup = () => {
-      if (socket && !this.connected) {
-        try { socket.destroy(); } catch {}
+      if (socket && this.client !== socket) {
+        this._destroySocket(socket);
       }
     };
 
@@ -180,14 +196,17 @@ class DiscordPresence {
 
   _setupSocket(socket) {
     socket.on('error', () => {
+      if (this.client !== socket) return;
       this._handleDisconnect();
     });
 
     socket.on('close', () => {
+      if (this.client !== socket) return;
       this._handleDisconnect();
     });
 
     socket.on('data', (chunk) => {
+      if (this.client !== socket) return;
       if (!Buffer.isBuffer(chunk)) return;
       this._recvBuffer = Buffer.concat([this._recvBuffer, chunk]);
       while (this._recvBuffer.length >= 8) {
@@ -241,7 +260,7 @@ class DiscordPresence {
       this._flushTimer = null;
     }
     if (this.client) {
-      try { this.client.destroy(); } catch {}
+      this._destroySocket(this.client);
       this.client = null;
     }
     this._scheduleReconnect();
@@ -357,6 +376,9 @@ class DiscordPresence {
    */
   updateActivity(data) {
     if (!data) return;
+    if (data !== this.pendingActivity) {
+      data._receivedAt = typeof data._receivedAt === 'number' ? data._receivedAt : Date.now();
+    }
     this.pendingActivity = data;
     if (!this.enabled) return;
 
@@ -389,9 +411,15 @@ class DiscordPresence {
       rawCoverUrl.length <= 256;
     const resolvedCoverUrl = hasValidCoverUrl ? rawCoverUrl : fallbackYtCover;
 
+    const elapsedSinceReceived = (isPlaying && typeof data._receivedAt === 'number')
+      ? Math.max(0, (Date.now() - data._receivedAt) / 1000)
+      : 0;
+    const effectiveCurrentTime = data.duration
+      ? Math.min(Number(data.duration), Math.max(0, (Number(data.currentTime) || 0) + elapsedSinceReceived))
+      : Math.max(0, (Number(data.currentTime) || 0) + elapsedSinceReceived);
     const remainingSec = data.remainingTime != null
-      ? data.remainingTime
-      : ((data.duration && data.currentTime != null) ? Math.max(0, data.duration - data.currentTime) : 0);
+      ? Math.max(0, Number(data.remainingTime) - elapsedSinceReceived)
+      : ((data.duration && data.currentTime != null) ? Math.max(0, Number(data.duration) - effectiveCurrentTime) : 0);
 
     const activity = {
       name: this.useDetails && !isIdleDefault ? title.slice(0, 128) : (this.activityName || 'Deja'),
@@ -424,7 +452,7 @@ class DiscordPresence {
 
     if (isPlaying && data.duration && !isAd) {
       activity.timestamps = {
-        start: Math.floor((Date.now() - (data.currentTime || 0) * 1000) / 1000),
+        start: Math.floor((Date.now() - effectiveCurrentTime * 1000) / 1000),
         end: Math.floor((Date.now() + remainingSec * 1000) / 1000)
       };
     }
@@ -443,8 +471,7 @@ class DiscordPresence {
     return this.updateActivity(track);
   }
 
-  clear() {
-    this.pendingActivity = null;
+  _sendClearActivity() {
     this.currentActivity = null;
     this._lastSentSignature = '';
     if (this._flushTimer) {
@@ -463,6 +490,11 @@ class DiscordPresence {
     this._send(1, payload);
   }
 
+  clear() {
+    this.pendingActivity = null;
+    this._sendClearActivity();
+  }
+
   disconnect() {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -477,9 +509,7 @@ class DiscordPresence {
       this._flushTimer = null;
     }
     if (this.client) {
-      try {
-        this.client.destroy();
-      } catch {}
+      this._destroySocket(this.client);
       this.client = null;
     }
     this.connected = false;

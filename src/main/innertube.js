@@ -2709,7 +2709,54 @@ async function getAudioStream(videoId, ses, opts = {}) {
     return streamObj;
   };
 
-  // 1. IOS client context (BitChord iOS PlayerClient.kt - high-compatibility direct stream)
+  // 1. VISIONOS client context (BitChord VisionOS PlayerClient.kt - unthrottled full-length direct stream)
+  try {
+    const vData = await ensureVisitorData(ses);
+    const visionVersion = '1.02';
+    const visionUa = `com.google.visionos.youtube/${visionVersion}(RealityDevice14,1; U; CPU visionOS 25_6_0 like Mac OS X; en_US)`;
+    const payload = {
+      context: {
+        client: {
+          clientName: 'VISIONOS',
+          clientVersion: visionVersion,
+          deviceMake: 'Apple',
+          deviceModel: 'RealityDevice14,1',
+          osName: 'visionOS',
+          osVersion: '25.6.0',
+          hl: 'en',
+          gl: 'US',
+          ...(vData ? { visitorData: vData } : {})
+        }
+      },
+      videoId,
+      contentCheckOk: true,
+      racyCheckOk: true
+    };
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': visionUa,
+        'X-YouTube-Client-Name': '101',
+        'X-YouTube-Client-Version': visionVersion,
+        ...(vData ? { 'X-Goog-Visitor-Id': vData } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const best = extractBestAudioFormat(data, opts);
+      if (best) {
+        best.userAgent = visionUa;
+        best.clientName = 'VISIONOS';
+        return await maybeUpgradeToOfficialAudio(best);
+      }
+    }
+  } catch (err) {
+    console.warn('[InnerTube] getAudioStream VISIONOS attempt notice:', err.message);
+  }
+
+  // 2. IOS client context (BitChord iOS PlayerClient.kt - high-compatibility direct stream)
   try {
     const iosVersion = '20.01.1';
     const payload = {
@@ -2804,8 +2851,12 @@ function extractBestAudioFormat(data, opts = {}) {
   if (audioFormats.length === 0) return null;
 
   // Filter formats that have direct playable URL (no signature cipher deciphering needed)
-  const direct = audioFormats.filter(f => !!f.url);
+  let direct = audioFormats.filter(f => !!f.url);
   if (direct.length === 0) return null;
+  if (opts && opts.requireM4a) {
+    const m4aDirect = direct.filter(f => f.mimeType && f.mimeType.includes('mp4'));
+    if (m4aDirect.length > 0) direct = m4aDirect;
+  }
 
   const videoLengthSec = Number(data.videoDetails?.lengthSeconds) || null;
   const musicVideoType = data.videoDetails?.musicVideoType || null;

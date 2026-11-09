@@ -6,10 +6,15 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.music.bitchord.BuildConfig
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
@@ -55,6 +60,7 @@ object AppUpdateChecker {
         "https://github.com/Dathevinci/Deja/releases/latest/download/Deja.apk"
 
     private val json = Json { ignoreUnknownKeys = true }
+    private val updaterScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _available = MutableStateFlow<UpdateInfo?>(null)
     val available = _available.asStateFlow()
@@ -119,7 +125,7 @@ object AppUpdateChecker {
         }.getOrDefault(emptyList())
     }
 
-    private fun isWindowsOnlyRelease(release: JsonObject): Boolean {
+    internal fun isWindowsOnlyRelease(release: JsonObject): Boolean {
         val tag = release["tag_name"]?.jsonPrimitive?.contentOrNull.orEmpty().lowercase()
         val title = release["name"]?.jsonPrimitive?.contentOrNull.orEmpty().lowercase()
         val body = release["body"]?.jsonPrimitive?.contentOrNull.orEmpty().lowercase()
@@ -138,15 +144,38 @@ object AppUpdateChecker {
         return false
     }
 
-    private fun extractAndroidReleaseVersion(release: JsonObject, tag: String): String {
+    internal fun extractAndroidReleaseVersion(release: JsonObject, tag: String): String {
         val body = release["body"]?.jsonPrimitive?.contentOrNull.orEmpty()
         val overrideMatch = Regex(
-            """(?:android_version|\[android)\s*:\s*v?([0-9]+\.[0-9]+\.[0-9]+)""",
+            """(?:android_version|\[android)\s*:\s*v?([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?)""",
             RegexOption.IGNORE_CASE,
         ).find(body)
         if (overrideMatch != null) {
             return overrideMatch.groupValues[1]
         }
+
+        val assets = release["assets"]?.jsonArray
+            ?.mapNotNull { it as? JsonObject }
+            ?.filter { it["state"]?.jsonPrimitive?.contentOrNull == "uploaded" }
+            .orEmpty()
+        for (asset in assets) {
+            val name = asset["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            val metaMatch = Regex(
+                """^deja-android-v?([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?)\.json$""",
+                RegexOption.IGNORE_CASE,
+            ).find(name)
+            if (metaMatch != null) {
+                return metaMatch.groupValues[1]
+            }
+            val apkVerMatch = Regex(
+                """^Deja(?:-[a-z0-9_]+)?[.-]v?([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?)\.apk$""",
+                RegexOption.IGNORE_CASE,
+            ).find(name)
+            if (apkVerMatch != null) {
+                return apkVerMatch.groupValues[1]
+            }
+        }
+
         return tag
             .removePrefix("android-")
             .removePrefix("v")
@@ -227,15 +256,16 @@ object AppUpdateChecker {
      * through [download], validates the APK zip header, and automatically
      * hands the completed file to the system package installer.
      */
-    suspend fun downloadApk(context: Context): Unit = withContext(Dispatchers.IO) {
+    suspend fun downloadApk(context: Context): Unit = withContext(updaterScope.coroutineContext) {
         if (_download.value is DownloadState.Downloading) return@withContext
         val info = _available.value ?: return@withContext
+        val appContext = context.applicationContext ?: context
         val primaryUrl = info.apkUrl ?: FALLBACK_LATEST_APK_URL
         downloadCancelled = false
         _download.value = DownloadState.Downloading(0f)
 
         runCatching {
-            val dir = File(context.cacheDir, CACHE_SUBDIR).apply { mkdirs() }
+            val dir = File(appContext.cacheDir, CACHE_SUBDIR).apply { mkdirs() }
             // Drop anything left over from an earlier attempt.
             dir.listFiles()?.forEach { it.delete() }
             val partFile = File(dir, "deja-${info.version}.apk.part")
@@ -254,7 +284,7 @@ object AppUpdateChecker {
                         _download.value = DownloadState.Idle
                         return@withContext
                     }
-                    validateApkFile(partFile)
+                    validateApkFile(appContext, partFile)
                     downloaded = true
                     break
                 } catch (t: Throwable) {
@@ -280,7 +310,7 @@ object AppUpdateChecker {
                 installApk(context, target)
             }
         }.onFailure { error ->
-            _download.value = if (downloadCancelled) {
+            _download.value = if (downloadCancelled || error is CancellationException) {
                 DownloadState.Idle
             } else {
                 DownloadState.Failed(error.message ?: "Download failed")
@@ -289,7 +319,11 @@ object AppUpdateChecker {
     }
 
     private fun streamUrlToFile(url: String, destination: File) {
-        val request = Request.Builder().url(url).build()
+        val request = Request.Builder()
+            .url(url)
+            .header("Cache-Control", "no-cache, no-store, must-revalidate")
+            .header("Pragma", "no-cache")
+            .build()
         Http.client.newCall(request).execute().use { response ->
             check(response.isSuccessful) { "Download failed: HTTP ${response.code}" }
             val body = response.body ?: error("Empty download body")
@@ -316,7 +350,7 @@ object AppUpdateChecker {
         }
     }
 
-    private fun validateApkFile(file: File) {
+    private fun validateApkFile(context: Context, file: File) {
         check(file.exists() && file.length() >= MIN_VALID_APK_BYTES) {
             "Downloaded APK is incomplete (${file.length()} bytes)"
         }
@@ -324,6 +358,28 @@ object AppUpdateChecker {
         val read = file.inputStream().use { it.read(header) }
         check(read == 4 && header[0] == 0x50.toByte() && header[1] == 0x4B.toByte()) {
             "Downloaded file is not a valid Android package"
+        }
+        val archiveInfo = runCatching {
+            context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
+        }.getOrNull()
+        check(archiveInfo != null) {
+            "Downloaded APK package metadata could not be parsed"
+        }
+        check(archiveInfo.packageName == context.packageName) {
+            "Downloaded APK package (${archiveInfo.packageName}) does not match installed app (${context.packageName})"
+        }
+        val apkVersionName = archiveInfo.versionName.orEmpty()
+        @Suppress("DEPRECATION")
+        val apkVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            archiveInfo.longVersionCode
+        } else {
+            archiveInfo.versionCode.toLong()
+        }
+        check(
+            apkVersionCode > BuildConfig.VERSION_CODE.toLong() ||
+                (apkVersionName.isNotBlank() && isNewer(apkVersionName, BuildConfig.VERSION_NAME)),
+        ) {
+            "Downloaded APK is still version $apkVersionName ($apkVersionCode) — please try again in a moment."
         }
     }
 
@@ -353,7 +409,9 @@ object AppUpdateChecker {
             context.packageManager.canRequestPackageInstalls()
         ) {
             pendingInstallFile = null
-            installApk(context, pending)
+            Handler(Looper.getMainLooper()).post {
+                installApk(context, pending)
+            }
         }
     }
 
@@ -400,9 +458,7 @@ object AppUpdateChecker {
         pendingInstallFile = null
         runCatching {
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-            val baseFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                if (context !is Activity) Intent.FLAG_ACTIVITY_NEW_TASK else 0
+            val baseFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
 
             val viewIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, APK_MIME_TYPE)

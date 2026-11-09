@@ -697,7 +697,7 @@ ipcMain.handle('probe-addon-source', async (event, url) => {
     const timer = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(target, {
       method: 'GET',
-      headers: { 'Accept': 'application/json, text/plain, */*', 'User-Agent': 'Deja-BitChord-Sources/1.6.0' },
+      headers: { 'Accept': 'application/json, text/plain, */*', 'User-Agent': 'Deja-BitChord-Sources/1.6.1' },
       signal: controller.signal
     });
     clearTimeout(timer);
@@ -1941,7 +1941,13 @@ ipcMain.handle('download-track', async (event, trackInfo) => {
 
   try {
     const ses = session.fromPartition('persist:ytmusic');
-    const stream = await innertube.getAudioStream(videoId, ses);
+    let stream = await innertube.getAudioStream(videoId, ses, {
+      quality: dlQuality,
+      requireM4a: exportToPublic
+    });
+    if (!stream || !stream.url) {
+      stream = await innertube.getAudioStream(videoId, ses, { quality: dlQuality });
+    }
     if (!stream || !stream.url) {
       return { ok: false, error: 'Could not resolve direct audio stream for download' };
     }
@@ -1962,17 +1968,91 @@ ipcMain.handle('download-track', async (event, trackInfo) => {
       });
     }
 
-    const response = await fetch(stream.url, {
-      headers: {
-        'User-Agent': 'com.google.ios.youtube/20.01.1 (iPhone16,2; U; CPU iOS 18_1_1 like Mac OS X; en_US)'
+    const resolveStreamUa = (st) => {
+      if (st && st.userAgent) return st.userAgent;
+      const u = String(st?.url || '');
+      if (u.includes('c=VISIONOS')) {
+        return 'com.google.visionos.youtube/1.02(RealityDevice14,1; U; CPU visionOS 25_6_0 like Mac OS X; en_US)';
       }
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status} while downloading stream`);
+      if (u.includes('c=IOS')) {
+        return 'com.google.ios.youtube/20.01.1 (iPhone16,2; U; CPU iOS 18_1_1 like Mac OS X; en_US)';
+      }
+      if (u.includes('c=ANDROID_MUSIC')) {
+        return 'com.google.android.apps.youtube.music/6.20.51 (Linux; U; Android 11)';
+      }
+      if (u.includes('c=ANDROID')) {
+        return 'com.google.android.youtube/19.44.38 (Linux; U; Android 14) gzip';
+      }
+      return CHROME_UA;
+    };
+
+    const streamUa = resolveStreamUa(stream);
+    const CHUNK_SIZE = 1024 * 1024; // 1 MiB bounded Range chunks matching Android Downloader.kt
+    let totalBytes = Number(stream.contentLength) || 0;
+    const chunks = [];
+    let offset = 0;
+
+    if (stream.url.includes('googlevideo.com')) {
+      while (true) {
+        const end = totalBytes > 0
+          ? Math.min(offset + CHUNK_SIZE - 1, totalBytes - 1)
+          : (offset + CHUNK_SIZE - 1);
+        const chunkRes = await fetch(stream.url, {
+          headers: {
+            'User-Agent': streamUa,
+            'Range': `bytes=${offset}-${end}`
+          }
+        });
+        if (!chunkRes.ok && chunkRes.status !== 206) {
+          throw new Error(`HTTP ${chunkRes.status} while downloading stream`);
+        }
+        if (!totalBytes) {
+          const cr = chunkRes.headers.get('content-range') || '';
+          const m = cr.match(/\/(\d+)$/);
+          if (m && m[1]) {
+            totalBytes = Number(m[1]) || 0;
+          } else if (chunkRes.status === 200) {
+            totalBytes = Number(chunkRes.headers.get('content-length')) || 0;
+          }
+        }
+        const ab = await chunkRes.arrayBuffer();
+        const buf = Buffer.from(ab);
+        if (buf.length === 0) break;
+        chunks.push(buf);
+        offset += buf.length;
+
+        if (mainWindow && !mainWindow.isDestroyed() && totalBytes > 0) {
+          mainWindow.webContents.send('download-progress', {
+            videoId,
+            title,
+            artist,
+            quality: dlQuality,
+            progress: Math.min(99, Math.max(5, Math.round((offset / totalBytes) * 100))),
+            status: 'downloading'
+          });
+        }
+
+        if ((totalBytes > 0 && offset >= totalBytes) || chunkRes.status === 200 || buf.length < (end - (offset - buf.length) + 1)) {
+          break;
+        }
+      }
+    } else {
+      const response = await fetch(stream.url, {
+        headers: {
+          'User-Agent': streamUa
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} while downloading stream`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      chunks.push(Buffer.from(arrayBuffer));
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer = Buffer.concat(chunks);
+    if (buffer.length === 0) {
+      throw new Error('Downloaded stream was empty');
+    }
     fs.writeFileSync(filePath, buffer);
 
     const entry = {
@@ -2073,8 +2153,22 @@ function isAndroidOnlyRelease(release) {
 
 function extractWindowsReleaseVersion(release) {
   const body = String(release?.body || '');
-  const winOverride = body.match(/(?:windows_version|\[windows)\s*:\s*v?([0-9]+\.[0-9]+\.[0-9]+)/i);
+  const winOverride = body.match(/(?:windows_version|\[windows)\s*:\s*v?([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?)/i);
   if (winOverride && winOverride[1]) return winOverride[1];
+
+  const rawAssets = Array.isArray(release?.assets) ? release.assets : [];
+  for (const asset of rawAssets) {
+    if (!asset || !asset.name || (asset.state && asset.state !== 'uploaded')) continue;
+    const metaMatch = String(asset.name).match(/^deja-windows-v?([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?)\.json$/i);
+    if (metaMatch && metaMatch[1]) return metaMatch[1];
+  }
+  for (const asset of rawAssets) {
+    if (!asset || !asset.name || (asset.state && asset.state !== 'uploaded')) continue;
+    const exeMatch = String(asset.name).match(/^Deja[.\s-]Setup[.\s-]v?([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?)\.exe$/i) ||
+                     String(asset.name).match(/^Deja[.\s-]v?([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.]+)?)\.exe$/i);
+    if (exeMatch && exeMatch[1]) return exeMatch[1];
+  }
+
   const latestTag = String(release?.tag_name || '').trim();
   return latestTag
     .replace(/^(windows-|win-)?v?/i, '')
@@ -2086,10 +2180,10 @@ let updateDownloadAbortController = null;
 
 async function checkGitHubReleaseUpdate() {
   try {
-    const currentVersion = app.getVersion() || '1.6.0';
+    const currentVersion = app.getVersion() || '1.6.1';
     const reqHeaders = {
       'Accept': 'application/vnd.github+json',
-      'User-Agent': 'Deja-Desktop-Updater/1.6.0',
+      'User-Agent': 'Deja-Desktop-Updater/1.6.1',
       'Cache-Control': 'no-cache'
     };
     let candidateReleases = [];
@@ -2147,7 +2241,7 @@ async function checkGitHubReleaseUpdate() {
       notes: matchedRelease.body || ''
     };
   } catch (err) {
-    return { updateAvailable: false, currentVersion: app.getVersion() || '1.6.0', error: err.message };
+    return { updateAvailable: false, currentVersion: app.getVersion() || '1.6.1', error: err.message };
   }
 }
 
@@ -2183,7 +2277,7 @@ ipcMain.handle('install-update', async (event, downloadUrl) => {
     const candidateUrls = [
       downloadUrl,
       'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.exe',
-      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.6.0.exe',
+      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.6.1.exe',
       'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.3.exe'
     ].filter(Boolean);
 
@@ -2195,7 +2289,7 @@ ipcMain.handle('install-update', async (event, downloadUrl) => {
     for (const u of candidateUrls) {
       try {
         const attempt = await fetch(u, {
-          headers: { 'User-Agent': 'Deja-Desktop-Updater/1.6.0' },
+          headers: { 'User-Agent': 'Deja-Desktop-Updater/1.6.1' },
           signal: updateDownloadAbortController.signal
         });
         if (attempt && attempt.ok) {
@@ -2431,6 +2525,29 @@ app.whenReady().then(async () => {
         }
         if (!referer || referer.startsWith('file://')) {
           requestHeaders['Referer'] = 'https://music.youtube.com/';
+        }
+      }
+
+      if (details.url.includes('googlevideo.com')) {
+        let nativeGvUa = null;
+        if (details.url.includes('c=VISIONOS')) {
+          nativeGvUa = 'com.google.visionos.youtube/1.02(RealityDevice14,1; U; CPU visionOS 25_6_0 like Mac OS X; en_US)';
+        } else if (details.url.includes('c=IOS')) {
+          nativeGvUa = 'com.google.ios.youtube/20.01.1 (iPhone16,2; U; CPU iOS 18_1_1 like Mac OS X; en_US)';
+        } else if (details.url.includes('c=ANDROID_MUSIC')) {
+          nativeGvUa = 'com.google.android.apps.youtube.music/6.20.51 (Linux; U; Android 11)';
+        }
+        if (nativeGvUa) {
+          requestHeaders['User-Agent'] = nativeGvUa;
+          delete requestHeaders['Origin'];
+          delete requestHeaders['origin'];
+          delete requestHeaders['Referer'];
+          delete requestHeaders['referer'];
+          for (const k of Object.keys(requestHeaders)) {
+            if (k.toLowerCase().startsWith('sec-ch-ua')) {
+              delete requestHeaders[k];
+            }
+          }
         }
       }
 

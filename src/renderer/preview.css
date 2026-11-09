@@ -2097,13 +2097,7 @@ body.deja-playing .now-playing-art-wrap,
   height: 6px;
   border-radius: 50%;
   background: #34C759;
-  box-shadow: 0 0 8px rgba(52, 199, 89, 0.6);
-  animation: dejaDotPulse 2s infinite ease-in-out;
-}
-
-@keyframes dejaDotPulse {
-  0%, 100% { opacity: 0.6; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.1); }
+  box-shadow: 0 0 6px rgba(52, 199, 89, 0.55);
 }
 
 .deja-sleep-timer-btn,
@@ -7463,3 +7457,166 @@ body.deja-playing #expanded-player-view.bc-landscape-player .expanded-artwork-co
   cursor: pointer;
 }
 
+/* ==========================================================================
+   Clean Mobile-Style Playing Mode UI (MiniPlayer Pill & Expanded Now Playing)
+   ========================================================================== */
+#apple-player-bar.bc-floating-miniplayer {
+  cursor: pointer;
+}
+
+#apple-player-bar.bc-floating-miniplayer #btn-audio-pipeline,
+#apple-player-bar.bc-floating-miniplayer #btn-sleep-timer,
+#apple-player-bar.bc-floating-miniplayer #btn-equalizer,
+#apple-player-bar.bc-floating-miniplayer #btn-expand-player,
+#apple-player-bar.bc-floating-miniplayer #btn-switch-video,
+#apple-player-bar.bc-floating-miniplayer #btn-download-track,
+#apple-player-bar.bc-floating-miniplayer #btn-shuffle,
+#apple-player-bar.bc-floating-miniplayer #btn-repeat {
+  display: none !important;
+}
+
+#apple-player-bar.bc-floating-miniplayer .player-right {
+  gap: 8px !important;
+}
+
+/* Remove duplicate Lyrics / Queue / Listen Together buttons in Expanded Now Playing */
+#expanded-player-view .bc-np-sleeve-action-row,
+#expanded-player-view #exp-btn-lyrics,
+#expanded-player-view #exp-btn-queue {
+  display: none !important;
+}
+
+#expanded-player-view .exp-extra-controls {
+  gap: 10px !important;
+}
+
+/* ==========================================================================
+   Complete Desktop Theme Overrides: Light Mode (.apple-light) & Pure Black (.pure-black)
+   ========================================================================== */
+html.apple-light,
+body.apple-light {
+  --bg-base: #f5f5f7;
+  --bg-sidebar: rgba(255, 255, 255, 0.86);
+  --bg-surface: rgba(0, 0, 0, 0.04);
+  --bg-surface-hover: rgba(0, 0, 0, 0.075);
+  --bg-player: rgba(255, 255, 255, 0.90);
+  --border-subtle: rgba(0, 0, 0, 0.09);
+  --text-primary: #1c1c1e;
+  --text-main: #1c1c1e;
+  --text-secondary: rgba(28, 28, 30, 0.65);
+  --text-muted: rgba(28, 28, 30, 0.45);
+  background: #f5f5f7 !important;
+  color: #1c1c1e !important;
+}
+
+body.apple-light .bitchord-desktop-shell,
+body.apple-light .apple-main-view,
+body.apple-light .apple-app-layout {
+  background: #f5f5f7 !important;
+  color: #1c1c1e !important;
+}
+
+body.apple-light #app-ambient-backdrop {
+  opacity: 0.14 !important;
+  filter: saturate(1.1) brightness(1.35);
+}
+
+body.apple-light .apple-topbar,
+body.apple-light .bc-minimal-topbar {
+  background: rgba(245, 245, 247, 0.82) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.07) !important;
+  color: #1c1c1e !important;
+}
+
+body.apple-light .bitchord-settings-screen,
+body.apple-light .bitchord-settings-title,
+body.apple-light .bc-screen-large-title,
+body.apple-light .bc-section-heading,
+body.apple-light .bitchord-settings-row-title,
+body.apple-light .bitchord-song-row-title,
+body.apple-light .card-title,
+body.apple-light .song-title,
+body.apple-light .artist-card-name,
+body.apple-light .player-track-title {
+  color: #1c1c1e !important;
+}
+
+body.apple-light .bitchord-settings-row-sub,
+body.apple-light .bitchord-song-row-sub,
+body.apple-light .card-subtitle,
+body.apple-light .song-artist-cell,
+body.apple-light .song-album-cell,
+body.apple-light .player-track-artist {
+  color: rgba(28, 28, 30, 0.64) !important;
+}
+
+body.apple-light .bitchord-settings-card,
+body.apple-light .songs-table-container,
+body.apple-light .bitchord-search-song-row,
+body.apple-light .bc-search-page-pill,
+body.apple-light .bitchord-settings-search-input {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #1c1c1e !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
+}
+
+body.apple-light .bitchord-settings-row {
+  border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+body.apple-light .bitchord-settings-row:hover,
+body.apple-light .bitchord-search-song-row:hover,
+body.apple-light .song-row:hover {
+  background: rgba(0, 0, 0, 0.045) !important;
+}
+
+body.apple-light #apple-player-bar.bc-floating-miniplayer,
+body.apple-light .bc-floating-nav-bar {
+  background: rgba(255, 255, 255, 0.90) !important;
+  border-color: rgba(0, 0, 0, 0.10) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12) !important;
+  color: #1c1c1e !important;
+}
+
+body.apple-light #apple-player-bar .transport-btn,
+body.apple-light #apple-player-bar .player-icon-btn,
+body.apple-light .bc-floating-nav-item {
+  color: rgba(28, 28, 30, 0.78) !important;
+}
+
+body.apple-light .bc-floating-nav-item.active {
+  background: rgba(250, 45, 72, 0.14) !important;
+  color: #fa2d48 !important;
+}
+
+html.pure-black,
+body.pure-black {
+  --bg-base: #000000;
+  --bg-sidebar: #000000;
+  --bg-surface: rgba(255, 255, 255, 0.035);
+  --bg-surface-hover: rgba(255, 255, 255, 0.07);
+  --bg-player: rgba(5, 5, 7, 0.96);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+body.pure-black .bitchord-desktop-shell,
+body.pure-black .apple-main-view,
+body.pure-black .apple-app-layout,
+body.pure-black #expanded-player-view {
+  background: #000000 !important;
+}
+
+body.pure-black #app-ambient-backdrop {
+  opacity: 0 !important;
+}
+
+body.pure-black .bitchord-settings-card,
+body.pure-black .songs-table-container,
+body.pure-black #apple-player-bar.bc-floating-miniplayer,
+body.pure-black .bc-floating-nav-bar {
+  background: #050507 !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
+}
