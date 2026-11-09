@@ -934,13 +934,26 @@ function setupDejaAudioElement() {
         if (wasUnverified || Math.abs(dur - prevDur) > 2) {
           resolveSyncedLyrics(track, true);
         }
+        notifyTrackState();
       }
     }
     updateProgress();
     updateSyncedLyrics();
-    updateDynamicPipeline(dejaAudio);
+    const pipeModal = typeof document !== 'undefined' && typeof document.getElementById === 'function'
+      ? document.getElementById('pipeline-modal')
+      : null;
+    if (pipeModal && pipeModal.style && pipeModal.style.display === 'flex') {
+      updateDynamicPipeline(dejaAudio);
+    }
     if (typeof handleBitChordPlaybackTick === 'function') handleBitChordPlaybackTick(dejaAudio);
-    if (typeof updateNerdStatsHud === 'function') updateNerdStatsHud();
+    if (typeof updateNerdStatsHud === 'function' && typeof bitchordSettings !== 'undefined' && bitchordSettings.showNerdStats) {
+      const expView = typeof document !== 'undefined' && typeof document.getElementById === 'function'
+        ? document.getElementById('expanded-player-view')
+        : null;
+      if (!expView || (expView.classList && expView.classList.contains('visible'))) {
+        updateNerdStatsHud();
+      }
+    }
   });
 
   dejaAudio.addEventListener('error', () => {
@@ -953,11 +966,36 @@ function setupDejaAudioElement() {
   });
 }
 
+let _ytIframeApiLoading = false;
+function ensureYouTubeIframeApiLoaded() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  if (window.YT || _ytIframeApiLoading) return;
+  _ytIframeApiLoading = true;
+  try {
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    tag.async = true;
+    tag.onerror = () => {
+      _ytIframeApiLoading = false;
+      console.info('[YouTube] YouTube IFrame API script load skipped (offline mode).');
+    };
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    if (firstScriptTag && firstScriptTag.parentNode) {
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    } else if (document.head) {
+      document.head.appendChild(tag);
+    }
+  } catch {
+    _ytIframeApiLoading = false;
+  }
+}
+
 /**
  * Fallback gracefully to hidden YouTube IFrame player with unMute() and setVolume(100).
  */
 function fallbackToIFrame(track) {
   if (!track || !track.videoId) return;
+  ensureYouTubeIframeApiLoaded();
   if (isYtReady && ytPlayer) {
     try {
       ytPlayer.unMute();
@@ -1302,22 +1340,6 @@ function initUI() {
   if (backBtn) backBtn.onclick = navigateBack;
   if (fwdBtn) fwdBtn.onclick = navigateForward;
   updateNavButtons();
-
-  // Load YouTube IFrame API dynamically
-  if (!window.YT && typeof document !== 'undefined') {
-    try {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      tag.async = true;
-      tag.onerror = () => {
-        console.info('[YouTube] YouTube IFrame API script load skipped (offline mode).');
-      };
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      if (firstScriptTag && firstScriptTag.parentNode) {
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-      }
-    } catch {}
-  }
 }
 
 // ==========================================
@@ -1603,7 +1625,7 @@ function hslToRgb(h, s, l) {
  * Upgrades YouTube Music / Googleusercontent / i.ytimg.com thumbnail URLs
  * to 1080x1080 Ultra-HD resolution for razor-sharp Now Playing and Card artwork.
  */
-function upscaleArtworkUrl(url, videoId) {
+function upscaleArtworkUrl(url, videoId, size = 360) {
   if (!url || typeof url !== 'string') {
     return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '../../assets/icon.png';
   }
@@ -1611,14 +1633,15 @@ function upscaleArtworkUrl(url, videoId) {
   if (trimmed.startsWith('data:') || trimmed.startsWith('../../') || trimmed.startsWith('file:')) {
     return trimmed;
   }
+  const dim = Number(size) > 0 ? Math.round(Number(size)) : 360;
   if (trimmed.includes('googleusercontent.com') || trimmed.includes('ggpht.com')) {
     if (/=w\d+-h\d+/.test(trimmed)) {
-      return trimmed.replace(/=w\d+-h\d+[^&?]*/, '=w1080-h1080-l95-rj');
+      return trimmed.replace(/=w\d+-h\d+[^&?]*/, `=w${dim}-h${dim}-l90-rj`);
     }
     if (/=s\d+/.test(trimmed)) {
-      return trimmed.replace(/=s\d+[^&?]*/, '=s1080');
+      return trimmed.replace(/=s\d+[^&?]*/, `=s${dim}`);
     }
-    return trimmed + '=w1080-h1080-l95-rj';
+    return trimmed + `=w${dim}-h${dim}-l90-rj`;
   }
   if (trimmed.includes('i.ytimg.com/vi/')) {
     return trimmed.replace(/\/(default|mqdefault|sddefault)\.jpg/, '/hqdefault.jpg');
@@ -4977,7 +5000,7 @@ function renderCardGridHTML(tracksList) {
 
 function selectTrack(idx) {
   if (idx < 0 || idx >= CATALOGUE_TRACKS.length) return;
-  loadTrack(idx);
+  loadTrack(idx, true);
   const track = CATALOGUE_TRACKS[idx];
   resolveAndPlayTrack(track);
 
@@ -5014,7 +5037,7 @@ function selectTrackByObject(trackId) {
   if (idx !== -1) selectTrack(idx);
 }
 
-function loadTrack(idx) {
+function loadTrack(idx, skipNotify = false) {
   currentIndex = idx;
   const track = CATALOGUE_TRACKS[idx];
   if (!track) return;
@@ -5059,9 +5082,10 @@ function loadTrack(idx) {
   const expSnippet = (typeof document.getElementById === 'function' ? (document.getElementById('exp-lyric-snippet-text') || document.getElementById('exp-lyric-snippet')) : null) ||
                      (typeof document.querySelector === 'function' ? document.querySelector('.exp-lyric-snippet-text') : null);
 
-  const hiResCover = upscaleArtworkUrl(track.cover, track.videoId);
-  track.cover = hiResCover;
-  if (artEl) artEl.src = hiResCover;
+  const barCover = upscaleArtworkUrl(track.cover, track.videoId, 360);
+  const hiResCover = upscaleArtworkUrl(track.cover, track.videoId, 1080);
+  track.cover = barCover;
+  if (artEl) artEl.src = barCover;
   if (expandedTitle) expandedTitle.innerText = track.title;
   if (expandedArtist) expandedArtist.innerText = `${track.artist} • ${track.album}`;
   if (expandedArtwork) {
@@ -5072,7 +5096,7 @@ function loadTrack(idx) {
     };
     expandedArtwork.src = hiResCover;
   }
-  extractPaletteFromImage(hiResCover, (realPalette) => {
+  extractPaletteFromImage(barCover, (realPalette) => {
     if (realPalette) {
       track.palette = realPalette;
       applyDynamicMeshAura(track);
@@ -5111,7 +5135,9 @@ function loadTrack(idx) {
   resolveSyncedLyrics(track);
 
   // Notify Electron Main Process
-  notifyTrackState();
+  if (!skipNotify) {
+    notifyTrackState();
+  }
 }
 
 function applyDynamicMeshAura(track) {
@@ -6256,6 +6282,7 @@ class LyricClockReconciler {
 
 const lyricClockReconciler = new LyricClockReconciler();
 let lyricClockRaf = null;
+let lastLyricRafMs = 0;
 let lastScrollTargetIndex = -1;
 
 function startLyricClock() {
@@ -6268,12 +6295,16 @@ function startLyricClock() {
   }, 50);
 
   if (typeof requestAnimationFrame === 'function' && !lyricClockRaf) {
-    function loop() {
+    function loop(now) {
       if (!isPlaying) {
         lyricClockRaf = null;
         return;
       }
-      tickLyricClock();
+      const ts = typeof now === 'number' ? now : Date.now();
+      if (ts - lastLyricRafMs >= 32) {
+        lastLyricRafMs = ts;
+        tickLyricClock();
+      }
       lyricClockRaf = requestAnimationFrame(loop);
     }
     lyricClockRaf = requestAnimationFrame(loop);
@@ -6334,6 +6365,7 @@ function seekTo(seconds) {
   }
   updateProgress();
   updateSyncedLyrics(true);
+  notifyTrackState();
 }
 
 if (typeof window !== 'undefined') {
@@ -6359,16 +6391,19 @@ function updateProgress() {
   if (fillEl && fillEl.style.width !== pctStr) fillEl.style.width = pctStr;
   if (knobEl && knobEl.style.left !== pctStr) knobEl.style.left = pctStr;
 
-  const expCurEl = document.getElementById('exp-time-current');
-  const expTotalEl = document.getElementById('exp-time-total');
-  const expFillEl = document.getElementById('exp-scrubber-fill');
-  const expKnobEl = document.getElementById('exp-scrubber-knob');
-  if (expCurEl && timeStr !== _lastRenderedTimeStr) expCurEl.innerText = timeStr;
-  if (expTotalEl && remainingStr !== _lastRenderedRemStr) expTotalEl.innerText = remainingStr;
-  if (expFillEl && expFillEl.style.width !== pctStr) expFillEl.style.width = pctStr;
-  if (expKnobEl && expKnobEl.style.left !== pctStr) expKnobEl.style.left = pctStr;
+  const expView = typeof document.getElementById === 'function' ? document.getElementById('expanded-player-view') : null;
+  if (!expView || (expView.classList && expView.classList.contains('visible'))) {
+    const expCurEl = document.getElementById('exp-time-current');
+    const expTotalEl = document.getElementById('exp-time-total');
+    const expFillEl = document.getElementById('exp-scrubber-fill');
+    const expKnobEl = document.getElementById('exp-scrubber-knob');
+    if (expCurEl && timeStr !== _lastRenderedTimeStr) expCurEl.innerText = timeStr;
+    if (expTotalEl && remainingStr !== _lastRenderedRemStr) expTotalEl.innerText = remainingStr;
+    if (expFillEl && expFillEl.style.width !== pctStr) expFillEl.style.width = pctStr;
+    if (expKnobEl && expKnobEl.style.left !== pctStr) expKnobEl.style.left = pctStr;
+    _lastRenderedRemStr = remainingStr;
+  }
   _lastRenderedTimeStr = timeStr;
-  _lastRenderedRemStr = remainingStr;
 }
 
 /**
@@ -6430,12 +6465,21 @@ function updateSyncedLyrics(forceScroll = false) {
     if (scrollTargetIndex < 0) scrollTargetIndex = activeIndex;
   }
 
-  // Synchronize both drawer and Now Playing screen lyrics containers
+  // Synchronize visible drawer and Now Playing screen lyrics containers
   const lineChanged = (activeIndex !== lastActiveLyricIndex) || forceScroll;
-  const containers = (typeof document.getElementById === 'function' ? [
-    document.getElementById('lyrics-lines-container'),
-    document.getElementById('expanded-lyrics-container')
-  ] : []).filter(Boolean);
+  const containers = [];
+  if (typeof document.getElementById === 'function') {
+    const drawerContainer = document.getElementById('lyrics-lines-container');
+    const drawerEl = document.getElementById('apple-lyrics-drawer');
+    if (drawerContainer && (forceScroll || !drawerEl || (drawerEl.classList && drawerEl.classList.contains('visible')))) {
+      containers.push(drawerContainer);
+    }
+    const expContainer = document.getElementById('expanded-lyrics-container');
+    const expViewEl = document.getElementById('expanded-player-view');
+    if (expContainer && (forceScroll || !expViewEl || (expViewEl.classList && expViewEl.classList.contains('visible')))) {
+      containers.push(expContainer);
+    }
+  }
 
   containers.forEach(container => {
     if (!lineChanged) {
@@ -7042,14 +7086,19 @@ function notifyTrackState() {
   if (typeof window !== 'undefined') {
     const api = window.dejaAPI || window.sonoraAPI;
     if (api?.sendTrackChanged) {
+      const qualityText = currentStreamMeta?.bitrate
+        ? `${Math.round(currentStreamMeta.bitrate / 1000)}kbps Opus`
+        : (typeof bitchordSettings !== 'undefined' && bitchordSettings.wifiQuality ? bitchordSettings.wifiQuality : '160kbps Opus');
       api.sendTrackChanged({
         title: track.title,
         artist: track.artist,
         album: track.album,
+        videoId: track.videoId || null,
         duration: track.duration,
         currentTime: currentTime,
         isPlaying: isPlaying,
         coverUrl: track.cover,
+        audioQuality: qualityText,
         isAd: !!track.isAd
       });
     }
@@ -7420,12 +7469,29 @@ function setupEvents() {
     if (!expandedView) return;
     expandedView.classList.add('visible');
     expandedView.classList.toggle('is-playing', isPlaying);
+    updateProgress();
+    updateSyncedLyrics(true);
+    const curTrack = CATALOGUE_TRACKS[currentIndex];
+    if (curTrack) {
+      if (!activeCanvasStreamData || currentResolvedVideoId !== (curTrack.videoId || '')) {
+        loadMusicVideoIntoStage(curTrack, 'expanded');
+      } else {
+        const expCanvasEl = document.getElementById('expanded-canvas-video');
+        if (expCanvasEl && (isVideoModeActive || activeCanvasStreamData.isCanvas)) {
+          attachChromelessVideoSource(expCanvasEl, activeCanvasStreamData, !activeCanvasStreamData.isCanvas);
+        }
+      }
+    }
   };
   const closeExpandedView = () => {
     if (!expandedView) return;
     expandedView.style.transform = '';
     expandedView.style.transition = '';
     expandedView.classList.remove('visible');
+    const expCanvasEl = document.getElementById('expanded-canvas-video');
+    if (expCanvasEl) {
+      try { expCanvasEl.pause(); } catch {}
+    }
     if (expOptionsDropdown) expOptionsDropdown.style.display = 'none';
     switchLandscapePlayerPane('main');
     const lyricsContainer = document.getElementById('expanded-lyrics-container');
@@ -10406,9 +10472,9 @@ function renderSettingsView(container) {
         </div>
         <div class="bitchord-settings-text">
           <div class="bitchord-settings-row-title">App Updates &amp; Version</div>
-          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.5.0 — Click to check &amp; install updates in-app</div>
+          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.6.0 — Click to check &amp; install updates in-app</div>
         </div>
-        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.5.0</span>
+        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.6.0</span>
       </div>
     `);
   }
@@ -10437,7 +10503,7 @@ function renderSettingsView(container) {
 
       <div class="bitchord-settings-colophon">
         <div>
-          <strong>deja 1.5.0</strong>
+          <strong>deja 1.6.0</strong>
           <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="https://github.com/Dathevinci" target="_blank" rel="noopener noreferrer">Developer</a>
           <a href="https://dathevinci.github.io/Deja/" target="_blank" rel="noopener noreferrer">Website</a>
@@ -10615,7 +10681,7 @@ function renderSettingsView(container) {
         try {
           const payload = {
             app: 'Deja',
-            version: '1.5.0',
+            version: '1.6.0',
             exportedAt: new Date().toISOString(),
             settings: bitchordSettings,
             customPlaylists,
@@ -10670,11 +10736,11 @@ function renderSettingsView(container) {
               if (badge) badge.textContent = `Update v${info.latestVersion}`;
               openBitChordUpdateDialog(info);
             } else {
-              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.5.0'}).`;
+              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.6.0'}).`;
               if (badge) badge.textContent = 'Up to Date';
             }
           }).catch(() => {
-            if (sub) sub.textContent = 'Deja v1.5.0 is up to date.';
+            if (sub) sub.textContent = 'Deja v1.6.0 is up to date.';
           });
         }
       }
@@ -11214,14 +11280,14 @@ async function loadMusicVideoIntoStage(track, targetType) {
     expBadge.style.display = 'none';
   }
 
-  // Always animate the mini bottom-bar thumbnail & Now Playing artwork thumbnail when Canvas or Video mode is active
+  // Only animate the Now Playing artwork thumbnail when Expanded view is visible (never animate #mini-canvas-video inside the backdrop-filter bottom bar)
   const expCanvasEl = document.getElementById('expanded-canvas-video');
-  const miniCanvasEl = document.getElementById('mini-canvas-video');
+  const expView = document.getElementById('expanded-player-view');
+  const isExpandedVisible = !expView || (expView.classList && expView.classList.contains('visible'));
   const dockVideoEl = document.getElementById('dock-video-el');
 
-  if (isVideoModeActive || streamData.isCanvas) {
+  if ((isVideoModeActive || streamData.isCanvas) && isExpandedVisible) {
     if (expCanvasEl) attachChromelessVideoSource(expCanvasEl, streamData, !streamData.isCanvas);
-    if (miniCanvasEl) attachChromelessVideoSource(miniCanvasEl, streamData, !streamData.isCanvas);
   }
 
   if (targetType === 'dock' || isVideoDockOpen) {
@@ -11407,7 +11473,7 @@ function handleBitChordUpdateProgress(prog) {
   const primaryBtn = document.getElementById('bitchord-update-btn-primary');
   const secondaryBtn = document.getElementById('bitchord-update-btn-secondary');
   const errEl = document.getElementById('bitchord-update-error');
-  const ver = latestPendingUpdateInfo?.latestVersion || '1.5.0';
+  const ver = latestPendingUpdateInfo?.latestVersion || '1.6.0';
 
   if (prog.state === 'downloading') {
     isUpdateDownloading = true;
@@ -11449,8 +11515,13 @@ function onTrackChangedForVideoMode(track) {
   activeCanvasStreamData = null;
   stopAllVideoElements();
   if (!track) return;
-  // Automatically resolve Canvas / Motion artwork for every track (like BitChord's CanvasArtworkPlayer.kt)
-  loadMusicVideoIntoStage(track, isVideoDockOpen ? 'dock' : 'expanded');
+  const expView = typeof document !== 'undefined' && typeof document.getElementById === 'function'
+    ? document.getElementById('expanded-player-view')
+    : null;
+  const isExpandedVisible = Boolean(expView && expView.classList && expView.classList.contains('visible'));
+  if (isVideoDockOpen || isExpandedVisible || isVideoModeActive) {
+    loadMusicVideoIntoStage(track, isVideoDockOpen ? 'dock' : 'expanded');
+  }
 }
 
 if (typeof document !== 'undefined') {

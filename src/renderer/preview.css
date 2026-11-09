@@ -5002,9 +5002,17 @@ body.deja-playing .now-playing-art-wrap,
    ============================================================================ */
 .deja-expanded-player-view:not(.visible) .deja-player-ambient-aura,
 .deja-expanded-player-view:not(.visible) .deja-ambient-art-blur,
-.deja-expanded-player-view:not(.visible) .mesh-blob {
+.deja-expanded-player-view:not(.visible) .mesh-blob,
+.deja-expanded-player-view:not(.visible) .expanded-artwork-container,
+.deja-expanded-player-view:not(.visible) #now-playing-art-wrap {
   animation-play-state: paused !important;
   will-change: auto !important;
+}
+
+.deja-expanded-player-view:not(.visible) .deja-player-ambient-aura,
+.deja-expanded-player-view:not(.visible) .deja-ambient-art-blur,
+.deja-expanded-player-view:not(.visible) .mesh-blob,
+#mini-canvas-video {
   display: none !important;
 }
 
@@ -5018,7 +5026,7 @@ body.deja-playing .now-playing-art-wrap,
 .bitchord-search-song-row,
 .song-row,
 .bitchord-settings-card {
-  contain: layout style;
+  contain: layout style paint;
 }
 
 

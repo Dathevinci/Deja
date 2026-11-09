@@ -253,9 +253,16 @@ function createWindow() {
     }
 
     try {
-      if (config.get('discordRPC')) {
-        discord.init(true);
-      }
+      const savedBs = config.get('bitchordSettings') || {};
+      const rpcEnabled = config.get('discordRPC') !== false && savedBs.discordRpc !== false;
+      discord.init(rpcEnabled, {
+        enabled: rpcEnabled,
+        useDetails: config.get('discordUseDetails') ?? savedBs.discordUseDetails ?? false,
+        showAudioQuality: config.get('discordShowAudioQuality') ?? savedBs.discordShowAudioQuality ?? true,
+        activityName: config.get('discordActivityName') || savedBs.discordActivityName || 'Deja',
+        status: config.get('discordStatus') || savedBs.discordStatus || 'online',
+        audioQualityLabel: savedBs.wifiQuality || '160kbps Opus'
+      });
     } catch (err) {
       console.warn('[Discord] Failed to init Discord RPC:', err.message);
     }
@@ -457,7 +464,7 @@ ipcMain.on('track-changed', (event, track) => {
   }
 
   // Update Discord Rich Presence
-  if (config.get('discordRPC')) {
+  if (config.get('discordRPC') !== false) {
     const remainingTime = (track.duration && track.currentTime != null)
       ? Math.max(0, track.duration - track.currentTime)
       : 0;
@@ -465,6 +472,8 @@ ipcMain.on('track-changed', (event, track) => {
       title: track.title,
       artist: track.artist,
       album: track.album,
+      videoId: track.videoId,
+      audioQuality: track.audioQuality,
       duration: track.duration,
       currentTime: track.currentTime,
       remainingTime: remainingTime,
@@ -688,7 +697,7 @@ ipcMain.handle('probe-addon-source', async (event, url) => {
     const timer = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(target, {
       method: 'GET',
-      headers: { 'Accept': 'application/json, text/plain, */*', 'User-Agent': 'Deja-BitChord-Sources/1.5.0' },
+      headers: { 'Accept': 'application/json, text/plain, */*', 'User-Agent': 'Deja-BitChord-Sources/1.6.0' },
       signal: controller.signal
     });
     clearTimeout(timer);
@@ -2036,9 +2045,10 @@ ipcMain.handle('innertube-get-lyrics', handleGetLyrics);
 // Matches BitChord AppUpdateChecker.kt architecture for Desktop
 // ============================================================================
 const DEJA_LATEST_RELEASE_API = 'https://api.github.com/repos/Dathevinci/Deja/releases/latest';
+const DEJA_RELEASES_LIST_API = 'https://api.github.com/repos/Dathevinci/Deja/releases?per_page=10';
 
 function isVersionNewer(latestStr, currentStr) {
-  const parse = (v) => String(v || '0').replace(/^v/i, '').split('-')[0].split('.').map(n => parseInt(n, 10) || 0);
+  const parse = (v) => String(v || '0').replace(/^(windows-|win-|android-)?v?/i, '').split('-')[0].split('.').map(n => parseInt(n, 10) || 0);
   const l = parse(latestStr);
   const c = parse(currentStr);
   const len = Math.max(l.length, c.length);
@@ -2050,45 +2060,94 @@ function isVersionNewer(latestStr, currentStr) {
   return false;
 }
 
+function isAndroidOnlyRelease(release) {
+  if (!release || typeof release !== 'object') return false;
+  const tag = String(release.tag_name || '').toLowerCase();
+  const title = String(release.name || '').toLowerCase();
+  const body = String(release.body || '').toLowerCase();
+  if (/^android[-_]|[-_](android|apk|mobile)$/.test(tag)) return true;
+  if (title.includes('[android-only]') || title.includes('(android only)')) return true;
+  if (body.includes('[android-only]') || /target_platform:\s*android\b/.test(body) || /\[platform:\s*android\]/.test(body)) return true;
+  return false;
+}
+
+function extractWindowsReleaseVersion(release) {
+  const body = String(release?.body || '');
+  const winOverride = body.match(/(?:windows_version|\[windows)\s*:\s*v?([0-9]+\.[0-9]+\.[0-9]+)/i);
+  if (winOverride && winOverride[1]) return winOverride[1];
+  const latestTag = String(release?.tag_name || '').trim();
+  return latestTag
+    .replace(/^(windows-|win-)?v?/i, '')
+    .replace(/-(windows|win|desktop)$/i, '');
+}
+
 let cachedUpdateInstallerPath = null;
 let updateDownloadAbortController = null;
 
 async function checkGitHubReleaseUpdate() {
   try {
-    const currentVersion = app.getVersion() || '1.5.0';
-    const res = await fetch(DEJA_LATEST_RELEASE_API, {
-      headers: {
-        'Accept': 'application/vnd.github+json',
-        'User-Agent': 'Deja-Desktop-Updater/1.5.0',
-        'Cache-Control': 'no-cache'
-      }
-    });
-    if (!res.ok) return { updateAvailable: false, currentVersion };
-    const release = await res.json();
-    const latestTag = String(release.tag_name || '').trim();
-    const latestVersion = latestTag.replace(/^v/i, '');
-    const assets = Array.isArray(release.assets) ? release.assets : [];
-    const exeAsset = assets.find(a => a && a.name && /^Deja\.Setup\.exe$/i.test(a.name)) ||
-                     assets.find(a => a && a.name && /Setup.*\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap')) ||
-                     assets.find(a => a && a.name && /\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap'));
-    const apkAsset = assets.find(a => a && a.name && /^Deja\.apk$/i.test(a.name)) ||
-                     assets.find(a => a && a.name && /\.apk$/i.test(a.name));
+    const currentVersion = app.getVersion() || '1.6.0';
+    const reqHeaders = {
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'Deja-Desktop-Updater/1.6.0',
+      'Cache-Control': 'no-cache'
+    };
+    let candidateReleases = [];
+    const listRes = await fetch(DEJA_RELEASES_LIST_API, { headers: reqHeaders }).catch(() => null);
+    if (listRes && listRes.ok) {
+      const parsed = await listRes.json();
+      if (Array.isArray(parsed)) candidateReleases = parsed;
+    }
+    if (!candidateReleases.length) {
+      const res = await fetch(DEJA_LATEST_RELEASE_API, { headers: reqHeaders });
+      if (!res.ok) return { updateAvailable: false, currentVersion };
+      const single = await res.json();
+      if (single) candidateReleases = [single];
+    }
+
+    let matchedRelease = null;
+    let matchedExeAsset = null;
+    let matchedApkAsset = null;
+
+    for (const rel of candidateReleases) {
+      if (!rel || rel.draft || rel.prerelease) continue;
+      if (isAndroidOnlyRelease(rel)) continue;
+      const rawAssets = Array.isArray(rel.assets) ? rel.assets : [];
+      const assets = rawAssets.filter(a => a && a.name && a.browser_download_url && (!a.state || a.state === 'uploaded'));
+      const exeAsset = assets.find(a => /^Deja\.Setup\.\d+.*\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap')) ||
+                       assets.find(a => /^Deja[.\s-]Setup[.\s-]\d+.*\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap')) ||
+                       assets.find(a => /Setup.*\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap')) ||
+                       assets.find(a => /\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap'));
+      if (!exeAsset) continue;
+      matchedRelease = rel;
+      matchedExeAsset = exeAsset;
+      matchedApkAsset = assets.find(a => /^Deja\.apk$/i.test(a.name)) ||
+                        assets.find(a => /\.apk$/i.test(a.name));
+      break;
+    }
+
+    if (!matchedRelease) {
+      return { updateAvailable: false, currentVersion, platform: 'windows' };
+    }
+
+    const latestVersion = extractWindowsReleaseVersion(matchedRelease);
     const updateAvailable = isVersionNewer(latestVersion, currentVersion);
     return {
       updateAvailable,
+      platform: 'windows',
       currentVersion,
       latestVersion,
-      releaseUrl: release.html_url || 'https://github.com/Dathevinci/Deja/releases/latest',
-      exeUrl: exeAsset
-        ? exeAsset.browser_download_url
+      releaseUrl: matchedRelease.html_url || 'https://github.com/Dathevinci/Deja/releases/latest',
+      exeUrl: matchedExeAsset
+        ? matchedExeAsset.browser_download_url
         : `https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.${latestVersion}.exe`,
-      apkUrl: apkAsset
-        ? apkAsset.browser_download_url
+      apkUrl: matchedApkAsset
+        ? matchedApkAsset.browser_download_url
         : 'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.apk',
-      notes: release.body || ''
+      notes: matchedRelease.body || ''
     };
   } catch (err) {
-    return { updateAvailable: false, currentVersion: app.getVersion() || '1.5.0', error: err.message };
+    return { updateAvailable: false, currentVersion: app.getVersion() || '1.6.0', error: err.message };
   }
 }
 
@@ -2124,7 +2183,7 @@ ipcMain.handle('install-update', async (event, downloadUrl) => {
     const candidateUrls = [
       downloadUrl,
       'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.exe',
-      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.5.0.exe',
+      'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.6.0.exe',
       'https://github.com/Dathevinci/Deja/releases/latest/download/Deja.Setup.1.2.3.exe'
     ].filter(Boolean);
 
@@ -2136,7 +2195,7 @@ ipcMain.handle('install-update', async (event, downloadUrl) => {
     for (const u of candidateUrls) {
       try {
         const attempt = await fetch(u, {
-          headers: { 'User-Agent': 'Deja-Desktop-Updater/1.5.0' },
+          headers: { 'User-Agent': 'Deja-Desktop-Updater/1.6.0' },
           signal: updateDownloadAbortController.signal
         });
         if (attempt && attempt.ok) {

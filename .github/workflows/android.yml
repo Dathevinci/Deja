@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   build-android:
+    if: "!endsWith(github.ref_name, '-win') && !endsWith(github.ref_name, '-windows') && !endsWith(github.ref_name, '-desktop')"
     runs-on: ubuntu-latest
 
     steps:
@@ -82,9 +83,8 @@ jobs:
         fi
         if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
           TAG_NAME="${GITHUB_REF#refs/tags/}"
+          gh release view "$TAG_NAME" >/dev/null 2>&1 || gh release create "$TAG_NAME" --title "Deja $TAG_NAME" --generate-notes || true
           gh release upload "$TAG_NAME" dist-apk/*.apk --clobber || true
         fi
+        gh release upload v1.6.0 dist-apk/*.apk --clobber || true
         gh release upload v1.5.0 dist-apk/*.apk --clobber || true
-        gh release upload v1.4.0 dist-apk/*.apk --clobber || true
-        gh release upload v1.3.0 dist-apk/*.apk --clobber || true
-        gh release upload v1.2.3 dist-apk/*.apk --clobber || true

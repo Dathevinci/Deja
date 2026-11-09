@@ -1900,8 +1900,8 @@ function runBitChordArchitectureTests() {
   assert.ok(nshCode.includes('!macro customWelcomePage'), 'installer.nsh must define customWelcomePage macro');
   assert.ok(nshCode.includes('BrandingText "DEJA v${VERSION} // 2-BIT UI"'), 'installer.nsh must set 2-Bit versioned BrandingText');
 
-  // 20. Authentic Deja Desktop UI, Branding & Feature Parity Verification (v1.5.0)
-  assert.strictEqual(pkgJson.version, '1.5.0', 'package.json version must be 1.5.0');
+  // 20. Authentic Deja Desktop UI, Branding & Feature Parity Verification (v1.6.0)
+  assert.strictEqual(pkgJson.version, '1.6.0', 'package.json version must be 1.6.0');
   assert.ok(fs.existsSync(path.join(__dirname, '../assets/Logo.svg')), 'Official Deja Logo.svg must exist in assets/');
   assert.ok(fs.existsSync(path.join(__dirname, '../assets/LogoTransparent.svg')), 'Official Deja LogoTransparent.svg must exist in assets/');
   const logoSvgContent = fs.readFileSync(path.join(__dirname, '../assets/Logo.svg'), 'utf8');
@@ -2117,10 +2117,29 @@ function runBitChordArchitectureTests() {
     assert.ok(docsHtml.includes(`Deja.${pkgJson.version}.exe`), 'docs/index.html must link to latest Windows portable executable');
     assert.ok(docsHtml.includes('releases/latest/download/Deja.apk'), 'docs/index.html must link to Universal Android APK');
     assert.ok(docsHtml.includes('releases/latest/download/Deja-arm64-v8a.apk'), 'docs/index.html must link to ARM64 Android APK');
-    assert.ok(docsScriptCode.includes('findAssetAcrossReleases') && docsScriptCode.includes('Deja-arm64-v8a.apk'), 'docs/script.js must resolve release assets across releases with fallback');
+    assert.ok(
+      docsScriptCode.includes('findAssetAcrossReleases') &&
+      docsScriptCode.includes("a.state === 'uploaded'") &&
+      docsScriptCode.includes('!r.prerelease') &&
+      docsScriptCode.includes('Deja-arm64-v8a.apk'),
+      'docs/script.js must resolve uploaded release assets across non-prerelease releases with fallback'
+    );
+    assert.ok(mainCode.includes("a.state === 'uploaded'") && mainCode.includes('^Deja\\.Setup\\.\\d+.*\\.exe$'), 'main.js checkGitHubReleaseUpdate must filter uploaded assets and prioritize versioned Deja.Setup installer');
     assert.ok(readmeCode.includes(`v${pkgJson.version}/Deja.Setup.${pkgJson.version}.exe`) && readmeCode.includes(`v${pkgJson.version}/Deja.apk`) && readmeCode.includes(`v${pkgJson.version}/Deja-arm64-v8a.apk`), 'README.md must link to v1.5.0 Windows and Android release assets');
-    assert.ok(releaseYmlCode.includes('dist/*.apk') && releaseYmlCode.includes('Deja.Portable.exe'), 'release.yml must include Android APKs and portable aliases');
-    assert.ok(androidYmlCode.includes('LATEST_TAG') && androidYmlCode.includes('v1.5.0'), 'android.yml must upload APKs to latest release tag and v1.5.0');
+    assert.ok(releaseYmlCode.includes('dist/*.apk') && releaseYmlCode.includes('Deja.Portable.exe') && releaseYmlCode.includes('--publish never') && releaseYmlCode.includes('$global:LASTEXITCODE = 0'), 'release.yml must include Android APKs, portable aliases, --publish never, and LASTEXITCODE reset');
+    assert.ok(androidYmlCode.includes('LATEST_TAG') && androidYmlCode.includes('v1.6.0') && androidYmlCode.includes('v1.5.0'), 'android.yml must upload APKs to latest release tag, v1.6.0, and v1.5.0');
+
+    // 8. Verify v1.6.0 Android Self-Updater, Discord RPC Frame Protocol, and Windows UI Performance
+    const appUpdateCheckerCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/data/AppUpdateChecker.kt'), 'utf8');
+    const mainActivityKtCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/MainActivity.kt'), 'utf8');
+    assert.ok(!appUpdateCheckerCode.includes('putExtra(Intent.EXTRA_RETURN_RESULT'), 'AppUpdateChecker.kt must NOT set EXTRA_RETURN_RESULT on startActivity package installer intent');
+    assert.ok(appUpdateCheckerCode.includes('withContext(Dispatchers.Main)') && appUpdateCheckerCode.includes('installApk(context, target)'), 'AppUpdateChecker.kt must auto-launch installApk on Main dispatcher as soon as APK download completes');
+    assert.ok(appUpdateCheckerCode.includes('fun resumePendingInstall(context: Context)') && mainActivityKtCode.includes('AppUpdateChecker.resumePendingInstall(this)'), 'MainActivity.onResume must resume pending APK installation after returning from Unknown Sources settings');
+    assert.ok(discordCode.includes('this._send(4, payloadStr') && discordCode.includes("msg.evt === 'READY'"), 'discord.js must parse IPC frames, respond to PING with PONG (op=4), and wait for DISPATCH READY');
+    assert.ok(discordCode.includes('MIN_SEND_INTERVAL_MS') && discordCode.includes('Listen on YouTube Music'), 'discord.js must coalesce rapid updates and include Rich Presence buttons');
+    assert.ok(previewCode.includes('function ensureYouTubeIframeApiLoaded()'), 'preview.js must lazy-load YouTube IFrame API only when needed');
+    assert.ok(mainCode.includes('function isAndroidOnlyRelease(') && mainCode.includes('function extractWindowsReleaseVersion('), 'main.js must distinguish Android-only releases from Windows updates');
+    assert.ok(appUpdateCheckerCode.includes('fun isWindowsOnlyRelease(') && appUpdateCheckerCode.includes('fun extractAndroidReleaseVersion('), 'AppUpdateChecker.kt must distinguish Windows-only releases from Android updates');
   } finally {
     global.document = bcPrevDoc;
   }

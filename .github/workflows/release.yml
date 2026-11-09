@@ -21,6 +21,7 @@ permissions:
 jobs:
   release:
     name: Build & Release Windows Executables
+    if: "!endsWith(github.ref_name, '-android') && !endsWith(github.ref_name, '-apk') && !endsWith(github.ref_name, '-mobile')"
     runs-on: windows-latest
 
     steps:
@@ -39,9 +40,7 @@ jobs:
         run: npm test
 
       - name: Build Windows Executables (NSIS & Portable)
-        run: npm run dist
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish never
 
       - name: Prepare Standard Release Asset Filenames
         shell: pwsh
@@ -76,13 +75,14 @@ jobs:
             if ($dotted -ne $_.Name) { Remove-Item $_.FullName -Force }
             Write-Host "Created portable aliases: $dotted, $dashed, Deja.exe, Deja.Portable.exe"
           }
-          # Ensure Android APKs are present on every release immediately (carried from latest release if not already in dist/)
-          if (-not (Test-Path "dist/Deja.apk")) {
+          # Ensure Android APKs are present on combined releases (skipped for Windows-only tags like vX.Y.Z-windows)
+          if (-not ($env:GITHUB_REF_NAME -match "-(win|windows|desktop)$") -and -not (Test-Path "dist/Deja.apk")) {
             gh release download --pattern "*.apk" --dir dist --clobber 2>$null
             if (-not (Test-Path "dist/Deja.apk")) {
-              gh release download v1.5.0 --pattern "*.apk" --dir dist --clobber 2>$null
+              gh release download v1.6.0 --pattern "*.apk" --dir dist --clobber 2>$null
             }
           }
+          $global:LASTEXITCODE = 0
           Get-ChildItem dist | Select-Object Name, Length
 
       - name: Publish to GitHub Releases

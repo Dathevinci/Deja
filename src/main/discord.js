@@ -5,11 +5,14 @@ const path = require('path');
 // Standard registered Discord application client ID for Deja (Legacy ID: 463097721130188830)
 const CLIENT_ID = '1411019391843172514';
 const DEJA_LOGO_URL = 'https://raw.githubusercontent.com/Dathevinci/Deja/main/Logo.png';
+const DEJA_PROJECT_URL = 'https://github.com/Dathevinci/Deja';
+const MIN_SEND_INTERVAL_MS = 1500;
 
 class DiscordPresence {
   constructor() {
     this.client = null;
     this.connected = false;
+    this.ready = false;
     this.enabled = true;
     this.reconnectTimer = null;
     this.reconnectDelay = 2000;
@@ -21,9 +24,18 @@ class DiscordPresence {
     this.activityName = 'Deja';
     this.presenceStatus = 'online';
     this.audioQualityLabel = '160kbps Opus';
+    this.hasEverPlayed = false;
+    this._recvBuffer = Buffer.alloc(0);
+    this._lastSendAt = 0;
+    this._lastSentSignature = '';
+    this._flushTimer = null;
+    this._readyFallbackTimer = null;
   }
 
-  init(enabled = true) {
+  init(enabled = true, initialSettings = null) {
+    if (initialSettings && typeof initialSettings === 'object') {
+      this.updateSettings(initialSettings);
+    }
     this.enabled = enabled;
     if (this.enabled) {
       this.connect();
@@ -66,6 +78,7 @@ class DiscordPresence {
       this.audioQualityLabel = opts.audioQualityLabel.trim();
     }
     if (this.enabled && this.pendingActivity) {
+      this._lastSentSignature = '';
       this.updateActivity(this.pendingActivity);
     }
   }
@@ -102,6 +115,7 @@ class DiscordPresence {
     if (pipeIndex > 9) {
       // Completed sweep of all discord pipes 0..9 without a successful connection
       this.connected = false;
+      this.ready = false;
       this._scheduleReconnect();
       return;
     }
@@ -141,6 +155,9 @@ class DiscordPresence {
         handled = true;
         this.client = socket;
         this.connected = true;
+        this.ready = false;
+        this._recvBuffer = Buffer.alloc(0);
+        this._lastSentSignature = '';
         this._setupSocket(socket);
         this._handshake();
         done(true);
@@ -170,13 +187,59 @@ class DiscordPresence {
       this._handleDisconnect();
     });
 
-    socket.on('data', () => {
-      // Handle incoming IPC messages if needed
+    socket.on('data', (chunk) => {
+      if (!Buffer.isBuffer(chunk)) return;
+      this._recvBuffer = Buffer.concat([this._recvBuffer, chunk]);
+      while (this._recvBuffer.length >= 8) {
+        const op = this._recvBuffer.readInt32LE(0);
+        const len = this._recvBuffer.readInt32LE(4);
+        if (len < 0 || len > 1024 * 1024) {
+          this._recvBuffer = Buffer.alloc(0);
+          break;
+        }
+        if (this._recvBuffer.length < 8 + len) break;
+        const payloadStr = this._recvBuffer.slice(8, 8 + len).toString('utf8');
+        this._recvBuffer = this._recvBuffer.slice(8 + len);
+
+        if (op === 3) {
+          // Discord IPC PING -> Respond with PONG (op=4)
+          this._send(4, payloadStr || '{}');
+        } else if (op === 2) {
+          // Discord IPC CLOSE
+          this._handleDisconnect();
+          return;
+        } else if (op === 1) {
+          try {
+            const msg = JSON.parse(payloadStr);
+            if (msg && msg.cmd === 'DISPATCH' && msg.evt === 'READY') {
+              this.ready = true;
+              if (this._readyFallbackTimer) {
+                clearTimeout(this._readyFallbackTimer);
+                this._readyFallbackTimer = null;
+              }
+              if (this.pendingActivity) {
+                this._lastSentSignature = '';
+                this.updateActivity(this.pendingActivity);
+              }
+            }
+          } catch {}
+        }
+      }
     });
   }
 
   _handleDisconnect() {
     this.connected = false;
+    this.ready = false;
+    this._recvBuffer = Buffer.alloc(0);
+    if (this._readyFallbackTimer) {
+      clearTimeout(this._readyFallbackTimer);
+      this._readyFallbackTimer = null;
+    }
+    if (this._flushTimer) {
+      clearTimeout(this._flushTimer);
+      this._flushTimer = null;
+    }
     if (this.client) {
       try { this.client.destroy(); } catch {}
       this.client = null;
@@ -188,9 +251,18 @@ class DiscordPresence {
     const payload = JSON.stringify({ v: 1, client_id: CLIENT_ID });
     this._send(0, payload);
 
-    if (this.pendingActivity) {
-      this.updateActivity(this.pendingActivity);
-    }
+    // Fallback in case a mock or older IPC bridge doesn't emit a DISPATCH READY frame
+    if (this._readyFallbackTimer) clearTimeout(this._readyFallbackTimer);
+    this._readyFallbackTimer = setTimeout(() => {
+      this._readyFallbackTimer = null;
+      if (this.connected && !this.ready) {
+        this.ready = true;
+        if (this.pendingActivity) {
+          this._lastSentSignature = '';
+          this.updateActivity(this.pendingActivity);
+        }
+      }
+    }, 350);
   }
 
   _send(op, data) {
@@ -226,6 +298,60 @@ class DiscordPresence {
     }, delay);
   }
 
+  _computeActivitySignature(activity) {
+    if (!activity) return 'null';
+    const endBucket = activity.timestamps && activity.timestamps.end
+      ? Math.round(activity.timestamps.end / 2)
+      : 0;
+    return JSON.stringify({
+      name: activity.name,
+      type: activity.type,
+      status_display_type: activity.status_display_type,
+      details: activity.details,
+      state: activity.state,
+      large_image: activity.assets ? activity.assets.large_image : '',
+      large_text: activity.assets ? activity.assets.large_text : '',
+      small_text: activity.assets ? activity.assets.small_text : '',
+      endBucket
+    });
+  }
+
+  _dispatchActivity(activity) {
+    if (!this.connected || !this.client) return;
+    if (!this.ready) return;
+
+    const sig = this._computeActivitySignature(activity);
+    if (sig === this._lastSentSignature) return;
+
+    const now = Date.now();
+    const elapsed = now - this._lastSendAt;
+    if (elapsed >= MIN_SEND_INTERVAL_MS) {
+      if (this._flushTimer) {
+        clearTimeout(this._flushTimer);
+        this._flushTimer = null;
+      }
+      this._lastSendAt = now;
+      this._lastSentSignature = sig;
+      const payload = JSON.stringify({
+        cmd: 'SET_ACTIVITY',
+        args: {
+          pid: process.pid,
+          activity: activity
+        },
+        nonce: Math.random().toString(36).substring(2)
+      });
+      this._send(1, payload);
+    } else if (!this._flushTimer) {
+      const waitMs = Math.max(100, MIN_SEND_INTERVAL_MS - elapsed);
+      this._flushTimer = setTimeout(() => {
+        this._flushTimer = null;
+        if (this.enabled && this.connected && this.currentActivity) {
+          this._dispatchActivity(this.currentActivity);
+        }
+      }, waitMs);
+    }
+  }
+
   /**
    * Update Discord Rich Presence activity
    */
@@ -236,6 +362,10 @@ class DiscordPresence {
 
     const isAd = !!data.isAd;
     const isPlaying = data.isPlaying !== false;
+    if (isPlaying) {
+      this.hasEverPlayed = true;
+    }
+
     const isIdleDefault = !isAd && data.title === 'Deja' && (!data.artist || data.artist === 'YouTube Music');
     const title = isAd
       ? 'Advertisement (Google)'
@@ -249,8 +379,15 @@ class DiscordPresence {
       : '';
     const album = isAd ? 'YouTube Music Ads' : `${rawAlbum}${qualitySuffix}`;
 
-    const coverUrl = data.artworkUrl || data.coverUrl || data.cover;
-    const hasValidCoverUrl = typeof coverUrl === 'string' && (coverUrl.startsWith('https://') || coverUrl.startsWith('http://'));
+    const rawCoverUrl = data.artworkUrl || data.coverUrl || data.cover;
+    const videoId = typeof data.videoId === 'string' && /^[a-zA-Z0-9_-]{8,15}$/.test(data.videoId.trim())
+      ? data.videoId.trim()
+      : '';
+    const fallbackYtCover = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : DEJA_LOGO_URL;
+    const hasValidCoverUrl = typeof rawCoverUrl === 'string' &&
+      (rawCoverUrl.startsWith('https://') || rawCoverUrl.startsWith('http://')) &&
+      rawCoverUrl.length <= 256;
+    const resolvedCoverUrl = hasValidCoverUrl ? rawCoverUrl : fallbackYtCover;
 
     const remainingSec = data.remainingTime != null
       ? data.remainingTime
@@ -263,12 +400,27 @@ class DiscordPresence {
       details: title.length > 128 ? title.slice(0, 125) + '...' : title,
       state: (isAd || isIdleDefault) ? artist : `by ${artist}`.slice(0, 128),
       assets: {
-        large_image: isAd ? DEJA_LOGO_URL : (hasValidCoverUrl ? coverUrl : DEJA_LOGO_URL),
+        large_image: isAd ? DEJA_LOGO_URL : resolvedCoverUrl,
         large_text: album.slice(0, 128),
         small_image: DEJA_LOGO_URL,
         small_text: isAd ? 'Ad Playing' : (isPlaying ? `Listening on ${this.activityName || 'Deja'}${qualitySuffix}` : `Paused on ${this.activityName || 'Deja'}`).slice(0, 128)
       }
     };
+
+    if (!isAd && !isIdleDefault) {
+      if (videoId) {
+        const watchUrl = `https://music.youtube.com/watch?v=${videoId}`;
+        activity.details_url = watchUrl;
+        activity.buttons = [
+          { label: 'Listen on YouTube Music', url: watchUrl },
+          { label: 'Visit Deja', url: DEJA_PROJECT_URL }
+        ];
+      } else {
+        activity.buttons = [
+          { label: 'Visit Deja', url: DEJA_PROJECT_URL }
+        ];
+      }
+    }
 
     if (isPlaying && data.duration && !isAd) {
       activity.timestamps = {
@@ -279,16 +431,12 @@ class DiscordPresence {
 
     this.currentActivity = activity;
 
-    const payload = JSON.stringify({
-      cmd: 'SET_ACTIVITY',
-      args: {
-        pid: process.pid,
-        activity: activity
-      },
-      nonce: Math.random().toString(36).substring(2)
-    });
+    // Do not broadcast a fake paused song on cold start before the user has played anything
+    if (!isPlaying && !this.hasEverPlayed && !isIdleDefault) {
+      return;
+    }
 
-    this._send(1, payload);
+    this._dispatchActivity(activity);
   }
 
   updateTrack(track) {
@@ -298,6 +446,11 @@ class DiscordPresence {
   clear() {
     this.pendingActivity = null;
     this.currentActivity = null;
+    this._lastSentSignature = '';
+    if (this._flushTimer) {
+      clearTimeout(this._flushTimer);
+      this._flushTimer = null;
+    }
     if (!this.connected) return;
     const payload = JSON.stringify({
       cmd: 'SET_ACTIVITY',
@@ -315,6 +468,14 @@ class DiscordPresence {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    if (this._readyFallbackTimer) {
+      clearTimeout(this._readyFallbackTimer);
+      this._readyFallbackTimer = null;
+    }
+    if (this._flushTimer) {
+      clearTimeout(this._flushTimer);
+      this._flushTimer = null;
+    }
     if (this.client) {
       try {
         this.client.destroy();
@@ -322,8 +483,10 @@ class DiscordPresence {
       this.client = null;
     }
     this.connected = false;
+    this.ready = false;
   }
 }
 
 module.exports = new DiscordPresence();
+
 

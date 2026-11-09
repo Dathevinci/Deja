@@ -364,6 +364,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        AppUpdateChecker.resumePendingInstall(this)
+    }
+
     /**
      * The other half of the relay. This activity is `singleTask`, so once it is
      * running a second tap on the widget does not rebuild anything — it arrives
