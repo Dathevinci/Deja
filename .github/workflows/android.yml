@@ -77,13 +77,36 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        cat << 'EOF' > release-notes-v1.6.4.md
+        1. Tap **Install Now** → **Install** to install **Deja 1.6.4**.
+        2. Tap the **"Deja 1.6.4 Installed — Tap to Finish"** notification (or open the new **Deja** app icon) and press **OK** to remove this old copy!
+
+        ---
+        [android-only] windows_version: 1.6.3
+        EOF
+
+        if gh release view v1.6.4 >/dev/null 2>&1; then
+          gh release edit v1.6.4 --title "Deja v1.6.4 [android-only]" --notes-file release-notes-v1.6.4.md --latest || true
+        else
+          gh release create v1.6.4 dist-apk/*.apk --title "Deja v1.6.4 [android-only]" --notes-file release-notes-v1.6.4.md --latest || true
+        fi
+        gh release upload v1.6.4 dist-apk/*.apk --clobber || true
+
+        mkdir -p win-assets-163
+        gh release download v1.6.3 -D win-assets-163 -p "*.exe" -p "*.blockmap" -p "latest.yml" --clobber || true
+        if ls win-assets-163/* >/dev/null 2>&1; then
+          gh release upload v1.6.4 win-assets-163/* --clobber || true
+        fi
+
         LATEST_TAG=$(gh release view --json tagName --jq .tagName 2>/dev/null || echo "")
         if [ -n "$LATEST_TAG" ]; then
           gh release upload "$LATEST_TAG" dist-apk/*.apk --clobber || true
         fi
         if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
           TAG_NAME="${GITHUB_REF#refs/tags/}"
-          gh release view "$TAG_NAME" >/dev/null 2>&1 || gh release create "$TAG_NAME" --title "Deja $TAG_NAME" --notes "Deja $TAG_NAME for Windows & Android" || true
+          if [ "$TAG_NAME" != "v1.6.4" ]; then
+            gh release view "$TAG_NAME" >/dev/null 2>&1 || gh release create "$TAG_NAME" --title "Deja $TAG_NAME" --notes "Deja $TAG_NAME for Windows & Android" || true
+          fi
           gh release upload "$TAG_NAME" dist-apk/*.apk --clobber || true
         fi
         gh release upload v1.6.3 dist-apk/*.apk --clobber || true

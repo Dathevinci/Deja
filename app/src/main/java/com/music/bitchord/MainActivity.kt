@@ -226,6 +226,7 @@ import com.music.bitchord.ui.components.AppLanguageDialog
 import com.music.bitchord.ui.components.TranslationLanguageDialog
 import com.music.bitchord.ui.components.LyricsSourcesDialog
 import com.music.bitchord.ui.components.ServerEditorHost
+import com.music.bitchord.ui.components.LegacyCleanupDialog
 import com.music.bitchord.ui.components.UpdateAvailableDialog
 import com.music.bitchord.ui.components.WebDavConflictAlert
 import com.music.bitchord.ui.components.FieldConfig
@@ -258,6 +259,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.util.Locale
@@ -273,6 +275,23 @@ internal fun shouldSkipAfterDislike(
 
 
 class MainActivity : AppCompatActivity() {
+    private val legacyPackageFlow = MutableStateFlow<String?>(null)
+
+    /**
+     * Checks for legacy packages (`com.music.deja` / `com.music.bitchord`) and
+     * launches `Intent.ACTION_DELETE` via [LegacyAppMigration.requestUninstall]
+     * when migrating from an older build.
+     */
+    private fun refreshLegacyPackageState(triggerUninstallPrompt: Boolean) {
+        val legacyPkg = LegacyAppMigration.findInstalledLegacyPackages(this).firstOrNull()
+        legacyPackageFlow.value = legacyPkg
+        if (legacyPkg == null) {
+            LegacyAppMigration.cancelMigrationNotification(this)
+        } else if (triggerUninstallPrompt) {
+            LegacyAppMigration.requestUninstall(this, legacyPkg)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -282,24 +301,10 @@ class MainActivity : AppCompatActivity() {
         JamInviteLink.consume(intent)
         // Likewise for a link tapped or shared from another app — see [MusicLink].
         MusicLink.consume(intent)
-        if (savedInstanceState == null) {
-            for (legacyPkg in listOf("com.music.deja", "com.music.bitchord")) {
-                if (packageName != legacyPkg) {
-                    val isLegacyInstalled = runCatching {
-                        packageManager.getPackageInfo(legacyPkg, 0) != null
-                    }.getOrDefault(false)
-                    if (isLegacyInstalled) {
-                        runCatching {
-                            startActivity(
-                                Intent(Intent.ACTION_DELETE, Uri.parse("package:$legacyPkg"))
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
-                        }
-                        break
-                    }
-                }
-            }
-        }
+        refreshLegacyPackageState(
+            triggerUninstallPrompt = savedInstanceState == null ||
+                intent?.getBooleanExtra(LegacyAppMigration.EXTRA_FROM_MIGRATION, false) == true,
+        )
         setContent {
             val theme by AppSettings.themeMode.collectAsStateWithLifecycle()
             val highPerformance by AppSettings.highPerformanceMode.collectAsStateWithLifecycle()
@@ -349,12 +354,14 @@ class MainActivity : AppCompatActivity() {
                 // longer exists and a page squeezed to a sliver to pay for it.
                 // A measured constraint cannot be stale — it is the very width
                 // the split is about to be laid out in.
+                val legacyPackage by legacyPackageFlow.collectAsStateWithLifecycle()
                 BoxWithConstraints(Modifier.fillMaxSize()) {
                     BitChordApp(
                         darkTheme = darkTheme,
                         windowWidth = maxWidth,
                         windowHeight = maxHeight,
                         appBackdrop = appBackdrop,
+                        legacyPackage = legacyPackage,
                     )
                 }
                 }
@@ -384,6 +391,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        refreshLegacyPackageState(triggerUninstallPrompt = false)
         AppUpdateChecker.resumePendingInstall(this)
     }
 
@@ -400,6 +408,9 @@ class MainActivity : AppCompatActivity() {
         PlayerDeepLink.consume(intent)
         JamInviteLink.consume(intent)
         MusicLink.consume(intent)
+        refreshLegacyPackageState(
+            triggerUninstallPrompt = intent.getBooleanExtra(LegacyAppMigration.EXTRA_FROM_MIGRATION, false),
+        )
     }
 }
 
@@ -419,6 +430,7 @@ private fun BitChordApp(
      */
     windowHeight: Dp,
     appBackdrop: LayerBackdrop,
+    legacyPackage: String? = null,
     viewModel: MainViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -4041,6 +4053,19 @@ private fun BitChordApp(
                     },
                 )
             }
+        }
+
+        var legacyDialogDismissed by remember(legacyPackage) { mutableStateOf(false) }
+        if (legacyPackage != null && !legacyDialogDismissed && !showUpdateDialog) {
+            LegacyCleanupDialog(
+                hazeState = hazeState,
+                onRemoveLegacy = {
+                    LegacyAppMigration.requestUninstall(context, legacyPackage)
+                },
+                onDismiss = {
+                    legacyDialogDismissed = true
+                },
+            )
         }
 
         if (showLyricsSources) {

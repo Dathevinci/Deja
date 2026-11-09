@@ -21,7 +21,7 @@ permissions:
 jobs:
   release:
     name: Build & Release Windows Executables
-    if: "!endsWith(github.ref_name, '-android') && !endsWith(github.ref_name, '-apk') && !endsWith(github.ref_name, '-mobile')"
+    if: "!endsWith(github.ref_name, '-android') && !endsWith(github.ref_name, '-apk') && !endsWith(github.ref_name, '-mobile') && github.ref_name != 'v1.6.4'"
     runs-on: windows-latest
 
     steps:

@@ -264,6 +264,91 @@ fun UpdateAvailableDialog(
     }
 }
 
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun LegacyCleanupDialog(
+    hazeState: HazeState,
+    onRemoveLegacy: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val shape = RoundedCornerShape(ALERT_CORNER)
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(SCRIM_COLOR)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = onDismiss,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .width(ALERT_WIDTH)
+                .clip(shape)
+                .then(
+                    if (reduceDynamicBlur) {
+                        Modifier.background(MaterialTheme.colorScheme.surface)
+                    } else {
+                        Modifier.optimizedHazeEffect(
+                            state = hazeState,
+                            style = HazeMaterials.regular(MaterialTheme.colorScheme.surface),
+                        )
+                    },
+                )
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = {},
+                ),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 19.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = "Finish Deja Update",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.W600,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = "Deja is now updated! Please tap \"Remove Old Copy\" below and press OK to uninstall the older duplicate Deja icon so it stops showing the old \"bitchord\" update popup.",
+                    modifier = Modifier.padding(top = 6.dp),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            AlertRule()
+            AlertAction(
+                label = "Remove Old Copy",
+                emphasised = true,
+                destructive = true,
+                onClick = onRemoveLegacy,
+            )
+            AlertRule()
+            AlertAction(
+                label = stringResource(R.string.later),
+                emphasised = false,
+                onClick = onDismiss,
+            )
+        }
+    }
+}
+
 /**
  * Full-bleed action row. Tinted rather than filled, so the two read as equals
  * in weight and only the font differentiates the default action — the alert's
