@@ -1241,16 +1241,17 @@ body.deja-playing .artwork-wrapper {
   font-weight: 600;
   line-height: 1.45;
   color: rgba(255, 255, 255, 0.35);
+  background: transparent;
   cursor: pointer;
-  transition: color 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: color 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   filter: blur(0.4px);
   padding: 8px 12px;
   border-radius: 12px;
 }
 
 .apple-lyric-line:hover {
-  color: rgba(255, 255, 255, 0.75);
-  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.78);
+  background: transparent;
 }
 
 .apple-lyric-line.active {
@@ -1265,22 +1266,22 @@ body.deja-playing .artwork-wrapper {
 
 /* Word-by-word sweep (BitChord PlayerLyrics.kt WordSyncedLine) */
 .apple-lyric-line.has-word-sync.active {
-  text-shadow: none;
+  text-shadow: none !important;
 }
 
 .lyric-word-span {
   display: inline-block;
-  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), color 0.14s ease, filter 0.14s ease;
-  will-change: transform;
+  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), color 0.14s ease;
 }
 
 .apple-lyric-line.active .lyric-word-span {
   color: rgba(255, 255, 255, 0.34);
+  text-shadow: none !important;
 }
 
 .apple-lyric-line.active .lyric-word-span.word-sung {
   color: rgba(255, 255, 255, 0.96);
-  text-shadow: 0 2px 14px rgba(255, 255, 255, 0.28);
+  text-shadow: 0 2px 14px rgba(255, 255, 255, 0.28) !important;
 }
 
 .apple-lyric-line.active .lyric-word-span.word-active {
@@ -1295,8 +1296,8 @@ body.deja-playing .artwork-wrapper {
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  transform: translateY(-1.5px);
-  filter: drop-shadow(0 2px 12px rgba(255, 255, 255, 0.32));
+  text-shadow: none !important;
+  transform: translateY(-1px);
 }
 
 /* Modal Backdrop & Dialog */
@@ -1853,17 +1854,21 @@ body.deja-playing .now-playing-art-wrap,
 }
 
 .thin-apple-slider {
+  flex: 0 0 5px;
   width: 100%;
-  height: 4px;
+  height: 5px;
+  min-height: 5px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.22);
   position: relative;
   cursor: pointer;
   transition: height 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .thin-apple-slider:hover {
+  flex: 0 0 7px;
   height: 7px;
+  min-height: 7px;
 }
 
 .thin-apple-slider .scrubber-fill {
@@ -2066,13 +2071,16 @@ body.deja-playing .now-playing-art-wrap,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: 9999px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #FFFFFF;
   font-size: 11px;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
@@ -2747,19 +2755,21 @@ body:has(.deja-expanded-player-view.visible) .deja-queue-drawer {
   --apple-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Momentum smooth scrolling on all scrollable views */
-html,
-body,
-.main-content,
-.sidebar-scrollable,
+/* Momentum smooth scrolling on lyrics & horizontal shelves; immediate native scroll on main views */
 .lyrics-lines-container,
 .expanded-lyrics-container,
+.category-hero {
+  scroll-behavior: smooth !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.main-content,
+.sidebar-scrollable,
 .deja-queue-body,
 .modal-body,
 .songs-table-container,
-.category-hero,
 .card-grid {
-  scroll-behavior: smooth !important;
+  scroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -2770,8 +2780,7 @@ body,
 .create-playlist-card,
 .deja-pipeline-card,
 .songs-table-row,
-.queue-item,
-.apple-lyric-line {
+.queue-item {
   contain: layout paint;
 }
 
@@ -4554,9 +4563,18 @@ body.deja-playing .now-playing-art-wrap,
 
 /* Crisp Scrubber Track in Fullscreen Now Playing */
 #exp-scrubber-track {
+  flex: 0 0 5px !important;
+  width: 100% !important;
   height: 5px !important;
-  background: rgba(255, 255, 255, 0.22) !important;
+  min-height: 5px !important;
+  background: rgba(255, 255, 255, 0.24) !important;
   border-radius: 999px !important;
+}
+
+#exp-scrubber-track:hover {
+  flex: 0 0 7px !important;
+  height: 7px !important;
+  min-height: 7px !important;
 }
 
 #exp-scrubber-fill {
@@ -5764,7 +5782,8 @@ body.synced-lyrics-off #exp-btn-lyrics {
 body.bitchord-desktop-shell .app-container {
   display: flex;
   flex-direction: row;
-  height: calc(100vh - 56px);
+  margin-top: 56px !important;
+  height: calc(100vh - 56px) !important;
   width: 100vw;
   overflow: hidden;
 }
@@ -5776,7 +5795,7 @@ body.bitchord-desktop-shell .app-container {
     width: 242px;
     flex-shrink: 0;
     height: 100%;
-    padding: 14px 12px 104px 12px;
+    padding: 14px 12px 14px 12px;
     background: linear-gradient(180deg, rgba(14, 14, 18, 0.78) 0%, rgba(10, 10, 14, 0.88) 100%);
     backdrop-filter: blur(36px) saturate(190%);
     -webkit-backdrop-filter: blur(36px) saturate(190%);
@@ -5791,15 +5810,16 @@ body.bitchord-desktop-shell .app-container {
 
   body.bitchord-desktop-shell .apple-sidebar .sidebar-logo {
     padding: 4px 10px 14px 10px;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     border-bottom: 0.5px solid rgba(255, 255, 255, 0.07);
   }
 
   body.bitchord-desktop-shell .apple-sidebar .brand-icon {
-    width: 26px;
-    height: 26px;
-    border-radius: 7px;
-    object-fit: contain;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    object-fit: cover;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   }
 
   body.bitchord-desktop-shell .apple-sidebar .sidebar-link {
@@ -5827,13 +5847,19 @@ body.bitchord-desktop-shell .app-container {
     width: auto;
     height: 100%;
     max-width: 100%;
-    padding: 22px clamp(24px, 3.2vw, 44px) 116px clamp(24px, 3.2vw, 44px) !important;
+    padding: 20px clamp(24px, 3.2vw, 44px) 116px clamp(24px, 3.2vw, 44px) !important;
     overflow-y: auto;
     overflow-x: hidden;
   }
 
   body.bitchord-desktop-shell .bc-floating-nav-bar,
-  body.bitchord-desktop-shell .bc-bottom-fade-scrim {
+  body.bitchord-desktop-shell .bc-bottom-fade-scrim,
+  body.bitchord-desktop-shell #bc-top-logo-mark,
+  body.bitchord-desktop-shell #bc-top-back-btn,
+  body.bitchord-desktop-shell #bc-top-history-btn,
+  body.bitchord-desktop-shell #bc-top-downloads-btn,
+  body.bitchord-desktop-shell #bc-top-settings-btn,
+  body.bitchord-desktop-shell .sidebar-account-footer {
     display: none !important;
   }
 }
@@ -5879,18 +5905,18 @@ body.apple-light .bc-frosted-topbar {
 .bc-topbar-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-/* FloatingAppMark (40px circular glass button with BitChord 3-wave logo) */
+/* FloatingAppMark & Circular Glass Buttons */
 .bc-floating-app-mark,
 .bc-circle-glass-btn {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 0.5px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  background: rgba(255, 255, 255, 0.07);
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5910,9 +5936,9 @@ body.apple-light .bc-circle-glass-btn {
 
 .bc-floating-app-mark:hover,
 .bc-circle-glass-btn:hover {
-  transform: scale(1.06);
+  transform: scale(1.05);
   background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.26);
+  border-color: rgba(255, 255, 255, 0.24);
 }
 
 .bc-circle-glass-btn.active {
@@ -5922,14 +5948,11 @@ body.apple-light .bc-circle-glass-btn {
 }
 
 .bc-top-wave-svg {
-  width: 22px;
-  height: 22px;
-  object-fit: contain;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  object-fit: cover;
   display: block;
-}
-
-body.apple-light .bc-top-wave-svg {
-  filter: invert(1);
 }
 
 .bc-topbar-center {
@@ -5942,7 +5965,7 @@ body.apple-light .bc-top-wave-svg {
 }
 
 .bc-top-collapsed-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.3px;
   color: var(--text-main);
@@ -5999,11 +6022,11 @@ body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer {
   height: 58px !important;
   border-radius: 999px !important;
   padding: 0 14px 0 9px !important;
-  background: rgba(24, 24, 28, 0.86) !important;
+  background: rgba(20, 20, 24, 0.88) !important;
   backdrop-filter: blur(36px) saturate(200%) !important;
   -webkit-backdrop-filter: blur(36px) saturate(200%) !important;
-  border: 0.5px solid rgba(255, 255, 255, 0.16) !important;
-  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.52), inset 0 0.5px 0 rgba(255, 255, 255, 0.18) !important;
+  border: 0.5px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.52), inset 0 0.5px 0 rgba(255, 255, 255, 0.16) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
@@ -6013,22 +6036,22 @@ body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer {
 }
 
 body.apple-light.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer {
-  background: rgba(255, 255, 255, 0.88) !important;
-  border: 0.5px solid rgba(0, 0, 0, 0.12) !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14), inset 0 0.5px 0 rgba(255, 255, 255, 0.8) !important;
+  background: rgba(255, 255, 255, 0.90) !important;
+  border: 0.5px solid rgba(0, 0, 0, 0.10) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), inset 0 0.5px 0 rgba(255, 255, 255, 0.8) !important;
 }
 
-/* Windows Desktop Widescreen Full-Featured BitChord Player Dock (min-width: 821px) */
+/* Windows Desktop Widescreen Full-Featured Player Dock (min-width: 821px) */
 @media (min-width: 821px) {
   body.bitchord-desktop-shell #apple-player-bar.bc-floating-miniplayer {
-    left: 14px !important;
-    right: 14px !important;
-    bottom: 10px !important;
+    left: 256px !important;
+    right: 16px !important;
+    bottom: 12px !important;
     transform: none !important;
-    width: calc(100vw - 28px) !important;
-    max-width: 1720px !important;
+    width: calc(100vw - 272px) !important;
+    max-width: 1680px !important;
     margin: 0 auto !important;
-    height: 76px !important;
+    height: 74px !important;
     border-radius: 18px !important;
     padding: 0 20px 0 14px !important;
     gap: 18px !important;
@@ -6293,24 +6316,36 @@ body.apple-light .bc-nav-tab.active {
 }
 
 /* BitChord Display Typography & Screen Headers (Theme.kt) */
-.bc-display-heading {
-  font-size: 34px;
+.bc-display-heading,
+.bc-screen-large-title {
+  font-size: 32px;
   font-weight: 800;
-  letter-spacing: -0.8px;
+  letter-spacing: -0.7px;
   line-height: 1.12;
   color: var(--text-main);
-  margin: 4px 0 18px 0;
+  margin: 4px 0 16px 0;
 }
 
-.bc-section-header {
+.bc-section-strapline {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 3px;
+}
+
+.bc-section-header,
+.bc-section-header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 26px 0 14px 0;
+  margin: 24px 0 12px 0;
 }
 
-.bc-section-title {
-  font-size: 21px;
+.bc-section-title,
+.bc-section-heading {
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.4px;
   color: var(--text-main);
@@ -6332,34 +6367,50 @@ body.apple-light .bc-nav-tab.active {
   gap: 8px;
 }
 
-.bc-icon-pill-btn {
-  height: 32px;
+.bc-icon-pill-btn,
+.bc-recents-toggle-btn {
+  height: 30px;
   padding: 0 12px;
   border-radius: 999px;
   border: 0.5px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.07);
   color: var(--text-main);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  transition: background 0.16s ease, transform 0.15s ease;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.15s ease;
 }
 
-.bc-icon-pill-btn:hover {
+body.apple-light .bc-icon-pill-btn,
+body.apple-light .bc-recents-toggle-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.bc-icon-pill-btn:hover,
+.bc-recents-toggle-btn:hover {
   background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.24);
   transform: translateY(-1px);
 }
 
-/* BitChord HomeScreen Recents 4-Row Horizontal Track Columns (HomeScreen.kt RecentsTrackColumn) */
-.bc-recents-columns-scroll {
+/* BitChord HomeScreen Recents 4-Row Horizontal Track Columns & Grid Toggle (HomeScreen.kt) */
+.bc-recents-columns-scroll,
+.bc-recents-grid-cards {
   display: flex;
-  gap: 18px;
+  gap: 16px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding: 4px 0 10px 0;
   scroll-behavior: smooth;
+}
+
+.bc-recents-columns-scroll::-webkit-scrollbar,
+.bc-recents-grid-cards::-webkit-scrollbar,
+.bc-hero-carousel::-webkit-scrollbar {
+  height: 6px;
 }
 
 .bc-recents-column {
@@ -6386,7 +6437,8 @@ body.apple-light .bc-nav-tab.active {
   transform: translateX(2px);
 }
 
-.bc-recent-track-thumb {
+.bc-recent-track-thumb,
+.bc-recent-track-art {
   width: 48px;
   height: 48px;
   border-radius: 8px;
@@ -6465,7 +6517,8 @@ body.apple-light .bc-nav-tab.active {
   padding: 16px;
 }
 
-.bc-hero-eyebrow {
+.bc-hero-eyebrow,
+.bc-hero-card-kicker {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -6474,7 +6527,8 @@ body.apple-light .bc-nav-tab.active {
   margin-bottom: 3px;
 }
 
-.bc-hero-title {
+.bc-hero-title,
+.bc-hero-card-title {
   font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.3px;
@@ -6487,7 +6541,8 @@ body.apple-light .bc-nav-tab.active {
   overflow: hidden;
 }
 
-.bc-hero-sub {
+.bc-hero-sub,
+.bc-hero-card-sub {
   font-size: 12.5px;
   color: rgba(255, 255, 255, 0.76);
   white-space: nowrap;
@@ -6576,34 +6631,80 @@ body.apple-light .bc-nav-tab.active {
 }
 
 /* BitChord LibraryScreen OnDeviceShelf & ReplayEntryBanner (LibraryScreen.kt) */
+.bc-replay-banner-card {
+  position: relative;
+  border-radius: 18px;
+  padding: 15px 20px;
+  margin-bottom: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(250, 45, 72, 0.26) 0%, rgba(175, 82, 222, 0.22) 52%, rgba(20, 20, 28, 0.85) 100%);
+  border: 0.5px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  transition: transform 0.2s var(--apple-ease), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.bc-replay-banner-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(250, 45, 72, 0.45);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+}
+
+.bc-replay-banner-card .bc-mesh-card-badge {
+  position: static;
+  flex-shrink: 0;
+}
+
 .bc-library-mesh-shelf {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
-  gap: 14px;
-  margin-bottom: 26px;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
 .bc-mesh-feature-card {
   position: relative;
-  height: 122px;
+  height: 112px;
   border-radius: 16px;
-  padding: 15px 16px;
+  padding: 14px 16px;
   overflow: hidden;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border: 0.5px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
-  transition: transform 0.2s var(--apple-ease), box-shadow 0.2s ease;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  transition: transform 0.2s var(--apple-ease), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.bc-mesh-feature-card.mesh-downloads {
+  background: linear-gradient(145deg, rgba(250, 45, 72, 0.22) 0%, rgba(28, 20, 26, 0.85) 100%);
+}
+
+.bc-mesh-feature-card.mesh-local {
+  background: linear-gradient(145deg, rgba(10, 132, 255, 0.22) 0%, rgba(18, 22, 30, 0.85) 100%);
+}
+
+.bc-mesh-feature-card.mesh-webdav {
+  background: linear-gradient(145deg, rgba(48, 209, 88, 0.20) 0%, rgba(18, 26, 22, 0.85) 100%);
+}
+
+.bc-mesh-feature-card.mesh-smb {
+  background: linear-gradient(145deg, rgba(255, 159, 10, 0.20) 0%, rgba(28, 24, 18, 0.85) 100%);
 }
 
 .bc-mesh-feature-card:hover {
   transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.26);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
 }
 
-.bc-mesh-card-eyebrow {
+.bc-mesh-card-eyebrow,
+.bc-mesh-card-kicker {
   font-size: 9.5px;
   font-weight: 800;
   letter-spacing: 0.09em;
@@ -6629,16 +6730,22 @@ body.apple-light .bc-nav-tab.active {
   position: absolute;
   top: 14px;
   right: 14px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.16);
+  width: auto;
+  min-width: 34px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(10px);
-  border: 0.5px solid rgba(255, 255, 255, 0.24);
-  display: flex;
+  border: 0.5px solid rgba(255, 255, 255, 0.22);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 /* BitChord New Playlist Square Card Tile (LibraryScreen.kt NewPlaylistCard) */
@@ -6648,46 +6755,64 @@ body.apple-light .bc-nav-tab.active {
   cursor: pointer;
 }
 
-.bc-new-playlist-box {
+.bc-new-playlist-box,
+.bc-new-playlist-plus {
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
   border: 1px dashed rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #FA2D48;
+  font-size: 40px;
+  font-weight: 300;
+  line-height: 1;
   margin-bottom: 8px;
   transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
 
-.bc-new-playlist-tile:hover .bc-new-playlist-box {
+.bc-new-playlist-tile:hover .bc-new-playlist-box,
+.bc-new-playlist-tile:hover .bc-new-playlist-plus {
   background: rgba(250, 45, 72, 0.1);
   border-color: rgba(250, 45, 72, 0.45);
   transform: translateY(-2px);
 }
 
+.bc-new-playlist-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  padding: 0 2px;
+}
+
 /* BitChord Dedicated SearchScreen (SearchScreen.kt) */
 .bc-search-page-field-wrap {
+  width: 100%;
+  margin-bottom: 18px;
+}
+
+.bc-search-page-pill {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
   height: 46px;
   border-radius: 13px;
   background: rgba(255, 255, 255, 0.08);
   border: 0.5px solid rgba(255, 255, 255, 0.14);
   padding: 0 14px;
-  margin-bottom: 18px;
+  margin: 0;
   transition: border-color 0.18s ease, background 0.18s ease;
 }
 
-body.apple-light .bc-search-page-field-wrap {
+body.apple-light .bc-search-page-pill {
   background: rgba(0, 0, 0, 0.06);
   border-color: rgba(0, 0, 0, 0.12);
 }
 
-.bc-search-page-field-wrap:focus-within {
+.bc-search-page-pill:focus-within {
   border-color: #FA2D48;
   background: rgba(255, 255, 255, 0.11);
 }
@@ -6717,6 +6842,34 @@ body.apple-light .bc-search-page-field-wrap {
   font-size: 12px;
 }
 
+.bc-recent-searches-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.bc-recent-searches-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.bc-recent-searches-clear {
+  border: none;
+  background: transparent;
+  color: #FA2D48;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.bc-recent-searches-clear:hover {
+  background: rgba(250, 45, 72, 0.12);
+}
+
 .bc-recent-searches-list {
   display: flex;
   flex-direction: column;
@@ -6724,10 +6877,12 @@ body.apple-light .bc-search-page-field-wrap {
   margin-bottom: 28px;
 }
 
-.bc-recent-search-item {
+.bc-recent-search-item,
+.bc-recent-search-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding: 10px 12px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.03);
@@ -6735,8 +6890,51 @@ body.apple-light .bc-search-page-field-wrap {
   transition: background 0.15s ease;
 }
 
-.bc-recent-search-item:hover {
+.bc-recent-search-item:hover,
+.bc-recent-search-row:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+.bc-recent-search-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+  text-align: left;
+}
+
+.bc-recent-search-remove {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.bc-recent-search-remove:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.bitchord-top-result-col,
+.bitchord-songs-col,
+.bitchord-search-section {
+  min-width: 0;
+}
+
+.bitchord-search-songs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bitchord-song-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 /* BitChord DetailScreen (DetailScreen.kt: Centered Header + ActionRow) */
@@ -6861,6 +7059,15 @@ body.apple-light .bc-search-page-field-wrap {
   cursor: pointer;
   z-index: 5;
   flex-shrink: 0;
+}
+
+#expanded-player-view.bc-landscape-player .expanded-player-header {
+  max-width: 1160px !important;
+  padding: 12px clamp(20px, 4vw, 48px) 0 clamp(20px, 4vw, 48px) !important;
+}
+
+#expanded-player-view.bc-landscape-player .exp-lyrics-offset-bar {
+  display: none !important;
 }
 
 #expanded-player-view.bc-landscape-player .expanded-player-content.bc-landscape-grid {
@@ -7062,10 +7269,10 @@ body.deja-playing #expanded-player-view.bc-landscape-player .expanded-artwork-co
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 10px;
-  padding: 8px 10px;
+  margin-top: 8px;
+  padding: 8px 12px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.06);
   border: 0.5px solid rgba(255, 255, 255, 0.12);
 }
 
@@ -7125,7 +7332,7 @@ body.deja-playing #expanded-player-view.bc-landscape-player .expanded-artwork-co
 .bc-np-inline-queue-container {
   display: flex;
   flex-direction: column;
-  height: min(430px, 56vh);
+  height: min(460px, 56vh);
   background: rgba(255, 255, 255, 0.05);
   border: 0.5px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
@@ -7161,35 +7368,43 @@ body.deja-playing #expanded-player-view.bc-landscape-player .expanded-artwork-co
   letter-spacing: 0.01em;
 }
 
-/* Windows Desktop Widescreen Now Playing Simultaneous Lyrics/Queue + Docked Controls */
+/* Windows Desktop Widescreen Now Playing Simultaneous Lyrics/Queue + Compact Docked Controls */
 @media (min-width: 821px) {
   #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics #bc-np-main-controls-pane,
   #expanded-player-view.bc-landscape-player.bc-np-mode-queue #bc-np-main-controls-pane {
     display: flex !important;
     flex-direction: column;
-    gap: 8px;
-    margin-top: 12px;
-    padding: 12px 16px;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 10px 16px;
     border-radius: 16px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 0.5px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    border: 0.5px solid rgba(255, 255, 255, 0.10);
   }
 
   #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics #bc-np-main-controls-pane .expanded-lyric-snippet-wrap,
   #expanded-player-view.bc-landscape-player.bc-np-mode-queue #bc-np-main-controls-pane .expanded-lyric-snippet-wrap,
   #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics #bc-np-main-controls-pane .expanded-meta-row,
-  #expanded-player-view.bc-landscape-player.bc-np-mode-queue #bc-np-main-controls-pane .expanded-meta-row {
+  #expanded-player-view.bc-landscape-player.bc-np-mode-queue #bc-np-main-controls-pane .expanded-meta-row,
+  #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics #bc-np-main-controls-pane .expanded-bottom-row,
+  #expanded-player-view.bc-landscape-player.bc-np-mode-queue #bc-np-main-controls-pane .expanded-bottom-row {
     display: none !important;
   }
 
   #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics #expanded-lyrics-container {
-    max-height: 44vh !important;
-    min-height: 220px !important;
+    height: 48vh !important;
+    max-height: 52vh !important;
+    min-height: 280px !important;
+    max-width: 100% !important;
+    gap: 16px !important;
+    padding: 18px 12px !important;
   }
 
   #expanded-player-view.bc-landscape-player.bc-np-mode-queue #bc-np-inline-queue-container {
-    max-height: 46vh !important;
-    min-height: 220px !important;
+    height: 48vh !important;
+    max-height: 52vh !important;
+    min-height: 280px !important;
+    max-width: 100% !important;
   }
 
   #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics .expanded-transport-row,
@@ -7200,7 +7415,43 @@ body.deja-playing #expanded-player-view.bc-landscape-player .expanded-artwork-co
 
   #expanded-player-view.bc-landscape-player.bc-np-mode-lyrics .exp-play-circle-btn,
   #expanded-player-view.bc-landscape-player.bc-np-mode-queue .exp-play-circle-btn {
-    width: 50px !important;
-    height: 50px !important;
+    width: 48px !important;
+    height: 48px !important;
   }
 }
+
+.bc-topbar-account-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.bitchord-home-header {
+  display: flex;
+  flex-direction: column;
+}
+
+.bitchord-signin-banner {
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.bitchord-signin-banner:hover {
+  border-color: rgba(250, 45, 72, 0.45) !important;
+  transform: translateY(-1px);
+}
+
+.bitchord-switch-slider {
+  cursor: pointer;
+}
+
+.bitchord-submodal-backdrop {
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.bc-recent-item-trigger,
+.bc-lib-artist-card {
+  cursor: pointer;
+}
+

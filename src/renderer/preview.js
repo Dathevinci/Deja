@@ -968,7 +968,7 @@ function fallbackToIFrame(track) {
       } else {
         ytPlayer.playVideo();
       }
-      isYtPlaying = true;
+      isYtPlaying = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() === 1 : true;
       isPlaying = true;
       updatePlayButton();
       startLyricClock();
@@ -1382,11 +1382,14 @@ function setupNavigation() {
     };
   }
 
-  // Scroll listener for collapsing FrostedTopBar title
+  // Scroll listener for collapsing FrostedTopBar title (throttled to threshold crossing)
   const mainScroll = document.getElementById('main-content-scroll');
   if (mainScroll && typeof mainScroll.addEventListener === 'function') {
+    let lastScrolledState = null;
     mainScroll.addEventListener('scroll', () => {
       const scrolled = mainScroll.scrollTop > 56;
+      if (scrolled === lastScrolledState) return;
+      lastScrolledState = scrolled;
       const collapsedTitle = document.getElementById('bc-top-collapsed-title');
       if (collapsedTitle && collapsedTitle.classList) {
         collapsedTitle.classList.toggle('visible', scrolled);
@@ -1394,7 +1397,7 @@ function setupNavigation() {
       if (document.body && document.body.classList) {
         document.body.classList.toggle('bc-topbar-scrolled', scrolled);
       }
-    });
+    }, { passive: true });
   }
 }
 
@@ -3197,15 +3200,9 @@ function _renderHomeViewImpl(container) {
   ` : '';
 
   container.innerHTML = `
-    <div class="bitchord-home-header" style="padding: 6px 0 12px 0;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+    <div class="bitchord-home-header" style="padding: 4px 0 12px 0;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
         <h1 class="bc-screen-large-title" style="margin:0;">Listen Now</h1>
-        ${isUserSignedIn ? `
-          <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); cursor: pointer;" onclick="openAccountModal()">
-            <span style="width: 8px; height: 8px; border-radius: 50%; background: #34C759; display: inline-block;"></span>
-            <span>${escapeHTML((liveAccount.channelTitle && liveAccount.channelTitle !== 'Google User') ? liveAccount.channelTitle : ((liveAccount.name && liveAccount.name !== 'Google User') ? liveAccount.name : 'YouTube Music'))}</span>
-          </div>
-        ` : ''}
       </div>
       ${signInBannerHTML}
     </div>
@@ -3530,7 +3527,7 @@ function renderRadioView(container) {
 
   container.innerHTML = `
     <div style="padding: 10px 0 20px 0;">
-      <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 8px;">BitChord Radio</h1>
+      <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 8px;">Deja Radio</h1>
       <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">Continuous live streams and AutoPlay mixes powered by YouTube Music.</p>
 
       <div class="radio-grid">
@@ -6129,7 +6126,7 @@ function tick() {
       }
     }
     updateDynamicPipeline(dejaAudio);
-  } else if (isYtReady && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+  } else if (isYtReady && isYtPlaying && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
     try {
       const ytSec = ytPlayer.getCurrentTime();
       if (typeof ytSec === 'number' && !isNaN(ytSec) && ytSec >= 0) {
@@ -6152,9 +6149,10 @@ function tick() {
       updateDynamicPipeline(ytPlayer);
     } catch {}
   } else if (isPlaying) {
-    // Only increment simulated time in pure mock/offline testing mode without player attached
-    if (!dejaAudio?.src && !isYtReady) {
+    // Advance clock in synthesizer fallback or mock/offline mode when neither HTML5 stream nor YT iframe is playing
+    if (!isDirectStreamPlaying && !isYtPlaying) {
       currentTime += 1;
+      lyricClockReconciler.snap(currentTime);
     }
   }
 
@@ -6263,7 +6261,11 @@ let lastScrollTargetIndex = -1;
 function startLyricClock() {
   if (typeof document === 'undefined') return;
   if (lyricClockTimer) clearInterval(lyricClockTimer);
-  lyricClockTimer = setInterval(tickLyricClock, 50);
+  lyricClockTimer = setInterval(() => {
+    if (!lyricClockRaf || (typeof document !== 'undefined' && document.hidden)) {
+      tickLyricClock();
+    }
+  }, 50);
 
   if (typeof requestAnimationFrame === 'function' && !lyricClockRaf) {
     function loop() {
@@ -6301,7 +6303,7 @@ function tickLyricClock() {
 
   if (isDirectStreamPlaying && dejaAudio && typeof dejaAudio.currentTime === 'number' && !isNaN(dejaAudio.currentTime)) {
     currentTime = lyricClockReconciler.reconcile(dejaAudio.currentTime, !dejaAudio.paused);
-  } else if (isYtReady && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+  } else if (isYtReady && isYtPlaying && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
     try {
       const ytSec = ytPlayer.getCurrentTime();
       if (typeof ytSec === 'number' && !isNaN(ytSec) && ytSec >= 0) {
@@ -6354,8 +6356,8 @@ function updateProgress() {
   const fillEl = document.getElementById('scrubber-fill');
   const knobEl = document.getElementById('scrubber-knob');
   if (curEl && timeStr !== _lastRenderedTimeStr) curEl.innerText = timeStr;
-  if (fillEl) fillEl.style.width = pctStr;
-  if (knobEl) knobEl.style.left = pctStr;
+  if (fillEl && fillEl.style.width !== pctStr) fillEl.style.width = pctStr;
+  if (knobEl && knobEl.style.left !== pctStr) knobEl.style.left = pctStr;
 
   const expCurEl = document.getElementById('exp-time-current');
   const expTotalEl = document.getElementById('exp-time-total');
@@ -6363,8 +6365,8 @@ function updateProgress() {
   const expKnobEl = document.getElementById('exp-scrubber-knob');
   if (expCurEl && timeStr !== _lastRenderedTimeStr) expCurEl.innerText = timeStr;
   if (expTotalEl && remainingStr !== _lastRenderedRemStr) expTotalEl.innerText = remainingStr;
-  if (expFillEl) expFillEl.style.width = pctStr;
-  if (expKnobEl) expKnobEl.style.left = pctStr;
+  if (expFillEl && expFillEl.style.width !== pctStr) expFillEl.style.width = pctStr;
+  if (expKnobEl && expKnobEl.style.left !== pctStr) expKnobEl.style.left = pctStr;
   _lastRenderedTimeStr = timeStr;
   _lastRenderedRemStr = remainingStr;
 }
@@ -6511,9 +6513,10 @@ function updateSyncedLyrics(forceScroll = false) {
           el.style.fontSize = '26px';
           el.style.transformOrigin = 'left center';
           if (isActive) {
+            const hasWordSync = Boolean((el.classList && typeof el.classList.contains === 'function' && el.classList.contains('has-word-sync')) || (typeof el.className === 'string' && el.className.includes('has-word-sync')));
             el.style.color = '#ffffff';
             el.style.fontWeight = '700';
-            el.style.textShadow = '0 4px 24px rgba(255,255,255,0.38)';
+            el.style.textShadow = hasWordSync ? 'none' : '0 4px 24px rgba(255,255,255,0.38)';
             el.style.filter = 'none';
             el.style.opacity = '1';
             el.style.transform = 'scale(1) translateZ(0)';
@@ -6580,7 +6583,9 @@ function updateSyncedLyrics(forceScroll = false) {
     } else {
       snippetText = (lines[0] && lines[0].text) ? lines[0].text : 'Lyrics';
     }
-    expSnippet.innerText = snippetText;
+    if (expSnippet.innerText !== snippetText) {
+      expSnippet.innerText = snippetText;
+    }
   }
 }
 
@@ -7005,7 +7010,7 @@ function updateDynamicPipeline(source) {
     if (bitrateEl) bitrateEl.innerText = currentStreamMeta?.bitrate ? `${Math.round(currentStreamMeta.bitrate / 1000)} kbps` : '160 kbps';
     if (rateEl) rateEl.innerText = `${audioContext?.sampleRate || 48000} Hz`;
     if (channelsEl) channelsEl.innerText = `${currentStreamMeta?.audioChannels || 2}.0 Stereo • 16-bit PCM`;
-    if (tierEl) tierEl.innerText = 'BitChord Direct Stream (Native HTML5)';
+    if (tierEl) tierEl.innerText = 'Deja Direct Stream (Native HTML5)';
   } else if (source && typeof source.getVideoLoadedFraction === 'function' && isYtPlaying) {
     const frac = source.getVideoLoadedFraction() || 0;
     const bufSec = Math.max(0, (frac * track.duration) - currentTime).toFixed(1);
@@ -7014,7 +7019,7 @@ function updateDynamicPipeline(source) {
     if (bitrateEl) bitrateEl.innerText = '160 kbps';
     if (rateEl) rateEl.innerText = '48.0 kHz';
     if (channelsEl) channelsEl.innerText = '2.0 Stereo • 16-bit';
-    if (tierEl) tierEl.innerText = 'BitChord Standard (160k Opus)';
+    if (tierEl) tierEl.innerText = 'Deja Standard (160k Opus)';
   } else {
     if (bufferEl) bufferEl.innerText = '18.4s forward buffer (synthesizer sink)';
     if (codecEl) codecEl.innerText = 'PCM Float32 (Web Audio API sink)';
@@ -8355,7 +8360,7 @@ const DEFAULT_BITCHORD_SETTINGS = {
     },
     {
       id: 'hires-flac-bridge',
-      name: 'BitChord Lossless FLAC Resolver',
+      name: 'Deja Lossless FLAC Resolver',
       url: 'https://lrclib.net/api',
       enabled: true,
       builtIn: true,
@@ -8494,7 +8499,7 @@ function applyBitChordVisualSettings() {
   }
   updateNerdStatsHud();
 
-  if (!bitchordSettings.animatedCanvas && typeof stopAllVideoElements === 'function' && !isVideoModeActive) {
+  if (!bitchordSettings.animatedCanvas && typeof stopAllVideoElements === 'function' && (typeof isVideoModeActive === 'undefined' || !isVideoModeActive)) {
     stopAllVideoElements();
   }
 
@@ -10247,7 +10252,7 @@ function renderSettingsView(container) {
   }
   if (matches('Export Data', 'Import Data', 'backup', 'restore')) {
     const expSubText = lastExportBackupStatus || 'Save your playlists, liked songs, listening history, and settings to JSON';
-    const impSubText = lastImportBackupStatus || 'Restore playlists, loved tracks, and BitChord settings from a backup JSON file';
+    const impSubText = lastImportBackupStatus || 'Restore playlists, loved tracks, and Deja settings from a backup JSON file';
     g8Rows.push(`
       <div class="bitchord-settings-row" data-setting-action="export-backup">
         <div class="bitchord-settings-icon">
@@ -10401,9 +10406,9 @@ function renderSettingsView(container) {
         </div>
         <div class="bitchord-settings-text">
           <div class="bitchord-settings-row-title">App Updates &amp; Version</div>
-          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.4.0 (BitChord Edition) — Click to check &amp; install updates in-app</div>
+          <div class="bitchord-settings-row-sub" id="settings-update-status-sub">Deja v1.5.0 — Click to check &amp; install updates in-app</div>
         </div>
-        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.4.0</span>
+        <span class="bitchord-settings-badge green" id="settings-update-badge">v1.5.0</span>
       </div>
     `);
   }
@@ -10432,7 +10437,7 @@ function renderSettingsView(container) {
 
       <div class="bitchord-settings-colophon">
         <div>
-          <strong>deja 1.4.0</strong>
+          <strong>deja 1.5.0</strong>
           <a href="https://github.com/Dathevinci/Deja" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="https://github.com/Dathevinci" target="_blank" rel="noopener noreferrer">Developer</a>
           <a href="https://dathevinci.github.io/Deja/" target="_blank" rel="noopener noreferrer">Website</a>
@@ -10610,7 +10615,7 @@ function renderSettingsView(container) {
         try {
           const payload = {
             app: 'Deja',
-            version: '1.4.0',
+            version: '1.5.0',
             exportedAt: new Date().toISOString(),
             settings: bitchordSettings,
             customPlaylists,
@@ -10665,11 +10670,11 @@ function renderSettingsView(container) {
               if (badge) badge.textContent = `Update v${info.latestVersion}`;
               openBitChordUpdateDialog(info);
             } else {
-              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.4.0'}).`;
+              if (sub) sub.textContent = `You are running the latest version (Deja v${info?.currentVersion || '1.5.0'}).`;
               if (badge) badge.textContent = 'Up to Date';
             }
           }).catch(() => {
-            if (sub) sub.textContent = 'Deja v1.4.0 is up to date.';
+            if (sub) sub.textContent = 'Deja v1.5.0 is up to date.';
           });
         }
       }
@@ -11402,7 +11407,7 @@ function handleBitChordUpdateProgress(prog) {
   const primaryBtn = document.getElementById('bitchord-update-btn-primary');
   const secondaryBtn = document.getElementById('bitchord-update-btn-secondary');
   const errEl = document.getElementById('bitchord-update-error');
-  const ver = latestPendingUpdateInfo?.latestVersion || '1.4.0';
+  const ver = latestPendingUpdateInfo?.latestVersion || '1.5.0';
 
   if (prog.state === 'downloading') {
     isUpdateDownloading = true;

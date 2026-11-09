@@ -892,7 +892,7 @@ const AudioPipeline = {
       bitDepth: '16-bit PCM',
       buffer: `${bufferSeconds}s forward buffer`,
       decoder: 'Chromium Hardware Accelerated Pipeline (Web Audio API sink)',
-      qualityTier: 'BitChord Standard Tier (160 kbps Opus)',
+      qualityTier: 'Deja Standard Tier (160 kbps Opus)',
       trackTitle: track.title || 'Current Track',
       trackArtist: track.artist || 'YouTube Music'
     };
@@ -1422,7 +1422,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     if (!right.querySelector('.deja-audio-pipeline-badge')) {
       const badge = document.createElement('div');
       badge.className = 'deja-audio-pipeline-badge';
-      badge.title = 'BitChord Audio Pipeline & Stats for Nerds';
+      badge.title = 'Deja Audio Pipeline & Stats for Nerds';
       badge.innerHTML = `<span class="badge-dot"></span> <span>160k Opus</span>`;
       badge.onclick = (e) => {
         e.stopPropagation();
@@ -1435,7 +1435,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     if (!right.querySelector('.deja-sleep-timer-btn')) {
       const sleepBtn = document.createElement('button');
       sleepBtn.className = 'deja-sleep-timer-btn';
-      sleepBtn.title = 'BitChord Sleep Timer';
+      sleepBtn.title = 'Deja Sleep Timer';
       sleepBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
       sleepBtn.onclick = (e) => {
         e.stopPropagation();
@@ -1448,7 +1448,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     if (!right.querySelector('.deja-eq-btn')) {
       const eqBtn = document.createElement('button');
       eqBtn.className = 'deja-eq-btn';
-      eqBtn.title = 'BitChord Equalizer Presets';
+      eqBtn.title = 'Deja Equalizer Presets';
       eqBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>`;
       eqBtn.onclick = (e) => {
         e.stopPropagation();
@@ -2614,7 +2614,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     }
 
     renderAppleModal({
-      title: 'BitChord Sleep Timer',
+      title: 'Deja Sleep Timer',
       customBody: `
         <div style="margin-bottom: 12px; font-size: 13px; color: var(--apple-text-secondary);">
           ${statusText}
@@ -2764,7 +2764,7 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
         <div class="deja-modal-row sonora-modal-row" id="deja-pref-theme" style="cursor: pointer;" title="Click to cycle Dark / OLED Black / Light">
           <div>
             <div class="deja-modal-label sonora-modal-label">Theme Styling</div>
-            <div class="deja-modal-desc sonora-modal-desc">BitChord &amp; macOS Apple Music Acrylic Glass (${escapeHtml(themeLabel)})</div>
+            <div class="deja-modal-desc sonora-modal-desc">Deja &amp; Apple Music Acrylic Glass (${escapeHtml(themeLabel)})</div>
           </div>
           <span class="deja-modal-badge sonora-modal-badge" id="deja-pref-theme-badge">${escapeHtml(themeLabel)}</span>
         </div>
@@ -2855,8 +2855,8 @@ function initDejaApplePlayer(api = (typeof window !== 'undefined' ? (window.deja
     renderAppleModal({
       title: 'About Deja',
       rows: [
-        { label: 'Version', desc: 'Deja Desktop Client v1.3.0 (BitChord Engine)', badge: 'v1.3.0' },
-        { label: 'Design System', desc: 'BitChord luminous mesh aura & Apple Music fluid glassmorphism', badge: 'BitChord' },
+        { label: 'Version', desc: 'Deja Desktop Client v1.4.0', badge: 'v1.4.0' },
+        { label: 'Design System', desc: 'Deja luminous mesh aura & Apple Music fluid glassmorphism', badge: 'Deja' },
         { label: 'Google TOS Disclosure', desc: 'Not affiliated with Google LLC. Respects all YouTube content licensing and advertisement rules.', badge: 'Verified' },
         { label: 'License', desc: 'GPLv3 Open Source License', badge: 'GPLv3' }
       ]

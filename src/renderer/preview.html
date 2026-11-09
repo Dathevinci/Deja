@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BitChord — Deja Desktop</title>
+  <title>Deja</title>
   <link rel="stylesheet" href="preview.css">
 </head>
 <body class="apple-dark bitchord-desktop-shell">
   <div class="app-ambient-backdrop" id="app-ambient-backdrop"></div>
-  <!-- BitChord FrostedTopBar (Matches FrostedTopBar.kt & MainActivity.kt) -->
+  <!-- FrostedTopBar -->
   <header id="deja-titlebar" class="deja-titlebar sonora-titlebar bc-frosted-topbar">
     <div class="deja-traffic-lights sonora-traffic-lights bc-topbar-left">
       <button class="deja-btn-traffic sonora-btn-traffic deja-btn-close sonora-btn-close" id="btn-close" title="Close"></button>
       <button class="deja-btn-traffic sonora-btn-traffic deja-btn-min sonora-btn-min" id="btn-minimize" title="Minimize"></button>
       <button class="deja-btn-traffic sonora-btn-traffic deja-btn-max sonora-btn-max" id="btn-maximize" title="Maximize"></button>
 
-      <!-- BitChord FloatingAppMark (40px circular glass mark with 3-wave BitChord logo) -->
-      <button class="bc-floating-app-mark" id="bc-top-logo-mark" title="BitChord Home">
-        <img src="../../assets/LogoTransparent.svg" alt="BitChord" class="bc-top-wave-svg" onerror="this.src='../../assets/icon.png'" />
+      <!-- FloatingAppMark (40px circular glass mark with Deja logo) -->
+      <button class="bc-floating-app-mark" id="bc-top-logo-mark" title="Deja Home">
+        <img src="../../assets/logo.png" alt="Deja" class="bc-top-wave-svg" onerror="this.src='../../assets/LogoTransparent.svg'" />
       </button>
 
       <!-- BitChord Pushed-Screen Circular Back Button -->
@@ -84,7 +84,7 @@
           <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
       </button>
-      <button class="bc-circle-glass-btn" id="bc-top-settings-btn" title="BitChord Settings">
+      <button class="bc-circle-glass-btn" id="bc-top-settings-btn" title="Settings">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -113,7 +113,7 @@
           <circle cx="12" cy="12" r="10"></circle>
         </svg>
       </button>
-      <!-- BitChord TopBarAccountButton (Circular avatar / sign-in button) -->
+      <!-- TopBarAccountButton (Circular avatar / sign-in button) -->
       <div class="user-profile-badge bc-topbar-account-btn" id="btn-login-status" title="YouTube Music Account &amp; Settings">
         <span class="profile-avatar" id="user-avatar-text">G</span>
         <img class="profile-avatar-img" id="user-avatar-img" style="display:none; width: 28px; height: 28px; border-radius: 50%; object-fit: cover;" alt="Avatar" />
@@ -127,10 +127,10 @@
     <!-- Left Translucent Sidebar -->
     <aside class="apple-sidebar">
       <div class="sidebar-logo">
-        <img src="../../assets/LogoTransparent.svg" alt="BitChord Logo" class="brand-icon" onerror="this.src='../../assets/logo.png'">
+        <img src="../../assets/logo.png" alt="Deja Logo" class="brand-icon" onerror="this.src='../../assets/icon.png'">
         <div class="brand-text">
-          <span class="brand-name">BitChord</span>
-          <span class="brand-tag">Deja Windows</span>
+          <span class="brand-name">Deja</span>
+          <span class="brand-tag">Music</span>
         </div>
       </div>
 
@@ -413,12 +413,12 @@
 
     <!-- Right Controls: Pipeline, Sleep Timer, EQ, Lyrics, Queue, Volume -->
     <div class="player-right">
-      <div class="deja-audio-pipeline-badge" id="btn-audio-pipeline" title="BitChord Audio Pipeline &amp; Stats for Nerds">
+      <div class="deja-audio-pipeline-badge" id="btn-audio-pipeline" title="Audio Pipeline &amp; Stats for Nerds">
         <span class="badge-dot"></span>
         <span>160k Opus</span>
       </div>
 
-      <button class="deja-sleep-timer-btn" id="btn-sleep-timer" title="BitChord Sleep Timer">
+      <button class="deja-sleep-timer-btn" id="btn-sleep-timer" title="Sleep Timer">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <polyline points="12 6 12 12 16 14"></polyline>
@@ -474,7 +474,7 @@
   </footer>
 
   <!-- BitChord 4-Tab Floating Glass Navigation Bar (FloatingBottomBar.kt / GlassNavBar.kt) -->
-  <nav class="bc-floating-nav-bar" id="bc-floating-nav-bar" aria-label="BitChord Navigation">
+  <nav class="bc-floating-nav-bar" id="bc-floating-nav-bar" aria-label="Deja Navigation">
     <button type="button" class="bc-nav-tab active" data-bc-tab="home" id="bc-tab-home">
       <svg class="bc-nav-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="m3 9.5 9-7 9 7V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -598,7 +598,7 @@
           <div class="player-nerd-stats-overlay" id="player-nerd-stats-overlay" style="display: none;">
             <div class="nerd-stats-header">
               <span class="nerd-stats-dot"></span>
-              <span>BITCHORD NERD STATS</span>
+              <span>DEJA NERD STATS</span>
             </div>
             <div class="nerd-stats-grid" id="player-nerd-stats-body">
               <div><span>Codec:</span> <strong id="nerd-stat-codec">Opus 251 (WebM)</strong></div>
@@ -744,7 +744,7 @@
             </div>
             <div class="expanded-time-row">
               <span class="expanded-time exp-time-current" id="exp-time-current">0:00</span>
-              <div class="exp-audio-pipeline-badge" id="exp-audio-pipeline-badge" title="BitChord Audio Quality &amp; Pipeline">
+              <div class="exp-audio-pipeline-badge" id="exp-audio-pipeline-badge" title="Audio Quality &amp; Pipeline">
                 <span class="pipeline-status-dot"></span>
                 <span id="exp-pipeline-text">Opus • 160 kbps • 48.0 kHz • Stereo</span>
               </div>
@@ -956,12 +956,12 @@
           </div>
           <div class="deja-pipeline-cell">
             <div class="deja-pipeline-label">Audio Quality Tier</div>
-            <div class="deja-pipeline-value" style="color: #34C759;" id="pipeline-tier">BitChord Standard (160k Opus)</div>
+            <div class="deja-pipeline-value" style="color: #34C759;" id="pipeline-tier">Deja Standard (160k Opus)</div>
           </div>
         </div>
         <div style="font-size: 11.5px; color: var(--apple-text-tertiary); margin-top: 10px; line-height: 1.5;">
           <strong>Audio Renderer:</strong> Chromium Hardware Audio Pipeline (Web Audio API sink)<br>
-          Real-time stream telemetry from BitChord audio pipeline architecture.
+          Real-time stream telemetry from Deja audio pipeline architecture.
         </div>
       </div>
     </div>
@@ -971,7 +971,7 @@
   <div class="modal-backdrop" id="sleep-modal" style="display: none;">
     <div class="apple-modal-box">
       <div class="modal-header">
-        <h2>BitChord Sleep Timer</h2>
+        <h2>Sleep Timer</h2>
         <button class="modal-close-btn" id="btn-close-sleep">&times;</button>
       </div>
       <div class="modal-body">
@@ -1414,7 +1414,7 @@
           <div class="bitchord-update-notes-heading">What's New</div>
           <div class="bitchord-update-notes-scroll" id="bitchord-update-notes">
             • Seamless in-app OTA updates with live progress bar (no browser needed).<br/>
-            • BitChord mobile-grade frosted glass UI, floating pill player &amp; smooth 60fps word-synced lyrics.<br/>
+            • Deja frosted glass UI, floating pill player &amp; smooth 60fps word-synced lyrics.<br/>
             • Exclusive Apple Music Motion animated artwork on PC &amp; Mobile.<br/>
             • Official Deja Discord Rich Presence branding.
           </div>

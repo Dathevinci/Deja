@@ -1900,10 +1900,13 @@ function runBitChordArchitectureTests() {
   assert.ok(nshCode.includes('!macro customWelcomePage'), 'installer.nsh must define customWelcomePage macro');
   assert.ok(nshCode.includes('BrandingText "DEJA v${VERSION} // 2-BIT UI"'), 'installer.nsh must set 2-Bit versioned BrandingText');
 
-  // 20. Authentic BitChord Desktop UI & Feature Parity Verification (v1.4.0)
-  assert.strictEqual(pkgJson.version, '1.4.0', 'package.json version must be 1.4.0');
-  assert.ok(fs.existsSync(path.join(__dirname, '../assets/Logo.svg')), 'Official BitChord Logo.svg must exist in assets/');
-  assert.ok(fs.existsSync(path.join(__dirname, '../assets/LogoTransparent.svg')), 'Official BitChord LogoTransparent.svg must exist in assets/');
+  // 20. Authentic Deja Desktop UI, Branding & Feature Parity Verification (v1.5.0)
+  assert.strictEqual(pkgJson.version, '1.5.0', 'package.json version must be 1.5.0');
+  assert.ok(fs.existsSync(path.join(__dirname, '../assets/Logo.svg')), 'Official Deja Logo.svg must exist in assets/');
+  assert.ok(fs.existsSync(path.join(__dirname, '../assets/LogoTransparent.svg')), 'Official Deja LogoTransparent.svg must exist in assets/');
+  const logoSvgContent = fs.readFileSync(path.join(__dirname, '../assets/Logo.svg'), 'utf8');
+  assert.ok(!logoSvgContent.includes('M142.673 587.458'), 'assets/Logo.svg must use Deja brand logo instead of 3-wave BitChord vector');
+  assert.ok(html.includes('<span class="brand-name">Deja</span>'), 'Sidebar brand-name in preview.html must be Deja');
 
   // Verify FrostedTopBar, 4-Tab Floating Glass Navigation Bar, Floating Pill MiniPlayer, and 2-Column LandscapePlayer in preview.html
   assert.ok(html.includes('id="bc-top-logo-mark"') && html.includes('LogoTransparent.svg'), 'preview.html must render BitChord FloatingAppMark with LogoTransparent.svg');
@@ -2100,6 +2103,8 @@ function runBitChordArchitectureTests() {
     assert.strictEqual(unverifiedItem._durationUnverified, true, 'createCatalogueItemFromLive must preserve _durationUnverified: true even when fallback duration is 210');
     assert.strictEqual(unverifiedItem.artist, 'Sabrina Carpenter', 'createCatalogueItemFromLive must strip subtitle suffixes from artist');
     assert.ok(css.includes('@media (min-width: 821px)') && css.includes('bc-np-mode-lyrics'), 'preview.css must include Windows desktop @media (min-width: 821px) layout and simultaneous lyrics/controls rules');
+    assert.ok(css.includes('flex: 0 0 5px !important') && css.includes('.bc-recents-grid-cards') && css.includes('.bc-replay-banner-card') && css.includes('.bc-new-playlist-plus'), 'preview.css must style fullscreen #exp-scrubber-track height, .bc-recents-grid-cards, .bc-replay-banner-card, and .bc-new-playlist-plus');
+    assert.ok(previewCode.includes("hasWordSync ? 'none' : '0 4px 24px rgba(255,255,255,0.38)'"), 'updateSyncedLyrics must disable inline text-shadow on word-synced active lines');
   } finally {
     global.document = bcPrevDoc;
   }
