@@ -77,25 +77,27 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        cat << 'EOF' > release-notes-v1.6.4.md
-        1. **Step 1:** Tap **Install Now** below (and press **Install** / **Update**).
-        2. **Step 2 (After Installing):** 👉 [**Tap Here to Open Deja 1.6.4 & Remove Old Copy**](deja://finish) *(then press **OK** to delete this old `bitchord` copy!)*
+        cat << 'EOF' > release-notes-v1.6.5.md
+        - **Stop Music on App Clear**: Playback now stops cleanly and dismisses the background service & notification whenever Deja is swiped away from Recent Apps.
+        - **Legacy Upgrade Helper**:
+          1. **Step 1:** Tap **Install Now** below (and press **Install** / **Update**).
+          2. **Step 2 (After Installing):** 👉 [**Tap Here to Open Deja 1.6.5 & Remove Old Copy**](deja://finish) *(if migrating from an older `bitchord` copy)*
 
         ---
         [android-only] windows_version: 1.6.3
         EOF
 
-        if gh release view v1.6.4 >/dev/null 2>&1; then
-          gh release edit v1.6.4 --title "Deja v1.6.4 [android-only]" --notes-file release-notes-v1.6.4.md --latest || true
+        if gh release view v1.6.5 >/dev/null 2>&1; then
+          gh release edit v1.6.5 --title "Deja v1.6.5 [android-only]" --notes-file release-notes-v1.6.5.md --latest || true
         else
-          gh release create v1.6.4 dist-apk/*.apk --title "Deja v1.6.4 [android-only]" --notes-file release-notes-v1.6.4.md --latest || true
+          gh release create v1.6.5 dist-apk/*.apk --title "Deja v1.6.5 [android-only]" --notes-file release-notes-v1.6.5.md --latest || true
         fi
-        gh release upload v1.6.4 dist-apk/*.apk --clobber || true
+        gh release upload v1.6.5 dist-apk/*.apk --clobber || true
 
         mkdir -p win-assets-163
         gh release download v1.6.3 -D win-assets-163 -p "*.exe" -p "*.blockmap" -p "latest.yml" --clobber || true
         if ls win-assets-163/* >/dev/null 2>&1; then
-          gh release upload v1.6.4 win-assets-163/* --clobber || true
+          gh release upload v1.6.5 win-assets-163/* --clobber || true
         fi
 
         LATEST_TAG=$(gh release view --json tagName --jq .tagName 2>/dev/null || echo "")
@@ -104,11 +106,12 @@ jobs:
         fi
         if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
           TAG_NAME="${GITHUB_REF#refs/tags/}"
-          if [ "$TAG_NAME" != "v1.6.4" ]; then
+          if [ "$TAG_NAME" != "v1.6.5" ]; then
             gh release view "$TAG_NAME" >/dev/null 2>&1 || gh release create "$TAG_NAME" --title "Deja $TAG_NAME" --notes "Deja $TAG_NAME for Windows & Android" || true
           fi
           gh release upload "$TAG_NAME" dist-apk/*.apk --clobber || true
         fi
+        gh release upload v1.6.4 dist-apk/*.apk --clobber || true
         gh release upload v1.6.3 dist-apk/*.apk --clobber || true
         gh release upload v1.6.2 dist-apk/*.apk --clobber || true
         gh release upload v1.6.1 dist-apk/*.apk --clobber || true

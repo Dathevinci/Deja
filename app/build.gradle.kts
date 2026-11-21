@@ -124,9 +124,9 @@ android {
         create("prod") {
             dimension = "env"
             // Matches defaultConfig — this is the package already shipped/installed.
-            // Android-only v1.6.4 bump while desktop package.json remains at 1.6.3:
-            versionCode = 33
-            versionName = "1.6.4"
+            // Android-only v1.6.5 bump while desktop package.json remains at 1.6.3:
+            versionCode = 34
+            versionName = "1.6.5"
         }
     }
 

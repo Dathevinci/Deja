@@ -2579,10 +2579,10 @@ function runBitChordArchitectureTests() {
     );
     assert.ok(
       gradleKtsCode.includes('targetSdk = 36') &&
-      gradleKtsCode.includes('versionCode = 33') &&
-      gradleKtsCode.includes('versionName = "1.6.4"') &&
+      gradleKtsCode.includes('versionCode = 34') &&
+      gradleKtsCode.includes('versionName = "1.6.5"') &&
       gradleKtsCode.includes('useLegacyPackaging = true'),
-      'app/build.gradle.kts must keep targetSdk = 36 (for Android 13+ READ_MEDIA_AUDIO and zero targetSdk downgrade), prod versionCode = 33, versionName = "1.6.4", and jniLibs.useLegacyPackaging = true'
+      'app/build.gradle.kts must keep targetSdk = 36 (for Android 13+ READ_MEDIA_AUDIO and zero targetSdk downgrade), prod versionCode = 34, versionName = "1.6.5", and jniLibs.useLegacyPackaging = true'
     );
     assert.ok(
       updateDialogCode.includes('fun LegacyCleanupDialog(') &&
@@ -2592,10 +2592,30 @@ function runBitChordArchitectureTests() {
       'UpdateAvailableDialog.kt and MainActivity.kt must display LegacyCleanupDialog, post ACTION_DELETE after first frame, and confirm update completion in onResume'
     );
     assert.ok(
-      androidYmlCode.includes('Deja v1.6.4 [android-only]') &&
+      androidYmlCode.includes('Deja v1.6.5 [android-only]') &&
       androidYmlCode.includes('[android-only] windows_version: 1.6.3') &&
       androidYmlCode.includes('(deja://finish)'),
-      'android.yml must publish v1.6.4 as Deja v1.6.4 [android-only] with clickable (deja://finish) Step 2 link and windows_version: 1.6.3'
+      'android.yml must publish v1.6.5 as Deja v1.6.5 [android-only] with clickable (deja://finish) Step 2 link and windows_version: 1.6.3'
+    );
+
+    // Edge case 4: v1.6.5 Stop Music on App Clear (onTaskRemoved & stopOnTaskRemoved default true)
+    const appSettingsKtCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/data/settings/AppSettings.kt'), 'utf8');
+    const playbackServiceKtCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/playback/PlaybackService.kt'), 'utf8');
+    assert.ok(
+      appSettingsKtCode.includes('val stopOnTaskRemoved = MutableStateFlow(true)') &&
+      appSettingsKtCode.includes('KEY_STOP_ON_TASK_REMOVED_DEFAULT_V2') &&
+      appSettingsKtCode.includes('prefs.getBoolean(KEY_STOP_ON_TASK_REMOVED, true)'),
+      'AppSettings.kt must default stopOnTaskRemoved to true and migrate existing installs via KEY_STOP_ON_TASK_REMOVED_DEFAULT_V2'
+    );
+    assert.ok(
+      playbackServiceKtCode.includes('override fun onTaskRemoved(rootIntent: Intent?)') &&
+      playbackServiceKtCode.includes('it.playWhenReady = false') &&
+      playbackServiceKtCode.includes('it.pause()') &&
+      playbackServiceKtCode.includes('it.stop()') &&
+      playbackServiceKtCode.includes('pauseAllPlayersAndStopSelf()') &&
+      playbackServiceKtCode.includes('stopForeground(STOP_FOREGROUND_REMOVE)') &&
+      playbackServiceKtCode.includes('if (!player.playWhenReady) return null'),
+      'PlaybackService.kt onTaskRemoved must cancel background jobs, clear playWhenReady, pause/stop both ExoPlayers, and invoke pauseAllPlayersAndStopSelf() + stopForeground(STOP_FOREGROUND_REMOVE)'
     );
 
     previewModule.CATALOGUE_TRACKS.length = 0;

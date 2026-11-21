@@ -4032,6 +4032,7 @@ class PlaybackService : MediaLibraryService() {
     /** Main thread. Null unless [mediaId] is still current and has another upgrade slot. */
     private fun swapPointFor(mediaId: String): SwapPoint? {
         val player = player ?: return null
+        if (!player.playWhenReady) return null
         val item = player.currentMediaItem ?: return null
         if (item.mediaId != mediaId) return null
         val uri = item.localConfiguration?.uri?.toString() ?: return null
@@ -6107,19 +6108,58 @@ class PlaybackService : MediaLibraryService() {
      * Called by Android when the user swipes this app's task away from the
      * recent apps screen.
      *
-     * When [AppSettings.stopOnTaskRemoved] is on we stop the player and let the
-     * service die naturally; otherwise we leave it running in the background so
-     * music continues past the swipe, which is the default Android behaviour for
-     * a foreground-service-backed media session.
+     * When [AppSettings.stopOnTaskRemoved] is on (the default) we cancel any
+     * in-flight transitions or background stream upgrades, clear `playWhenReady`,
+     * pause and stop both players, dismiss the foreground notification via
+     * [pauseAllPlayersAndStopSelf], and terminate the service so music never
+     * keeps playing after the app is cleared.
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
-        super.onTaskRemoved(rootIntent)
         if (AppSettings.stopOnTaskRemoved.value) {
-            // Both, or a swipe-away mid-crossfade leaves the outgoing track
-            // playing on its own out of a service that is on its way out.
-            eachPlayer { it.stop() }
+            versionSwapJob?.cancel()
+            versionSwapJob = null
+            swappingMediaId = null
+            AppSettings.versionAlignmentInProgress.value = false
+            AppSettings.smartMixInProgress.value = false
+            crossfade?.onSkipRequested()
+            upgradeJob?.cancel()
+            upgradeJob = null
+            autoplayLoadJob?.cancel()
+            autoplayLoadJob = null
+            stationActionJob?.cancel()
+            stationActionJob = null
+            favoriteActionJob?.cancel()
+            favoriteActionJob = null
+            outputReconfigureJob?.cancel()
+            outputReconfigureJob = null
+            cancelPrefetch()
+            QualityUpgrade.forgetLastSession()
+            player?.let(::savePlaybackState)
+            // Clear playWhenReady as well as stopping both players: ExoPlayer.stop()
+            // transitions to STATE_IDLE without resetting playWhenReady, which would
+            // leave Media3, widgets, and any surviving bound session thinking playback
+            // is still requested.
+            eachPlayer {
+                it.playWhenReady = false
+                it.pause()
+                it.stop()
+                it.volume = 1f
+            }
+            publishWidgetState(playing = false)
+            clearDiscordPresence()
+            ListeningRecorder.onStopped()
+            pauseAllPlayersAndStopSelf()
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
+            return
         }
+        if (player?.playWhenReady != true && spare?.playWhenReady != true) {
+            pauseAllPlayersAndStopSelf()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
+        super.onTaskRemoved(rootIntent)
     }
 
 
@@ -6379,6 +6419,9 @@ class PlaybackService : MediaLibraryService() {
             // itself on the party's instant, and starts it anyway if the party
             // never answers. Outside a party this is an ordinary play().
             if (deferPlayToParty()) return
+            if (playbackState == Player.STATE_IDLE && mediaItemCount > 0) {
+                prepare()
+            }
             super.play()
         }
 
@@ -6401,6 +6444,9 @@ class PlaybackService : MediaLibraryService() {
             if (lockedTransport(playWhenReady)) return
             onUserIntent()
             if (playWhenReady && deferPlayToParty()) return
+            if (playWhenReady && playbackState == Player.STATE_IDLE && mediaItemCount > 0) {
+                prepare()
+            }
             super.setPlayWhenReady(playWhenReady)
         }
 
