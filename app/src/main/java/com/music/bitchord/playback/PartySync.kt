@@ -241,6 +241,42 @@ class PartySync(
     }
 
     /**
+     * Cleans up party sync and leaves any active party synchronously when the
+     * app task is cleared from Recents (`PlaybackService.onTaskRemoved`), while
+     * keeping the collector jobs intact in case a bound system controller keeps
+     * the service instance alive for a later session.
+     */
+    fun onTaskRemoved() {
+        publishJob?.cancel()
+        startJob?.cancel()
+        deferredPlayPending = false
+        loadingVideoId = null
+        focusLost = false
+        rejoining = false
+        locallyPaused = false
+        lastPartyCode = null
+        val stashed = PartyPersonalQueueStash.load()
+        if (stashed != null && stashed.songs.isNotEmpty()) {
+            player()?.setMediaItems(
+                stashed.songs.map { it.toMediaItem() },
+                stashed.index,
+                stashed.positionMs,
+            )
+            PartyPersonalQueueStash.clear()
+        }
+        if (ListenTogether.state.value.inParty) {
+            ListenTogether.leavePartyImmediate()
+        }
+    }
+
+    private fun Player.prepareAndPlay() {
+        if (playbackState == Player.STATE_IDLE && mediaItemCount > 0) {
+            prepare()
+        }
+        play()
+    }
+
+    /**
      * The user did something to playback on this device — or the queue moved on
      * by itself, which is the same thing as far as the party is concerned.
      *
@@ -375,7 +411,7 @@ class PartySync(
             ListenTogether.partyPositionMs()
                 ?.takeIf { party.clockSynced }
                 ?.let(exo::seekTo)
-            exo.play()
+            exo.prepareAndPlay()
         } else {
             locallyPaused = true
             exo.pause()
@@ -461,7 +497,7 @@ class PartySync(
             val exo = player() ?: return@launch
             if (!exo.playWhenReady) {
                 Log.w(TAG, "party never acknowledged the resume; starting locally")
-                exo.play()
+                exo.prepareAndPlay()
             }
         }
     }
@@ -576,7 +612,7 @@ class PartySync(
             if (want != null) exo.seekTo(want)
             deferredPlayPending = false
             startJob?.cancel()
-            exo.play()
+            exo.prepareAndPlay()
             alignedSeq = target.seq
             return
         }

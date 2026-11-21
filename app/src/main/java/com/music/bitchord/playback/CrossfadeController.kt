@@ -460,6 +460,20 @@ class CrossfadeController(
         if (phase != Phase.IDLE) bail()
     }
 
+    /**
+     * Immediately aborts any armed, fading, sleep-fading, or bailing transition
+     * without running the 120ms [Phase.BAILING] ramp-out.
+     *
+     * Used when tearing down playback in [PlaybackService.onTaskRemoved] so both
+     * players are synchronously restored to their idle roles, transition filters
+     * are reopened, beatmatch speed stretches are undone, and the standby player's
+     * queue is cleared before the players are stopped.
+     */
+    fun cancelNow() {
+        AppSettings.smartTransitionWindow.value = null
+        finish()
+    }
+
     // ---- Ticker -------------------------------------------------------------
 
     private fun tick() {

@@ -2601,6 +2601,9 @@ function runBitChordArchitectureTests() {
     // Edge case 4: v1.6.5 Stop Music on App Clear (onTaskRemoved & stopOnTaskRemoved default true)
     const appSettingsKtCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/data/settings/AppSettings.kt'), 'utf8');
     const playbackServiceKtCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/playback/PlaybackService.kt'), 'utf8');
+    const crossfadeControllerKtCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/playback/CrossfadeController.kt'), 'utf8');
+    const partySyncKtCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/playback/PartySync.kt'), 'utf8');
+    const listenTogetherKtCode = fs.readFileSync(path.join(__dirname, '../app/src/main/java/com/music/bitchord/data/listentogether/ListenTogether.kt'), 'utf8');
     assert.ok(
       appSettingsKtCode.includes('val stopOnTaskRemoved = MutableStateFlow(true)') &&
       appSettingsKtCode.includes('KEY_STOP_ON_TASK_REMOVED_DEFAULT_V2') &&
@@ -2608,14 +2611,27 @@ function runBitChordArchitectureTests() {
       'AppSettings.kt must default stopOnTaskRemoved to true and migrate existing installs via KEY_STOP_ON_TASK_REMOVED_DEFAULT_V2'
     );
     assert.ok(
+      crossfadeControllerKtCode.includes('fun cancelNow()') &&
+      partySyncKtCode.includes('fun onTaskRemoved()') &&
+      partySyncKtCode.includes('private fun Player.prepareAndPlay()') &&
+      listenTogetherKtCode.includes('fun leavePartyImmediate()'),
+      'CrossfadeController, PartySync, and ListenTogether must support synchronous task-removal teardown and STATE_IDLE prepare-before-play'
+    );
+    assert.ok(
       playbackServiceKtCode.includes('override fun onTaskRemoved(rootIntent: Intent?)') &&
+      playbackServiceKtCode.includes('private fun ensureServiceStartedForPlayback()') &&
+      playbackServiceKtCode.includes('partySync?.onTaskRemoved()') &&
+      playbackServiceKtCode.includes('crossfade?.cancelNow()') &&
+      playbackServiceKtCode.includes('watchUpgradeJob?.cancel()') &&
+      playbackServiceKtCode.includes('recoveryJob?.cancel()') &&
       playbackServiceKtCode.includes('it.playWhenReady = false') &&
       playbackServiceKtCode.includes('it.pause()') &&
       playbackServiceKtCode.includes('it.stop()') &&
+      playbackServiceKtCode.includes('spare?.clearMediaItems()') &&
       playbackServiceKtCode.includes('pauseAllPlayersAndStopSelf()') &&
       playbackServiceKtCode.includes('stopForeground(STOP_FOREGROUND_REMOVE)') &&
       playbackServiceKtCode.includes('if (!player.playWhenReady) return null'),
-      'PlaybackService.kt onTaskRemoved must cancel background jobs, clear playWhenReady, pause/stop both ExoPlayers, and invoke pauseAllPlayersAndStopSelf() + stopForeground(STOP_FOREGROUND_REMOVE)'
+      'PlaybackService.kt onTaskRemoved must ensure started state on play, tear down partySync & crossfade synchronously, cancel watchUpgradeJob/recoveryJob/upgradeJob, clear playWhenReady, pause/stop both ExoPlayers, and invoke pauseAllPlayersAndStopSelf() + stopForeground(STOP_FOREGROUND_REMOVE)'
     );
 
     previewModule.CATALOGUE_TRACKS.length = 0;

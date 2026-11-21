@@ -994,20 +994,32 @@ object ListenTogether {
     /** Give up this device's slot. The party carries on without it. */
     suspend fun leaveParty() = switchMutex.withLock {
         withContext(Dispatchers.IO) {
-            val code = _state.value.code
-            val held = token
-            val currentServer = activePartyServerBase ?: resolveHttpBase(effectiveIdleServerBase())
-            socketJob?.cancel()
-            socketJob = null
-            session = null
-            clock.reset()
-            token = null
-            activePartyServerBase = null
+            leavePartyImmediate()
+        }
+    }
+
+    /**
+     * Synchronously tears down local party state and dispatches the server
+     * `/leave` notification on [scope] so callers on the main thread (such as
+     * `PlaybackService.onTaskRemoved`) never race an in-flight tick or depend
+     * on a service coroutine scope that is about to be destroyed.
+     */
+    fun leavePartyImmediate() {
+        val code = _state.value.code
+        val held = token
+        val currentServer = activePartyServerBase ?: resolveHttpBase(effectiveIdleServerBase())
+        socketJob?.cancel()
+        socketJob = null
+        session = null
+        clock.reset()
+        token = null
+        activePartyServerBase = null
+        if (this::prefs.isInitialized) {
             prefs.edit().remove(KEY_CODE).remove(KEY_TOKEN).apply()
-            _state.value = State()
-            if (code != null && held != null) {
-                releaseStaleSlotOnServer(currentServer, code, held)
-            }
+        }
+        _state.value = State()
+        if (code != null && held != null) {
+            releaseStaleSlotOnServer(currentServer, code, held)
         }
     }
 
